@@ -1,5 +1,5 @@
-#ifndef nxa_value_h
-#define nxa_value_h
+#ifndef value_h
+#define value_h
 
 #include "common.h"
 

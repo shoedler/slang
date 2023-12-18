@@ -48,8 +48,8 @@ void scan_tests_dir(const wchar_t* path,
       }
     } else {
       // Check if file matches the criteria
-      if (has_extension(find_file_data.cFileName, _T(".spec.nx"))) {
-        // Check for corresponding .expect.nx file
+      if (has_extension(find_file_data.cFileName, _T(".spec.sl"))) {
+        // Check for corresponding .expect.sl file
         wchar_t expect_filename[MAX_PATH];
         _stprintf(expect_filename, _T("%s.expect"), find_file_data.cFileName);
 
@@ -57,7 +57,7 @@ void scan_tests_dir(const wchar_t* path,
         _stprintf(expect_filepath, _T("%s\\%s"), path, expect_filename);
 
         if (file_exists(expect_filepath)) {
-          // Store the .spec.nx file path
+          // Store the .spec.sl file path
           wchar_t full_path[MAX_PATH];
           _stprintf(full_path, _T("%s\\%s"), path, find_file_data.cFileName);
 
@@ -67,7 +67,7 @@ void scan_tests_dir(const wchar_t* path,
           }
         } else {
           WINTERNAL_ERROR(
-              L"Could not find corresponding .expect.nx file for \"%s\". "
+              L"Could not find corresponding .expect.sl file for \"%s\". "
               L"Ignoring test.",
               find_file_data.cFileName);
         }
@@ -316,7 +316,7 @@ bool run_test(const wchar_t* path) {
 
 // Utility to run all tests in a directory
 void run_tests(const wchar_t* path) {
-  wchar_t* test_file_paths[100];   // Found test-file-paths. (*.spec.nx)
+  wchar_t* test_file_paths[100];   // Found test-file-paths. (*.spec.sl)
   int count = 0;                   // Number of files found
   int max_files = MAX_SPEC_FILES;  // Maximum number of files to find
 
