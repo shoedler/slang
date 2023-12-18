@@ -196,6 +196,7 @@ let batches = 0
 
 let start = clock()
 let i = 0
+
 while clock() < start + duration {
   while i < 10000 {
     let zoo = Zoo()

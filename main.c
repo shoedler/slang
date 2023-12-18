@@ -12,7 +12,7 @@ static void repl() {
   // TODO: Improve this, don't just use a fixed line length - lol
   char line[1024];
   for (;;) {
-    printf("nxs > ");
+    printf("slang > ");
 
     if (!fgets(line, sizeof(line), stdin)) {
       printf("\n");
@@ -51,7 +51,7 @@ static void run_file(const wchar_t* path) {
 }
 
 void usage() {
-  printf("Usage: nx <args>\n");
+  printf("Usage: slang <args>\n");
   printf("  run  <path> Run script at <path>\n");
   printf("  test <path> Run tests at <path> entry dir\n");
   printf("  repl        Run REPL\n");
@@ -61,10 +61,10 @@ void usage() {
 int wmain(int argc, wchar_t* argv[]) {
   // TODO: Remove this
   argc = 3;
-  // argv[1] = L"test";
-  // argv[2] = L"C:\\Projects\\nx-script\\NxVm\\test";
-  argv[1] = L"run";
-  argv[2] = L"C:\\Projects\\nx-script\\NxVm\\script_sample.nx";
+  argv[1] = L"test";
+  argv[2] = L"C:\\Projects\\slang\\test";
+  // argv[1] = L"run";
+  // argv[2] = L"C:\\Projects\\slang\\script_sample.sl";
 
   if (argc == 2 && wcscmp(argv[1], L"repl") == 0) {
     repl();
