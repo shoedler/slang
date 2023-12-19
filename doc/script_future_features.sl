@@ -1,6 +1,33 @@
 // -----------------------------------------
 // Future features
 // -----------------------------------------
+// Current Syntax
+cls OldFnSyntax {
+  ctor -> {
+    print "A ctor"
+  }
+
+  fn method -> {
+    print "A"
+  }
+}
+
+cls OldFnSyntax2 {
+  ctor = x -> {
+    print "scone with " + x
+  }
+
+  fn topping = first, second -> {
+    print "scone with " + first + " and " + second
+    ret 1;
+
+    let function = fn -> {
+      print this
+    }
+  }
+}
+
+// New Syntax
 cls NewFnSyntax {
   // Named Fns
   // No args decl 

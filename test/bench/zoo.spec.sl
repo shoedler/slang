@@ -16,7 +16,7 @@ cls Zoo {
 }
 
 let zoo = Zoo()
-let duration = 5
+let duration = 0.5
 let sum = 0
 let batches = 0
 

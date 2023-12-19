@@ -258,8 +258,8 @@ static void concatenate() {
   chars[length] = '\0';
 
   ObjString* result = take_string(chars, length);
-  pop();  // Pop, because we peeked
-  pop();  // Pop, because we peeked
+  pop();  // Pop, because we only peeked
+  pop();  // Pop, because we only peeked
   push(OBJ_VAL(result));
 }
 

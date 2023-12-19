@@ -11,7 +11,9 @@ A bytecode VM written in C, based on the book [Crafting Interpreters](https://cr
 ### Phase 1
 
 -   [x] Base implementation of the VM
+-   [ ] Fix GC Bug in current sample script
 -   [ ] Add tests according to the original repository of bob nystrom
+-   [ ] Allow return stats without suffixed `;`
 
 ### Phase 2
 
@@ -20,12 +22,19 @@ A bytecode VM written in C, based on the book [Crafting Interpreters](https://cr
 
 ### Phase 3
 
--   [ ] Constant folding directly in the compiler
 -   [ ] Implement `break`
 -   [ ] Implement `continue`
 -   [ ] Implement `inc` and `dec` operators, maybe as a separate OpCode
 -   [ ] Implement `+=`, `-=`, `*=`, `/=`, `%=`
+
+### Phase 4
+
+-   [ ] Implement hashtable keys for all types: Objs are by reference, primitives and strings by value
 -   [ ] Implement sequences
+
+### Phase 5
+
+-   [ ] Constant folding directly in the compiler
 
 ### Phase 999
 
