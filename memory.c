@@ -1,4 +1,5 @@
 #include "memory.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include "compiler.h"
 #include "vm.h"
@@ -98,6 +99,7 @@ static void blacken_object(Obj* object) {
     case OBJ_CLASS: {
       ObjClass* klass = (ObjClass*)object;
       mark_obj((Obj*)klass->name);
+      mark_hashtable(&klass->methods);
       break;
     }
     case OBJ_CLOSURE: {
