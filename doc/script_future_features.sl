@@ -3,27 +3,21 @@
 // -----------------------------------------
 // Current Syntax
 cls OldFnSyntax {
-  ctor -> {
-    print "A ctor"
-  }
+  // Named Fns
+  // No args decl 
+  ctor -> { this.v = 1 }
+  fn a -> { }
+
+  // Args decl
+  ctor = x,y,z -> { ret x + y + z; }
+  fn a = x,y,z -> { ret x + y + z; }
 
   fn method -> {
-    print "A"
-  }
-}
-
-cls OldFnSyntax2 {
-  ctor = x -> {
-    print "scone with " + x
-  }
-
-  fn topping = first, second -> {
-    print "scone with " + first + " and " + second
-    ret 1;
-
-    let function = fn -> {
-      print this
-    }
+    // Anon / Lambda Fns
+    // No args decl
+    let a = fn -> { }
+    // Args decl
+    let a = fn x,y,z -> x + y + z;
   }
 }
 
@@ -31,23 +25,21 @@ cls OldFnSyntax2 {
 cls NewFnSyntax {
   // Named Fns
   // No args decl 
-  ctor { }
-  fn a { }
+  ctor { this.v = 1 }
+  fn a { ret 1 }
 
   // Args decl
-  ctor |a,b,c| { }
-  fn a |a,b,c| { }
+  ctor(a,b,c) { }
+  fn a(x,y,z) { ret x + y + z }
 
   fn method {
-    
     // Anon / Lambda Fns
     // No args decl
-    let a = -> { }
+    let a = () -> { }
     // Args decl
-    let a = a,b,c -> { }
+    let a = (a,b,c) -> { }
   }
 }
-
 
 // TODO: Add support for pure objs
 // TODO: Add support for sequences

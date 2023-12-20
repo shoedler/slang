@@ -11,7 +11,8 @@ A bytecode VM written in C, based on the book [Crafting Interpreters](https://cr
 ### Phase 1
 
 -   [x] Base implementation of the VM
--   [ ] Fix GC Bug in current sample script
+-   [x] Fix GC Bug in current sample script
+-   [ ] Align fn syntax
 -   [ ] Add tests according to the original repository of bob nystrom
 -   [ ] Allow return stats without suffixed `;`
 
@@ -39,5 +40,6 @@ A bytecode VM written in C, based on the book [Crafting Interpreters](https://cr
 ### Phase 999
 
 -   [ ] Implement a JIT compiler
+-   [ ] Infer names of anonymous functions (Improves stack traces)
 
 ## Cleanup

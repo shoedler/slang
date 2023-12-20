@@ -278,6 +278,7 @@ static void end_scope() {
 
 static void expression();
 static void statement();
+static void block();
 
 static uint8_t argument_list();
 static ParseRule* get_rule(TokenType type);
@@ -470,20 +471,37 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
   init_compiler(&compiler, type, name);
   begin_scope();
 
-  if (!check(TOKEN_LAMBDA)) {
-    do {
-      current->function->arity++;
-      if (current->function->arity > MAX_FN_ARGS) {
-        error_at_current("Can't have more than MAX_FN_ARGS parameters.");
-      }
-      uint8_t constant = parse_variable("Expecting parameter name.");
-      define_variable(constant);
-    } while (match(TOKEN_COMMA));
+  // Parameters
+  if (match(TOKEN_OPAR)) {
+    if (!match(TOKEN_CPAR)) {  // It's allowed to have "()" with no parameters.
+      do {
+        current->function->arity++;
+        if (current->function->arity > MAX_FN_ARGS) {
+          error_at_current("Can't have more than MAX_FN_ARGS parameters.");
+        }
+        uint8_t constant = parse_variable("Expecting parameter name.");
+        define_variable(constant);
+      } while (match(TOKEN_COMMA));
+    }
+
+    if (!match(TOKEN_CPAR)) {
+      error_at_current("Expecting ')' after parameters.");
+    }
   }
 
-  consume(TOKEN_LAMBDA, "Expecting '->' after parameters.");
-
-  statement();
+  // Body
+  if (match(TOKEN_OBRACE)) {
+    block();
+  } else if (match(TOKEN_LAMBDA)) {
+    // TODO: end_compiler() will also emit OP_NIL and OP_RETURN, which we don't
+    // are unnecessary (Same goes for non-lambda functions which only have a
+    // return) We could optimize this by not emitting those instructions, but
+    // that would require some changes to end_compiler() and emit_return().
+    expression();
+    emit_byte(OP_RETURN);
+  } else {
+    error_at_current("Expecting '{' before function body.");
+  }
 
   ObjFunction* function =
       end_compiler();  // Also handles end of scope. (end_scope())
@@ -507,8 +525,6 @@ static void method() {
   ObjString* method_name =
       copy_string(parser.previous.start, parser.previous.length);
 
-  match(TOKEN_ASSIGN);  // Just ignore it.
-
   function(false /* does not matter */, TYPE_METHOD, method_name);
   emit_bytes(OP_METHOD, constant);
 }
@@ -519,8 +535,6 @@ static void constructor() {
   ObjString* ctor_name =
       copy_string(parser.previous.start,
                   parser.previous.length);  // TODO: Maybe preload this?
-
-  match(TOKEN_ASSIGN);  // Just ignore it.
 
   function(false /* does not matter */, TYPE_CONSTRUCTOR, ctor_name);
   emit_bytes(OP_METHOD, constant);
@@ -809,7 +823,6 @@ static void statement_declaration_function() {
   ObjString* fn_name =
       copy_string(parser.previous.start, parser.previous.length);
 
-  match(TOKEN_ASSIGN);  // Just ignore it.
   function(false /* does not matter */, TYPE_FUNCTION, fn_name);
   define_variable(global);
 }

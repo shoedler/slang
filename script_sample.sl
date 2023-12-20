@@ -176,7 +176,7 @@
 // Benchmarks
 // -----------------------------------------
 cls Zoo {
-  ctor -> {
+  ctor {
     this.aardvark = 1
     this.baboon   = 1
     this.cat      = 1
@@ -185,12 +185,12 @@ cls Zoo {
     this.fox      = 1
   }
 
-  fn ant    -> { ret this.aardvark; }
-  fn banana -> { ret this.baboon; }
-  fn tuna   -> { ret this.cat; }
-  fn hay    -> { ret this.donkey; }
-  fn grass  -> { ret this.elephant; }
-  fn mouse  -> { ret this.fox; }
+  fn ant    -> this.aardvark
+  fn banana -> this.baboon
+  fn tuna   -> this.cat
+  fn hay    -> this.donkey
+  fn grass  -> this.elephant
+  fn mouse  -> this.fox
 }
 
 let sum = 0
@@ -222,3 +222,22 @@ print batches
 print "In"
 print duration
 print "seconds"
+
+fn func(x) -> x
+
+cls A {
+  ctor {
+    this.a = 1
+  }
+
+  fn method(y) {
+    print this.a
+    print y
+  }
+}
+
+let a = A()
+a.method(78)
+
+print func(90)
+print func
