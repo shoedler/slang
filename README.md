@@ -1,3 +1,5 @@
+<img src="./doc/slang.png" width="200">
+
 # slang
 
 A bytecode VM written in C, based on the book [Crafting Interpreters](https://craftinginterpreters.com/).
