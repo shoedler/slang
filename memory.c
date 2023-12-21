@@ -29,7 +29,7 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size) {
 
   void* result = realloc(pointer, new_size);
   if (result == NULL) {
-    // TODO: Handle out of memory
+    // TODO (recovery): Handle out of memory
     INTERNAL_ERROR("Not enough memory to reallocate");
     exit(70);
   }
@@ -59,7 +59,7 @@ void mark_obj(Obj* object) {
     vm.gray_stack =
         (Obj**)realloc(vm.gray_stack, sizeof(Obj*) * vm.gray_capacity);
 
-    // TODO: Handle out of memory
+    // TODO (recovery): Handle out of memory
     if (vm.gray_stack == NULL) {
       INTERNAL_ERROR("Not enough memory to reallocate gray stack");
       exit(70);
@@ -129,7 +129,8 @@ static void blacken_object(Obj* object) {
     case OBJ_STRING:
       break;
     default:
-      break;  // TODO: THROW? Probably yes, bc we need to mark all objects
+      break;  // TODO (recovery): What do we do here? Throw? Probably yes, bc we
+              // need to mark all objects
   }
 }
 
@@ -179,7 +180,8 @@ static void free_object(Obj* object) {
     case OBJ_UPVALUE:
       FREE(ObjUpvalue, object);
       break;
-      // TODO: default? THROW?
+      // TODO (recovery): We probably need a default case here. What do we do
+      // there? Throw? Probably yes, bc we need to free all objects
   }
 }
 

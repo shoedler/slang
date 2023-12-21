@@ -1,11 +1,11 @@
 cls A {
-  fn method -> {
+  fn method {
     print "A"
   }
 }
 
 cls B : A {
-  fn method -> {
+  fn method {
     let closure = base.method
     closure() // Prints "A"
   }

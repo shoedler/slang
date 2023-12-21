@@ -12,7 +12,7 @@ A bytecode VM written in C, based on the book [Crafting Interpreters](https://cr
 
 -   [x] Base implementation of the VM
 -   [x] Fix GC Bug in current sample script
--   [ ] Align fn syntax
+-   [x] Align fn syntax
 -   [ ] Add tests according to the original repository of bob nystrom
 -   [ ] Allow return stats without suffixed `;`
 

@@ -1,8 +1,6 @@
-fn outer -> {
+fn outer {
   let x = "outer"
-  let inner = fn -> {
-    print x
-  }
+  let inner = fn { print x }
   inner()
 }
 

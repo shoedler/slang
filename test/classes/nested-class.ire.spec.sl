@@ -1,11 +1,11 @@
 cls Main {
-  ctor -> {
+  ctor {
     this.x = 1
   }
 
-  fn define_other_class -> {
+  fn define_other_class {
     cls Other {
-      ctor -> {
+      ctor {
         this.y = 2
       }
     }

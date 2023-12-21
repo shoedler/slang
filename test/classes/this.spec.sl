@@ -1,6 +1,6 @@
 cls Nested {
-  fn method -> {
-    fn function -> {
+  fn method {
+    fn function {
       print this
     }
 

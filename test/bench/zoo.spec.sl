@@ -1,5 +1,5 @@
 cls Zoo {
-  ctor -> {
+  ctor {
     this.aardvark = 1
     this.baboon   = 1
     this.cat      = 1
@@ -7,12 +7,12 @@ cls Zoo {
     this.elephant = 1
     this.fox      = 1
   }
-  fn ant    -> { ret this.aardvark; }
-  fn banana -> { ret this.baboon; }
-  fn tuna   -> { ret this.cat; }
-  fn hay    -> { ret this.donkey; }
-  fn grass  -> { ret this.elephant; }
-  fn mouse  -> { ret this.fox; }
+  fn ant    -> this.aardvark
+  fn banana -> this.baboon
+  fn tuna   -> this.cat
+  fn hay    -> this.donkey
+  fn grass  -> this.elephant
+  fn mouse  -> this.fox
 }
 
 let zoo = Zoo()
@@ -36,10 +36,10 @@ while clock() < start + duration {
   i = 0
 }
 
-print "Sum:" 
-print sum
+print "Sum (not time dependent):"
+print sum / batches
 print "Batches of 10000:"
-print batches
+print batches >= 260
 print "In"
 print duration
 print "seconds"

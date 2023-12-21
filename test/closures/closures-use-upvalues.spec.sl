@@ -1,7 +1,7 @@
-fn outer -> {
+fn outer {
   let x = "value"
-  fn middle -> {
-    fn inner -> { 
+  fn middle {
+    fn inner { 
       print x
     }
 

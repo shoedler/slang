@@ -493,10 +493,18 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
   if (match(TOKEN_OBRACE)) {
     block();
   } else if (match(TOKEN_LAMBDA)) {
-    // TODO: end_compiler() will also emit OP_NIL and OP_RETURN, which we don't
-    // are unnecessary (Same goes for non-lambda functions which only have a
-    // return) We could optimize this by not emitting those instructions, but
-    // that would require some changes to end_compiler() and emit_return().
+    // TODO (optimize): end_compiler() will also emit OP_NIL and OP_RETURN,
+    // which we don't are unnecessary (Same goes for non-lambda functions which
+    // only have a return) We could optimize this by not emitting those
+    // instructions, but that would require some changes to end_compiler() and
+    // emit_return().
+
+    // TODO (syntax): Only allowing expressions here is kinda sad. Things like
+    // `let f = fn -> print 123` are not possible anymore, because the `print`
+    // is a statement. Obviously, statements do not return a value - maybe we
+    // could relax this restriction, forcing us - however - to answer questions
+    // like "what does a for loop return?"
+
     expression();
     emit_byte(OP_RETURN);
   } else {
@@ -515,7 +523,7 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
 
 static void anonymous_function(bool can_assign) {
   function(can_assign /* does not matter */, TYPE_FUNCTION,
-           copy_string("<Anon>", 9));
+           copy_string("<Anon>", 7));
 }
 
 static void method() {
@@ -532,9 +540,10 @@ static void method() {
 static void constructor() {
   consume(TOKEN_CTOR, "Expecting constructor.");
   uint8_t constant = string_constant(&parser.previous);
+  // TODO (optimize): Maybe preload this? A constructor is always called the
+  // the same name - so we could just load it once and then reuse it.
   ObjString* ctor_name =
-      copy_string(parser.previous.start,
-                  parser.previous.length);  // TODO: Maybe preload this?
+      copy_string(parser.previous.start, parser.previous.length);
 
   function(false /* does not matter */, TYPE_CONSTRUCTOR, ctor_name);
   emit_bytes(OP_METHOD, constant);
@@ -921,9 +930,10 @@ static void statement_return() {
     error("Can't return from top-level code.");
   }
 
-  // TODO: We don't want semicolons after return statements - but it's almost
-  // impossible to get rid of them here Since there literally could come
+  // TODO (syntax): We don't want semicolons after return statements - but it's
+  // almost impossible to get rid of them here Since there could literally come
   // anything after a return statement.
+
   if (match(TOKEN_SCOLON)) {
     emit_return();
   } else {

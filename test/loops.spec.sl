@@ -16,18 +16,14 @@ while b {
 }
 
 for let i = 0 ; i < 10 ; i = i + 1 {
-  let outer = fn -> {
+  let outer = fn {
     let x = "outside"
-    let inner = fn -> {
-      print x
-    }
+    let inner = fn { print x }
     ret inner;
   }
 
   for let y = 0; y < 10; y = y + 1 {
-    let x = fn -> {
-      print "Hello World"
-    }
+    let x = fn { print "Hello World" }
     x()
   }
   let closure = outer()

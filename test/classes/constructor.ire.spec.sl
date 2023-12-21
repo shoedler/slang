@@ -1,9 +1,9 @@
 cls CoffeeMaker {
-  ctor = coffee -> {
+  ctor(coffee) {
     this.coffee = coffee
   }
 
-  fn brew -> {
+  fn brew {
     print "Enjoy your cup of " + this.coffee
 
     // No reusing the grounds!

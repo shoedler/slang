@@ -1,7 +1,10 @@
-let a = fn -> print "a" // Anonymous Fn
-let a_args = fn x,y,z -> print x + y + z // Anonymous Fn
-fn b -> print "b" // Named Fn
-fn b_args x,y,z -> print x + y + z // Named Fn
+// Anonymous Fn
+let a = fn -> "a"
+let a_args = fn(x,y,z) -> x + y + z
+
+// Named Fn
+fn b -> "b" 
+fn b_args(x,y,z) -> x + y + z
 
 print a
 print a_args

@@ -1,5 +1,5 @@
 cls Scone {
-  fn topping = first, second -> {
+  fn topping(first, second) {
     print "scone with " + first + " and " + second
     ret 1;
   }

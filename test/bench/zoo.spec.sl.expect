@@ -1,7 +1,7 @@
-Sum:
-196380000
+Sum (not time dependent):
+60000
 Batches of 10000:
-3273
+true
 In
-5
+0.500000
 seconds

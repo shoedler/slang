@@ -35,9 +35,9 @@ cls NewFnSyntax {
   fn method {
     // Anon / Lambda Fns
     // No args decl
-    let a = () -> { }
+    let a = fn() -> { }
     // Args decl
-    let a = (a,b,c) -> { }
+    let a = fn(a,b,c) -> { }
   }
 }
 

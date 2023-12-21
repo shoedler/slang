@@ -1,8 +1,9 @@
-let fib = fn n ->
+let fib = fn(n) {
   if n <= 1
     ret n;
   else
     ret (fib(n-1) + fib(n-2));
+}
 
 // With native functions. Here, timed with clock()
 let start = clock()

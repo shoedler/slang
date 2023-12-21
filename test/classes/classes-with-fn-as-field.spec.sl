@@ -1,7 +1,7 @@
 // Without emitting OP_INVOKE
 cls Foo {
-  ctor -> {
-    fn bar -> {
+  ctor {
+    fn bar {
       print "not a method"
     }
 

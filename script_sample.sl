@@ -225,6 +225,11 @@ print "seconds"
 
 fn func(x) -> x
 
+let anon = fn -> 123
+let anon2 = fn(x) {
+  print x
+}
+
 cls A {
   ctor {
     this.a = 1
@@ -241,3 +246,9 @@ a.method(78)
 
 print func(90)
 print func
+
+print anon()
+print anon
+
+print anon2(90)
+print anon2

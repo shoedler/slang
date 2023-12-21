@@ -9,7 +9,7 @@
 static void repl() {
   init_vm();
 
-  // TODO: Improve this, don't just use a fixed line length - lol
+  // TODO (misc): Use linenoise for REPLing
   char line[1024];
   for (;;) {
     printf("slang > ");
@@ -59,12 +59,21 @@ void usage() {
 }
 
 int wmain(int argc, wchar_t* argv[]) {
-  // TODO: Remove this
+#ifdef START_WITH_SAMPLE_SCRIPT
   argc = 3;
-  // argv[1] = L"test";
-  // argv[2] = L"C:\\Projects\\slang\\test";
   argv[1] = L"run";
   argv[2] = L"C:\\Projects\\slang\\script_sample.sl";
+#endif
+
+#ifdef START_WITH_TESTS
+  argc = 3;
+  argv[1] = L"test";
+  argv[2] = L"C:\\Projects\\slang\\test";
+#endif
+
+#ifdef _DEBUG
+  printf(ANSI_YELLOW_STR("[Debug Build]\n"));
+#endif
 
   if (argc == 2 && wcscmp(argv[1], L"repl") == 0) {
     repl();

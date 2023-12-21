@@ -332,8 +332,7 @@ void run_tests(const wchar_t* path) {
   }
 
   if (count >= max_files) {
-    WINTERNAL_ERROR(L"Limit of %d test files reached",
-                    max_files);  // TODO: Make warning instead of error
+    WINTERNAL_ERROR(L"Limit of %d test files reached", max_files);
     exit(70);
   }
 
