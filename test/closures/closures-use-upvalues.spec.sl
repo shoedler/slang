@@ -13,6 +13,6 @@ fn outer {
   ret middle;
 }
 
-let mid = outer()
-let in = mid()
-in()
+let mid = outer() // [Expect] return from outer
+let in = mid()    // [Expect] create inner closure
+in()              // [Expect] value

@@ -4,4 +4,4 @@ fn outer {
   inner()
 }
 
-outer()
+outer() // [Expect] outer

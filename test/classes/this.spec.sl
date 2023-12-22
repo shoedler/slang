@@ -8,4 +8,4 @@ cls Nested {
   }
 }
 
-Nested().method()
+Nested().method() // [Expect] [Instance of Nested]

@@ -10,5 +10,5 @@ cls Foo {
 }
 
 let foo = Foo()
-foo.field() // Goes via call_value()
-print foo.field
+foo.field() // [Expect] not a method
+print foo.field // [Expect] [Fn bar, arity 0]

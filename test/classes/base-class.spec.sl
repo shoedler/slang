@@ -12,4 +12,4 @@ cls B : A {
 }
 
 let b = B()
-b.method()
+b.method() // [Expect] A

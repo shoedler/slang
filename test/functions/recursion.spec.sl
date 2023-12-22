@@ -7,7 +7,7 @@ let fib = fn(n) {
 
 // With native functions. Here, timed with clock()
 let start = clock()
-print "Let's calculate fib(10)!"
-let result = fib(10)
-print result
-print clock() - start
+print "Let's calculate fib(10)!" // [Expect] Let's calculate fib(10)!
+let result = fib(10)        
+print result                     // [Expect] 55
+print clock() - start            // [Expect] 0

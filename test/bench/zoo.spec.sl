@@ -36,10 +36,6 @@ while clock() < start + duration {
   i = 0
 }
 
-print "Sum (not time dependent):"
-print sum / batches
-print "Batches of 10000:"
-print batches >= 260
-print "In"
-print duration
-print "seconds"
+print sum / batches   // [Expect] 60000
+print batches >= 260  // [Expect] true
+print duration        // [Expect] 0.500000
