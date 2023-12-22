@@ -454,7 +454,9 @@ static void base_(bool can_assign) {
   }
 
   consume(TOKEN_DOT, "Expecting '.' after '" BASE_CLASS_KEYWORD "'.");
-  consume(TOKEN_ID, "Expecting base class method name.");
+  if (!match(TOKEN_ID)) {
+    consume(TOKEN_CTOR, "Expecting base class method name.");
+  }
   uint8_t name = string_constant(&parser.previous);
 
   named_variable(synthetic_token("this"), false);
