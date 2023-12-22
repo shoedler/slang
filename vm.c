@@ -391,7 +391,7 @@ static InterpretResult run() {
       }
       case OP_SET_PROPERTY: {
         if (!IS_INSTANCE(peek(1))) {
-          runtime_error("Only instances have fields.");
+          runtime_error("Only instances can have fields.");
           return INTERPRET_RUNTIME_ERROR;
         }
 
