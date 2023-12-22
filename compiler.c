@@ -473,7 +473,7 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
 
   // Parameters
   if (match(TOKEN_OPAR)) {
-    if (!match(TOKEN_CPAR)) {  // It's allowed to have "()" with no parameters.
+    if (!check(TOKEN_CPAR)) {  // It's allowed to have "()" with no parameters.
       do {
         current->function->arity++;
         if (current->function->arity > MAX_FN_ARGS) {
