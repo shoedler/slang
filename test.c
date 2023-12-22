@@ -64,6 +64,11 @@ void scan_tests_dir(const wchar_t* path,
 
 // Utility function to read a file
 char* read_file(const wchar_t* path) {
+  if (path == NULL) {
+    WINTERNAL_ERROR(L"Cannot open NULL path \"%s\"", path);
+    exit(74);
+  }
+
   FILE* file = _wfopen(path, L"rb");
   if (file == NULL) {
     WINTERNAL_ERROR(L"Could not open file \"%s\"", path);
@@ -435,23 +440,22 @@ bool run_test(const wchar_t* path) {
 
 // Utility to run all tests in a directory
 void run_tests(const wchar_t* path) {
-  wchar_t* test_file_paths[100];   // Found test-file-paths. (*.spec.sl)
+  wchar_t* test_file_paths[MAX_SPEC_FILES];   // Found test-file-paths. (*.spec.sl)
   int count = 0;                   // Number of files found
-  int max_files = MAX_SPEC_FILES;  // Maximum number of files to find
 
-  for (int i = 0; i < max_files; i++) {
+  for (int i = 0; i < MAX_SPEC_FILES; i++) {
     test_file_paths[i] = (wchar_t*)malloc(MAX_PATH * sizeof(wchar_t));
   }
 
-  scan_tests_dir(path, test_file_paths, &count, max_files);
+  scan_tests_dir(path, test_file_paths, &count, MAX_SPEC_FILES);
 
   if (count == 0) {
     WINTERNAL_ERROR(L"No test files found in \"%s\"", path);
     exit(70);
   }
 
-  if (count >= max_files) {
-    WINTERNAL_ERROR(L"Limit of %d test files reached", max_files);
+  if (count >= MAX_SPEC_FILES) {
+    WINTERNAL_ERROR(L"Limit of %d test files reached", MAX_SPEC_FILES);
     exit(70);
   }
 

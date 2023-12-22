@@ -9,7 +9,7 @@
 #include <windows.h>
 #include "common.h"
 
-#define MAX_SPEC_FILES 100
+#define MAX_SPEC_FILES 600
 
 char* read_file(const wchar_t* path);
 void run_tests(const wchar_t* path);
