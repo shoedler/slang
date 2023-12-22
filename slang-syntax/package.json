@@ -20,6 +20,10 @@
                 "extensions": [
                     ".sl"
                 ],
+                "icon": {
+                    "light": "./assets/slang.png",
+                    "dark": "./assets/slang.png"
+                },
                 "configuration": "./language-configuration.json"
             }
         ],
