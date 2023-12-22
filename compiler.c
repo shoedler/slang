@@ -838,6 +838,7 @@ static void statement_declaration_function() {
   ObjString* fn_name =
       copy_string(parser.previous.start, parser.previous.length);
 
+  mark_initialized();
   function(false /* does not matter */, TYPE_FUNCTION, fn_name);
   define_variable(global);
 }
