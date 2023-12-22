@@ -338,7 +338,10 @@ static void call(bool can_assign) {
 }
 
 static void dot(bool can_assign) {
-  consume(TOKEN_ID, "Expecting property name after '.'.");
+  if (!match(TOKEN_ID)) {
+    consume(TOKEN_CTOR, "Expecting property name after '.'.");
+  }
+
   uint8_t name = string_constant(&parser.previous);
 
   if (can_assign && match(TOKEN_ASSIGN)) {
