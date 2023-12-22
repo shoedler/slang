@@ -278,6 +278,7 @@ static void end_scope() {
 
 static void expression();
 static void statement();
+static void declaration();
 static void block();
 
 static uint8_t argument_list();
@@ -1011,7 +1012,7 @@ static void statement_for() {
 
 static void block() {
   while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF)) {
-    statement();
+    declaration();
   }
 
   consume(TOKEN_CBRACE, "Expecting '}' after block.");
@@ -1020,26 +1021,32 @@ static void block() {
 static void statement() {
   if (match(TOKEN_PRINT)) {
     statement_print();
-  } else if (match(TOKEN_CLASS)) {
-    statement_declaration_class();
   } else if (match(TOKEN_IF)) {
     statement_if();
-  } else if (match(TOKEN_RETURN)) {
-    statement_return();
   } else if (match(TOKEN_WHILE)) {
     statement_while();
+  } else if (match(TOKEN_RETURN)) {
+    statement_return();
   } else if (match(TOKEN_FOR)) {
     statement_for();
   } else if (match(TOKEN_OBRACE)) {
     begin_scope();
     block();
     end_scope();
+  } else {
+    statement_expression();
+  }
+}
+
+static void declaration() {
+  if (match(TOKEN_CLASS)) {
+    statement_declaration_class();
   } else if (match(TOKEN_FN)) {
     statement_declaration_function();
   } else if (match(TOKEN_LET)) {
     statement_declaration_let();
   } else {
-    statement_expression();
+    statement();
   }
 
   if (parser.panic_mode) {
@@ -1062,7 +1069,7 @@ ObjFunction* compile(const char* source) {
   advance();
 
   while (!match(TOKEN_EOF)) {
-    statement();
+    declaration();
   }
 
   ObjFunction* function = end_compiler();
