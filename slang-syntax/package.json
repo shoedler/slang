@@ -21,8 +21,8 @@
                     ".sl"
                 ],
                 "icon": {
-                    "light": "./assets/slang.png",
-                    "dark": "./assets/slang.png"
+                    "light": "./assets/slang-s-light.png",
+                    "dark": "./assets/slang-s-dark.png"
                 },
                 "configuration": "./language-configuration.json"
             }

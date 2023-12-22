@@ -1,4 +1,4 @@
-<img src="./doc/slang.png" width="200">
+<img src="./doc/slang-dark.png" width="200">
 
 # slang
 
@@ -17,6 +17,7 @@ A bytecode VM written in C, based on the book [Crafting Interpreters](https://cr
 -   [x] Align fn syntax
 -   [ ] Add tests according to the original repository of bob nystrom
 -   [ ] Allow return stats without suffixed `;`
+-   [ ] `cls B < A {}` crashes the VM
 
 ### Phase 2
 
