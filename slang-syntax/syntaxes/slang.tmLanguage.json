@@ -35,7 +35,14 @@
             "patterns": [
                 {
                     "name": "comment.line.double-slash.SlangScript",
-                    "match": "//.*$"
+                    "begin": "//",
+                    "end": "$",
+                    "patterns": [
+                        {
+                            "name": "storage.type.SlangScript",
+                            "match": "\\[(Expect|ExpectCompileError|ExpectRuntimeError)\\]"
+                        }
+                    ]
                 }
             ]
         },
