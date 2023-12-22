@@ -72,7 +72,7 @@ int wmain(int argc, wchar_t* argv[]) {
 #endif
 
 #ifdef _DEBUG
-  printf(ANSI_YELLOW_STR("[Debug Build]\n"));
+  printf(ANSI_YELLOW_STR("[DebugBuild]\n"));
 #endif
 
   if (argc == 2 && wcscmp(argv[1], L"repl") == 0) {

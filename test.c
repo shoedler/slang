@@ -1,21 +1,19 @@
 #include "test.h"
 #include "vm.h"
 
+typedef enum { TYPE_PRINT, TYPE_COMPILE_ERROR, TYPE_RUNTIME_ERROR } ExpectType;
+
+typedef struct {
+  int line;
+  ExpectType type;
+  char* value;
+} Expectation;
+
 // Utility function to check if a file has the specified extension
 bool has_extension(const wchar_t* file_name, const wchar_t* extension) {
   size_t len = _tcslen(file_name);
   size_t extLen = _tcslen(extension);
   return len > extLen && _tcscmp(file_name + len - extLen, extension) == 0;
-}
-
-// Utility function to check if a file exists
-bool file_exists(const wchar_t* file_path) {
-  FILE* file = _wfopen(file_path, L"rb");
-  if (file == NULL) {
-    return false;
-  }
-  fclose(file);
-  return true;
 }
 
 // Recursive function to scan directory
@@ -47,29 +45,14 @@ void scan_tests_dir(const wchar_t* path,
         scan_tests_dir(new_path, file_paths, count, max_files);
       }
     } else {
-      // Check if file matches the criteria
       if (has_extension(find_file_data.cFileName, _T(".spec.sl"))) {
-        // Check for corresponding .expect.sl file
-        wchar_t expect_filename[MAX_PATH];
-        _stprintf(expect_filename, _T("%s.expect"), find_file_data.cFileName);
+        // Store the .spec.sl file path
+        wchar_t full_path[MAX_PATH];
+        _stprintf(full_path, _T("%s\\%s"), path, find_file_data.cFileName);
 
-        wchar_t expect_filepath[MAX_PATH];
-        _stprintf(expect_filepath, _T("%s\\%s"), path, expect_filename);
-
-        if (file_exists(expect_filepath)) {
-          // Store the .spec.sl file path
-          wchar_t full_path[MAX_PATH];
-          _stprintf(full_path, _T("%s\\%s"), path, find_file_data.cFileName);
-
-          if (*count < max_files) {
-            _tcscpy(file_paths[*count], full_path);
-            (*count)++;
-          }
-        } else {
-          WINTERNAL_ERROR(
-              L"Could not find corresponding .expect.sl file for \"%s\". "
-              L"Ignoring test.",
-              find_file_data.cFileName);
+        if (*count < max_files) {
+          _tcscpy(file_paths[*count], full_path);
+          (*count)++;
         }
       }
     }
@@ -109,57 +92,152 @@ char* read_file(const wchar_t* path) {
   return buffer;
 }
 
-// Utility to compare two strings line by line
-const char** compare_strings_by_line(const char* a,
-                                     const char* b,
-                                     int* num_diff) {
-#define DIFF_LINE_SIZE 1024
-  // Temporary variables for processing
-  char* line_a;
-  char* line_b;
-  char* context_a = NULL;
-  char* context_b = NULL;
+// Utility to trim whitespace from a string
+char* trim_whitespace(char* str) {
+  while (isspace((unsigned char)*str))
+    str++;
+  if (*str == 0)
+    return str;
 
-  char* temp_a = strdup(a);
-  if (temp_a == NULL) {
-    INTERNAL_ERROR("Not enough memory to allocate temp_a");
+  char* end = str + strlen(str) - 1;
+  while (end > str && isspace((unsigned char)*end))
+    end--;
+  *(end + 1) = 0;
+
+  return str;
+}
+
+// Utility to count lines in a string
+int count_lines(const char* str) {
+  if (str == NULL) {
+    return 0;
+  }
+
+  char* temp = strdup(str);
+  if (temp == NULL) {
+    INTERNAL_ERROR("Not enough memory to allocate temp");
     exit(70);
   }
 
-  char* temp_b = strdup(b);
-  if (temp_b == NULL) {
-    INTERNAL_ERROR("Not enough memory to allocate temp_b");
-    exit(70);
+  int line_count = 0;
+  char* line = strtok(temp, "\r\n");
+
+  while (line != NULL) {
+    line_count++;
+    line = strtok(NULL, "\r\n");
   }
 
-  // Count the number of lines in a for allocating the array
-  int line_count_a = 0;
-  for (int i = 0; temp_a[i]; i++) {
-    if (temp_a[i] == '\n') {
-      line_count_a++;
+  free(temp);
+  return line_count;
+}
+
+// Utility to get the ExpectType from a tag
+ExpectType get_expect_type(const char* tag) {
+  if (strncmp(tag, "[ExpectRuntimeError", strlen("[ExpectRuntimeError")) == 0) {
+    return TYPE_RUNTIME_ERROR;
+  }
+  if (strncmp(tag, "[ExpectCompileError", strlen("[ExpectCompileError")) == 0) {
+    return TYPE_COMPILE_ERROR;
+  }
+  if (strncmp(tag, "[Expect", strlen("[Expect")) == 0) {
+    return TYPE_PRINT;
+  }
+  INTERNAL_ERROR("Invalid ExpectType");
+  exit(70);
+}
+
+// Utility to compare a single line with an Expectation
+bool compare_line_with_expectation(const char* line,
+                                   const Expectation* expectation) {
+  return strcmp(line, expectation->value) == 0;
+}
+
+// Utility to parse expectations from a source string (multiline)
+Expectation* parse_expectations(const char* input, int* count) {
+  int line_count = count_lines(input);
+
+  Expectation* expectations = malloc(sizeof(Expectation) * line_count);
+  if (expectations == NULL) {
+    INTERNAL_ERROR("Not enough memory to allocate expectations array");
+    exit(70);
+  }
+  *count = 0;
+
+  // Process each line
+  char* temp = _strdup(input);
+  if (temp == NULL) {
+    INTERNAL_ERROR("Not enough memory to allocate temp");
+    exit(70);
+    return;
+  }
+
+  int line_no = 0;
+  for (const char* line = strtok(temp, "\r\n"); line != NULL;
+       line = strtok(NULL, "\r\n")) {
+    line_no++;
+
+    char* comment_start = strstr(line, "//");
+    if (!comment_start) {
+      continue;
     }
+
+    comment_start += 2;  // Skip the "//"
+    char* tag_start = strstr(comment_start, "[Expect");
+    if (!tag_start) {
+      continue;
+    }
+
+    char* tag_end = strchr(tag_start, ']');
+    if (!tag_end) {
+      continue;
+    }
+
+    *tag_end = '\0';  // Terminate the tag string
+    ExpectType type = get_expect_type(tag_start);
+    if (type == -1) {
+      continue;
+    }
+
+    expectations[*count].line = line_no;
+    expectations[*count].type = type;
+    expectations[*count].value = _strdup(trim_whitespace(tag_end + 1));
+    if (expectations[*count].value == NULL) {
+      INTERNAL_ERROR(
+          "Not enough memory to allocate expectations[*count].value");
+      exit(70);
+    }
+    (*count)++;
   }
 
-  const char** diff = malloc(DIFF_LINE_SIZE * (line_count_a + 1));
+  free(temp);
+  return expectations;
+}
+
+// Utility to compare a string with a set of expectations
+const char** compare_string_with_expectations(const char* input,
+                                              const Expectation* expectations,
+                                              int num_expectations,
+                                              int* num_differences) {
+#define DIFF_LINE_SIZE 1024
+  int line_count = count_lines(input);
+  int diff_count = 0;
+  const char** diff = malloc(DIFF_LINE_SIZE * (line_count + 1));
   if (diff == NULL) {
     INTERNAL_ERROR("Not enough memory to allocate diff array");
     exit(70);
   }
 
-  // Start tokenizing and comparing
-  int diff_count = 0;
-  line_a = strtok_s(temp_a, "\r\n", &context_a);
-  line_b = strtok_s(temp_b, "\r\n", &context_b);
+  char* temp = strdup(input);
+  if (temp == NULL) {
+    INTERNAL_ERROR("Not enough memory to allocate temp");
+    exit(70);
+  }
+
+  // Compare exepecations array to input. Line by line
+  char* line = strtok(temp, "\r\n");
   int line_no = 0;
-
-  while (line_a != NULL) {
-    line_no++;
-    // If line_b is NULL, it means b has fewer lines than a
-    if (line_b == NULL) {
-      break;
-    }
-
-    if (strcmp(line_a, line_b) != 0) {
+  while (line != NULL && line_no < num_expectations) {
+    if (!compare_line_with_expectation(line, &expectations[line_no])) {
       // Lines are different, format the string and add to diff
       char* diff_line = malloc(DIFF_LINE_SIZE);
       if (diff_line == NULL) {
@@ -169,23 +247,24 @@ const char** compare_strings_by_line(const char* a,
       sprintf(diff_line,
               "on line %d: expected " ANSI_GREEN_STR(
                   "%s") ", but was " ANSI_RED_STR("%s") " in outfile",
-              line_no, line_a, line_b);
+              expectations[line_no].line, expectations[line_no].value, line);
       diff[diff_count++] = diff_line;
     }
 
-    // Move to the next line
-    line_a = strtok_s(NULL, "\r\n", &context_a);
-    line_b = strtok_s(NULL, "\r\n", &context_b);
+    line = strtok(NULL, "\r\n");
+    line_no++;
   }
 
-  // Warn if b has more lines than a
-  if (line_b != NULL) {
-    printf(ANSI_YELLOW_STR("[OutfileIsLonger] "));
+  // Warn if there are more lines in the output than expectations
+  if (line_count > num_expectations) {
+    printf(ANSI_YELLOW_STR("[UnhandledLinesInOutfile:%d] "),
+           line_count - num_expectations);
   }
 
-  // Warn if a is empty
-  if (line_count_a == 0 && _strcmpi(a, "") == 0) {
-    printf(ANSI_YELLOW_STR("[ExpectFileEmpty] "));
+  // Warn if there are more expectations in the source than in the output
+  if (line_count < num_expectations) {
+    printf(ANSI_YELLOW_STR("[UnexhaustedExpectations:%d] "),
+           num_expectations - line_count);
   }
 
   if (line_no) {
@@ -193,11 +272,9 @@ const char** compare_strings_by_line(const char* a,
     diff[diff_count] = NULL;
   }
 
-  *num_diff = diff_count;
+  *num_differences = diff_count;
 
-  // Clean up
-  free(temp_a);
-  free(temp_b);
+  free(temp);
 
   return diff;
 #undef DIFF_LINE_SIZE
@@ -209,7 +286,11 @@ bool run_test(const wchar_t* path) {
 
   char* source = read_file(path);
 
-  // Create output file path based on file path
+  // Parse expectations from test source
+  int num_expectations = 0;
+  Expectation* expectations = parse_expectations(source, &num_expectations);
+
+  // Create output file path based on file path for stdout
   wchar_t wout_file_path[MAX_PATH];
   _stprintf(wout_file_path, _T("%s.out"), path);
 
@@ -244,43 +325,55 @@ bool run_test(const wchar_t* path) {
     exit(70);
   }
 
+  // Restore stderr
   if (_dup2(_fileno(stdout_), _fileno(stderr)) != 0) {
     INTERNAL_ERROR("Could not restore stderr");
     exit(70);
   }
 
-  // Compare output with expect
-  wchar_t expect_filepath[MAX_PATH];
-  _stprintf(expect_filepath, _T("%s%s"), path, L".expect");
+  // Read outfile (stdout log)
   wchar_t out_filepath[MAX_PATH];
   _stprintf(out_filepath, _T("%s%s"), path, L".out");
-
-  char* expect = read_file(expect_filepath);
   char* out = read_file(out_filepath);
 
+  // Compare out with expected
+  int num_differences = 0;
   bool passed = true;
-  int num_diff = 0;
-
-  const char** differences = compare_strings_by_line(expect, out, &num_diff);
-  if (num_diff > 0) {
+  const char** differences = compare_string_with_expectations(
+      out, expectations, num_expectations, &num_differences);
+  if (num_differences > 0) {
     passed = false;
-    printf(ANSI_RED_STR("Failed: %d lines differ!\n"), num_diff);
-    for (int i = 0; i < num_diff; i++) {
+    printf(ANSI_RED_STR("Failed, %d lines differ!\n"), num_differences);
+    for (int i = 0; i < num_differences; i++) {
       printf("        #%d: %s\n", i + 1, differences[i]);
       free((void*)differences[i]);
     }
   }
-
-  free(expect);
-  free(out);
   free(differences);
 
+  // Check if there are any [ExpectRuntimeError] or [ExpectCompileError] tags
+  // present in the expectations. If so, allow runtime and compile errors
+  bool allow_runtime_errors = false;
+  bool allow_compile_errors = false;
+  for (int i = 0; i < num_expectations; i++) {
+    if (expectations[i].type == TYPE_RUNTIME_ERROR) {
+      allow_runtime_errors = true;
+    }
+    if (expectations[i].type == TYPE_COMPILE_ERROR) {
+      allow_compile_errors = true;
+    }
+  }
+
+  // Free expections
+  for (int i = 0; i < num_expectations; i++) {
+    free(expectations[i].value);
+  }
+  free(expectations);
+
+  // Evaluate result
   if (!passed) {
     return passed;
   }
-
-  bool allow_runtime_errors = wcsstr(path, L".ire.") != NULL;
-  bool allow_compile_errors = wcsstr(path, L".ice.") != NULL;
 
   switch (result) {
     case INTERPRET_OK:
@@ -288,25 +381,25 @@ bool run_test(const wchar_t* path) {
       break;
     case INTERPRET_COMPILE_ERROR: {
       if (allow_compile_errors) {
-        printf(ANSI_GREEN_STR("Passed with Compile Error!\n"));
+        printf(ANSI_GREEN_STR("Passed!\n"));
         break;
       }
       passed = false;
-      printf(ANSI_RED_STR("Failed with Compile Error!\n"));
+      printf(ANSI_RED_STR("Failed, unexpected Compile Error!\n"));
       break;
     }
     case INTERPRET_RUNTIME_ERROR: {
       if (allow_runtime_errors) {
-        printf(ANSI_GREEN_STR("Passed with Runtime Error!\n"));
+        printf(ANSI_GREEN_STR("Passed!\n"));
         break;
       }
       passed = false;
-      printf(ANSI_RED_STR("Failed with Runtime Error!\n"));
+      printf(ANSI_RED_STR("Failed, unexpected Runtime Error!\n"));
       break;
     }
     default:
       passed = false;
-      printf(ANSI_RED_STR("Failed: Internal Error!\n"));
+      printf(ANSI_RED_STR("Failed due to Internal Error!\n"));
       INTERNAL_ERROR("Unhandled InterpretResult");
       break;
   }
