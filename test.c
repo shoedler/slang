@@ -221,7 +221,8 @@ const char** compare_string_with_expectations(const char* input,
 #define DIFF_LINE_SIZE 1024
   int line_count = count_lines(input);
   int diff_count = 0;
-  const char** diff = malloc(DIFF_LINE_SIZE * (line_count + 1));
+  int max_diffs = line_count > num_expectations ? line_count : num_expectations;
+  const char** diff = malloc(DIFF_LINE_SIZE * (max_diffs + 1));
   if (diff == NULL) {
     INTERNAL_ERROR("Not enough memory to allocate diff array");
     exit(70);
@@ -255,16 +256,37 @@ const char** compare_string_with_expectations(const char* input,
     line_no++;
   }
 
-  // Warn if there are more lines in the output than expectations
+  // If there are more lines in the output than expectations, we consider them
+  // differences aswell
   if (line_count > num_expectations) {
-    printf(ANSI_YELLOW_STR("[UnhandledLinesInOutfile:%d] "),
-           line_count - num_expectations);
+    for (int i = line_no; i < line_count; i++) {
+      char* diff_line = malloc(DIFF_LINE_SIZE);
+      if (diff_line == NULL) {
+        INTERNAL_ERROR("Not enough memory to allocate diff line");
+        exit(70);
+      }
+      // Don't print the line number here, since it tells us nothing - it's the
+      // line number in the output file, not the source file
+      sprintf(diff_line, "unhandled output in outfile: " ANSI_YELLOW_STR("%s"),
+              line);
+      diff[diff_count++] = diff_line;
+    }
   }
 
-  // Warn if there are more expectations in the source than in the output
+  // If there are more expectations in the source than in the output,
+  // we consider them differences aswell
   if (line_count < num_expectations) {
-    printf(ANSI_YELLOW_STR("[UnexhaustedExpectations:%d] "),
-           num_expectations - line_count);
+    for (int i = line_no; i < num_expectations; i++) {
+      char* diff_line = malloc(DIFF_LINE_SIZE);
+      if (diff_line == NULL) {
+        INTERNAL_ERROR("Not enough memory to allocate diff line");
+        exit(70);
+      }
+      sprintf(diff_line,
+              "unexhausted expectation on line %d: " ANSI_YELLOW_STR("%s"),
+              expectations[i].line, expectations[i].value);
+      diff[diff_count++] = diff_line;
+    }
   }
 
   if (line_no) {
@@ -331,10 +353,14 @@ bool run_test(const wchar_t* path) {
     exit(70);
   }
 
-  // Read outfile (stdout log)
+  // Read & delete outfile (stdout log)
   wchar_t out_filepath[MAX_PATH];
   _stprintf(out_filepath, _T("%s%s"), path, L".out");
   char* out = read_file(out_filepath);
+  if (_wremove(out_filepath) != 0) {
+    INTERNAL_ERROR("Could not delete outfile");
+    exit(70);
+  }
 
   // Compare out with expected
   int num_differences = 0;
@@ -343,7 +369,7 @@ bool run_test(const wchar_t* path) {
       out, expectations, num_expectations, &num_differences);
   if (num_differences > 0) {
     passed = false;
-    printf(ANSI_RED_STR("Failed, %d lines differ!\n"), num_differences);
+    printf(ANSI_RED_STR("Failed, %d diffs!\n"), num_differences);
     for (int i = 0; i < num_differences; i++) {
       printf("        #%d: %s\n", i + 1, differences[i]);
       free((void*)differences[i]);
