@@ -62,7 +62,7 @@ int wmain(int argc, wchar_t* argv[]) {
 #ifdef START_WITH_SAMPLE_SCRIPT
   argc = 3;
   argv[1] = L"run";
-  argv[2] = L"C:\\Projects\\slang\\script_sample.sl";
+  argv[2] = L"C:\\Projects\\slang\\sample.sl";
 #endif
 
 #ifdef START_WITH_TESTS
