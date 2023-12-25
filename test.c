@@ -270,11 +270,15 @@ const char** compare_string_with_expectations(const char* input,
         INTERNAL_ERROR("Not enough memory to allocate diff line");
         exit(70);
       }
-      // Don't print the line number here, since it tells us nothing - it's the
+
+      // Don't print the line number here, it tells us nothing - it's the
       // line number in the output file, not the source file
       sprintf(diff_line, "unhandled output in outfile: " ANSI_YELLOW_STR("%s"),
               line);
       diff[diff_count++] = diff_line;
+
+      line = strtok(NULL, "\r\n");
+      line_no++;
     }
   }
 
@@ -287,6 +291,7 @@ const char** compare_string_with_expectations(const char* input,
         INTERNAL_ERROR("Not enough memory to allocate diff line");
         exit(70);
       }
+
       sprintf(diff_line,
               "unexhausted expectation on line %d: " ANSI_YELLOW_STR("%s"),
               expectations[i].line, expectations[i].value);
@@ -440,8 +445,9 @@ bool run_test(const wchar_t* path) {
 
 // Utility to run all tests in a directory
 void run_tests(const wchar_t* path) {
-  wchar_t* test_file_paths[MAX_SPEC_FILES];   // Found test-file-paths. (*.spec.sl)
-  int count = 0;                   // Number of files found
+  wchar_t*
+      test_file_paths[MAX_SPEC_FILES];  // Found test-file-paths. (*.spec.sl)
+  int count = 0;                        // Number of files found
 
   for (int i = 0; i < MAX_SPEC_FILES; i++) {
     test_file_paths[i] = (wchar_t*)malloc(MAX_PATH * sizeof(wchar_t));
