@@ -879,8 +879,8 @@ static void statement_declaration_class() {
 
   // Body
   bool has_ctor = false;
-  consume(TOKEN_OBRACE, "Expecting'{' before class body.");
-  while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF)) {
+  consume(TOKEN_OBRACE, "Expecting '{' before class body.");
+  while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF) && !parser.panic_mode) {
     if (check(TOKEN_CTOR)) {
       if (has_ctor) {
         error("Can't have more than one constructor.");
@@ -891,7 +891,7 @@ static void statement_declaration_class() {
       method();
     }
   }
-  consume(TOKEN_CBRACE, "Expecting'}' after class body.");
+  consume(TOKEN_CBRACE, "Expecting '}' after class body.");
   emit_byte(OP_POP);
 
   if (class_compiler.has_baseclass) {

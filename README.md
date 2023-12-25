@@ -17,7 +17,7 @@ A bytecode VM written in C, based on the book [Crafting Interpreters](https://cr
 -   [x] Align fn syntax
 -   [ ] Add tests according to the original repository of bob nystrom
 -   [ ] Allow return stats without suffixed `;`
--   [ ] `cls B < A {}` crashes the VM
+-   [x] `cls B < A {}` crashes the VM
 
 ### Phase 2
 
