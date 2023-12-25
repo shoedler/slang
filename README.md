@@ -15,9 +15,10 @@ A bytecode VM written in C, based on the book [Crafting Interpreters](https://cr
 -   [x] Base implementation of the VM
 -   [x] Fix GC Bug in current sample script
 -   [x] Align fn syntax
--   [ ] Add tests according to the original repository of bob nystrom
+-   [x] Add tests according to the original repository of bob nystrom
 -   [ ] Allow return stats without suffixed `;`
 -   [x] `cls B < A {}` crashes the VM
+-   [ ] Remove `OP_PRINT` completely in favor of native `print` function
 
 ### Phase 2
 
