@@ -1,4 +1,4 @@
-for let i = 0 ; i < 5 ; i = i + 1 {
+for let i = 0 ; i < 5 ; i = i + 1; {
   print i
 }
 // [Expect] 0
@@ -8,11 +8,13 @@ for let i = 0 ; i < 5 ; i = i + 1 {
 // [Expect] 4
 
 let b = false
-for b ; !b { // Incrementing is optional
+for b ; !b; ; { // Incrementing is optional
   print b
   b = true
 }
+print b
 // [Expect] false
+// [Expect] true
 
 let c = 0
 while b {
@@ -26,14 +28,14 @@ while b {
 // [Expect] 4
 // [Expect] 5
 
-for let i = 0 ; i < 10 ; i = i + 1 {
+for let i = 0 ; i < 10 ; i = i + 1 ; {
   let outer = fn {
     let x = "outside"
     let inner = fn { print x }
     ret inner;
   }
 
-  for let y = 0; y < 10; y = y + 1 {
+  for let y = 0; y < 10; y = y + 1 ; {
     let x = fn { print "Hello World" }
     x()
   }

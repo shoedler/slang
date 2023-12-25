@@ -4,13 +4,13 @@ fn caller(g) {
   print g == nil // [Expect] false
 }
 
-fn callCaller() {
-  let capturedVar = "before"
+fn call_caller() {
+  let captured_var = "before"
   let a = "a"
 
   fn f() {
     // Commenting the next line out prevents the bug!
-    capturedVar = "after"
+    captured_var = "after"
 
     // Returning anything also fixes it, even nil:
     //ret nil;
@@ -19,4 +19,4 @@ fn callCaller() {
   caller(f)
 }
 
-callCaller()
+call_caller()
