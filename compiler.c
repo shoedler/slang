@@ -394,8 +394,7 @@ static void string(bool can_assign) {
 static void unary(bool can_assign) {
   TokenType operator_type = parser.previous.type;
 
-  // Compile the operand.
-  expression();
+  parse_precedence(PREC_UNARY);
 
   // Emit the operator instruction.
   switch (operator_type) {

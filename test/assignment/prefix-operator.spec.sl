@@ -1,6 +1,2 @@
 let a = "a"
-print a // [Expect] a
-
-let f = !a = "value" 
-print a // [Expect] value
-print f // [Expect] false
+let f = !a = "value" // [ExpectCompileError] ERROR at [line 2] at '=': Invalid assignment target.
