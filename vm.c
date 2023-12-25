@@ -348,7 +348,8 @@ static InterpretResult run() {
       }
       case OP_SET_LOCAL: {
         uint8_t slot = READ_BYTE();
-        vm.stack[slot] = peek(0);  // peek, because assignment is an expression!
+        frame->slots[slot] =
+            peek(0);  // peek, because assignment is an expression!
         break;
       }
       case OP_SET_GLOBAL: {

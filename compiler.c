@@ -971,28 +971,38 @@ static void statement_while() {
 static void statement_for() {
   begin_scope();
 
-  if (match(TOKEN_LET)) {
-    statement_declaration_let();
+  // Initializer
+  if (match(TOKEN_SCOLON)) {
+    // No initializer.
   } else {
-    statement_expression();
+    if (match(TOKEN_LET)) {
+      statement_declaration_let();
+    } else {
+      statement_expression();
+    }
+    consume(TOKEN_SCOLON, "Expecting ';' after loop initializer.");
   }
 
   int loop_start = current_chunk()->count;
 
+  // Loop condition
   int exit_jump = -1;
-  if (match(TOKEN_SCOLON)) {
+  if (!match(TOKEN_SCOLON)) {
     expression();
+    consume(TOKEN_SCOLON, "Expecting ';' after loop condition.");
 
     // Jump out of the loop if the condition is false.
     exit_jump = emit_jump(OP_JUMP_IF_FALSE);
     emit_byte(OP_POP);  // Discard the result of the condition expression.
   }
 
-  if (match(TOKEN_SCOLON)) {
+  // Loop increment
+  if (!match(TOKEN_SCOLON)) {
     int body_jump = emit_jump(OP_JUMP);
     int incrementStart = current_chunk()->count;
     expression();
     emit_byte(OP_POP);  // Discard the result of the increment expression.
+    consume(TOKEN_SCOLON, "Expecting ';' after loop increment.");
 
     emit_loop(loop_start);
     loop_start = incrementStart;
