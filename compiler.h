@@ -6,7 +6,9 @@
 
 #define MAX_FN_ARGS 255
 
+// Compiles raw source code into a function object
 ObjFunction* compile(const char* source);
+
 void mark_compiler_roots();
 
 #endif

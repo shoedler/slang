@@ -58,6 +58,7 @@ typedef enum {
   TOKEN_EOF
 } TokenType;
 
+// Token type
 typedef struct {
   TokenType type;
   const char* start;
@@ -65,7 +66,10 @@ typedef struct {
   int line;
 } Token;
 
+// Initialize the scanner with the source code
 void init_scanner(const char* source);
+
+// Scan and return the next token
 Token scan_token();
 
 #endif

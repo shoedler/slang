@@ -2,7 +2,7 @@
 
 # slang
 
-A bytecode VM written in C, based on the book [Crafting Interpreters](https://craftinginterpreters.com/).
+A stack-based bytecode VM written in C, based on the book [Crafting Interpreters](https://craftinginterpreters.com/).
 
 ## References
 
@@ -37,13 +37,9 @@ A bytecode VM written in C, based on the book [Crafting Interpreters](https://cr
 -   [ ] Implement hashtable keys for all types: Objs are by reference, primitives and strings by value
 -   [ ] Implement sequences
 
-### Phase 5
+### Ideas
 
+-   [ ] Implement register-based VM https://www.lua.org/doc/jucs05.pdf
 -   [ ] Constant folding directly in the compiler
-
-### Phase 999
-
 -   [ ] Implement a JIT compiler
 -   [ ] Infer names of anonymous functions (Improves stack traces)
-
-## Cleanup

@@ -7,13 +7,15 @@
 #include "memory.h"
 #include "scanner.h"
 
+// Parser state
 typedef struct {
-  Token current;
-  Token previous;
-  bool had_error;
-  bool panic_mode;
+  Token current;    // The current token.
+  Token previous;   // The token before the current.
+  bool had_error;   // True if there was an error during parsing.
+  bool panic_mode;  // True if the parser requires synchronization.
 } Parser;
 
+// Precedence levels for comparison expressions.
 typedef enum {
   PREC_NONE,
   PREC_ASSIGN,      // =
@@ -28,8 +30,10 @@ typedef enum {
   PREC_PRIMARY
 } Precedence;
 
+// Signature for a function that parses a prefix or infix expression.
 typedef void (*ParseFn)(bool can_assign);
 
+// Precedence-dependent rule for parsing expressions.
 typedef struct {
   ParseFn prefix;
   ParseFn infix;
@@ -79,6 +83,8 @@ static Chunk* current_chunk() {
   return &current->function->chunk;
 }
 
+// Prints the given token as an error message.
+// Sets the parser into panic mode to avoid cascading errors.
 static void error_at(Token* token, const char* message) {
   if (parser.panic_mode) {
     return;
@@ -99,14 +105,18 @@ static void error_at(Token* token, const char* message) {
   parser.had_error = true;
 }
 
+// Prints an error message at the previous token.
 static void error(const char* message) {
   error_at(&parser.previous, message);
 }
 
+// Prints an error message at the current token.
 static void error_at_current(const char* message) {
   error_at(&parser.current, message);
 }
 
+// Parse the next token.
+// Consumes error tokens, so that on the next call we have a valid token.
 static void advance() {
   parser.previous = parser.current;
 
@@ -121,6 +131,8 @@ static void advance() {
   }
 }
 
+// Assert and cosume the current token according to the provided token type.
+// If it doesn't match, print an error message.
 static void consume(TokenType type, const char* message) {
   if (parser.current.type == type) {
     advance();
@@ -130,10 +142,13 @@ static void consume(TokenType type, const char* message) {
   error_at_current(message);
 }
 
+// Compares the current token with the provided token type.
 static bool check(TokenType type) {
   return parser.current.type == type;
 }
 
+// Accept the current token if it matches the provided token type, otherwise do
+// nothing.
 static bool match(TokenType type) {
   if (!check(type)) {
     return false;
@@ -142,10 +157,12 @@ static bool match(TokenType type) {
   return true;
 }
 
+// Writes an opcode or operand to the current chunk.
 static void emit_byte(uint8_t byte) {
   write_chunk(current_chunk(), byte, parser.previous.line);
 }
 
+// Writes two opcodes or operands to the current chunk.
 static void emit_bytes(uint8_t byte1, uint8_t byte2) {
   emit_byte(byte1);
   emit_byte(byte2);
@@ -182,6 +199,8 @@ static void patch_jump(int offset) {
   current_chunk()->code[offset + 1] = jump & 0xff;
 }
 
+// Adds a value to the current constant pool and returns its index.
+// Logs a compile error if the constant pool is full.
 static uint8_t make_constant(Value value) {
   int constant = add_constant(current_chunk(), value);
   if (constant > UINT8_MAX) {
@@ -192,6 +211,7 @@ static uint8_t make_constant(Value value) {
   return (uint8_t)constant;
 }
 
+// Adds value to the constant pool and emits a const instruction to load it.
 static void emit_constant(Value value) {
   emit_bytes(OP_CONSTANT, make_constant(value));
 }
@@ -234,6 +254,8 @@ static void init_compiler(Compiler* compiler,
   }
 }
 
+// Ends the current compiler and returns the compiled function.
+// Moves up the compiler chain, by setting the current compiler to the enclosing
 static ObjFunction* end_compiler() {
   emit_return();
   ObjFunction* function = current->function;
@@ -291,48 +313,6 @@ static int add_upvalue(Compiler* compiler, uint8_t index, bool is_local);
 static uint8_t parse_variable(const char* error_message);
 static void define_variable(uint8_t global);
 
-static void binary(bool can_assign) {
-  TokenType op_type = parser.previous.type;
-  ParseRule* rule = get_rule(op_type);
-  parse_precedence((Precedence)(rule->precedence + 1));
-
-  switch (op_type) {
-    case TOKEN_NEQ:
-      emit_byte(OP_NEQ);
-      break;
-    case TOKEN_EQ:
-      emit_byte(OP_EQ);
-      break;
-    case TOKEN_GT:
-      emit_byte(OP_GT);
-      break;
-    case TOKEN_GTEQ:
-      emit_byte(OP_GTEQ);
-      break;
-    case TOKEN_LT:
-      emit_byte(OP_LT);
-      break;
-    case TOKEN_LTEQ:
-      emit_byte(OP_LTEQ);
-      break;
-    case TOKEN_PLUS:
-      emit_byte(OP_ADD);
-      break;
-    case TOKEN_MINUS:
-      emit_byte(OP_SUBTRACT);
-      break;
-    case TOKEN_MULT:
-      emit_byte(OP_MULTIPLY);
-      break;
-    case TOKEN_DIV:
-      emit_byte(OP_DIVIDE);
-      break;
-    default:
-      INTERNAL_ERROR("Unhandled binary operator type: %d", op_type);
-      break;
-  }
-}
-
 static void call(bool can_assign) {
   uint8_t arg_count = argument_list();
   emit_bytes(OP_CALL, arg_count);
@@ -376,11 +356,15 @@ static void literal(bool can_assign) {
   }
 }
 
+// Compiles a grouping (expression in parentheses)
+// The opening parenthesis has already been consumed (previous token)
 static void grouping(bool can_assign) {
   expression();
   consume(TOKEN_CPAR, "Expecting ')' after expression.");
 }
 
+// Compiles a number literal and emits it as a number value.
+// The number has already been consumed and is referenced by the previous token.
 static void number(bool can_assign) {
   double value = strtod(parser.previous.start, NULL);
   emit_constant(NUMBER_VAL(value));
@@ -391,6 +375,9 @@ static void string(bool can_assign) {
       copy_string(parser.previous.start + 1, parser.previous.length - 2)));
 }
 
+// Compiles a unary expression and emits the corresponding instruction.
+// The operator has already been consumed and is referenced by the previous
+// token.
 static void unary(bool can_assign) {
   TokenType operator_type = parser.previous.type;
 
@@ -407,6 +394,51 @@ static void unary(bool can_assign) {
     default:
       INTERNAL_ERROR("Unhandled unary operator type: %d", operator_type);
       return;
+  }
+}
+
+// Compiles a binary expression and emits the corresponding instruction.
+// The lhs bytecode has already been emitted. The rhs token is the current, and
+// the operator is the previous token.
+static void binary(bool can_assign) {
+  TokenType op_type = parser.previous.type;
+  ParseRule* rule = get_rule(op_type);
+  parse_precedence((Precedence)(rule->precedence + 1));
+
+  switch (op_type) {
+    case TOKEN_NEQ:
+      emit_byte(OP_NEQ);
+      break;
+    case TOKEN_EQ:
+      emit_byte(OP_EQ);
+      break;
+    case TOKEN_GT:
+      emit_byte(OP_GT);
+      break;
+    case TOKEN_GTEQ:
+      emit_byte(OP_GTEQ);
+      break;
+    case TOKEN_LT:
+      emit_byte(OP_LT);
+      break;
+    case TOKEN_LTEQ:
+      emit_byte(OP_LTEQ);
+      break;
+    case TOKEN_PLUS:
+      emit_byte(OP_ADD);
+      break;
+    case TOKEN_MINUS:
+      emit_byte(OP_SUBTRACT);
+      break;
+    case TOKEN_MULT:
+      emit_byte(OP_MULTIPLY);
+      break;
+    case TOKEN_DIV:
+      emit_byte(OP_DIVIDE);
+      break;
+    default:
+      INTERNAL_ERROR("Unhandled binary operator type: %d", op_type);
+      break;
   }
 }
 
@@ -628,6 +660,14 @@ ParseRule rules[] = {
     [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
 };
 
+// Returns the rule for the given token type.
+static ParseRule* get_rule(TokenType type) {
+  return &rules[type];
+}
+
+// Parses any expression with a precedence higher or equal to the provided
+// precedence. Handles prefix and infix expressions and determines whether the
+// expression can be assigned to.
 static void parse_precedence(Precedence precedence) {
   advance();
   ParseFn prefix_rule = get_rule(parser.previous.type)->prefix;
@@ -790,10 +830,6 @@ static uint8_t argument_list() {
   return arg_count;
 }
 
-static ParseRule* get_rule(TokenType type) {
-  return &rules[type];
-}
-
 static void synchronize() {
   parser.panic_mode = false;
 
@@ -816,6 +852,7 @@ static void synchronize() {
   }
 }
 
+// Compiles a single expression into bytecode.
 static void expression() {
   parse_precedence(PREC_ASSIGN);
 }

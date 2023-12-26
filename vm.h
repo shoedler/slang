@@ -18,14 +18,17 @@ typedef struct {
   Value* slots;
 } CallFrame;
 
+// The virtual machine.
+// Contains all the state the Vm requires to execute code.
 typedef struct {
   CallFrame frames[FRAMES_MAX];
   int frame_count;
 
   Chunk* chunk;
-  uint8_t* ip;
+  uint8_t*
+      ip;  // Instruction pointer, points to the NEXT instruction to execute
   Value stack[STACK_MAX];
-  Value* stack_top;
+  Value* stack_top;  // Points to where the next value to be pushed will go
   HashTable globals;
   HashTable strings;
   ObjString* init_string;
@@ -39,6 +42,7 @@ typedef struct {
   Obj** gray_stack;
 } Vm;
 
+// Possible outcomes of interpreting code
 typedef enum {
   INTERPRET_OK,
   INTERPRET_COMPILE_ERROR,
@@ -47,11 +51,20 @@ typedef enum {
 
 extern Vm vm;
 
+// Initialize the virtual machine.
 void init_vm();
+
+// Free the virtual machine.
 void free_vm();
 
+// Main entry point for the virtual machine.
+// Accepts a string of source code and executes it.
 InterpretResult interpret(const char* source);
+
+// Push a value onto the stack.
 void push(Value value);
+
+// Pop a value off the stack.
 Value pop();
 
 #endif

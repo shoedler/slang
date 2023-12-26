@@ -263,15 +263,26 @@ static void concatenate() {
   push(OBJ_VAL(result));
 }
 
+// This function represents the main program loop of the virtual machine.
+// It fetches the next instruction, decodes it, and dispatches it
 static InterpretResult run() {
   CallFrame* frame = &vm.frames[vm.frame_count - 1];
 
+// Read a single byte from the current instruction pointer and advance it
 #define READ_BYTE() (*frame->ip++)
+
+// Read a 16-bit value from the current instruction pointer and advance it
 #define READ_SHORT() \
   (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
-#define READ_STRING() AS_STRING(READ_CONSTANT())
+
+// Read a constant from the constant pool. This consumes a one-byte operand
+// on the stack, which is the index of the constant to read
 #define READ_CONSTANT() \
   (frame->closure->function->chunk.constants.values[READ_BYTE()])
+
+// Read a string from the constant pool.
+#define READ_STRING() AS_STRING(READ_CONSTANT())
+
 #define BINARY_OP(value_type, op)                     \
   do {                                                \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
