@@ -1,4 +1,4 @@
 fn foo() {}
 
 cls Subclass : foo {} // [ExpectRuntimeError] Base class must be a class.
-                      // [ExpectRuntimeError] [line 3] in fn toplevel
+                      // [ExpectRuntimeError] at line 3 at the toplevel

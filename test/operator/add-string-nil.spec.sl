@@ -1,2 +1,2 @@
 "s" + nil // [ExpectRuntimeError] Operands must be two numbers or two strings.
-          // [ExpectRuntimeError] [line 1] in fn toplevel
+          // [ExpectRuntimeError] at line 1 at the toplevel

@@ -1,7 +1,7 @@
 cls Foo {
   fn method() {
     print method // [ExpectRuntimeError] Undefined variable 'method'.
-  }              // [ExpectRuntimeError] [line 3] in fn "method"
-}                // [ExpectRuntimeError] [line 7] in fn toplevel
+  }              // [ExpectRuntimeError] at line 3 in "method"
+}                // [ExpectRuntimeError] at line 7 at the toplevel
  
 Foo().method()

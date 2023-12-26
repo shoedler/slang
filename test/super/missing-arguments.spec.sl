@@ -7,7 +7,7 @@ cls Base {
 cls Derived : Base {
   fn foo() {
     base.foo(1) // [ExpectRuntimeError] Expected 2 arguments but got 1.
-  }             // [ExpectRuntimeError] [line 9] in fn "foo"
-}               // [ExpectRuntimeError] [line 13] in fn toplevel
+  }             // [ExpectRuntimeError] at line 9 in "foo"
+}               // [ExpectRuntimeError] at line 13 at the toplevel
 
 Derived().foo()

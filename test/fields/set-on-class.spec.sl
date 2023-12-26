@@ -1,3 +1,3 @@
 cls Foo {}
 Foo.bar = "value" // [ExpectRuntimeError] Only instances can have fields.
-                  // [ExpectRuntimeError] [line 2] in fn toplevel
+                  // [ExpectRuntimeError] at line 2 at the toplevel

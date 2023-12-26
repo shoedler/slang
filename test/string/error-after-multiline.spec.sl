@@ -5,4 +5,4 @@ let a = "1
 "
 
 err // [ExpectRuntimeError] Undefined variable 'err'.
-    // [ExpectRuntimeError] [line 7] in fn toplevel
+    // [ExpectRuntimeError] at line 7 at the toplevel

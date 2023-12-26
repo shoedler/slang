@@ -3,7 +3,7 @@ cls Base {}
 cls Derived : Base {
   fn foo() {
     base.doesNotExist(1) // [ExpectRuntimeError] Undefined property 'doesNotExist'.
-  }                      // [ExpectRuntimeError] [line 5] in fn "foo"
-}                        // [ExpectRuntimeError] [line 9] in fn toplevel
+  }                      // [ExpectRuntimeError] at line 5 in "foo"
+}                        // [ExpectRuntimeError] at line 9 at the toplevel
 
 Derived().foo()

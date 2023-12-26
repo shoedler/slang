@@ -33,11 +33,11 @@ static void runtime_error(const char* format, ...) {
     CallFrame* frame = &vm.frames[i];
     ObjFunction* function = frame->closure->function;
     size_t instruction = frame->ip - function->chunk.code - 1;
-    fprintf(stderr, "[line %d] in fn ", function->chunk.lines[instruction]);
+    fprintf(stderr, "at line %d ", function->chunk.lines[instruction]);
     if (function->name == NULL) {
-      fprintf(stderr, "toplevel\n");
+      fprintf(stderr, "at the toplevel\n");
     } else {
-      fprintf(stderr, "\"%s\"\n", function->name->chars);
+      fprintf(stderr, "in \"%s\"\n", function->name->chars);
     }
   }
 

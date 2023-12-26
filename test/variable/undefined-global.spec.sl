@@ -1,2 +1,2 @@
 print notDefined  // [ExpectRuntimeError] Undefined variable 'notDefined'.
-                  // [ExpectRuntimeError] [line 1] in fn toplevel
+                  // [ExpectRuntimeError] at line 1 at the toplevel

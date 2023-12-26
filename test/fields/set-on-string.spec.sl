@@ -1,2 +1,2 @@
 "str".foo = "value" // [ExpectRuntimeError] Only instances can have fields.
-                    // [ExpectRuntimeError] [line 1] in fn toplevel
+                    // [ExpectRuntimeError] at line 1 at the toplevel

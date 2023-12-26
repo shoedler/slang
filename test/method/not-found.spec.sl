@@ -1,4 +1,4 @@
 cls Foo {}
 
 Foo().unknown() // [ExpectRuntimeError] Undefined property 'unknown'.
-                // [ExpectRuntimeError] [line 3] in fn toplevel
+                // [ExpectRuntimeError] at line 3 at the toplevel

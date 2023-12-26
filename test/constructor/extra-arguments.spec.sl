@@ -6,4 +6,4 @@ cls Foo {
 }
 
 let foo = Foo(1, 2, 3, 4) // [ExpectRuntimeError] Expected 2 arguments but got 4.
-                          // [ExpectRuntimeError] [line 8] in fn toplevel
+                          // [ExpectRuntimeError] at line 8 at the toplevel

@@ -13,6 +13,6 @@ cls CoffeeMaker {
 
 let maker = CoffeeMaker("coffee and chicory")
 maker.brew() // [ExpectRuntimeError] Operands must be two numbers or two strings.
-             // [ExpectRuntimeError] [line 7] in fn "brew"
-             // [ExpectRuntimeError] [line 18] in fn toplevel
+             // [ExpectRuntimeError] at line 7 in "brew"
+             // [ExpectRuntimeError] at line 18 at the toplevel
 maker.brew() // [Expect] Enjoy your cup of coffee and chicory
