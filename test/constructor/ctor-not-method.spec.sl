@@ -1,3 +1,3 @@
-fn ctor { // [ExpectCompileError] ERROR at [line 1] at 'ctor': Expecting variable name.
+fn ctor { // [ExpectCompileError] Compile error at line 1 at 'ctor': Expecting variable name.
   print "not constructor"
-} // [ExpectCompileError] ERROR at [line 3] at '}': Expecting expression.
+} // [ExpectCompileError] Compile error at line 3 at '}': Expecting expression.

@@ -257,5 +257,5 @@ fn foo() {}
      a, // 253
      a, // 254
      a, // 255
-     a) // [ExpectCompileError] ERROR at [line 260] at 'a': Can't have more than MAX_FN_ARGS arguments.
-} // [ExpectCompileError] ERROR at [line 262] at end: Expecting '}' after block.
+     a) // [ExpectCompileError] Compile error at line 260 at 'a': Can't have more than MAX_FN_ARGS arguments.
+} // [ExpectCompileError] Compile error at line 262 at end: Expecting '}' after block.

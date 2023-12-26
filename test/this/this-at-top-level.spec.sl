@@ -1,1 +1,1 @@
-this // [ExpectCompileError] ERROR at [line 1] at 'this': Can't use 'this' outside of a class.
+this // [ExpectCompileError] Compile error at line 1 at 'this': Can't use 'this' outside of a class.

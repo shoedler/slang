@@ -1,1 +1,1 @@
-print // [ExpectCompileError] ERROR at [line 1] at end: Expecting expression.
+print // [ExpectCompileError] Compile error at line 1 at end: Expecting expression.

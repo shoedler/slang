@@ -2348,4 +2348,4 @@ while (false) {
   nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil
   nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil
   nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil nil
-} // [ExpectCompileError] ERROR at [line 2351] at '}': Loop body too large.
+} // [ExpectCompileError] Compile error at line 2351 at '}': Loop body too large.

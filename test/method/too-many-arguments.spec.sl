@@ -256,6 +256,6 @@
      a, // 253
      a, // 254
      a, // 255
-     a) // [ExpectCompileError] ERROR at [line 259] at 'a': Can't have more than MAX_FN_ARGS arguments.
+     a) // [ExpectCompileError] Compile error at line 259 at 'a': Can't have more than MAX_FN_ARGS arguments.
 }
-// [ExpectCompileError] ERROR at [line 261] at end: Expecting '}' after block.
+// [ExpectCompileError] Compile error at line 261 at end: Expecting '}' after block.

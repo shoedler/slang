@@ -91,7 +91,7 @@ static void error_at(Token* token, const char* message) {
   }
 
   parser.panic_mode = true;
-  fprintf(stderr, "ERROR at [line %d]", token->line);
+  fprintf(stderr, "Compile error at line %d", token->line);
 
   if (token->type == TOKEN_EOF) {
     fprintf(stderr, " at end");

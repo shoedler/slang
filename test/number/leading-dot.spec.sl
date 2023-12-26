@@ -1,2 +1,2 @@
-// [ExpectCompileError] ERROR at [line 2] at '.': Expecting expression.
+// [ExpectCompileError] Compile error at line 2 at '.': Expecting expression.
 .123

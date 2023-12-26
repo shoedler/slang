@@ -1,2 +1,2 @@
-// [ExpectCompileError] ERROR at [line 2]: Unexpected character.
+// [ExpectCompileError] Compile error at line 2: Unexpected character.
 foo(a | b)

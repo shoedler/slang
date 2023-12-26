@@ -32,5 +32,5 @@ fn f() {
   240 241 242 243 244 245 246 247
   248 249 250 251 252 253 254 255
 
-  "oops" // [ExpectCompileError] ERROR at [line 35] at '"oops"': Too many constants in one chunk.
-} // [ExpectCompileError] ERROR at [line 37] at end: Expecting '}' after block.
+  "oops" // [ExpectCompileError] Compile error at line 35 at '"oops"': Too many constants in one chunk.
+} // [ExpectCompileError] Compile error at line 37 at end: Expecting '}' after block.

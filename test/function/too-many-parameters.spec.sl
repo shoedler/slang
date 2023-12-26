@@ -254,4 +254,4 @@ fn f(
     a252,
     a253,
     a254,
-    a255, a) {} // [ExpectCompileError] ERROR at [line 257] at 'a': Can't have more than MAX_FN_ARGS parameters.
+    a255, a) {} // [ExpectCompileError] Compile error at line 257 at 'a': Can't have more than MAX_FN_ARGS parameters.
