@@ -24,18 +24,40 @@ typedef struct {
   } as;
 } Value;
 
+// Determines whether a value is of type boolean.
 #define IS_BOOL(value) ((value).type == VAL_BOOL)
+
+// Determines whether a value is of type nil.
 #define IS_NIL(value) ((value).type == VAL_NIL)
+
+// Determines whether a value is of type number.
 #define IS_NUMBER(value) ((value).type == VAL_NUMBER)
+
+// Determines whether a value is of type object.
 #define IS_OBJ(value) ((value).type == VAL_OBJ)
 
+// Unpacks a value into a C boolean.
+// Value must be of type bool.
 #define AS_BOOL(value) ((value).as.boolean)
+
+// Unpacks a value into a C double.
+// Value must be of type number.
 #define AS_NUMBER(value) ((value).as.number)
+
+// Unpacks a value into a C object pointer.
+// Value must be of type object.
 #define AS_OBJ(value) ((value).as.obj)
 
+// Converts a C boolean into a value.
 #define BOOL_VAL(value) ((Value){VAL_BOOL, {.boolean = value}})
+
+// The singleton nil value.
 #define NIL_VAL ((Value){VAL_NIL, {.number = 0}})
+
+// Converts a C double into a value.
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
+
+// Converts a C object pointer into a value.
 #define OBJ_VAL(object) ((Value){VAL_OBJ, {.obj = (Obj*)object}})
 
 // Dynamic array of values. This represents the constant pool of a chunk.
@@ -46,6 +68,8 @@ typedef struct {
   Value* values;
 } ValueArray;
 
+// Determines whether two values are equal.
+// Values are not eqal if their types differ.
 bool values_equal(Value a, Value b);
 
 // Initialize a value array.

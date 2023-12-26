@@ -337,6 +337,9 @@ static void dot(bool can_assign) {
   }
 }
 
+// Compiles a text literal (true, false, nil).
+// The literal has already been consumed and is referenced by the previous
+// token.
 static void literal(bool can_assign) {
   TokenType op_type = parser.previous.type;
 
@@ -356,7 +359,7 @@ static void literal(bool can_assign) {
   }
 }
 
-// Compiles a grouping (expression in parentheses)
+// Compiles a grouping (expression in parentheses).
 // The opening parenthesis has already been consumed (previous token)
 static void grouping(bool can_assign) {
   expression();

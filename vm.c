@@ -20,6 +20,7 @@ static void reset_stack() {
   vm.open_upvalues = NULL;
 }
 
+// Prints a runtime error message including the stacktrace
 static void runtime_error(const char* format, ...) {
   va_list args;
   va_start(args, format);
@@ -90,6 +91,7 @@ Value pop() {
   return *vm.stack_top;
 }
 
+// Look at the value without popping it
 static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
 }
@@ -243,6 +245,8 @@ static void define_method(ObjString* name) {
   pop();
 }
 
+// Determines whether a value is falsey. We consider nil and false to be falsey,
+// and everything else to be truthy.
 static bool is_falsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
