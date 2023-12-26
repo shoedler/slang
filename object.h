@@ -134,12 +134,25 @@ typedef struct {
   ObjClosure* method;
 } ObjBoundMethod;
 
+// Creates, initializes and allocates a new bound method object.
 ObjBoundMethod* new_bound_method(Value receiver, ObjClosure* method);
+
+// Creates, initializes and allocates a new instance object.
 ObjInstance* new_instance(ObjClass* klass);
+
+// Creates, initializes and allocates a new class object.
 ObjClass* new_class(ObjString* name);
+
+// Creates, initializes and allocates a new closure object.
 ObjClosure* new_closure(ObjFunction* function);
+
+// Creates, initializes and allocates a new function object.
 ObjFunction* new_function();
+
+// Creates, initializes and allocates a new native function object.
 ObjNative* new_native(NativeFn function);
+
+// Creates, initializes and allocates a new upvalue object.
 ObjUpvalue* new_upvalue(Value* slot);
 
 // Copies a string literal into a heap-allocated string object.

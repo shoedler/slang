@@ -12,6 +12,8 @@
 #define CLASS_CONSTRUCTOR_KEYWORD_LENGTH (sizeof(CLASS_CONSTRUCTOR_KEYWORD) - 1)
 #define BASE_CLASS_KEYWORD "base"
 
+// Holds the state of a stack frame.
+// Represents a single ongoing function call.
 typedef struct {
   ObjClosure* closure;
   uint8_t* ip;

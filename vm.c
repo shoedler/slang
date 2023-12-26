@@ -44,6 +44,7 @@ static void runtime_error(const char* format, ...) {
   reset_stack();
 }
 
+// Defines a native function in the global scope.
 static void define_native(const char* name, NativeFn function) {
   push(OBJ_VAL(copy_string(name, (int)strlen(name))));
   push(OBJ_VAL(new_native(function)));
@@ -96,6 +97,9 @@ static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
 }
 
+// Executes a call to a function or method by creating a new call frame and
+// pushing it onto the frame stack.
+// Returns true if the call succeeded, false otherwise.
 static bool call(ObjClosure* closure, int arg_count) {
   if (arg_count != closure->function->arity) {
     runtime_error("Expected %d arguments but got %d.", closure->function->arity,
@@ -115,6 +119,8 @@ static bool call(ObjClosure* closure, int arg_count) {
   return true;
 }
 
+// Calls a callable value (function, method, class, etc.)
+// Returns true if the call succeeded, false otherwise.
 static bool call_value(Value callee, int arg_count) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
@@ -268,7 +274,7 @@ static void concatenate() {
   push(OBJ_VAL(result));
 }
 
-// This function represents the main program loop of the virtual machine.
+// This function represents the main loop of the virtual machine.
 // It fetches the next instruction, decodes it, and dispatches it
 static InterpretResult run() {
   CallFrame* frame = &vm.frames[vm.frame_count - 1];
@@ -595,6 +601,8 @@ static InterpretResult run() {
 #undef BINARY_OP
 }
 
+// This function is the main entry point for the virtual machine.
+// It takes a string of source code, compiles it, and then runs it.
 InterpretResult interpret(const char* source) {
   ObjFunction* function = compile(source);
   if (function == NULL)

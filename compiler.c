@@ -81,6 +81,7 @@ Compiler* current = NULL;
 ClassCompiler* current_class = NULL;
 Chunk* compiling_chunk;
 
+// Retrieves the current chunk from the current compiler.
 static Chunk* current_chunk() {
   return &current->function->chunk;
 }
@@ -170,6 +171,10 @@ static void emit_bytes(uint8_t byte1, uint8_t byte2) {
   emit_byte(byte2);
 }
 
+// Emits a loop instruction.
+// The operand is two bytes wide, forming a 16-bit offset.
+// It is calculated by subtracting the current chunk's count from the offset of
+// the jump instruction.
 static void emit_loop(int loop_start) {
   emit_byte(OP_LOOP);
 
@@ -182,6 +187,10 @@ static void emit_loop(int loop_start) {
   emit_byte(offset & 0xff);
 }
 
+// Emits a jump instruction and returns the offset of the jump instruction.
+// Along with the emitted jump instruction, two placeholder bytes for the
+// operand are emitted. These bytes form a 16-bit offset and will later be
+// patched with the actual jump offset.
 static int emit_jump(uint8_t instruction) {
   emit_byte(instruction);
   emit_byte(0xff);
@@ -189,6 +198,10 @@ static int emit_jump(uint8_t instruction) {
   return current_chunk()->count - 2;
 }
 
+// Patches a previously emitted jump instruction with the actual jump offset.
+// The offset is calculated by subtracting the current chunk's count from the
+// offset of the jump instruction.
+// The jump instructions operand is two bytes wide, forming a 16-bit offset.
 static void patch_jump(int offset) {
   // -2 to adjust for the bytecode for the jump offset itself.
   int jump = current_chunk()->count - offset - 2;
@@ -218,6 +231,9 @@ static void emit_constant(Value value) {
   emit_bytes(OP_CONSTANT, make_constant(value));
 }
 
+// Emits a return instruction.
+// If the current function is a constructor, the return value is the instance
+// (the 'this' pointer). Otherwise, the return value is nil.
 static void emit_return() {
   if (current->type == TYPE_CONSTRUCTOR) {
     emit_bytes(OP_GET_LOCAL, 0);  // Return class instance, e.g. 'this'.
@@ -228,6 +244,7 @@ static void emit_return() {
   emit_byte(OP_RETURN);
 }
 
+// Initializes a new compiler.
 static void init_compiler(Compiler* compiler,
                           FunctionType type,
                           ObjString* name) {
@@ -317,6 +334,9 @@ static int add_upvalue(Compiler* compiler, uint8_t index, bool is_local);
 static uint8_t parse_variable(const char* error_message);
 static void define_variable(uint8_t global);
 
+// Compiles a function call expression.
+// The opening parenthesis has already been consumed and is referenced by the
+// previous token.
 static void call(bool can_assign) {
   uint8_t arg_count = argument_list();
   emit_bytes(OP_CALL, arg_count);
@@ -408,8 +428,8 @@ static void unary(bool can_assign) {
 }
 
 // Compiles a binary expression and emits the corresponding instruction.
-// The lhs bytecode has already been emitted. The rhs token is the current, and
-// the operator is the previous token.
+// The lhs bytecode has already been emitted. The rhs starts at the current
+// token. The operator is in the previous token.
 static void binary(bool can_assign) {
   TokenType op_type = parser.previous.type;
   ParseRule* rule = get_rule(op_type);
@@ -516,6 +536,10 @@ static void base_(bool can_assign) {
   }
 }
 
+// Compiles a function.
+// The declaration has already been consumed. Here, we start at the function's
+// parameters. Therefore is used for all supported functions:
+// named functions, anonymous functions, constructors and methods.
 static void function(bool can_assign, FunctionType type, ObjString* name) {
   Compiler compiler;
   init_compiler(&compiler, type, name);
@@ -599,6 +623,11 @@ static void constructor() {
   emit_bytes(OP_METHOD, constant);
 }
 
+// Compiles an and expression.
+// And is special in that it acts more lik a control flow construct rather than
+// a binary operator. It short-circuits the evaluation of the rhs if the lhs is
+// false by jumping over the rhs. The lhs bytecode has already been emitted. The
+// rhs starts at the current token. The and operator is in the previous token.
 static void and_(bool can_assign) {
   int end_jump = emit_jump(OP_JUMP_IF_FALSE);
   emit_byte(OP_POP);
@@ -608,7 +637,16 @@ static void and_(bool can_assign) {
   patch_jump(end_jump);
 }
 
+// Compiles an or expression.
+// Or is special in that it acts more lik a control flow construct rather than
+// a binary operator. It short-circuits the evaluation of the rhs if the lhs is
+// true by jumping over the rhs. The lhs bytecode has already been emitted. The
 static void or_(bool can_assign) {
+  // TODO (optimize): We could optimize this by inverting the logic
+  // (jumping over the rhs if the lhs is true) which would probably require a
+  // new opcode (OP_JUMP_IF_TRUE) and then we could reuse the and_ function -
+  // well, it would have to be renamed then and accept a new parameter (the type
+  // of jump to emit).
   int else_jump = emit_jump(OP_JUMP_IF_FALSE);
   int end_jump = emit_jump(OP_JUMP);
 
@@ -847,6 +885,9 @@ static void define_variable(uint8_t global) {
   emit_bytes(OP_DEFINE_GLOBAL, global);
 }
 
+// Compiles an argument list.
+// The opening parenthesis has already been consumed and is referenced by the
+// previous token.
 static uint8_t argument_list() {
   uint8_t arg_count = 0;
   if (!check(TOKEN_CPAR)) {
@@ -905,6 +946,9 @@ static void statement_declaration_let() {
   define_variable(global);
 }
 
+// Compiles a function declaration.
+// The fn keyword has already been consumed at this point.
+// Since functions are first-class, this is similar to a variable declaration.
 static void statement_declaration_function() {
   uint8_t global = parse_variable("Expecting variable name.");
   ObjString* fn_name =
@@ -989,6 +1033,8 @@ static void statement_expression() {
   emit_byte(OP_POP);
 }
 
+// Compiles an if statement.
+// The if keyword has already been consumed at this point.
 static void statement_if() {
   expression();
 
@@ -1009,6 +1055,10 @@ static void statement_if() {
   patch_jump(else_jump);
 }
 
+// Compiles a return statement.
+// The return keyword has already been consumed at this point.
+// Handles illegal return statements (in toplevel or in a constructor).
+// The return value is an expression or nil.
 static void statement_return() {
   if (current->type == TYPE_TOPLEVEL) {
     error("Can't return from top-level code.");
@@ -1031,6 +1081,8 @@ static void statement_return() {
   }
 }
 
+// Compiles a while statement.
+// The while keyword has already been consumed at this point.
 static void statement_while() {
   int loop_start = current_chunk()->count;
 
@@ -1046,6 +1098,8 @@ static void statement_while() {
   emit_byte(OP_POP);
 }
 
+// Compiles a for statement.
+// The for keyword has already been consumed at this point.
 static void statement_for() {
   begin_scope();
 
@@ -1087,6 +1141,7 @@ static void statement_for() {
     patch_jump(body_jump);
   }
 
+  // Loop body
   statement();
   emit_loop(loop_start);
 
