@@ -280,3 +280,4 @@ int disassemble_instruction(Chunk* chunk, int offset) {
 #undef PRINT_OPCODE
 #undef PRINT_INT
 #undef PRINT_JUMP
+#undef VALUE_STR_LEN

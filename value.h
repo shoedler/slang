@@ -6,6 +6,7 @@
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
 
+// The type of a value.
 typedef enum {
   VAL_BOOL,
   VAL_NIL,
@@ -13,6 +14,7 @@ typedef enum {
   VAL_OBJ,
 } ValueType;
 
+// The single value construct used to represent all values in the language.
 typedef struct {
   ValueType type;
   union {
@@ -36,6 +38,8 @@ typedef struct {
 #define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
 #define OBJ_VAL(object) ((Value){VAL_OBJ, {.obj = (Obj*)object}})
 
+// Dynamic array of values. This represents the constant pool of a chunk.
+// See https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
 typedef struct {
   int capacity;
   int count;
@@ -43,10 +47,17 @@ typedef struct {
 } ValueArray;
 
 bool values_equal(Value a, Value b);
+
+// Initialize a value array.
 void init_value_array(ValueArray* array);
+
+// Write a value to a value array.
 void write_value_array(ValueArray* array, Value value);
+
+// Free a value array.
 void free_value_array(ValueArray* array);
 
+// Print a value to stdout.
 void print_value(Value value);
 
 #endif

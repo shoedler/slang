@@ -4,34 +4,51 @@
 #include "common.h"
 #include "object.h"
 
+#define GC_HEAP_GROW_FACTOR 2
+#define GC_DEFAULT_THRESHOLD 1024 * 1024
+
 #define ALLOCATE(type, count) (type*)reallocate(NULL, 0, sizeof(type) * (count))
 
 #define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
 
+// Grow the capacity of a dynamic array.
+// Factor 2 is used, which is common for dynamic arrays.
+// First-timers:
+// https://en.wikipedia.org/wiki/Dynamic_array#Geometric_expansion_and_amortized_cost
+// We start by setting the capacity to 8, to avoid reallocating too often.
 #define GROW_CAPACITY(capacity) ((capacity) < 8 ? 8 : (capacity) * 2)
 
+// Grow a dynamic array.
 #define GROW_ARRAY(type, pointer, old_count, new_count)  \
   (type*)reallocate(pointer, sizeof(type) * (old_count), \
                     sizeof(type) * (new_count))
 
+// Free a dynamic array.
 #define FREE_ARRAY(type, pointer, old_count) \
   reallocate(pointer, sizeof(type) * (old_count), 0)
 
-#define GC_HEAP_GROW_FACTOR 2
-#define GC_DEFAULT_THRESHOLD 1024 * 1024
-
-/**
- * @brief Reallocates memory.
- * If old_size == 0 and new_size != 0, then the function allocates memory.
- * If old_size != 0 and new_size == 0, then the function frees memory.
- * If old_size != 0 and new_size <old_size, then the function shrinks memory.
- * If old_size != 0 and new_size > old_size, then the function expands memory.
- * @param pointer Pointer to the memory to reallocate.
- * @param old_size Old size of the memory.
- * @param new_size New size of the memory.
- * @return void* Pointer to the reallocated memory.
- */
+// Reallocate memory. This is the single function which
+// handles dynamic array memory management.
+// If old_size == 0 and new_size != 0, then the function allocates memory.
+// If old_size != 0 and new_size == 0, then the function frees memory.
+// If old_size != 0 and new_size <old_size, then the function shrinks memory.
+// If old_size != 0 and new_size > old_size, then the function expands memory.
 void* reallocate(void* pointer, size_t old_size, size_t new_size);
+
+// Tri-color gc
+//
+// ░ White: At the beginning of a garbage collection, every object is
+// white. This color means we have not reached or processed the object at all.
+//
+// ▒ Gray: During marking, when we first reach an object, we darken it
+// gray. This color means we know the object itself is reachable and should not
+// be collected. But we have not yet traced through it to see what other objects
+// it references. In graph algorithm terms, this is the worklist—the set of
+// objects we know about but haven’t processed yet.
+//
+// █ Black: When we take a gray object and mark all of the objects it
+// references, we then turn the gray object black. This color means the mark
+// phase is done processing that object.
 void collect_garbage();
 void mark_value(Value value);
 void mark_obj(Obj* object);

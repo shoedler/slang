@@ -47,6 +47,9 @@ typedef enum {
   OP_METHOD,
 } OpCode;
 
+// Dynamic array of instructions.
+// Provides a cache-friendly, constant-time lookup (and append) dense
+// storage for instructions.
 typedef struct {
   int count;
   int capacity;
@@ -55,9 +58,18 @@ typedef struct {
   ValueArray constants;
 } Chunk;
 
+// Initialize a chunk.
 void init_chunk(Chunk* chunk);
+
+// Free a chunk.
 void free_chunk(Chunk* chunk);
+
+// Write a byte to the chunk.
+// This will grow the chunk if necessary.
 void write_chunk(Chunk* chunk, uint8_t byte, int line);
+
+// Add a value to the chunk's constant pool.
+// Returns the index of the value in the constant pool.
 int add_constant(Chunk* chunk, Value value);
 
 #endif
