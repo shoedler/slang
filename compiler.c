@@ -7,7 +7,7 @@
 #include "memory.h"
 #include "scanner.h"
 
-// Parser state
+// A construct holding the parser's state.
 typedef struct {
   Token current;    // The current token.
   Token previous;   // The token before the current.
@@ -40,6 +40,7 @@ typedef struct {
   Precedence precedence;
 } ParseRule;
 
+// A struct declaring a local variable.
 typedef struct {
   Token name;
   int depth;
@@ -58,6 +59,7 @@ typedef enum {
   TYPE_TOPLEVEL
 } FunctionType;
 
+// A construct holding the compiler's state.
 typedef struct Compiler {
   struct Compiler* enclosing;
   ObjFunction* function;
@@ -276,10 +278,12 @@ static ObjFunction* end_compiler() {
   return function;
 }
 
+// Opens up a new scope.
 static void begin_scope() {
   current->scope_depth++;
 }
 
+// Closes a scope. Closes over from the scope we're leaving.
 static void end_scope() {
   current->scope_depth--;
 
@@ -448,8 +452,8 @@ static void binary(bool can_assign) {
   }
 }
 
-/// @brief Generates Bytecode to load a variable with the given name onto the
-/// stack.
+// Compiles a variable. Generates bytecode to load a variable with the given
+// name onto the stack.
 static void named_variable(Token name, bool can_assign) {
   uint8_t get_op, set_op;
   int arg = resolve_local(current, &name);
@@ -473,6 +477,9 @@ static void named_variable(Token name, bool can_assign) {
   }
 }
 
+// Compiles a variable reference.
+// The variable has already been consumed and is referenced by the previous
+// token.
 static void variable(bool can_assign) {
   named_variable(parser.previous, can_assign);
 }
@@ -696,10 +703,12 @@ static void parse_precedence(Precedence precedence) {
   }
 }
 
+// Adds the token's lexeme to the constant pool and returns its index.
 static uint8_t string_constant(Token* name) {
   return make_constant(OBJ_VAL(copy_string(name->start, name->length)));
 }
 
+// Checks whether the text content of two tokens is equal.
 static bool identifiers_equal(Token* a, Token* b) {
   if (a->length != b->length) {
     return false;
@@ -708,7 +717,11 @@ static bool identifiers_equal(Token* a, Token* b) {
   return memcmp(a->start, b->start, a->length) == 0;
 }
 
+// Resolves a local variable by looking it up in the current compilers
+// local variables. Returns the index of the local variable in the locals array.
 static int resolve_local(Compiler* compiler, Token* name) {
+  // Walk backwards through the locals to shadow outer variables with the same
+  // name.
   for (int i = compiler->local_count - 1; i >= 0; i--) {
     Local* local = &compiler->locals[i];
     if (identifiers_equal(name, &local->name)) {
@@ -741,6 +754,8 @@ static int resolve_upvalue(Compiler* compiler, Token* name) {
   return -1;
 }
 
+// Adds a local variable to the current compiler's local variables.
+// Logs a compile error if the local variable count exceeds the maximum.
 static void add_local(Token name) {
   if (current->local_count == UINT8_COUNT) {
     error("Too many local variables in this scope.");
@@ -774,6 +789,11 @@ static int add_upvalue(Compiler* compiler, uint8_t index, bool is_local) {
   return compiler->function->upvalue_count++;
 }
 
+// Declares a local variable in the current scope.
+// If we're in the toplevel, nothing happens. This is because global variables
+// are late bound.
+// This function is the only place where the compiler records the existence
+// of a local variable.
 static void declare_local() {
   if (current->scope_depth == 0) {
     return;
@@ -794,6 +814,9 @@ static void declare_local() {
   add_local(*name);
 }
 
+// Consumes a variable name and returns its index in the constant pool.
+// If it is a local variable, the function exits early with a dummy index of 0,
+// because there is no need to store it in the constant pool
 static uint8_t parse_variable(const char* error_message) {
   consume(TOKEN_ID, error_message);
 
@@ -812,6 +835,9 @@ static void mark_initialized() {
   current->locals[current->local_count - 1].depth = current->scope_depth;
 }
 
+// Emits a define-global instruction if we are not in a local scope.
+// The variables index in the constant pool represents the operand of the
+// instruction.
 static void define_variable(uint8_t global) {
   if (current->scope_depth > 0) {
     mark_initialized();
@@ -836,6 +862,8 @@ static uint8_t argument_list() {
   return arg_count;
 }
 
+// Synchronizes the parser after a syntax error, by skipping tokens until we
+// reached a statement or declaration boundary.
 static void synchronize() {
   parser.panic_mode = false;
 
@@ -863,6 +891,8 @@ static void expression() {
   parse_precedence(PREC_ASSIGN);
 }
 
+// Compiles a let declaration.
+// The let keyword has already been consumed at this point.
 static void statement_declaration_let() {
   uint8_t global = parse_variable("Expecting variable name.");
 
@@ -944,11 +974,16 @@ static void statement_declaration_class() {
   current_class = current_class->enclosing;
 }
 
+// Compiles a print statement.
+// The print keyword has already been consumed at this point.
 static void statement_print() {
   expression();
   emit_byte(OP_PRINT);
 }
 
+// Compiles an expression statement.
+// Nothing has been consumed yet, so the current token is the first token of the
+// expression.
 static void statement_expression() {
   expression();
   emit_byte(OP_POP);
@@ -1063,6 +1098,7 @@ static void statement_for() {
   end_scope();
 }
 
+// Compiles a block.
 static void block() {
   while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF)) {
     declaration();
@@ -1071,6 +1107,7 @@ static void block() {
   consume(TOKEN_CBRACE, "Expecting '}' after block.");
 }
 
+// Compiles a statement.
 static void statement() {
   if (match(TOKEN_PRINT)) {
     statement_print();
@@ -1091,6 +1128,7 @@ static void statement() {
   }
 }
 
+// Compiles a declaration.
 static void declaration() {
   if (match(TOKEN_CLASS)) {
     statement_declaration_class();
@@ -1107,6 +1145,9 @@ static void declaration() {
   }
 }
 
+// This function is the main entry point of the compiler.
+// It compiles the given source code into bytecode and returns
+// the toplebel function.
 ObjFunction* compile(const char* source) {
   init_scanner(source);
   Compiler compiler;
