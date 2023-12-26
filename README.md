@@ -20,7 +20,9 @@ A stack-based bytecode VM written in C, based on the book [Crafting Interpreters
 
 ### Phase 2
 
-- [ ] Re-read the book & comment the code accordingly
+- [ ] Re-read the book & comment the code accordingly (Continue in chapter 26)
+- [ ] Merge "function" and "functions" tests directories
+- [ ] Add tests for anonymous functions
 - [ ] Challenges to implement:
 - [ ] 14->2: Add OP_CONSTANT_LONG. This is a must-have.
 - [ ] 15->4: Single-op unaries. Not fully-fledged constant folding, but a good start.

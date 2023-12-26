@@ -47,6 +47,7 @@ typedef struct {
   bool is_captured;
 } Local;
 
+// A struct declaring an upvalue.
 typedef struct {
   uint8_t index;
   bool is_local;
@@ -756,7 +757,8 @@ static bool identifiers_equal(Token* a, Token* b) {
 }
 
 // Resolves a local variable by looking it up in the current compilers
-// local variables. Returns the index of the local variable in the locals array.
+// local variables. Returns the index of the local variable in the locals array,
+// or -1 if it is not found.
 static int resolve_local(Compiler* compiler, Token* name) {
   // Walk backwards through the locals to shadow outer variables with the same
   // name.
@@ -773,6 +775,14 @@ static int resolve_local(Compiler* compiler, Token* name) {
   return -1;
 }
 
+// Resolves an upvalue.
+// - If it is found in the enclosing compiler's locals, it is marked as
+// captured and an upvalue is added to the current compiler's upvalues array.
+// - If it is not found in the enclosing compiler's locals, it is recursively
+// resolved in the enclosing compilers.
+//
+// Returns the index of the upvalue in the current compiler's upvalues array, or
+// -1 if it is not found.
 static int resolve_upvalue(Compiler* compiler, Token* name) {
   if (compiler->enclosing == NULL)
     return -1;
@@ -792,7 +802,7 @@ static int resolve_upvalue(Compiler* compiler, Token* name) {
   return -1;
 }
 
-// Adds a local variable to the current compiler's local variables.
+// Adds a local variable to the current compiler's local variables array.
 // Logs a compile error if the local variable count exceeds the maximum.
 static void add_local(Token name) {
   if (current->local_count == UINT8_COUNT) {
@@ -807,6 +817,10 @@ static void add_local(Token name) {
   local->is_captured = false;
 }
 
+// Adds an upvalue to the current compiler's upvalues array.
+// Checks whether the upvalue is already in the array. If so, it returns its
+// index. Otherwise, it adds it to the array and returns the new index.
+// Logs a compile error if the upvalue count exceeds the maximum and returns 0.
 static int add_upvalue(Compiler* compiler, uint8_t index, bool is_local) {
   int upvalue_count = compiler->function->upvalue_count;
 

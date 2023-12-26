@@ -203,6 +203,9 @@ static bool bind_method(ObjClass* klass, ObjString* name) {
   return true;
 }
 
+// Creates a new upvalue and inserts it into the linked list of open upvalues.
+// Before inserting, it checks whether there is already an upvalue for the local
+// variable. If there is, it returns that one instead.
 static ObjUpvalue* capture_upvalue(Value* local) {
   ObjUpvalue* prev_upvalue = NULL;
   ObjUpvalue* upvalue = vm.open_upvalues;
@@ -232,13 +235,14 @@ static ObjUpvalue* capture_upvalue(Value* local) {
   return created_upvalue;
 }
 
+// Closes every upvalue until the given stack slot is reached.
 // Closing upvalues moves them from the stack to the heap.
 static void close_upvalues(Value* last) {
   while (vm.open_upvalues != NULL && vm.open_upvalues->location >= last) {
     ObjUpvalue* upvalue = vm.open_upvalues;
     upvalue->closed =
         *upvalue->location;  // Move the value (via location pointer) from the
-                             // stack to the heap
+                             // stack to the heap (closed field)
     upvalue->location = &upvalue->closed;  // Point to ourselves for the value
     vm.open_upvalues = upvalue->next;
   }
