@@ -7,8 +7,10 @@
 #define GC_HEAP_GROW_FACTOR 2
 #define GC_DEFAULT_THRESHOLD 1024 * 1024
 
+// Allocate memory for an array.
 #define ALLOCATE(type, count) (type*)reallocate(NULL, 0, sizeof(type) * (count))
 
+// Free memory of an array by resizing it to 0.
 #define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
 
 // Grow the capacity of a dynamic array.
@@ -52,6 +54,8 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size);
 void collect_garbage();
 void mark_value(Value value);
 void mark_obj(Obj* object);
+
+// Frees the vm's linked list of objects.
 void free_objects();
 
 #endif

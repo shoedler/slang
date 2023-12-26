@@ -373,7 +373,10 @@ static void number(bool can_assign) {
   emit_constant(NUMBER_VAL(value));
 }
 
+// Compiles a string literal and emits it as a string object value.
+// The string has already been consumed and is referenced by the previous token.
 static void string(bool can_assign) {
+  // TODO (enhance): Handle escape sequences here.
   emit_constant(OBJ_VAL(
       copy_string(parser.previous.start + 1, parser.previous.length - 2)));
 }

@@ -251,6 +251,7 @@ static bool is_falsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
+// Concatenates two strings into a new string and pushes it onto the stack
 static void concatenate() {
   ObjString* b = AS_STRING(peek(0));  // Peek, so it doesn't get freed by the GC
   ObjString* a = AS_STRING(peek(1));  // Peek, so it doesn't get freed by the GC

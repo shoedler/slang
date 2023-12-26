@@ -13,6 +13,7 @@ void free_hashtable(HashTable* table) {
   init_hashtable(table);
 }
 
+// Find the entry for key. Returns NULL if no entry is found.
 static Entry* find_entry(Entry* entries, int capacity, ObjString* key) {
   uint32_t index = key->hash & (capacity - 1);
   Entry* tombstone = NULL;
@@ -37,6 +38,8 @@ static Entry* find_entry(Entry* entries, int capacity, ObjString* key) {
   }
 }
 
+// Adjusts the capacity of the hashtable to be at least of size capacity.
+// Creates a new hashtable and copies the entries over.
 static void adjust_capacity(HashTable* table, int capacity) {
   Entry* entries = ALLOCATE(Entry, capacity);
   for (int i = 0; i < capacity; i++) {

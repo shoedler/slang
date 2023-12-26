@@ -10,9 +10,12 @@
 #include "debug.h"
 #endif
 
+// Allocates a new object of the given type.
 #define ALLOCATE_OBJ(type, objectType) \
   (type*)allocate_object(sizeof(type), objectType)
 
+// Allocates a new object of the given type and size.
+// It also initializes the object's fields.
 static Obj* allocate_object(size_t size, ObjType type) {
   Obj* object = (Obj*)reallocate(NULL, 0, size);
   object->type = type;
@@ -30,6 +33,9 @@ static Obj* allocate_object(size_t size, ObjType type) {
   return object;
 }
 
+// Allocates a heap-allocated string in a string object.
+// The string object sort of acts like a wrapper for the c string.
+// Both the string object and the c string are heap-allocated.
 static ObjString* allocate_string(char* chars, int length, uint32_t hash) {
   ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
   string->length = length;
@@ -100,6 +106,7 @@ ObjNative* new_native(NativeFn function) {
   return native;
 }
 
+// Hashes a string using the FNV-1a algorithm.
 static uint32_t hash_string(const char* key, int length) {
   uint32_t hash = 2166136261u;
   for (int i = 0; i < length; i++) {
