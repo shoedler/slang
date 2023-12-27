@@ -1214,9 +1214,6 @@ static void declaration() {
   }
 }
 
-// This function is the main entry point of the compiler.
-// It compiles the given source code into bytecode and returns
-// the toplebel function.
 ObjFunction* compile(const char* source) {
   init_scanner(source);
   Compiler compiler;

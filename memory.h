@@ -52,7 +52,15 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size);
 // references, we then turn the gray object black. This color means the mark
 // phase is done processing that object.
 void collect_garbage();
+
+// Marks a value gray. Only heap allocated values need to be marked.
+// Currently, this is only objects.
 void mark_value(Value value);
+
+// Marks an object gray by setting its is_marked field to true. And
+// adding it to the gray stack. (Worklist)
+// The worklist is owned by the vm and does not use our own memory allocation
+// functions to decouple it from the garbage collector.
 void mark_obj(Obj* object);
 
 // Frees the vm's linked list of objects.

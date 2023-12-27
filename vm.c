@@ -605,8 +605,6 @@ static InterpretResult run() {
 #undef BINARY_OP
 }
 
-// This function is the main entry point for the virtual machine.
-// It takes a string of source code, compiles it, and then runs it.
 InterpretResult interpret(const char* source) {
   ObjFunction* function = compile(source);
   if (function == NULL)

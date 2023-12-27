@@ -38,9 +38,12 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size) {
 }
 
 void mark_obj(Obj* object) {
+  // Unnecessary NULL check if we're called from mark_value, but if called from
+  // elsewhere, the object arg could be NULL.
   if (object == NULL) {
     return;
   }
+
   if (object->is_marked) {
     return;
   }
@@ -75,12 +78,16 @@ void mark_value(Value value) {
   }
 }
 
+// Marks all entries in a value array gray.
 void mark_array(ValueArray* array) {
   for (int i = 0; i < array->count; i++) {
     mark_value(array->values[i]);
   }
 }
 
+// Blackens an object by marking all objects it references.
+// A black object is one that has been marked and all objects it references have
+// been marked as well.
 static void blacken_object(Obj* object) {
 #ifdef DEBUG_LOG_GC
   printf(ANSI_RED_STR("[GC] ") ANSI_BLUE_STR("[BLACKEN] ") "%p, ",
@@ -134,6 +141,8 @@ static void blacken_object(Obj* object) {
   }
 }
 
+// Frees an object from our heap.
+// How we free an object depends on its type.
 static void free_object(Obj* object) {
 #ifdef DEBUG_LOG_GC
   printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "%p, type %d\n",
@@ -196,25 +205,39 @@ void free_objects() {
   free(vm.gray_stack);
 }
 
+// Starts at the roots of the objects in the heap and marks all reachable
+// objects.
 static void mark_roots() {
+  // Most roots are local variables, which are on the stack.
   for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
     mark_value(*slot);
   }
 
+  // Call frames are also roots, because they contain function call state.
   for (int i = 0; i < vm.frame_count; i++) {
     mark_obj((Obj*)vm.frames[i].closure);
   }
 
+  // Open upvalues are also roots directly accessible by the vm.
   for (ObjUpvalue* upvalue = vm.open_upvalues; upvalue != NULL;
        upvalue = upvalue->next) {
     mark_obj((Obj*)upvalue);
   }
 
+  // Also mark the globals hashtable.
   mark_hashtable(&vm.globals);
+
+  // And the compiler roots. The GC can run while compiling, so we need to mark
+  // the compiler's internal state as well.
   mark_compiler_roots();
+
+  // And the init string.
   mark_obj((Obj*)vm.init_string);
 }
 
+// Traces all references from the gray stack and marks them black e.g. marking
+// all objects referenced by the gray object. Since the gray object is no black,
+// it's popped from the gray stack.
 static void trace_references() {
   while (vm.gray_count > 0) {
     Obj* object = vm.gray_stack[--vm.gray_count];
@@ -222,6 +245,10 @@ static void trace_references() {
   }
 }
 
+// Sweeps the heap and frees all unmarked objects.
+// This is done by iterating over the linked list of objects and freeing all
+// white objects. White objects are objects that have not been marked during the
+// mark phase and are therefore unreachable.
 static void sweep() {
   Obj* previous = NULL;
   Obj* object = vm.objects;
@@ -254,6 +281,12 @@ void collect_garbage() {
 
   mark_roots();
   trace_references();
+  // Remove all white entries from the vm's interned strings hashtable. This has
+  // to be done after the mark phase, but before the sweep phase. This allows us
+  // to just remove all white string objects from the table, because they are
+  // not referenced by any other object. Doing this before the sweep phase is
+  // important, because white string objects would be freed during the sweep and
+  // leave us with dangling pointers in the hashtable.
   hashtable_remove_white(&vm.strings);
   sweep();
 

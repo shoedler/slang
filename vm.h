@@ -32,7 +32,7 @@ typedef struct {
   Value stack[STACK_MAX];
   Value* stack_top;  // Points to where the next value to be pushed will go
   HashTable globals;
-  HashTable strings;
+  HashTable strings;  // Interned strings
   ObjString* init_string;
   ObjUpvalue* open_upvalues;
   Obj* objects;
@@ -41,7 +41,9 @@ typedef struct {
   size_t next_gc;
   int gray_count;
   int gray_capacity;
-  Obj** gray_stack;
+  Obj** gray_stack;  // Worklist for the garbage collector. This field is not
+                     // managed by our own memory allocator, but rather by the
+                     // system's allocator.
 } Vm;
 
 // Possible outcomes of interpreting code
@@ -59,8 +61,8 @@ void init_vm();
 // Free the virtual machine.
 void free_vm();
 
-// Main entry point for the virtual machine.
-// Accepts a string of source code and executes it.
+// This function is the main entry point for the virtual machine.
+// It takes a string of source code, compiles it, and then runs it.
 InterpretResult interpret(const char* source);
 
 // Push a value onto the stack.

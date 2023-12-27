@@ -16,12 +16,13 @@ A stack-based bytecode VM written in C, based on the book [Crafting Interpreters
 
 ### Phase 2
 
-- [ ] Re-read the book & comment the code accordingly (Continue in chapter 26)
+- [ ] Re-read the book & comment the code accordingly (Continue in chapter 27)
 - [ ] Merge "function" and "functions" tests directories
 - [ ] Add tests for anonymous functions
 - [ ] Challenges to implement:
-  - [ ] 24 $\to$ 1: ip in register. This is a must-have.
-  - [ ] 14 $\to$ 2: Add OP_CONSTANT_LONG. This is a must-have.
+  - [ ] 24 $\to$ 1: Move `ip` into a register. This is a must-have.
+  - [ ] 14 $\to$ 2: Allow more than 256 constants per chunk by adding `OP_CONSTANT_LONG`. This is a must-have.
+  - [ ] 22 $\to$ 4: Allow more than 256 locals per scope. This is a must-have.
   - [ ] 17 $\to$ 3: Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `a ? b else c`. This is a must-have.
   - [ ] 16 $\to$ 1: String interpolation. C#-style `$"Hello {name}"`
   - [ ] 21 $\to$ 2: Constant time global variable lookup.
@@ -29,7 +30,6 @@ A stack-based bytecode VM written in C, based on the book [Crafting Interpreters
   - [ ] 23 $\to$ 2: `continue` Statement
   - [ ] 20 $\to$ 1: Index a hashtable with any primitive. This is a good introduction to the goal of being able to index with reference types.
   - [ ] 19 $\to$ 1: Store strings as flexible array members
-  - [ ] 22 $\to$ 4: Allow more than 256 locals per scope. This is a must-have.
   - [ ] 25 $\to$ 2: Closing over the loop variable.
   - [ ] 22 $\to$ 3: Add `const`
   - [ ] 15 $\to$ 4: Single-op unaries. Not fully-fledged constant folding, but a good start.
