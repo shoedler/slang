@@ -4,10 +4,6 @@
 
 A stack-based bytecode VM written in C, based on the book [Crafting Interpreters](https://craftinginterpreters.com/).
 
-## References
-
-- https://github.com/Janko-dev/yabil/
-
 ## TODOs
 
 ### Phase 1
@@ -24,24 +20,22 @@ A stack-based bytecode VM written in C, based on the book [Crafting Interpreters
 - [ ] Merge "function" and "functions" tests directories
 - [ ] Add tests for anonymous functions
 - [ ] Challenges to implement:
-- [ ] 14->2: Add OP_CONSTANT_LONG. This is a must-have.
-- [ ] 15->4: Single-op unaries. Not fully-fledged constant folding, but a good start.
-- [ ] 16->1: String interpolation.
-- [ ] 17->3: Ternaries
-- [ ] 19->1: Store strings as flexible array members
-- [ ] 20->1: Index a hashtable with any primitive. This is a good introduction to the goal of being able to index with reference types.
-- [ ] 21->2: Constant time global variable lookup.
-- [ ] 22->3: Add `const`
-- [ ] 22->4: Allow more than 256 locals per scope. This is a must-have.
-- [ ] 23->1: `switch` Statement
-- [ ] 23->2: `continue` Statement
-- [ ] 24->1: ip in register. This is a must-have.
-- [ ] 25->1: Only necessary closures. Evaluate this, maybe it's not worth it.
-- [ ] 25->2: Closing over the loop variable.
-- [ ] 28->1: Cache `ctor` keyword. Low prio.
-- [ ] 28->3: Differentiate between fields and methods textually. Use an array for lookup. Low prio.
-
---
+  - [ ] 24 $\to$ 1: ip in register. This is a must-have.
+  - [ ] 14 $\to$ 2: Add OP_CONSTANT_LONG. This is a must-have.
+  - [ ] 17 $\to$ 3: Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `a ? b else c`. This is a must-have.
+  - [ ] 16 $\to$ 1: String interpolation. C#-style `$"Hello {name}"`
+  - [ ] 21 $\to$ 2: Constant time global variable lookup.
+  - [ ] 23 $\to$ 1: `switch` Statement. Starting point for the `match` statement.
+  - [ ] 23 $\to$ 2: `continue` Statement
+  - [ ] 20 $\to$ 1: Index a hashtable with any primitive. This is a good introduction to the goal of being able to index with reference types.
+  - [ ] 19 $\to$ 1: Store strings as flexible array members
+  - [ ] 22 $\to$ 4: Allow more than 256 locals per scope. This is a must-have.
+  - [ ] 25 $\to$ 2: Closing over the loop variable.
+  - [ ] 22 $\to$ 3: Add `const`
+  - [ ] 15 $\to$ 4: Single-op unaries. Not fully-fledged constant folding, but a good start.
+  - [ ] 25 $\to$ 1: Only necessary closures. Evaluate this, maybe it's not worth it.
+  - [ ] 28 $\to$ 1: Cache `ctor` keyword. Low prio.
+  - [ ] 28 $\to$ 3: Differentiate between fields and methods textually. Use an array for lookup. Low prio.
 
 ### Phase 3
 
@@ -49,6 +43,8 @@ A stack-based bytecode VM written in C, based on the book [Crafting Interpreters
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
 - [ ] Add type conversion functions. Proposal: `int()`, `float()`, `str()`, `bool()`
 - [ ] Add type checking functions. Proposal: `type()` and `Num`, `Str`, `Bool` or `@num`, `@str`, `@bool`
+- [ ] Add sequences
+- [ ] Add objects
 
 ### Phase 4
 
@@ -67,3 +63,8 @@ A stack-based bytecode VM written in C, based on the book [Crafting Interpreters
 - [ ] Constant folding directly in the compiler
 - [ ] Implement a JIT compiler
 - [ ] Infer names of anonymous functions (Improves stack traces)
+
+## References
+
+- https://github.com/Janko-dev/yabil/
+- https://luajit.org/luajit.html

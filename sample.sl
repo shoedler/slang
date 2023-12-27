@@ -15,12 +15,12 @@
 // // -----------------------------------------
 // // Loops
 // // -----------------------------------------
-// for let i = 0 ; i < 5 ; i = i + 1 {
+// for let i = 0 ; i < 5 ; i = i + 1 ; {
 //   print i
 // }
 
 // let b = false
-// for b ; !b { // Incrementing is optional
+// for b ; !b ;; { // Incrementing is optional
 //   print b
 //   b = true
 // }
@@ -32,17 +32,17 @@
 //   print c
 // }
 
-// for let i = 0 ; i < 100 ; i = i + 1 {
-//   let outer = fn -> {
+// for let i = 0 ; i < 100 ; i = i + 1 ; {
+//   let outer = fn {
 //     let x = "outside"
-//     let inner = fn -> {
+//     let inner = fn {
 //       print x
 //     }
 //     ret inner;
 //   }
 
-//   for let y = 0; y < 100; y = y + 1 {
-//     let x = fn -> {
+//   for let y = 0; y < 100; y = y + 1 ; {
+//     let x = fn {
 //       print "Hello World"
 //     }
 //     x()
@@ -55,10 +55,10 @@
 // -----------------------------------------
 // Functions
 // -----------------------------------------
-// let a = fn -> print "a" // Anonymous Fn
-// let a_args = fn x,y,z -> print x + y + z // Anonymous Fn
-// fn b -> print "b" // Named Fn
-// fn b_args x,y,z -> print x + y + z // Named Fn
+// let a = fn -> "a" // Anonymous Fn
+// let a_args = fn(x,y,z) -> x + y + z // Anonymous Fn
+// fn b -> "b" // Named Fn
+// fn b_args(x,y,z) -> x + y + z // Named Fn
 
 // print a
 // print a_args
@@ -68,11 +68,7 @@
 // // -----------------------------------------
 // // Functions can be recursive
 // // -----------------------------------------
-// let fib = fn n ->
-//   if n <= 1
-//     ret n;
-//   else
-//     ret (fib(n-1) + fib(n-2));
+// let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
 
 // // With native functions. Here, timed with clock()
 // let start = clock()
@@ -93,9 +89,9 @@
 // // -----------------------------------------
 // // Functions have / are Closures
 // // -----------------------------------------
-// fn outer -> {
+// fn outer {
 //   let x = "outside"
-//   let inner = fn -> {
+//   let inner = fn {
 //     print x
 //   }
 //   inner()
@@ -109,20 +105,20 @@
 // // Classes 
 // // -----------------------------------------
 // cls Scone {
-//   fn topping = first, second -> {
+//   fn topping(first, second) {
 //     print "scone with " + first + " and " + second
 //     ret 1;
 //   }
 // }
 
 // let scone = Scone()
-// let res = scone.topping("berries", "cream")
-// print res
-// print scone.topping
+// let res = scone.topping("berries", "cream") // Prints "scone with berries and cream"
+// print res // Prints 1 
+// print scone.topping // Prints [Fn topping, arity 2]
 
 // cls Nested {
-//   fn method -> {
-//     let function = fn -> {
+//   fn method {
+//     let function = fn {
 //       print this
 //     }
 
@@ -133,11 +129,11 @@
 // Nested().method() // Prints "Nested Instance"
 
 // cls CoffeeMaker {
-//   ctor = coffee -> {
+//   ctor (coffee) {
 //     this.coffee = coffee
 //   }
 
-//   fn brew -> {
+//   fn brew  {
 //     print "Enjoy your cup of " + this.coffee
 
 //     // No reusing the grounds!
@@ -147,13 +143,13 @@
 
 // let maker = CoffeeMaker("coffee and chicory")
 // maker.brew() 
-// // maker.brew() // Error
+// maker.brew() // Error
 
 // // -----------------------------------------
 // // Base Classes
 // // -----------------------------------------
 // cls A {
-//   fn method -> {
+//   fn method {
 //     print "A"
 //   }
 // }
@@ -163,7 +159,7 @@
 // }
 
 // cls B : A {
-//   fn method -> {
+//   fn method {
 //     let closure = base.method
 //     closure() // Prints "A"
 //   }
@@ -222,33 +218,3 @@ print batches
 print "In"
 print duration
 print "seconds"
-
-fn func(x) -> x
-
-let anon = fn -> 123
-let anon2 = fn(x) {
-  print x
-}
-
-cls A {
-  ctor {
-    this.a = 1
-  }
-
-  fn method(y) {
-    print this.a
-    print y
-  }
-}
-
-let a = A()
-a.method(78)
-
-print func(90)
-print func
-
-print anon()
-print anon
-
-print anon2(90)
-print anon2
