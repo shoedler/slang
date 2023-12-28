@@ -63,16 +63,14 @@ int wmain(int argc, wchar_t* argv[]) {
   argc = 3;
   argv[1] = L"run";
   argv[2] = L"C:\\Projects\\slang\\sample.sl";
+  argv[2] = L"C:\\Projects\\slang\\bench\\fib.bench.sl";
+  argv[2] = L"C:\\Projects\\slang\\bench\\zoo.bench.sl";
 #endif
 
 #ifdef START_WITH_TESTS
   argc = 3;
   argv[1] = L"test";
   argv[2] = L"C:\\Projects\\slang\\test";
-#endif
-
-#ifdef _DEBUG
-  printf(ANSI_YELLOW_STR("[DebugBuild]\n"));
 #endif
 
   if (argc == 2 && wcscmp(argv[1], L"repl") == 0) {

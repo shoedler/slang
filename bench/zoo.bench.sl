@@ -16,7 +16,7 @@ cls Zoo {
 }
 
 let zoo = Zoo()
-let duration = 0.5
+let duration = 5
 let sum = 0
 let batches = 0
 
@@ -36,6 +36,9 @@ while clock() < start + duration {
   i = 0
 }
 
-print sum / batches   // [Expect] 60000
-print batches >= 260  // [Expect] true
-print duration        // [Expect] 0.500000
+print "Batches of 10k:"
+print batches
+print "Sum:"
+print sum
+print "Duration:"
+print duration

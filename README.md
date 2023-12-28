@@ -18,6 +18,7 @@ A stack-based bytecode VM written in C, based on the book [Crafting Interpreters
 
 - [ ] Re-read the book & comment the code accordingly (Continue in chapter 27)
 - [ ] Merge "function" and "functions" tests directories
+- [ ] Rename "super" test cases to "base"
 - [ ] Add tests for anonymous functions
 - [ ] Challenges to implement:
   - [ ] 24 $\to$ 1: Move `ip` into a register. This is a must-have.
