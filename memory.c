@@ -132,6 +132,11 @@ static void blacken_object(Obj* object) {
     case OBJ_UPVALUE:
       mark_value(((ObjUpvalue*)object)->closed);
       break;
+    case OBJ_SEQ: {
+      ObjSeq* seq = (ObjSeq*)object;
+      mark_array(&seq->items);
+      break;
+    }
     case OBJ_NATIVE:
     case OBJ_STRING:
       break;
@@ -145,8 +150,8 @@ static void blacken_object(Obj* object) {
 // How we free an object depends on its type.
 static void free_object(Obj* object) {
 #ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "%p, type %d\n",
-         (void*)object, object->type);
+  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "%p, type %s\n",
+         (void*)object, obj_type_to_string(object->type));
 #endif
 
   switch (object->type) {
@@ -184,6 +189,12 @@ static void free_object(Obj* object) {
       ObjString* string = (ObjString*)object;
       FREE_ARRAY(char, string->chars, string->length + 1);
       FREE(ObjString, object);
+      break;
+    }
+    case OBJ_SEQ: {
+      ObjSeq* seq = (ObjSeq*)object;
+      free_value_array(&seq->items);
+      FREE(ObjSeq, object);
       break;
     }
     case OBJ_UPVALUE:

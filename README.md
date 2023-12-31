@@ -56,7 +56,7 @@ A stack-based bytecode VM written in C, based on the book [Crafting Interpreters
 ### Phase 5
 
 - [ ] Implement hashtable keys for all types: Objs are by reference, primitives and strings by value
-- [ ] Implement sequences
+- [x] Implement sequences
 
 ### Ideas
 

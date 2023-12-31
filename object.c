@@ -15,9 +15,13 @@
   (type*)allocate_object(sizeof(type), objectType)
 
 // Allocates a new object of the given type and size.
-// It also initializes the object's fields.
+// It also initializes the object's fields. Might trigger GC, but (obviously)
+// won't free the new object to be allocated.
 static Obj* allocate_object(size_t size, ObjType type) {
-  Obj* object = (Obj*)reallocate(NULL, 0, size);
+  Obj* object = (Obj*)reallocate(
+      NULL, 0,
+      size);  // Might trigger GC, but it's fine since our new object isn't
+              // referenced by anything yet -> not reachable by GC
   object->type = type;
   object->is_marked = false;
 
@@ -26,8 +30,8 @@ static Obj* allocate_object(size_t size, ObjType type) {
 
 #ifdef DEBUG_LOG_GC_ALLOCATIONS
   printf(ANSI_RED_STR("[GC] ")
-             ANSI_MAGENTA_STR("[ALLOC] ") "%p allocate %zu for %d\n",
-         (void*)object, size, type);
+             ANSI_MAGENTA_STR("[ALLOC] ") "%p allocate %zu for type %s\n",
+         (void*)object, size, obj_type_to_string(type));
 #endif
 
   return object;
@@ -116,6 +120,12 @@ static uint32_t hash_string(const char* key, int length) {
   return hash;
 }
 
+ObjSeq* take_seq(ValueArray items) {
+  ObjSeq* list = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
+  list->items = items;
+  return list;
+}
+
 ObjString* take_string(char* chars, int length) {
   uint32_t hash = hash_string(chars, length);
   ObjString* interned = hashtable_find_string(&vm.strings, chars, length, hash);
@@ -172,7 +182,18 @@ void print_object(Value value) {
       printf("%s", AS_CSTRING(value));
       break;
     case OBJ_UPVALUE:
-      printf("[Upvalue]");
       break;
+    case OBJ_SEQ: {
+      ObjSeq* seq = AS_SEQ(value);
+      printf("{Seq %d [", seq->items.count);
+      for (int i = 0; i < seq->items.count; i++) {
+        print_value(seq->items.values[i]);
+        if (i != seq->items.count - 1) {
+          printf(", ");
+        }
+      }
+      printf("]}");
+      break;
+    }
   }
 }

@@ -63,8 +63,6 @@ int wmain(int argc, wchar_t* argv[]) {
   argc = 3;
   argv[1] = L"run";
   argv[2] = L"C:\\Projects\\slang\\sample.sl";
-  argv[2] = L"C:\\Projects\\slang\\bench\\fib.bench.sl";
-  argv[2] = L"C:\\Projects\\slang\\bench\\zoo.bench.sl";
 #endif
 
 #ifdef START_WITH_TESTS

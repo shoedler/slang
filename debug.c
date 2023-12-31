@@ -102,6 +102,7 @@ void disassemble_chunk(Chunk* chunk, const char* name) {
   printf("== End of chunk: %s ==\n", name);
 }
 
+// Prints an instruction that has no operands.
 static int simple_instruction(const char* name, int offset) {
   PRINT_OPCODE(name);
   PRINT_NO_INT();
@@ -109,6 +110,7 @@ static int simple_instruction(const char* name, int offset) {
   return offset + 1;
 }
 
+// Prints an instruction that has one byte-sized operand.
 static int byte_instruction(const char* name, Chunk* chunk, int offset) {
   uint8_t slot = chunk->code[offset + 1];
   PRINT_OPCODE(name);
@@ -131,11 +133,13 @@ static int jump_instruction(const char* name,
   return offset + 3;
 }
 
+// Prints an instruction with one operand that is an index into the constant
+// table.
 static int constant_instruction(const char* name, Chunk* chunk, int offset) {
-  uint8_t constant = chunk->code[offset + 1];
+  uint8_t constant_index = chunk->code[offset + 1];
   PRINT_OPCODE(name);
-  PRINT_INT(constant);
-  debug_print_value(chunk->constants.values[constant]);
+  PRINT_INT(constant_index);
+  debug_print_value(chunk->constants.values[constant_index]);
   return offset + 2;
 }
 
@@ -212,6 +216,10 @@ int disassemble_instruction(Chunk* chunk, int offset) {
       return byte_instruction("OP_GET_UPVALUE", chunk, offset);
     case OP_SET_UPVALUE:
       return byte_instruction("OP_SET_UPVALUE", chunk, offset);
+    case OP_GET_INDEX:
+      return simple_instruction("OP_GET_INDEX", offset);
+    case OP_SET_INDEX:
+      return simple_instruction("OP_SET_INDEX", offset);
     case OP_GET_PROPERTY:
       return constant_instruction("OP_GET_PROPERTY", chunk, offset);
     case OP_SET_PROPERTY:
@@ -234,6 +242,10 @@ int disassemble_instruction(Chunk* chunk, int offset) {
       return simple_instruction("OP_NEGATE", offset);
     case OP_PRINT:
       return simple_instruction("OP_PRINT", offset);
+    case OP_LIST_LITERAL:
+      return byte_instruction("OP_LIST_LITERAL", chunk, offset);
+    case OP_LIST_LITERAL_LONG:
+      INTERNAL_ERROR("OP_LIST_LITERAL_LONG not implemented");
     case OP_JUMP:
       return jump_instruction("OP_JUMP", 1, chunk, offset);
     case OP_JUMP_IF_FALSE:

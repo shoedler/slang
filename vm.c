@@ -395,6 +395,48 @@ static InterpretResult run() {
             peek(0);  // peek, because assignment is an expression!
         break;
       }
+      case OP_GET_INDEX: {
+        Value index = pop();
+        Value assignee = pop();
+        if (!IS_SEQ(assignee)) {
+          runtime_error("Only sequences can be indexed.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        ObjSeq* seq = AS_SEQ(assignee);
+        if (!IS_NUMBER(index)) {
+          runtime_error("Index must be a number.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        int i = (int)AS_NUMBER(index);
+        if (i < 0 || i >= seq->items.count) {
+          runtime_error("Index out of bounds.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        push(seq->items.values[i]);
+        break;
+      }
+      case OP_SET_INDEX: {
+        Value value = pop();
+        Value index = pop();
+        Value assignee = pop();
+        if (!IS_SEQ(assignee)) {
+          runtime_error("Only sequences can be indexed.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        ObjSeq* seq_obj = AS_SEQ(assignee);
+        if (!IS_NUMBER(index)) {
+          runtime_error("Index must be a number.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        int i = (int)AS_NUMBER(index);
+        if (i < 0 || i >= seq_obj->items.count) {
+          runtime_error("Index out of bounds.");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        seq_obj->items.values[i] = value;
+        push(value);
+        break;
+      }
       case OP_GET_PROPERTY: {
         if (!IS_INSTANCE(peek(0))) {
           runtime_error("Only instances can have properties.");
@@ -500,6 +542,33 @@ static InterpretResult run() {
         printf("\n");
         break;
       }
+      case OP_LIST_LITERAL: {
+        int count = READ_BYTE();
+
+        // Since we know the count, we can preallocate the value array for the
+        // list. This avoids using write_value_array within the loop, which can
+        // trigger a GC due to growing the array and free items in the middle of
+        // the loop. Also, it lets us pop the list items on the stack, instead
+        // of peeking and then having to pop them later (Requiring us to loop
+        // over the array twice)
+        ValueArray items;
+        init_value_array(&items);
+
+        items.values = GROW_ARRAY(Value, items.values, 0, count);
+        items.capacity = count;
+        items.count = count;
+
+        for (int i = count - 1; i >= 0; i--) {
+          items.values[i] = pop();
+        }
+
+        ObjSeq* seq = take_seq(&items);
+        push(OBJ_VAL(seq));
+
+        break;
+      }
+      case OP_LIST_LITERAL_LONG:
+        INTERNAL_ERROR("OP_LIST_LITERAL_LONG not implemented");
       case OP_JUMP: {
         uint16_t offset = READ_SHORT();
         frame->ip += offset;

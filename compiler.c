@@ -219,7 +219,7 @@ static void patch_jump(int offset) {
 // Logs a compile error if the constant pool is full.
 static uint8_t make_constant(Value value) {
   int constant = add_constant(current_chunk(), value);
-  if (constant > UINT8_MAX) {
+  if (constant > MAX_CONSTANTS) {
     error("Too many constants in one chunk.");
     return 0;
   }
@@ -362,6 +362,21 @@ static void dot(bool can_assign) {
   }
 }
 
+// Compiles an indexing expression.
+// The opening bracket has already been consumed and is referenced by the
+// previous token.
+static void indexing(bool can_assign) {
+  expression();
+  consume(TOKEN_CBRACK, "Expecting ']' after index.");
+
+  if (can_assign && match(TOKEN_ASSIGN)) {
+    expression();  // The new value.
+    emit_byte(OP_SET_INDEX);
+  } else {
+    emit_byte(OP_GET_INDEX);
+  }
+}
+
 // Compiles a text literal (true, false, nil).
 // The literal has already been consumed and is referenced by the previous
 // token.
@@ -389,6 +404,33 @@ static void literal(bool can_assign) {
 static void grouping(bool can_assign) {
   expression();
   consume(TOKEN_CPAR, "Expecting ')' after expression.");
+}
+
+// Compiles a list literal.
+// The opening brace has already been consumed (previous token)
+static void list_literal(bool can_assign) {
+  int count = 0;
+
+  if (!check(TOKEN_CBRACK)) {
+    do {
+      expression();
+      count++;
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_CBRACK, "Expecting ']' after list literal.");
+
+  if (count <= MAX_LIST_ITEMS) {
+    emit_bytes(OP_LIST_LITERAL, count);
+  } else if (count <= MAX_LIST_ITEMS_LONG) {
+    emit_bytes(OP_LIST_LITERAL_LONG, count);
+    emit_bytes(count >> 8, count >> 16);
+  } else {
+    error_at_current(
+        "Can't have more than MAX_LIST_ITEMS_LONG items in a list.");  // TODO
+                                                                       // (enhance):
+                                                                       // Interpolate
+                                                                       // MAX_LIST_ITEMS_LONG
+  }
 }
 
 // Compiles a number literal and emits it as a number value.
@@ -552,7 +594,11 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
       do {
         current->function->arity++;
         if (current->function->arity > MAX_FN_ARGS) {
-          error_at_current("Can't have more than MAX_FN_ARGS parameters.");
+          error_at_current(
+              "Can't have more than MAX_FN_ARGS parameters.");  // TODO
+                                                                // (enhance):
+                                                                // Interpolate
+                                                                // MAX_FN_ARGS
         }
         uint8_t constant = parse_variable("Expecting parameter name.");
         define_variable(constant);
@@ -672,6 +718,8 @@ ParseRule rules[] = {
     [TOKEN_CPAR] = {NULL, NULL, PREC_NONE},
     [TOKEN_OBRACE] = {NULL, NULL, PREC_NONE},
     [TOKEN_CBRACE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_OBRACK] = {list_literal, indexing, PREC_CALL},
+    [TOKEN_CBRACK] = {NULL, NULL, PREC_NONE},
     [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
     [TOKEN_DOT] = {NULL, dot, PREC_CALL},
     [TOKEN_MINUS] = {unary, binary, PREC_TERM},

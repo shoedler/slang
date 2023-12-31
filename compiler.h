@@ -4,7 +4,12 @@
 #include "object.h"
 #include "vm.h"
 
-#define MAX_FN_ARGS 255
+#define MAX_FN_ARGS UINT8_MAX
+
+#define MAX_CONSTANTS UINT8_MAX
+
+#define MAX_LIST_ITEMS UINT8_MAX
+#define MAX_LIST_ITEMS_LONG ((1 << 24) - 1)
 
 // This function is the main entry point of the compiler.
 // It compiles the given source code into bytecode and returns

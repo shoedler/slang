@@ -5,6 +5,7 @@
 
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
+typedef struct ObjSeq ObjSeq;
 
 // The type of a value.
 typedef enum {

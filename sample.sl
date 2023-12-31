@@ -168,53 +168,80 @@
 // let b = B()
 // b.method()
 
+// // -----------------------------------------
+// // Benchmarks
+// // -----------------------------------------
+// cls Zoo {
+//   ctor {
+//     this.aardvark = 1
+//     this.baboon   = 1
+//     this.cat      = 1
+//     this.donkey   = 1
+//     this.elephant = 1
+//     this.fox      = 1
+//   }
+
+//   fn ant    -> this.aardvark
+//   fn banana -> this.baboon
+//   fn tuna   -> this.cat
+//   fn hay    -> this.donkey
+//   fn grass  -> this.elephant
+//   fn mouse  -> this.fox
+// }
+
+// let sum = 0
+// let duration = 1
+// let batches = 0
+
+// let start = clock()
+// let i = 0
+
+// while clock() < start + duration {
+//   while i < 10000 {
+//     let zoo = Zoo()
+//     sum = sum + zoo.ant()
+//             + zoo.banana()
+//             + zoo.tuna()
+//             + zoo.hay()
+//             + zoo.grass()
+//             + zoo.mouse()
+//     i = i + 1
+//   }
+//   batches = batches + 1
+//   i = 0
+// }
+
+// print "Sum: " 
+// print sum
+// print "Batches of 10000: "
+// print batches
+// print "In"
+// print duration
+// print "seconds"
+
 // -----------------------------------------
-// Benchmarks
+// Sequences
 // -----------------------------------------
-cls Zoo {
+let x = [1,2,3]
+print x
+print x[0]
+
+x[0] = 4
+print x[0]
+x[1] = ["Foo", "Bar"]
+print x
+
+cls Seq {
   ctor {
-    this.aardvark = 1
-    this.baboon   = 1
-    this.cat      = 1
-    this.donkey   = 1
-    this.elephant = 1
-    this.fox      = 1
+    this.list = [1,2,3]
+    this.list[1] = -2
+    print this.list
   }
-
-  fn ant    -> this.aardvark
-  fn banana -> this.baboon
-  fn tuna   -> this.cat
-  fn hay    -> this.donkey
-  fn grass  -> this.elephant
-  fn mouse  -> this.fox
 }
 
-let sum = 0
-let duration = 1
-let batches = 0
+fn make_list -> [1,2,3]
+let s = Seq()
 
-let start = clock()
-let i = 0
+print make_list()[2]
+print make_list()[2][1] // nil -> error
 
-while clock() < start + duration {
-  while i < 10000 {
-    let zoo = Zoo()
-    sum = sum + zoo.ant()
-            + zoo.banana()
-            + zoo.tuna()
-            + zoo.hay()
-            + zoo.grass()
-            + zoo.mouse()
-    i = i + 1
-  }
-  batches = batches + 1
-  i = 0
-}
-
-print "Sum: " 
-print sum
-print "Batches of 10000: "
-print batches
-print "In"
-print duration
-print "seconds"
