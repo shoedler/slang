@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -95,6 +96,14 @@ Value pop() {
 // Look at the value without popping it
 static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
+}
+
+// Returns true if a floating point number is an integer, false otherwise.
+// Assignes the resulting integer value to the integer pointer.
+static bool is_int(double number, int* integer) {
+  double dint = rint(number);
+  *integer = (int)dint;
+  return number == dint;
 }
 
 // Executes a call to a function or method by creating a new call frame and
@@ -396,19 +405,29 @@ static InterpretResult run() {
         Value index = pop();
         Value assignee = pop();
         if (!IS_SEQ(assignee)) {
+          print_value(assignee);
           runtime_error("Only sequences can be indexed.");
           return INTERPRET_RUNTIME_ERROR;
         }
+
         ObjSeq* seq = AS_SEQ(assignee);
         if (!IS_NUMBER(index)) {
-          runtime_error("Index must be a number.");
-          return INTERPRET_RUNTIME_ERROR;
+          push(NIL_VAL);
+          break;
         }
-        int i = (int)AS_NUMBER(index);
+
+        double i_raw = AS_NUMBER(index);
+        int i;
+        if (!is_int(i_raw, &i)) {
+          push(NIL_VAL);
+          break;
+        }
+
         if (i < 0 || i >= seq->items.count) {
           runtime_error("Index out of bounds.");
           return INTERPRET_RUNTIME_ERROR;
         }
+
         push(seq->items.values[i]);
         break;
       }
@@ -420,17 +439,26 @@ static InterpretResult run() {
           runtime_error("Only sequences can be indexed.");
           return INTERPRET_RUNTIME_ERROR;
         }
-        ObjSeq* seq_obj = AS_SEQ(assignee);
+
+        ObjSeq* seq = AS_SEQ(assignee);
         if (!IS_NUMBER(index)) {
-          runtime_error("Index must be a number.");
-          return INTERPRET_RUNTIME_ERROR;
+          push(NIL_VAL);
+          break;
         }
-        int i = (int)AS_NUMBER(index);
-        if (i < 0 || i >= seq_obj->items.count) {
+
+        double i_raw = AS_NUMBER(index);
+        int i;
+        if (!is_int(i_raw, &i)) {
+          push(NIL_VAL);
+          break;
+        }
+
+        if (i < 0 || i >= seq->items.count) {
           runtime_error("Index out of bounds.");
           return INTERPRET_RUNTIME_ERROR;
         }
-        seq_obj->items.values[i] = value;
+
+        seq->items.values[i] = value;
         push(value);
         break;
       }

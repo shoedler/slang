@@ -289,8 +289,6 @@ Token scan_token() {
       return make_token(TOKEN_MULT);
     case '%':
       return make_token(TOKEN_MOD);
-    case '^':
-      return make_token(TOKEN_POW);
 
     case '-':
       return make_token(match('>') ? TOKEN_LAMBDA : TOKEN_MINUS);

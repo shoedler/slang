@@ -15,7 +15,6 @@ typedef enum {
   TOKEN_MULT,   // '*'
   TOKEN_DIV,    // '/'
   TOKEN_MOD,    // '%'
-  TOKEN_POW,    // '^'
   TOKEN_NOT,    // '!'
 
   TOKEN_DOT,     // '.'

@@ -1,0 +1,1 @@
+let a = [cls X {}] // [ExpectCompileError] Compile error at line 1 at 'cls': Expecting expression.
