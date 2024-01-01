@@ -261,8 +261,8 @@ static void init_compiler(Compiler* compiler,
   local->is_captured = false;
 
   if (type != TYPE_FUNCTION) {
-    local->name.start = "this";
-    local->name.length = 4;
+    local->name.start = THIS_KEYWORD;
+    local->name.length = THIS_KEYWORD_LENGTH;
   } else {
     local->name.start = "";  // Not accessible.
     local->name.length = 0;
@@ -329,6 +329,7 @@ static int resolve_upvalue(Compiler* compiler, Token* name);
 static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local);
 static uint16_t parse_variable(const char* error_message);
 static void define_variable(uint16_t global);
+void declaration_let();
 
 // Compiles a function call expression.
 // The opening parenthesis has already been consumed and is referenced by the
@@ -338,6 +339,9 @@ static void call(bool can_assign) {
   emit_two(OP_CALL, arg_count);
 }
 
+// Compiles a dot expression.
+// The lhs bytecode has already been emitted. The rhs starts at the current
+// token. The dot operator is in the previous token.
 static void dot(bool can_assign) {
   if (!match(TOKEN_ID)) {
     consume(TOKEN_CTOR, "Expecting property name after '.'.");
@@ -349,6 +353,8 @@ static void dot(bool can_assign) {
     expression();
     emit_two(OP_SET_PROPERTY, name);
   } else if (match(TOKEN_OPAR)) {
+    // Shorthand for method calls. This combines two instructions into one:
+    // getting a property and calling a method.
     uint16_t arg_count = argument_list();
     emit_two(OP_INVOKE, name);
     emit_one(arg_count);
@@ -539,6 +545,8 @@ static void variable(bool can_assign) {
   named_variable(parser.previous, can_assign);
 }
 
+// Creates a token from the given text.
+// Synthetic refers to the fact that the token is not from the source code.
 static Token synthetic_token(const char* text) {
   Token token;
   token.start = text;
@@ -546,6 +554,11 @@ static Token synthetic_token(const char* text) {
   return token;
 }
 
+// Compiles a base expression.
+// This is a special expression that allows access to the base class.
+// It also handles the directly following dot operator - which is the only
+// operator allowed after a base expression.
+// The next token to be parsed is the dot operator.
 static void base_(bool can_assign) {
   if (current_class == NULL) {
     error("Can't use '" BASE_CLASS_KEYWORD "' outside of a class.");
@@ -559,15 +572,17 @@ static void base_(bool can_assign) {
   }
   uint16_t name = string_constant(&parser.previous);
 
-  named_variable(synthetic_token("this"), false);
+  named_variable(synthetic_token(THIS_KEYWORD), false);
   if (match(TOKEN_OPAR)) {
+    // Shorthand for method calls. This combines two instructions into one:
+    // getting a property and calling a method.
     uint16_t arg_count = argument_list();
     named_variable(synthetic_token(BASE_CLASS_KEYWORD), false);
     emit_two(OP_BASE_INVOKE, name);
     emit_one(arg_count);
   } else {
     named_variable(synthetic_token(BASE_CLASS_KEYWORD), false);
-    emit_two(OP_GET_BASE_CLASS, name);
+    emit_two(OP_GET_BASE_METHOD, name);
   }
 }
 
@@ -639,6 +654,8 @@ static void anonymous_function(bool can_assign) {
            copy_string("<Anon>", 7));
 }
 
+// Compiles a class method.
+// Nothing has been consumed yet.
 static void method() {
   consume(TOKEN_FN, "Expecting method initializer.");
   consume(TOKEN_ID, "Expecting method name.");
@@ -696,6 +713,9 @@ static void or_(bool can_assign) {
   patch_jump(end_jump);
 }
 
+// Compiles a this expression.
+// The this keyword has already been consumed and is referenced by the previous
+// token.
 static void this_(bool can_assign) {
   if (current_class == NULL) {
     error("Can't use 'this' outside of a class.");
@@ -986,92 +1006,6 @@ static void expression() {
   parse_precedence(PREC_ASSIGN);
 }
 
-// Compiles a let declaration.
-// The let keyword has already been consumed at this point.
-static void statement_declaration_let() {
-  uint16_t global = parse_variable("Expecting variable name.");
-
-  if (match(TOKEN_ASSIGN)) {
-    expression();
-  } else {
-    emit_one(OP_NIL);
-  }
-
-  define_variable(global);
-}
-
-// Compiles a function declaration.
-// The fn keyword has already been consumed at this point.
-// Since functions are first-class, this is similar to a variable declaration.
-static void statement_declaration_function() {
-  uint16_t global = parse_variable("Expecting variable name.");
-  ObjString* fn_name =
-      copy_string(parser.previous.start, parser.previous.length);
-
-  mark_initialized();
-  function(false /* does not matter */, TYPE_FUNCTION, fn_name);
-  define_variable(global);
-}
-
-static void statement_declaration_class() {
-  consume(TOKEN_ID, "Expecting class name.");
-  Token class_name = parser.previous;
-  uint16_t name_constant = string_constant(&parser.previous);
-  declare_local();
-
-  emit_two(OP_CLASS, name_constant);
-  define_variable(name_constant);
-
-  ClassCompiler class_compiler;
-  class_compiler.has_baseclass = false;
-  class_compiler.enclosing = current_class;
-  current_class = &class_compiler;
-
-  if (match(TOKEN_COLON)) {
-    consume(TOKEN_ID, "Expecting base class name.");
-    variable(false);
-
-    if (identifiers_equal(&class_name, &parser.previous)) {
-      error("A class can't inherit from itself.");
-    }
-
-    begin_scope();
-    add_local(synthetic_token(
-        BASE_CLASS_KEYWORD));  // TODO: Maybe use BASE_CLASS_KEYWORD as a
-                               // lexeme, then synthetic_token is not needed.
-    define_variable(0);
-
-    named_variable(class_name, false);
-    emit_one(OP_INHERIT);
-    class_compiler.has_baseclass = true;
-  }
-
-  named_variable(class_name, false);
-
-  // Body
-  bool has_ctor = false;
-  consume(TOKEN_OBRACE, "Expecting '{' before class body.");
-  while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF) && !parser.panic_mode) {
-    if (check(TOKEN_CTOR)) {
-      if (has_ctor) {
-        error("Can't have more than one constructor.");
-      }
-      constructor();
-      has_ctor = true;
-    } else {
-      method();
-    }
-  }
-  consume(TOKEN_CBRACE, "Expecting '}' after class body.");
-  emit_one(OP_POP);
-
-  if (class_compiler.has_baseclass) {
-    end_scope();
-  }
-
-  current_class = current_class->enclosing;
-}
-
 // Compiles a print statement.
 // The print keyword has already been consumed at this point.
 static void statement_print() {
@@ -1162,7 +1096,7 @@ static void statement_for() {
     // No initializer.
   } else {
     if (match(TOKEN_LET)) {
-      statement_declaration_let();
+      declaration_let();
     } else {
       statement_expression();
     }
@@ -1237,14 +1171,107 @@ static void statement() {
   }
 }
 
+// Compiles a let declaration.
+// The let keyword has already been consumed at this point.
+static void declaration_let() {
+  uint16_t global = parse_variable("Expecting variable name.");
+
+  if (match(TOKEN_ASSIGN)) {
+    expression();
+  } else {
+    emit_one(OP_NIL);
+  }
+
+  define_variable(global);
+}
+
+// Compiles a function declaration.
+// The fn keyword has already been consumed at this point.
+// Since functions are first-class, this is similar to a variable declaration.
+static void declaration_function() {
+  uint16_t global = parse_variable("Expecting variable name.");
+  ObjString* fn_name =
+      copy_string(parser.previous.start, parser.previous.length);
+
+  mark_initialized();
+  function(false /* does not matter */, TYPE_FUNCTION, fn_name);
+  define_variable(global);
+}
+
+// Compiles a class declaration.
+// The class keyword has already been consumed at this point.
+// Also handles inheritance.
+static void declaration_class() {
+  consume(TOKEN_ID, "Expecting class name.");
+  Token class_name = parser.previous;
+  uint16_t name_constant = string_constant(&parser.previous);
+  declare_local();
+
+  emit_two(OP_CLASS, name_constant);
+
+  // Define here, so it can be referenced in the class body.
+  define_variable(name_constant);
+
+  ClassCompiler class_compiler;
+  class_compiler.has_baseclass = false;
+  class_compiler.enclosing = current_class;
+  current_class = &class_compiler;
+
+  // Inherit from base class
+  if (match(TOKEN_COLON)) {
+    consume(TOKEN_ID, "Expecting base class name.");
+    variable(false);
+
+    if (identifiers_equal(&class_name, &parser.previous)) {
+      error("A class can't inherit from itself.");
+    }
+
+    begin_scope();
+    add_local(synthetic_token(
+        BASE_CLASS_KEYWORD));  // TODO (optimize): Maybe use BASE_CLASS_KEYWORD
+                               // as a lexeme, then synthetic_token is not
+                               // needed.
+    define_variable(0);
+
+    named_variable(class_name, false);
+    emit_one(OP_INHERIT);
+    class_compiler.has_baseclass = true;
+  }
+
+  named_variable(class_name, false);
+
+  // Body
+  bool has_ctor = false;
+  consume(TOKEN_OBRACE, "Expecting '{' before class body.");
+  while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF) && !parser.panic_mode) {
+    if (check(TOKEN_CTOR)) {
+      if (has_ctor) {
+        error("Can't have more than one constructor.");
+      }
+      constructor();
+      has_ctor = true;
+    } else {
+      method();
+    }
+  }
+  consume(TOKEN_CBRACE, "Expecting '}' after class body.");
+  emit_one(OP_POP);
+
+  if (class_compiler.has_baseclass) {
+    end_scope();
+  }
+
+  current_class = current_class->enclosing;
+}
+
 // Compiles a declaration.
 static void declaration() {
   if (match(TOKEN_CLASS)) {
-    statement_declaration_class();
+    declaration_class();
   } else if (match(TOKEN_FN)) {
-    statement_declaration_function();
+    declaration_function();
   } else if (match(TOKEN_LET)) {
-    statement_declaration_let();
+    declaration_let();
   } else {
     statement();
   }

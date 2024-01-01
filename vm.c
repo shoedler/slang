@@ -171,6 +171,8 @@ static bool call_value(Value callee, int arg_count) {
   return false;
 }
 
+// Invokes a method on a class by looking up the method in the class' method
+// table and calling it. (Combines "get-property" and "call" opcodes)
 static bool invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
   Value method;
   if (!hashtable_get(&klass->methods, name, &method)) {
@@ -180,6 +182,7 @@ static bool invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
   return call(AS_CLOSURE(method), arg_count);
 }
 
+// Invokes a method on the top of the stack.
 static bool invoke(ObjString* name, int arg_count) {
   Value receiver = peek(arg_count);
 
@@ -191,6 +194,7 @@ static bool invoke(ObjString* name, int arg_count) {
   ObjInstance* instance = AS_INSTANCE(receiver);
 
   Value value;
+  // It could be a field which is a function, we need to check that first
   if (hashtable_get(&instance->fields, name, &value)) {
     vm.stack_top[-arg_count - 1] = value;
     return call_value(value, arg_count);
@@ -199,10 +203,11 @@ static bool invoke(ObjString* name, int arg_count) {
   return invoke_from_class(instance->klass, name, arg_count);
 }
 
+// Binds a method to an instance by creating a new bound method object and
+// pushing it onto the stack.
 static bool bind_method(ObjClass* klass, ObjString* name) {
   Value method;
   if (!hashtable_get(&klass->methods, name, &method)) {
-    runtime_error("Undefined property '%s'.", name->chars);
     return false;
   }
 
@@ -257,9 +262,12 @@ static void close_upvalues(Value* last) {
   }
 }
 
+// Adds a method to the class on top of the stack.
+// The methods closure is on top of the stack, the class is one below that.
 static void define_method(ObjString* name) {
   Value method = peek(0);
-  ObjClass* klass = AS_CLASS(peek(1));
+  ObjClass* klass = AS_CLASS(peek(1));  // We trust the compiler that this value
+                                        // is actually a class
   hashtable_set(&klass->methods, name, method);
   pop();
 }
@@ -405,7 +413,6 @@ static InterpretResult run() {
         Value index = pop();
         Value assignee = pop();
         if (!IS_SEQ(assignee)) {
-          print_value(assignee);
           runtime_error("Only sequences can be indexed.");
           return INTERPRET_RUNTIME_ERROR;
         }
@@ -479,6 +486,7 @@ static InterpretResult run() {
         }
 
         if (!bind_method(instance->klass, name)) {
+          runtime_error("Undefined property '%s'.", name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
         break;
@@ -497,11 +505,12 @@ static InterpretResult run() {
         push(value);
         break;
       }
-      case OP_GET_BASE_CLASS: {
+      case OP_GET_BASE_METHOD: {
         ObjString* name = READ_STRING();
         ObjClass* baseclass = AS_CLASS(pop());
 
         if (!bind_method(baseclass, name)) {
+          runtime_error("Undefined property '%s'.", name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
         break;

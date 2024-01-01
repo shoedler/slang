@@ -223,8 +223,8 @@ int disassemble_instruction(Chunk* chunk, int offset) {
       return constant_instruction("OP_GET_PROPERTY", chunk, offset);
     case OP_SET_PROPERTY:
       return constant_instruction("OP_SET_PROPERTY", chunk, offset);
-    case OP_GET_BASE_CLASS:
-      return constant_instruction("OP_GET_BASE_CLASS", chunk, offset);
+    case OP_GET_BASE_METHOD:
+      return constant_instruction("OP_GET_BASE_METHOD", chunk, offset);
     case OP_EQ:
       return simple_instruction("OP_EQ", offset);
     case OP_NEQ:

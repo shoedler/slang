@@ -8,8 +8,13 @@
 
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
+
 #define CLASS_CONSTRUCTOR_KEYWORD "ctor"
 #define CLASS_CONSTRUCTOR_KEYWORD_LENGTH (sizeof(CLASS_CONSTRUCTOR_KEYWORD) - 1)
+
+#define THIS_KEYWORD "this"
+#define THIS_KEYWORD_LENGTH (sizeof(THIS_KEYWORD) - 1)
+
 #define BASE_CLASS_KEYWORD "base"
 
 // Holds the state of a stack frame.
