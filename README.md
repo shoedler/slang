@@ -15,8 +15,8 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 - [x] Add tests according to the original repository of bob nystrom
 - [x] `cls B < A {}` crashes the VM
 - [x] Re-read the book & comment the code accordingly (Continue in chapter 27)
-- [ ] Merge "function" and "functions" tests directories
-- [ ] Rename "super" test cases to "base"
+- [x] Merge "function" and "functions" tests directories
+- [x] Rename "super" test cases to "base"
 
 ### Syntax & Language Features
 
