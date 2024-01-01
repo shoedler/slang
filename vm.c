@@ -283,17 +283,14 @@ static void concatenate() {
 static InterpretResult run() {
   CallFrame* frame = &vm.frames[vm.frame_count - 1];
 
-// Read a single byte from the current instruction pointer and advance it
-#define READ_BYTE() (*frame->ip++)
+// Read a single piece of data from the current instruction pointer and advance
+// it
+#define READ_ONE() (*frame->ip++)
 
-// Read a 16-bit value from the current instruction pointer and advance it
-#define READ_SHORT() \
-  (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
-
-// Read a constant from the constant pool. This consumes a one-byte operand
+// Read a constant from the constant pool. This consumes one piece of data
 // on the stack, which is the index of the constant to read
 #define READ_CONSTANT() \
-  (frame->closure->function->chunk.constants.values[READ_BYTE()])
+  (frame->closure->function->chunk.constants.values[READ_ONE()])
 
 // Read a string from the constant pool.
 #define READ_STRING() AS_STRING(READ_CONSTANT())
@@ -326,8 +323,8 @@ static InterpretResult run() {
 #endif
 #endif
 
-    uint8_t instruction;
-    switch (instruction = READ_BYTE()) {
+    uint16_t instruction;
+    switch (instruction = READ_ONE()) {
       case OP_CONSTANT: {
         Value constant = READ_CONSTANT();
         push(constant);
@@ -346,7 +343,7 @@ static InterpretResult run() {
         pop();
         break;
       case OP_GET_LOCAL: {
-        uint8_t slot = READ_BYTE();
+        uint16_t slot = READ_ONE();
         push(frame->slots[slot]);
         break;
       }
@@ -361,7 +358,7 @@ static InterpretResult run() {
         break;
       }
       case OP_GET_UPVALUE: {
-        uint8_t slot = READ_BYTE();
+        uint16_t slot = READ_ONE();
         push(*frame->closure->upvalues[slot]->location);
         break;
       }
@@ -373,7 +370,7 @@ static InterpretResult run() {
         break;
       }
       case OP_SET_LOCAL: {
-        uint8_t slot = READ_BYTE();
+        uint16_t slot = READ_ONE();
         frame->slots[slot] =
             peek(0);  // peek, because assignment is an expression!
         break;
@@ -390,7 +387,7 @@ static InterpretResult run() {
         break;
       }
       case OP_SET_UPVALUE: {
-        uint8_t slot = READ_BYTE();
+        uint16_t slot = READ_ONE();
         *frame->closure->upvalues[slot]->location =
             peek(0);  // peek, because assignment is an expression!
         break;
@@ -543,7 +540,7 @@ static InterpretResult run() {
         break;
       }
       case OP_LIST_LITERAL: {
-        int count = READ_BYTE();
+        int count = READ_ONE();
 
         // Since we know the count, we can preallocate the value array for the
         // list. This avoids using write_value_array within the loop, which can
@@ -567,26 +564,24 @@ static InterpretResult run() {
 
         break;
       }
-      case OP_LIST_LITERAL_LONG:
-        INTERNAL_ERROR("OP_LIST_LITERAL_LONG not implemented");
       case OP_JUMP: {
-        uint16_t offset = READ_SHORT();
+        uint16_t offset = READ_ONE();
         frame->ip += offset;
         break;
       }
       case OP_JUMP_IF_FALSE: {
-        uint16_t offset = READ_SHORT();
+        uint16_t offset = READ_ONE();
         if (is_falsey(peek(0)))
           frame->ip += offset;
         break;
       }
       case OP_LOOP: {
-        uint16_t offset = READ_SHORT();
+        uint16_t offset = READ_ONE();
         frame->ip -= offset;
         break;
       }
       case OP_CALL: {
-        int arg_count = READ_BYTE();
+        int arg_count = READ_ONE();
         if (!call_value(peek(arg_count), arg_count)) {
           return INTERPRET_RUNTIME_ERROR;
         }
@@ -595,7 +590,7 @@ static InterpretResult run() {
       }
       case OP_INVOKE: {
         ObjString* method = READ_STRING();
-        int arg_count = READ_BYTE();
+        int arg_count = READ_ONE();
         if (!invoke(method, arg_count)) {
           return INTERPRET_RUNTIME_ERROR;
         }
@@ -604,7 +599,7 @@ static InterpretResult run() {
       }
       case OP_BASE_INVOKE: {
         ObjString* method = READ_STRING();
-        int arg_count = READ_BYTE();
+        int arg_count = READ_ONE();
         ObjClass* baseclass = AS_CLASS(pop());
         if (!invoke_from_class(baseclass, method, arg_count)) {
           return INTERPRET_RUNTIME_ERROR;
@@ -619,8 +614,8 @@ static InterpretResult run() {
 
         // Bring closure to life
         for (int i = 0; i < closure->upvalue_count; i++) {
-          uint8_t is_local = READ_BYTE();
-          uint8_t index = READ_BYTE();
+          uint16_t is_local = READ_ONE();
+          uint16_t index = READ_ONE();
           if (is_local) {
             closure->upvalues[i] = capture_upvalue(frame->slots + index);
           } else {
@@ -667,8 +662,7 @@ static InterpretResult run() {
     }
   }
 
-#undef READ_BYTE
-#undef READ_SHORT
+#undef READ_ONE
 #undef READ_CONSTANT
 #undef READ_STRING
 #undef BINARY_OP

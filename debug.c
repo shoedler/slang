@@ -5,19 +5,19 @@
 
 #define VALUE_STR_LEN 25
 
-// 5 chars wide
-#define PRINT_OFFSET(_offset) printf(ANSI_MAGENTA_STR("%04d "), _offset)
+// 6 chars wide
+#define PRINT_OFFSET(_offset) printf(ANSI_MAGENTA_STR("%05d "), _offset)
 
-// 5 chars wide
-#define PRINT_LINE(_line) printf(ANSI_BLUE_STR("%04d "), _line)
-#define PRINT_SAME_LINE() printf(ANSI_BLUE_STR("   | "))
+// 6 chars wide
+#define PRINT_LINE(_line) printf(ANSI_BLUE_STR("%05d "), _line)
+#define PRINT_SAME_LINE() printf(ANSI_BLUE_STR("    | "))
 
 // 16 chars wide
 #define PRINT_OPCODE(_name) printf(ANSI_GREEN_STR("%-16.16s"), _name)
 
-// 6 chars wide
-#define PRINT_INT(_int) printf(ANSI_RED_STR(" %4d "), _int)
-#define PRINT_NO_INT() printf(ANSI_RED_STR("      "))
+// 7 chars wide
+#define PRINT_NUMBER(_int) printf(ANSI_RED_STR(" %5d "), _int)
+#define PRINT_NO_NUM() printf(ANSI_RED_STR("       "))
 
 // VALUE_STR_LEN chars wide
 #define PRINT_VALUE_STR(_str) \
@@ -105,16 +105,16 @@ void disassemble_chunk(Chunk* chunk, const char* name) {
 // Prints an instruction that has no operands.
 static int simple_instruction(const char* name, int offset) {
   PRINT_OPCODE(name);
-  PRINT_NO_INT();
+  PRINT_NO_NUM();
   PRINT_VALUE_STR("");
   return offset + 1;
 }
 
 // Prints an instruction that has one byte-sized operand.
 static int byte_instruction(const char* name, Chunk* chunk, int offset) {
-  uint8_t slot = chunk->code[offset + 1];
+  uint16_t slot = chunk->code[offset + 1];
   PRINT_OPCODE(name);
-  PRINT_INT(slot);
+  PRINT_NUMBER(slot);
   PRINT_VALUE_STR("");
   return offset + 2;
 }
@@ -123,12 +123,11 @@ static int jump_instruction(const char* name,
                             int sign,
                             Chunk* chunk,
                             int offset) {
-  uint16_t jump = (uint16_t)(chunk->code[offset + 1] << 8);
-  jump |= chunk->code[offset + 2];
+  uint16_t jump = chunk->code[offset + 1];
   char* jmp_str[13];
   sprintf(jmp_str, "%04d -> %04d", offset, offset + 3 + sign * jump);
   PRINT_OPCODE(name);
-  PRINT_NO_INT();
+  PRINT_NO_NUM();
   PRINT_VALUE_STR(jmp_str);
   return offset + 3;
 }
@@ -136,18 +135,18 @@ static int jump_instruction(const char* name,
 // Prints an instruction with one operand that is an index into the constant
 // table.
 static int constant_instruction(const char* name, Chunk* chunk, int offset) {
-  uint8_t constant_index = chunk->code[offset + 1];
+  uint16_t constant_index = chunk->code[offset + 1];
   PRINT_OPCODE(name);
-  PRINT_INT(constant_index);
+  PRINT_NUMBER(constant_index);
   debug_print_value(chunk->constants.values[constant_index]);
   return offset + 2;
 }
 
 static int closure_instruction(const char* name, Chunk* chunk, int offset) {
   offset++;
-  uint8_t constant = chunk->code[offset++];
+  uint16_t constant = chunk->code[offset++];
   PRINT_OPCODE(name);
-  PRINT_INT(constant);
+  PRINT_NUMBER(constant);
   debug_print_value(chunk->constants.values[constant]);
 
   ObjFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
@@ -161,7 +160,7 @@ static int closure_instruction(const char* name, Chunk* chunk, int offset) {
     PRINT_OFFSET(offset - 2);
     PRINT_SAME_LINE();
     PRINT_OPCODE("");
-    PRINT_NO_INT();
+    PRINT_NO_NUM();
     PRINT_VALUE_STR(upval_str);
   }
 
@@ -169,10 +168,10 @@ static int closure_instruction(const char* name, Chunk* chunk, int offset) {
 }
 
 static int invoke_instruction(const char* name, Chunk* chunk, int offset) {
-  uint8_t constant = chunk->code[offset + 1];
-  uint8_t arg_count = chunk->code[offset + 2];
+  uint16_t constant = chunk->code[offset + 1];
+  uint16_t arg_count = chunk->code[offset + 2];
   PRINT_OPCODE(name);
-  PRINT_INT(constant);
+  PRINT_NUMBER(constant);
   const char* method_str[VALUE_STR_LEN];
   sprintf(method_str, "%s, %d args",
           AS_STRING(chunk->constants.values[constant])->chars, arg_count);
@@ -190,7 +189,7 @@ int disassemble_instruction(Chunk* chunk, int offset) {
     PRINT_LINE(chunk->lines[offset]);
   }
 
-  uint8_t instruction = chunk->code[offset];
+  uint16_t instruction = chunk->code[offset];
   switch (instruction) {
     case OP_CONSTANT:
       return constant_instruction("OP_CONSTANT", chunk, offset);
@@ -244,8 +243,6 @@ int disassemble_instruction(Chunk* chunk, int offset) {
       return simple_instruction("OP_PRINT", offset);
     case OP_LIST_LITERAL:
       return byte_instruction("OP_LIST_LITERAL", chunk, offset);
-    case OP_LIST_LITERAL_LONG:
-      INTERNAL_ERROR("OP_LIST_LITERAL_LONG not implemented");
     case OP_JUMP:
       return jump_instruction("OP_JUMP", 1, chunk, offset);
     case OP_JUMP_IF_FALSE:
@@ -290,6 +287,6 @@ int disassemble_instruction(Chunk* chunk, int offset) {
 #undef PRINT_LINE
 #undef PRINT_SAME_LINE
 #undef PRINT_OPCODE
-#undef PRINT_INT
+#undef PRINT_NUMBER
 #undef PRINT_JUMP
 #undef VALUE_STR_LEN

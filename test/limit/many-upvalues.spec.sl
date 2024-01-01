@@ -99,7 +99,10 @@ fn f() {
       vf0 vf1 vf2 vf3 vf4 vf5 vf6 vf7
       vf8 vf9 vfa vfb vfc vfd vfe vff
 
-      oops // [ExpectCompileError] Compile error at line 102 at 'oops': Too many closure variables in function.
-    }// [ExpectCompileError] Compile error at line 105 at end: Expecting '}' after block.
-  }// [ExpectCompileError] Compile error at line 105 at end: Expecting '}' after block.
-} // [ExpectCompileError] Compile error at line 105 at end: Expecting '}' after block.
+      oops // That was illegal before 16-bit opcodes
+    }
+  }
+}
+
+// Since we now use 16-bit opcodes, this is fine
+print "ok" // [Expect] ok

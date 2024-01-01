@@ -4,12 +4,13 @@
 #include "object.h"
 #include "vm.h"
 
+// We can lift this to UINT16_MAX, but it's hard to test for, so we'll keep it
+// at UINT8_MAX for now.
 #define MAX_FN_ARGS UINT8_MAX
 
-#define MAX_CONSTANTS UINT8_MAX
-
-#define MAX_LIST_ITEMS UINT8_MAX
-#define MAX_LIST_ITEMS_LONG ((1 << 24) - 1)
+#define MAX_CONSTANTS UINT16_MAX
+#define MAX_JUMP UINT16_MAX
+#define MAX_LIST_ITEMS UINT16_MAX
 
 // This function is the main entry point of the compiler.
 // It compiles the given source code into bytecode and returns

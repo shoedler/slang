@@ -49,5 +49,8 @@ fn f() {
   let vf0 let vf1 let vf2 let vf3 let vf4 let vf5 let vf6 let vf7
   let vf8 let vf9 let vfa let vfb let vfc let vfd let vfe let vff
 
-  let oops // [ExpectCompileError] Compile error at line 52 at 'oops': Too many local variables in this scope.
-} // [ExpectCompileError] Compile error at line 54 at end: Expecting '}' after block.
+  let oops // That was illegal before 16-bit opcodes
+}
+
+// Since we now use 16-bit opcodes, this is fine
+print "ok" // [Expect] ok

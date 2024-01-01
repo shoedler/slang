@@ -16,7 +16,7 @@
 // Represents a single ongoing function call.
 typedef struct {
   ObjClosure* closure;
-  uint8_t* ip;
+  uint16_t* ip;
   Value* slots;
 } CallFrame;
 
@@ -27,7 +27,7 @@ typedef struct {
   int frame_count;
 
   Chunk* chunk;
-  uint8_t*
+  uint16_t*
       ip;  // Instruction pointer, points to the NEXT instruction to execute
   Value stack[STACK_MAX];
   Value* stack_top;  // Points to where the next value to be pushed will go

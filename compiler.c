@@ -49,7 +49,7 @@ typedef struct {
 
 // A struct declaring an upvalue.
 typedef struct {
-  uint8_t index;
+  uint16_t index;
   bool is_local;
 } Upvalue;
 
@@ -66,9 +66,9 @@ typedef struct Compiler {
   ObjFunction* function;
   FunctionType type;
 
-  Local locals[UINT8_COUNT];
+  Local locals[2048];
   int local_count;
-  Upvalue upvalues[UINT8_COUNT];
+  Upvalue upvalues[2048];
   int scope_depth;
 } Compiler;
 
@@ -162,74 +162,69 @@ static bool match(TokenType type) {
 }
 
 // Writes an opcode or operand to the current chunk.
-static void emit_byte(uint8_t byte) {
-  write_chunk(current_chunk(), byte, parser.previous.line);
+static void emit_one(uint16_t data) {
+  write_chunk(current_chunk(), data, parser.previous.line);
 }
 
 // Writes two opcodes or operands to the current chunk.
-static void emit_bytes(uint8_t byte1, uint8_t byte2) {
-  emit_byte(byte1);
-  emit_byte(byte2);
+static void emit_two(uint16_t data1, uint16_t data2) {
+  emit_one(data1);
+  emit_one(data2);
 }
 
 // Emits a loop instruction.
-// The operand is two bytes wide, forming a 16-bit offset.
+// The operand is a 16-bit offset.
 // It is calculated by subtracting the current chunk's count from the offset of
 // the jump instruction.
 static void emit_loop(int loop_start) {
-  emit_byte(OP_LOOP);
+  emit_one(OP_LOOP);
 
-  int offset = current_chunk()->count - loop_start + 2;
-  if (offset > UINT16_MAX) {
+  int offset = current_chunk()->count - loop_start + 1;
+  if (offset > MAX_JUMP) {
     error("Loop body too large.");
   }
 
-  emit_byte((offset >> 8) & 0xff);
-  emit_byte(offset & 0xff);
+  emit_one((uint16_t)offset);
 }
 
 // Emits a jump instruction and returns the offset of the jump instruction.
-// Along with the emitted jump instruction, two placeholder bytes for the
-// operand are emitted. These bytes form a 16-bit offset and will later be
-// patched with the actual jump offset.
-static int emit_jump(uint8_t instruction) {
-  emit_byte(instruction);
-  emit_byte(0xff);
-  emit_byte(0xff);
-  return current_chunk()->count - 2;
+// Along with the emitted jump instruction, a 16-bit placeholder for the
+// operand is emitted.
+static int emit_jump(uint16_t instruction) {
+  emit_one(instruction);
+  emit_one(UINT16_MAX);
+  return current_chunk()->count - 1;
 }
 
 // Patches a previously emitted jump instruction with the actual jump offset.
 // The offset is calculated by subtracting the current chunk's count from the
 // offset of the jump instruction.
-// The jump instructions operand is two bytes wide, forming a 16-bit offset.
 static void patch_jump(int offset) {
-  // -2 to adjust for the bytecode for the jump offset itself.
-  int jump = current_chunk()->count - offset - 2;
+  // -1 to adjust for the bytecode for the jump offset itself.
+  int jump = current_chunk()->count - offset - 1;
 
-  if (jump > UINT16_MAX) {
+  if (jump > MAX_JUMP) {
     error("Too much code to jump over.");
   }
 
-  current_chunk()->code[offset] = (jump >> 8) & 0xff;
-  current_chunk()->code[offset + 1] = jump & 0xff;
+  current_chunk()->code[offset] = (uint16_t)jump;
 }
 
 // Adds a value to the current constant pool and returns its index.
 // Logs a compile error if the constant pool is full.
-static uint8_t make_constant(Value value) {
+static uint16_t make_constant(Value value) {
   int constant = add_constant(current_chunk(), value);
   if (constant > MAX_CONSTANTS) {
     error("Too many constants in one chunk.");
     return 0;
   }
 
-  return (uint8_t)constant;
+  return (uint16_t)constant;
 }
 
 // Adds value to the constant pool and emits a const instruction to load it.
 static void emit_constant(Value value) {
-  emit_bytes(OP_CONSTANT, make_constant(value));
+  emit_two(OP_CONSTANT, make_constant(value));
 }
 
 // Emits a return instruction.
@@ -237,12 +232,12 @@ static void emit_constant(Value value) {
 // (the 'this' pointer). Otherwise, the return value is nil.
 static void emit_return() {
   if (current->type == TYPE_CONSTRUCTOR) {
-    emit_bytes(OP_GET_LOCAL, 0);  // Return class instance, e.g. 'this'.
+    emit_two(OP_GET_LOCAL, 0);  // Return class instance, e.g. 'this'.
   } else {
-    emit_byte(OP_NIL);
+    emit_one(OP_NIL);
   }
 
-  emit_byte(OP_RETURN);
+  emit_one(OP_RETURN);
 }
 
 // Initializes a new compiler.
@@ -312,9 +307,9 @@ static void end_scope() {
     // The ones who got captured by a closure are still needed, and are
     // going to need to live on the heap.
     if (current->locals[current->local_count - 1].is_captured) {
-      emit_byte(OP_CLOSE_UPVALUE);
+      emit_one(OP_CLOSE_UPVALUE);
     } else {
-      emit_byte(OP_POP);
+      emit_one(OP_POP);
     }
     current->local_count--;
   }
@@ -325,22 +320,22 @@ static void statement();
 static void declaration();
 static void block();
 
-static uint8_t argument_list();
+static uint16_t argument_list();
 static ParseRule* get_rule(TokenType type);
 static void parse_precedence(Precedence precedence);
-static uint8_t string_constant(Token* name);
+static uint16_t string_constant(Token* name);
 static int resolve_local(Compiler* compiler, Token* name);
 static int resolve_upvalue(Compiler* compiler, Token* name);
-static int add_upvalue(Compiler* compiler, uint8_t index, bool is_local);
-static uint8_t parse_variable(const char* error_message);
-static void define_variable(uint8_t global);
+static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local);
+static uint16_t parse_variable(const char* error_message);
+static void define_variable(uint16_t global);
 
 // Compiles a function call expression.
 // The opening parenthesis has already been consumed and is referenced by the
 // previous token.
 static void call(bool can_assign) {
-  uint8_t arg_count = argument_list();
-  emit_bytes(OP_CALL, arg_count);
+  uint16_t arg_count = argument_list();
+  emit_two(OP_CALL, arg_count);
 }
 
 static void dot(bool can_assign) {
@@ -348,17 +343,17 @@ static void dot(bool can_assign) {
     consume(TOKEN_CTOR, "Expecting property name after '.'.");
   }
 
-  uint8_t name = string_constant(&parser.previous);
+  uint16_t name = string_constant(&parser.previous);
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();
-    emit_bytes(OP_SET_PROPERTY, name);
+    emit_two(OP_SET_PROPERTY, name);
   } else if (match(TOKEN_OPAR)) {
-    uint8_t arg_count = argument_list();
-    emit_bytes(OP_INVOKE, name);
-    emit_byte(arg_count);
+    uint16_t arg_count = argument_list();
+    emit_two(OP_INVOKE, name);
+    emit_one(arg_count);
   } else {
-    emit_bytes(OP_GET_PROPERTY, name);
+    emit_two(OP_GET_PROPERTY, name);
   }
 }
 
@@ -371,9 +366,9 @@ static void indexing(bool can_assign) {
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();  // The new value.
-    emit_byte(OP_SET_INDEX);
+    emit_one(OP_SET_INDEX);
   } else {
-    emit_byte(OP_GET_INDEX);
+    emit_one(OP_GET_INDEX);
   }
 }
 
@@ -385,13 +380,13 @@ static void literal(bool can_assign) {
 
   switch (op_type) {
     case TOKEN_FALSE:
-      emit_byte(OP_FALSE);
+      emit_one(OP_FALSE);
       break;
     case TOKEN_NIL:
-      emit_byte(OP_NIL);
+      emit_one(OP_NIL);
       break;
     case TOKEN_TRUE:
-      emit_byte(OP_TRUE);
+      emit_one(OP_TRUE);
       break;
     default:
       INTERNAL_ERROR("Unhandled literal: %d", op_type);
@@ -420,16 +415,13 @@ static void list_literal(bool can_assign) {
   consume(TOKEN_CBRACK, "Expecting ']' after list literal.");
 
   if (count <= MAX_LIST_ITEMS) {
-    emit_bytes(OP_LIST_LITERAL, count);
-  } else if (count <= MAX_LIST_ITEMS_LONG) {
-    emit_bytes(OP_LIST_LITERAL_LONG, count);
-    emit_bytes(count >> 8, count >> 16);
+    emit_two(OP_LIST_LITERAL, (uint16_t)count);
   } else {
     error_at_current(
-        "Can't have more than MAX_LIST_ITEMS_LONG items in a list.");  // TODO
-                                                                       // (enhance):
-                                                                       // Interpolate
-                                                                       // MAX_LIST_ITEMS_LONG
+        "Can't have more than MAX_LIST_ITEMS items in a list.");  // TODO
+                                                                  // (enhance):
+                                                                  // Interpolate
+                                                                  // MAX_LIST_ITEMS
   }
 }
 
@@ -459,10 +451,10 @@ static void unary(bool can_assign) {
   // Emit the operator instruction.
   switch (operator_type) {
     case TOKEN_NOT:
-      emit_byte(OP_NOT);
+      emit_one(OP_NOT);
       break;
     case TOKEN_MINUS:
-      emit_byte(OP_NEGATE);
+      emit_one(OP_NEGATE);
       break;
     default:
       INTERNAL_ERROR("Unhandled unary operator type: %d", operator_type);
@@ -480,34 +472,34 @@ static void binary(bool can_assign) {
 
   switch (op_type) {
     case TOKEN_NEQ:
-      emit_byte(OP_NEQ);
+      emit_one(OP_NEQ);
       break;
     case TOKEN_EQ:
-      emit_byte(OP_EQ);
+      emit_one(OP_EQ);
       break;
     case TOKEN_GT:
-      emit_byte(OP_GT);
+      emit_one(OP_GT);
       break;
     case TOKEN_GTEQ:
-      emit_byte(OP_GTEQ);
+      emit_one(OP_GTEQ);
       break;
     case TOKEN_LT:
-      emit_byte(OP_LT);
+      emit_one(OP_LT);
       break;
     case TOKEN_LTEQ:
-      emit_byte(OP_LTEQ);
+      emit_one(OP_LTEQ);
       break;
     case TOKEN_PLUS:
-      emit_byte(OP_ADD);
+      emit_one(OP_ADD);
       break;
     case TOKEN_MINUS:
-      emit_byte(OP_SUBTRACT);
+      emit_one(OP_SUBTRACT);
       break;
     case TOKEN_MULT:
-      emit_byte(OP_MULTIPLY);
+      emit_one(OP_MULTIPLY);
       break;
     case TOKEN_DIV:
-      emit_byte(OP_DIVIDE);
+      emit_one(OP_DIVIDE);
       break;
     default:
       INTERNAL_ERROR("Unhandled binary operator type: %d", op_type);
@@ -518,7 +510,7 @@ static void binary(bool can_assign) {
 // Compiles a variable. Generates bytecode to load a variable with the given
 // name onto the stack.
 static void named_variable(Token name, bool can_assign) {
-  uint8_t get_op, set_op;
+  uint16_t get_op, set_op;
   int arg = resolve_local(current, &name);
   if (arg != -1) {
     get_op = OP_GET_LOCAL;
@@ -534,9 +526,9 @@ static void named_variable(Token name, bool can_assign) {
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();
-    emit_bytes(set_op, (uint8_t)arg);
+    emit_two(set_op, (uint16_t)arg);
   } else {
-    emit_bytes(get_op, (uint8_t)arg);
+    emit_two(get_op, (uint16_t)arg);
   }
 }
 
@@ -565,17 +557,17 @@ static void base_(bool can_assign) {
   if (!match(TOKEN_ID)) {
     consume(TOKEN_CTOR, "Expecting base class method name.");
   }
-  uint8_t name = string_constant(&parser.previous);
+  uint16_t name = string_constant(&parser.previous);
 
   named_variable(synthetic_token("this"), false);
   if (match(TOKEN_OPAR)) {
-    uint8_t arg_count = argument_list();
+    uint16_t arg_count = argument_list();
     named_variable(synthetic_token(BASE_CLASS_KEYWORD), false);
-    emit_bytes(OP_BASE_INVOKE, name);
-    emit_byte(arg_count);
+    emit_two(OP_BASE_INVOKE, name);
+    emit_one(arg_count);
   } else {
     named_variable(synthetic_token(BASE_CLASS_KEYWORD), false);
-    emit_bytes(OP_GET_BASE_CLASS, name);
+    emit_two(OP_GET_BASE_CLASS, name);
   }
 }
 
@@ -600,7 +592,7 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
                                                                 // Interpolate
                                                                 // MAX_FN_ARGS
         }
-        uint8_t constant = parse_variable("Expecting parameter name.");
+        uint16_t constant = parse_variable("Expecting parameter name.");
         define_variable(constant);
       } while (match(TOKEN_COMMA));
     }
@@ -627,7 +619,7 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
     // like "what does a for loop return?"
 
     expression();
-    emit_byte(OP_RETURN);
+    emit_one(OP_RETURN);
   } else {
     error_at_current("Expecting '{' before function body.");
   }
@@ -635,10 +627,10 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
   ObjFunction* function =
       end_compiler();  // Also handles end of scope. (end_scope())
 
-  emit_bytes(OP_CLOSURE, make_constant(OBJ_VAL(function)));
+  emit_two(OP_CLOSURE, make_constant(OBJ_VAL(function)));
   for (int i = 0; i < function->upvalue_count; i++) {
-    emit_byte(compiler.upvalues[i].is_local ? 1 : 0);
-    emit_byte(compiler.upvalues[i].index);
+    emit_one(compiler.upvalues[i].is_local ? 1 : 0);
+    emit_one(compiler.upvalues[i].index);
   }
 }
 
@@ -650,24 +642,24 @@ static void anonymous_function(bool can_assign) {
 static void method() {
   consume(TOKEN_FN, "Expecting method initializer.");
   consume(TOKEN_ID, "Expecting method name.");
-  uint8_t constant = string_constant(&parser.previous);
+  uint16_t constant = string_constant(&parser.previous);
   ObjString* method_name =
       copy_string(parser.previous.start, parser.previous.length);
 
   function(false /* does not matter */, TYPE_METHOD, method_name);
-  emit_bytes(OP_METHOD, constant);
+  emit_two(OP_METHOD, constant);
 }
 
 static void constructor() {
   consume(TOKEN_CTOR, "Expecting constructor.");
-  uint8_t constant = string_constant(&parser.previous);
+  uint16_t constant = string_constant(&parser.previous);
   // TODO (optimize): Maybe preload this? A constructor is always called the
   // the same name - so we could just load it once and then reuse it.
   ObjString* ctor_name =
       copy_string(parser.previous.start, parser.previous.length);
 
   function(false /* does not matter */, TYPE_CONSTRUCTOR, ctor_name);
-  emit_bytes(OP_METHOD, constant);
+  emit_two(OP_METHOD, constant);
 }
 
 // Compiles an and expression.
@@ -677,7 +669,7 @@ static void constructor() {
 // rhs starts at the current token. The and operator is in the previous token.
 static void and_(bool can_assign) {
   int end_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_byte(OP_POP);
+  emit_one(OP_POP);
 
   parse_precedence(PREC_AND);
 
@@ -698,7 +690,7 @@ static void or_(bool can_assign) {
   int end_jump = emit_jump(OP_JUMP);
 
   patch_jump(else_jump);
-  emit_byte(OP_POP);
+  emit_one(OP_POP);
 
   parse_precedence(PREC_OR);
   patch_jump(end_jump);
@@ -791,7 +783,7 @@ static void parse_precedence(Precedence precedence) {
 }
 
 // Adds the token's lexeme to the constant pool and returns its index.
-static uint8_t string_constant(Token* name) {
+static uint16_t string_constant(Token* name) {
   return make_constant(OBJ_VAL(copy_string(name->start, name->length)));
 }
 
@@ -838,13 +830,13 @@ static int resolve_upvalue(Compiler* compiler, Token* name) {
   int local = resolve_local(compiler->enclosing, name);
   if (local != -1) {
     compiler->enclosing->locals[local].is_captured = true;
-    return add_upvalue(compiler, (uint8_t)local, true);
+    return add_upvalue(compiler, (uint16_t)local, true);
   }
 
   // Recurse on outer scopes (compilers) to maybe find the variable there
   int upvalue = resolve_upvalue(compiler->enclosing, name);
   if (upvalue != -1) {
-    return add_upvalue(compiler, (uint8_t)upvalue, false);
+    return add_upvalue(compiler, (uint16_t)upvalue, false);
   }
 
   return -1;
@@ -853,7 +845,7 @@ static int resolve_upvalue(Compiler* compiler, Token* name) {
 // Adds a local variable to the current compiler's local variables array.
 // Logs a compile error if the local variable count exceeds the maximum.
 static void add_local(Token name) {
-  if (current->local_count == UINT8_COUNT) {
+  if (current->local_count == (UINT32_MAX - 1)) {
     error("Too many local variables in this scope.");
     return;
   }
@@ -869,7 +861,7 @@ static void add_local(Token name) {
 // Checks whether the upvalue is already in the array. If so, it returns its
 // index. Otherwise, it adds it to the array and returns the new index.
 // Logs a compile error if the upvalue count exceeds the maximum and returns 0.
-static int add_upvalue(Compiler* compiler, uint8_t index, bool is_local) {
+static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
   int upvalue_count = compiler->function->upvalue_count;
 
   for (int i = 0; i < upvalue_count; i++) {
@@ -879,7 +871,7 @@ static int add_upvalue(Compiler* compiler, uint8_t index, bool is_local) {
     }
   }
 
-  if (upvalue_count == UINT8_COUNT) {
+  if (upvalue_count == (UINT32_MAX - 1)) {
     error("Too many closure variables in function.");
     return 0;
   }
@@ -917,7 +909,7 @@ static void declare_local() {
 // Consumes a variable name and returns its index in the constant pool.
 // If it is a local variable, the function exits early with a dummy index of 0,
 // because there is no need to store it in the constant pool
-static uint8_t parse_variable(const char* error_message) {
+static uint16_t parse_variable(const char* error_message) {
   consume(TOKEN_ID, error_message);
 
   declare_local();
@@ -938,20 +930,20 @@ static void mark_initialized() {
 // Emits a define-global instruction if we are not in a local scope.
 // The variables index in the constant pool represents the operand of the
 // instruction.
-static void define_variable(uint8_t global) {
+static void define_variable(uint16_t global) {
   if (current->scope_depth > 0) {
     mark_initialized();
     return;
   }
 
-  emit_bytes(OP_DEFINE_GLOBAL, global);
+  emit_two(OP_DEFINE_GLOBAL, global);
 }
 
 // Compiles an argument list.
 // The opening parenthesis has already been consumed and is referenced by the
 // previous token.
-static uint8_t argument_list() {
-  uint8_t arg_count = 0;
+static uint16_t argument_list() {
+  uint16_t arg_count = 0;
   if (!check(TOKEN_CPAR)) {
     do {
       expression();
@@ -997,12 +989,12 @@ static void expression() {
 // Compiles a let declaration.
 // The let keyword has already been consumed at this point.
 static void statement_declaration_let() {
-  uint8_t global = parse_variable("Expecting variable name.");
+  uint16_t global = parse_variable("Expecting variable name.");
 
   if (match(TOKEN_ASSIGN)) {
     expression();
   } else {
-    emit_byte(OP_NIL);
+    emit_one(OP_NIL);
   }
 
   define_variable(global);
@@ -1012,7 +1004,7 @@ static void statement_declaration_let() {
 // The fn keyword has already been consumed at this point.
 // Since functions are first-class, this is similar to a variable declaration.
 static void statement_declaration_function() {
-  uint8_t global = parse_variable("Expecting variable name.");
+  uint16_t global = parse_variable("Expecting variable name.");
   ObjString* fn_name =
       copy_string(parser.previous.start, parser.previous.length);
 
@@ -1024,10 +1016,10 @@ static void statement_declaration_function() {
 static void statement_declaration_class() {
   consume(TOKEN_ID, "Expecting class name.");
   Token class_name = parser.previous;
-  uint8_t name_constant = string_constant(&parser.previous);
+  uint16_t name_constant = string_constant(&parser.previous);
   declare_local();
 
-  emit_bytes(OP_CLASS, name_constant);
+  emit_two(OP_CLASS, name_constant);
   define_variable(name_constant);
 
   ClassCompiler class_compiler;
@@ -1050,7 +1042,7 @@ static void statement_declaration_class() {
     define_variable(0);
 
     named_variable(class_name, false);
-    emit_byte(OP_INHERIT);
+    emit_one(OP_INHERIT);
     class_compiler.has_baseclass = true;
   }
 
@@ -1071,7 +1063,7 @@ static void statement_declaration_class() {
     }
   }
   consume(TOKEN_CBRACE, "Expecting '}' after class body.");
-  emit_byte(OP_POP);
+  emit_one(OP_POP);
 
   if (class_compiler.has_baseclass) {
     end_scope();
@@ -1084,7 +1076,7 @@ static void statement_declaration_class() {
 // The print keyword has already been consumed at this point.
 static void statement_print() {
   expression();
-  emit_byte(OP_PRINT);
+  emit_one(OP_PRINT);
 }
 
 // Compiles an expression statement.
@@ -1092,7 +1084,7 @@ static void statement_print() {
 // expression.
 static void statement_expression() {
   expression();
-  emit_byte(OP_POP);
+  emit_one(OP_POP);
 }
 
 // Compiles an if statement.
@@ -1101,14 +1093,14 @@ static void statement_if() {
   expression();
 
   int then_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_byte(OP_POP);
+  emit_one(OP_POP);
 
   statement();
 
   int else_jump = emit_jump(OP_JUMP);
 
   patch_jump(then_jump);
-  emit_byte(OP_POP);
+  emit_one(OP_POP);
 
   if (match(TOKEN_ELSE)) {
     statement();
@@ -1139,7 +1131,7 @@ static void statement_return() {
 
     expression();
     consume(TOKEN_SCOLON, "Expecting ';' after return value.");
-    emit_byte(OP_RETURN);
+    emit_one(OP_RETURN);
   }
 }
 
@@ -1151,13 +1143,13 @@ static void statement_while() {
   expression();
 
   int exit_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_byte(OP_POP);
+  emit_one(OP_POP);
 
   statement();
   emit_loop(loop_start);
 
   patch_jump(exit_jump);
-  emit_byte(OP_POP);
+  emit_one(OP_POP);
 }
 
 // Compiles a for statement.
@@ -1187,7 +1179,7 @@ static void statement_for() {
 
     // Jump out of the loop if the condition is false.
     exit_jump = emit_jump(OP_JUMP_IF_FALSE);
-    emit_byte(OP_POP);  // Discard the result of the condition expression.
+    emit_one(OP_POP);  // Discard the result of the condition expression.
   }
 
   // Loop increment
@@ -1195,7 +1187,7 @@ static void statement_for() {
     int body_jump = emit_jump(OP_JUMP);
     int incrementStart = current_chunk()->count;
     expression();
-    emit_byte(OP_POP);  // Discard the result of the increment expression.
+    emit_one(OP_POP);  // Discard the result of the increment expression.
     consume(TOKEN_SCOLON, "Expecting ';' after loop increment.");
 
     emit_loop(loop_start);
@@ -1209,7 +1201,7 @@ static void statement_for() {
 
   if (exit_jump != -1) {
     patch_jump(exit_jump);
-    emit_byte(OP_POP);  // Discard the result of the condition expression.
+    emit_one(OP_POP);  // Discard the result of the condition expression.
   }
 
   end_scope();

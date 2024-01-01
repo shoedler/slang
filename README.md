@@ -2,7 +2,8 @@
 
 # slang
 
-A stack-based bytecode VM written in C, based on the book [Crafting Interpreters](https://craftinginterpreters.com/).
+A stack-based bytecode Vm written in C, based on the book [Crafting Interpreters](https://craftinginterpreters.com/).
+In contrast to the book, this Vm is not focused on space-efficiency, but more on ease of implementation and speed.
 
 ## TODOs
 
@@ -22,8 +23,8 @@ A stack-based bytecode VM written in C, based on the book [Crafting Interpreters
 - [ ] Add tests for anonymous functions
 - [ ] Challenges to implement:
   - [ ] 24 $\to$ 1: Move `ip` into a register. This is a must-have.
-  - [ ] 14 $\to$ 2: Allow more than 256 constants per chunk by adding `OP_CONSTANT_LONG`. This is a must-have.
-  - [ ] 22 $\to$ 4: Allow more than 256 locals per scope. This is a must-have.
+  - [x] 14 $\to$ 2: Allow more than 256 constants per chunk ~~by adding `OP_CONSTANT_LONG`~~. This is a must-have. (Just bumped the stack-width to 16 bits - lol)
+  - [x] 22 $\to$ 4: Allow more than 256 locals per scope. This is a must-have. (Just bumped the stack-width to 16 bits - lol)
   - [ ] 17 $\to$ 3: Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `a ? b else c`. This is a must-have.
   - [ ] 16 $\to$ 1: String interpolation. C#-style `$"Hello {name}"`
   - [ ] 21 $\to$ 2: Constant time global variable lookup.
@@ -57,6 +58,7 @@ A stack-based bytecode VM written in C, based on the book [Crafting Interpreters
 
 - [ ] Implement hashtable keys for all types: Objs are by reference, primitives and strings by value
 - [x] Implement sequences
+- [ ] Implement modules
 
 ### Ideas
 

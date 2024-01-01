@@ -32,5 +32,8 @@ fn f() {
   240 241 242 243 244 245 246 247
   248 249 250 251 252 253 254 255
 
-  1 // [ExpectCompileError] Compile error at line 35 at '1': Too many constants in one chunk.
-} // [ExpectCompileError] Compile error at line 37 at end: Expecting '}' after block.
+  256 // That was illegal before 16-bit opcodes
+}
+
+// Since we now use 16-bit opcodes, this is fine
+print "ok" // [Expect] ok

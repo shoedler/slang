@@ -44,7 +44,6 @@ typedef enum {
   OP_CLOSURE,
   OP_CLOSE_UPVALUE,
   OP_LIST_LITERAL,
-  OP_LIST_LITERAL_LONG,
   OP_RETURN,
   OP_CLASS,
   OP_INHERIT,
@@ -57,7 +56,7 @@ typedef enum {
 typedef struct {
   int count;
   int capacity;
-  uint8_t* code;
+  uint16_t* code;
   int* lines;
   ValueArray constants;
 } Chunk;
@@ -68,9 +67,9 @@ void init_chunk(Chunk* chunk);
 // Free a chunk.
 void free_chunk(Chunk* chunk);
 
-// Write a byte to the chunk.
+// Write data to the chunk.
 // This will grow the chunk if necessary.
-void write_chunk(Chunk* chunk, uint8_t byte, int line);
+void write_chunk(Chunk* chunk, uint16_t data, int line);
 
 // Add a value to the chunk's constant pool.
 // Returns the index of the value in the constant pool.
