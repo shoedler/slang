@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "common.h"
-#include "test.h"
 #include "vm.h"
 
 static void repl() {
@@ -23,6 +22,40 @@ static void repl() {
   }
 
   free_vm();
+}
+
+static char* read_file(const wchar_t* path) {
+  if (path == NULL) {
+    WINTERNAL_ERROR(L"Cannot open NULL path \"%s\"", path);
+    exit(74);
+  }
+
+  FILE* file = _wfopen(path, L"rb");
+  if (file == NULL) {
+    WINTERNAL_ERROR(L"Could not open file \"%s\"", path);
+    exit(74);
+  }
+
+  fseek(file, 0L, SEEK_END);
+  size_t file_size = ftell(file);
+  rewind(file);
+
+  char* buffer = (char*)malloc(file_size + 1);
+  if (buffer == NULL) {
+    WINTERNAL_ERROR(L"Not enough memory to read \"%s\"\n", path);
+    exit(74);
+  }
+
+  size_t bytes_read = fread(buffer, sizeof(char), file_size, file);
+  if (bytes_read < file_size) {
+    WINTERNAL_ERROR(L"Could not read file \"%s\"\n", path);
+    exit(74);
+  }
+
+  buffer[bytes_read] = '\0';
+
+  fclose(file);
+  return buffer;
 }
 
 static void run_file(const wchar_t* path) {
@@ -53,28 +86,13 @@ static void run_file(const wchar_t* path) {
 void usage() {
   printf("Usage: slang <args>\n");
   printf("  run  <path> Run script at <path>\n");
-  printf("  test <path> Run tests at <path> entry dir\n");
   printf("  repl        Run REPL\n");
   exit(64);
 }
 
 int wmain(int argc, wchar_t* argv[]) {
-#ifdef START_WITH_SAMPLE_SCRIPT
-  argc = 3;
-  argv[1] = L"run";
-  argv[2] = L"C:\\Projects\\slang\\sample.sl";
-#endif
-
-#ifdef START_WITH_TESTS
-  argc = 3;
-  argv[1] = L"test";
-  argv[2] = L"C:\\Projects\\slang\\test";
-#endif
-
   if (argc == 2 && wcscmp(argv[1], L"repl") == 0) {
     repl();
-  } else if (argc == 3 && wcscmp(argv[1], L"test") == 0) {
-    run_tests(argv[2]);
   } else if (argc == 3 && wcscmp(argv[1], L"run") == 0) {
     run_file(argv[2]);
   } else {

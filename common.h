@@ -43,10 +43,7 @@
     exit(1);                                        \
   } while (0)
 
-// Feature flags
-
-#define START_WITH_SAMPLE_SCRIPT
-#define START_WITH_TESTS
+// Debug feature flags
 
 // #define DEBUG_PRINT_TOKENS
 // #define DEBUG_TRACE_EXECUTION
