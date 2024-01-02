@@ -1,0 +1,358 @@
+[
+  {
+    "date": "2023-12-20T21:00:00.000Z",
+    "commit": {
+      "date": "2023-12-20 21:00:00 +0100",
+      "hash": "03374177fea58b99ab4a1c47014aca8855a50485",
+      "message": "After adding classes"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "note": "This result was manually ported from the first recorded benches.",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "6.732000"
+    }
+  },
+  {
+    "date": "2023-12-20T21:00:00.000Z",
+    "commit": {
+      "date": "2023-12-20 21:00:00 +0100",
+      "hash": "03374177fea58b99ab4a1c47014aca8855a50485",
+      "message": "After adding classes"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "note": "This result was manually ported from the first recorded benches.",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.837000"
+    }
+  },
+  {
+    "date": "2023-12-25T21:00:00.000Z",
+    "commit": {
+      "date": "2023-12-25 21:00:00 +0100",
+      "hash": "6e4ac55250f254043d6049bfaef5476ca71abea0",
+      "message": "After book + optimizations"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "note": "This result was manually ported from the first recorded benches.",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "6.589000"
+    }
+  },
+  {
+    "date": "2023-12-25T21:00:00.000Z",
+    "commit": {
+      "date": "2023-12-25 21:00:00 +0100",
+      "hash": "6e4ac55250f254043d6049bfaef5476ca71abea0",
+      "message": "After book + optimizations"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "note": "This result was manually ported from the first recorded benches.",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.819000"
+    }
+  },
+  {
+    "date": "2023-12-28T23:45:48.862Z",
+    "commit": {
+      "date": "2023-12-27 23:33:07 +0100",
+      "hash": "3e5b3443be202bdf71a17a137df7a0953081cbec",
+      "message": "Adds code doc VIII"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "note": "This result was manually ported from the second-gen benches.",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "7.222000"
+    }
+  },
+  {
+    "date": "2023-12-28T23:45:48.862Z",
+    "commit": {
+      "date": "2023-12-27 23:33:07 +0100",
+      "hash": "3e5b3443be202bdf71a17a137df7a0953081cbec",
+      "message": "Adds code doc VIII"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "note": "This result was manually ported from the second-gen benches.",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.833000"
+    }
+  },
+  {
+    "date": "2023-12-28T23:45:48.862Z",
+    "commit": {
+      "date": "2023-12-27 23:33:07 +0100",
+      "hash": "3e5b3443be202bdf71a17a137df7a0953081cbec",
+      "message": "Adds code doc VIII"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "note": "This result was manually ported from the second-gen benches.",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "365",
+      "value": "21900000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2023-12-28T23:45:48.862Z",
+    "commit": {
+      "date": "2023-12-27 23:33:07 +0100",
+      "hash": "3e5b3443be202bdf71a17a137df7a0953081cbec",
+      "message": "Adds code doc VIII"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "note": "This result was manually ported from the second-gen benches.",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "3457",
+      "value": "207420000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-01-01T10:09:12.469Z",
+    "commit": {
+      "date": "2023-12-31 14:48:48 +0100",
+      "hash": "ce31ec9df8dd31476c7bd2c01be03077e38ac57c",
+      "message": "Adds sequences 🎉 (Up to UINT8_MAX in this commit)"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "note": "This result was manually ported from the second-gen benches. This was a test with a 32-bit stack width in the vm",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "7.252000"
+    }
+  },
+  {
+    "date": "2024-01-01T10:09:12.469Z",
+    "commit": {
+      "date": "2023-12-31 14:48:48 +0100",
+      "hash": "ce31ec9df8dd31476c7bd2c01be03077e38ac57c",
+      "message": "Adds sequences 🎉 (Up to UINT8_MAX in this commit)"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "note": "This result was manually ported from the second-gen benches. This was a test with a 32-bit stack width in the vm",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.875000"
+    }
+  },
+  {
+    "date": "2024-01-01T10:09:12.469Z",
+    "commit": {
+      "date": "2023-12-31 14:48:48 +0100",
+      "hash": "ce31ec9df8dd31476c7bd2c01be03077e38ac57c",
+      "message": "Adds sequences 🎉 (Up to UINT8_MAX in this commit)"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "note": "This result was manually ported from the second-gen benches. This was a test with a 32-bit stack width in the vm",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "365",
+      "value": "21900000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-01-01T10:09:12.469Z",
+    "commit": {
+      "date": "2023-12-31 14:48:48 +0100",
+      "hash": "ce31ec9df8dd31476c7bd2c01be03077e38ac57c",
+      "message": "Adds sequences 🎉 (Up to UINT8_MAX in this commit)"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "note": "This result was manually ported from the second-gen benches. This was a test with a 32-bit stack width in the vm",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "3379",
+      "value": "202740000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-01-01T10:47:08.047Z",
+    "commit": {
+      "date": "2023-12-31 14:48:48 +0100",
+      "hash": "ce31ec9df8dd31476c7bd2c01be03077e38ac57c",
+      "message": "Adds sequences 🎉 (Up to UINT8_MAX in this commit)"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "note": "This result was manually ported from the second-gen benches. This was a test with a 16-bit stack width in the vm",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "7.313000"
+    }
+  },
+  {
+    "date": "2024-01-01T10:47:08.047Z",
+    "commit": {
+      "date": "2023-12-31 14:48:48 +0100",
+      "hash": "ce31ec9df8dd31476c7bd2c01be03077e38ac57c",
+      "message": "Adds sequences 🎉 (Up to UINT8_MAX in this commit)"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "note": "This result was manually ported from the second-gen benches. This was a test with a 16-bit stack width in the vm",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.825000"
+    }
+  },
+  {
+    "date": "2024-01-01T10:47:08.047Z",
+    "commit": {
+      "date": "2023-12-31 14:48:48 +0100",
+      "hash": "ce31ec9df8dd31476c7bd2c01be03077e38ac57c",
+      "message": "Adds sequences 🎉 (Up to UINT8_MAX in this commit)"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "note": "This result was manually ported from the second-gen benches. This was a test with a 16-bit stack width in the vm",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "377",
+      "value": "22620000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-01-01T10:47:08.047Z",
+    "commit": {
+      "date": "2023-12-31 14:48:48 +0100",
+      "hash": "ce31ec9df8dd31476c7bd2c01be03077e38ac57c",
+      "message": "Adds sequences 🎉 (Up to UINT8_MAX in this commit)"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "note": "This result was manually ported from the second-gen benches. This was a test with a 16-bit stack width in the vm",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "3458",
+      "value": "207480000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-01-02T21:21:07.354Z",
+    "commit": {
+      "date": "2024-01-01 21:18:43 +0100",
+      "hash": "39d01584d4641318816f56c43456f7e0563269da",
+      "message": "Refactors test case naming"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "6.678000"
+    }
+  },
+  {
+    "date": "2024-01-02T21:21:07.354Z",
+    "commit": {
+      "date": "2024-01-01 21:18:43 +0100",
+      "hash": "39d01584d4641318816f56c43456f7e0563269da",
+      "message": "Refactors test case naming"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.781000"
+    }
+  },
+  {
+    "date": "2024-01-02T21:21:07.354Z",
+    "commit": {
+      "date": "2024-01-01 21:18:43 +0100",
+      "hash": "39d01584d4641318816f56c43456f7e0563269da",
+      "message": "Refactors test case naming"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "372",
+      "value": "22320000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-01-02T21:21:07.354Z",
+    "commit": {
+      "date": "2024-01-01 21:18:43 +0100",
+      "hash": "39d01584d4641318816f56c43456f7e0563269da",
+      "message": "Refactors test case naming"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "3610",
+      "value": "216600000",
+      "durationInSecs": "5"
+    }
+  }
+]
