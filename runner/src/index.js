@@ -7,7 +7,15 @@ import {
   SLANG_TEST_SUFFIX,
 } from "./config.js";
 import { runTests } from "./test.js";
-import { buildSlangConfig, exitWithError, info, runSlangFile, separator, warn } from "./utils.js";
+import {
+  buildSlangConfig,
+  exitWithError,
+  info,
+  ok,
+  runSlangFile,
+  separator,
+  warn,
+} from "./utils.js";
 import { watch } from "./watch.js";
 
 const cmd = process.argv[2];
@@ -27,27 +35,25 @@ switch (cmd) {
     await runTests(config);
     break;
   }
-  case "watch-file": {
+  case "watch-sample": {
     const config = BUILD_CONFIG_RELEASE;
-    const filePath = SLANG_SAMPLE_FILE;
+    const sampleFilePath = SLANG_SAMPLE_FILE;
     watch(
       SLANG_PROJ_DIR,
       { recursive: true },
       (filename) =>
-        filename.endsWith(".c") || filename.endsWith(".h") || filePath.endsWith(filename),
+        filename.endsWith(".c") || filename.endsWith(".h") || sampleFilePath.endsWith(filename),
       async (signal) => {
-        console.clear();
         await buildSlangConfig(config, signal);
-        info("Running slang file", filePath);
-        info("Stdout and stderr might not be in order");
-        const { exitCode, rawOutput } = await runSlangFile(filePath, config, signal, true);
+        info("Running slang file", sampleFilePath);
+        const { exitCode, rawOutput } = await runSlangFile(sampleFilePath, config, signal, true);
 
-        separator();
+        console.clear();
         console.log(rawOutput);
         separator();
 
         if (exitCode === 0) {
-          info("Ran with 0 exit code");
+          ok("Ran with 0 exit code");
         } else {
           warn("Ran with non-zero exit code", exitCode);
         }

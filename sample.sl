@@ -78,14 +78,6 @@
 
 // print result
 
-// +----------------------------+------------------------------------------+--------+---------+-----------+
-// | CHANGE                     | COMMIT HASH                              | FIB #  | t DEBUG | t RELEASE |
-// +----------------------------+------------------------------------------+--------+---------+-----------+
-// | After adding classes       | 03374177fea58b99ab4a1c47014aca8855a50485 | 35     | 6.732s  | 0.837s    |
-// +----------------------------+------------------------------------------+--------+---------+-----------+
-// | After book + optimizations | 6e4ac55250f254043d6049bfaef5476ca71abea0 | 35     | 6.589s  | 0.819s    |
-// +----------------------------+------------------------------------------+--------+---------+-----------+
-
 // // -----------------------------------------
 // // Functions have / are Closures
 // // -----------------------------------------
@@ -168,57 +160,6 @@
 // let b = B()
 // b.method()
 
-// // -----------------------------------------
-// // Benchmarks
-// // -----------------------------------------
-// cls Zoo {
-//   ctor {
-//     this.aardvark = 1
-//     this.baboon   = 1
-//     this.cat      = 1
-//     this.donkey   = 1
-//     this.elephant = 1
-//     this.fox      = 1
-//   }
-
-//   fn ant    -> this.aardvark
-//   fn banana -> this.baboon
-//   fn tuna   -> this.cat
-//   fn hay    -> this.donkey
-//   fn grass  -> this.elephant
-//   fn mouse  -> this.fox
-// }
-
-// let sum = 0
-// let duration = 1
-// let batches = 0
-
-// let start = clock()
-// let i = 0
-
-// while clock() < start + duration {
-//   while i < 10000 {
-//     let zoo = Zoo()
-//     sum = sum + zoo.ant()
-//             + zoo.banana()
-//             + zoo.tuna()
-//             + zoo.hay()
-//             + zoo.grass()
-//             + zoo.mouse()
-//     i = i + 1
-//   }
-//   batches = batches + 1
-//   i = 0
-// }
-
-// print "Sum: " 
-// print sum
-// print "Batches of 10000: "
-// print batches
-// print "In"
-// print duration
-// print "seconds"
-
 // -----------------------------------------
 // Sequences
 // -----------------------------------------
@@ -234,13 +175,17 @@ print x
 cls Seq {
   ctor {
     this.list = [1,2,3]
-    this.list[1] = -2
+  }
+
+  fn printList {
     print this.list
   }
 }
 
 fn make_list -> [1,2,3]
 let s = Seq()
+s.printList()
+s.list[1] = -2
+s.printList()
 
 print make_list()[2]
-print make_list()[2][1] // nil -> error

@@ -118,7 +118,7 @@ const forceDeleteDirectory = async (dirPath, signal) => {
       if (signal?.aborted) {
         return;
       } else if (err.code === "EBUSY" || err.code === "EPERM" || err.code === "EACCES") {
-        debug(`Failed to delete ${dirPath}`, `${err.code}, retrying in a bit...`);
+        debug(`Waiting to delete ${dirPath}`, `Got ${err.code}, retrying in a bit...`);
         await new Promise((resolve) => setTimeout(resolve, 200));
       } else {
         exitWithError(`Failed to delete ${dirPath}`, err);
@@ -219,6 +219,15 @@ export const exitWithError = (message, hint) => {
  */
 export const info = (message, hint) => {
   console.log(chalk.gray.bold("▪ Info  ") + message + (hint ? chalk.gray(` (${hint})`) : ""));
+};
+
+/**
+ * Print an ok message
+ * @param {string} message - Ok message to print
+ * @param {string} hint - Hint to print
+ */
+export const ok = (message, hint) => {
+  console.log(chalk.green.bold("▪ Ok    ") + message + (hint ? chalk.gray(` (${hint})`) : ""));
 };
 
 /**

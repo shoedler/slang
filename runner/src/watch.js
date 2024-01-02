@@ -13,15 +13,12 @@ export const watch = (path, watchOptions, trigger, action) => {
   let controller = undefined;
   let timeout = undefined;
 
-  const logInfo = () => {
-    info(
-      "Watching for changes...",
-      `Path: ${path}, Trigger: ${trigger.toString().replace(/\=\>\s+/, "=> ")}`
-    );
-    info("Exit with SIGINT", "Ctrl+C");
-  };
-
-  logInfo();
+  info(
+    "Watching for changes",
+    `Path: ${path}, Trigger: ${trigger.toString().replace(/\=\>\s+/, "=> ")}`
+  );
+  info("Stdout and stderr might not be in order");
+  info("Exit with SIGINT", "Ctrl+C");
 
   // Watch for changes
   fs.watch(path, watchOptions, async (_, filename) => {
@@ -45,7 +42,7 @@ export const watch = (path, watchOptions, trigger, action) => {
         try {
           info("Change detected", filename);
           await action(controller.signal);
-          logInfo();
+          info("Waiting for changes...");
         } catch (err) {
           if (err.name === "AbortError") {
             warn("Aborted current run.");
