@@ -1,5 +1,6 @@
-import fs from "node:fs";
-import { exitWithError, info, warn } from "./utils.js";
+import fs from 'node:fs';
+import { debug, exitWithError, info, warn } from './utils.js';
+import { LOCALE } from './config.js';
 
 /**
  * Watch for changes according to the given trigger in path and run the given action when triggered.
@@ -14,11 +15,11 @@ export const watch = (path, watchOptions, trigger, action) => {
   let timeout = undefined;
 
   info(
-    "Watching for changes",
-    `Path: ${path}, Trigger: ${trigger.toString().replace(/\=\>\s+/, "=> ")}`
+    'Watching for changes',
+    `Path: ${path}, Trigger: ${trigger.toString().replace(/\=\>\s+/, '=> ')}`,
   );
-  info("Stdout and stderr might not be in order");
-  info("Exit with SIGINT", "Ctrl+C");
+  info('Stdout and stderr might not be in order');
+  info('Exit with SIGINT', 'Ctrl+C');
 
   // Watch for changes
   fs.watch(path, watchOptions, async (_, filename) => {
@@ -40,15 +41,21 @@ export const watch = (path, watchOptions, trigger, action) => {
         controller = new AbortController();
 
         try {
-          info("Change detected", filename);
+          const now = new Date();
+          info('Change detected', filename);
           await action(controller.signal);
-          info("Waiting for changes...");
+          debug(
+            `Last run was on ${
+              now.toLocaleDateString(LOCALE) + ' at ' + now.toLocaleTimeString(LOCALE)
+            }`,
+          );
+          info('Waiting for changes...');
         } catch (err) {
-          if (err.name === "AbortError") {
-            warn("Aborted current run.");
+          if (err.name === 'AbortError') {
+            warn('Aborted current run.');
           } else {
             controller.abort();
-            exitWithError("Error while running watch-action", err);
+            exitWithError('Error while running watch-action', err);
           }
         }
       }, 200);

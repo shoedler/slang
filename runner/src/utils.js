@@ -1,9 +1,10 @@
-import chalk from "chalk";
-import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { MSBUILD_EXE, SLANG_BIN_DIR, SLANG_PROJ_DIR } from "./config.js";
+import chalk from 'chalk';
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import wrapAnsi from 'wrap-ansi';
+import { MSBUILD_EXE, SLANG_BIN_DIR, SLANG_PROJ_DIR } from './config.js';
 
 /**
  * Run a command and return stdout. Exits if the process fails (non-zero exit code or stderr).
@@ -17,25 +18,25 @@ export const runProcess = (cmd, errorMessage, signal = null) => {
   const options = signal ? { signal } : {};
   const child = spawn(cmd, { shell: true, ...options });
 
-  return new Promise((resolve) => {
-    let output = "";
-    let error = "";
+  return new Promise(resolve => {
+    let output = '';
+    let error = '';
 
-    child.stdout.on("data", (data) => (output += data.toString()));
-    child.stderr.on("data", (data) => (error += data.toString()));
-    child.on("error", (err) => {
-      if (err.name === "AbortError") {
-        info("Aborting process...", cmd);
+    child.stdout.on('data', data => (output += data.toString()));
+    child.stderr.on('data', data => (error += data.toString()));
+    child.on('error', err => {
+      if (err.name === 'AbortError') {
+        info('Aborting process...', cmd);
       } else {
         exitWithError(errorMessage, err);
       }
     });
-    child.on("close", (code, nodeSignal) => {
-      if (nodeSignal === "SIGTERM") {
+    child.on('close', (code, nodeSignal) => {
+      if (nodeSignal === 'SIGTERM') {
         return resolve(output);
       }
 
-      if (code === 0 && error === "") {
+      if (code === 0 && error === '') {
         return resolve(output);
       } else {
         exitWithError(errorMessage, `Exit code: ${code}, stderr: ${error}, stdout: ${output}`);
@@ -49,7 +50,7 @@ export const runProcess = (cmd, errorMessage, signal = null) => {
  * @param {string} config - Build config to use
  * @returns
  */
-export const getSlangExe = (config) => path.join(SLANG_BIN_DIR, config, "Slang.exe");
+export const getSlangExe = config => path.join(SLANG_BIN_DIR, config, 'Slang.exe');
 
 /**
  * Make a command to run a slang file with a given config
@@ -73,29 +74,29 @@ export const runSlangFile = async (file, config, signal = null, colorStderr = fa
   const options = signal ? { signal } : {};
   const child = spawn(cmd, { shell: true, ...options });
 
-  return new Promise((resolve) => {
-    let output = "";
+  return new Promise(resolve => {
+    let output = '';
 
-    child.stdout.on("data", (data) => (output += data.toString()));
+    child.stdout.on('data', data => (output += data.toString()));
     child.stderr.on(
-      "data",
-      (data) => (output += colorStderr ? chalk.red(data.toString()) : data.toString())
+      'data',
+      data => (output += colorStderr ? chalk.red(data.toString()) : data.toString()),
     );
-    child.on("error", (err) => {
-      if (err.name === "AbortError") {
-        info("Aborting process...", cmd);
+    child.on('error', err => {
+      if (err.name === 'AbortError') {
+        info('Aborting process...', cmd);
       } else {
         exitWithError(err);
       }
     });
 
-    child.on("close", (exitCode) => {
+    child.on('close', exitCode => {
       return resolve({
         rawOutput: output,
         output: output
-          .split("\r\n")
+          .split('\r\n')
           .filter(Boolean)
-          .map((line) => line.trim()),
+          .map(line => line.trim()),
         exitCode,
       });
     });
@@ -117,9 +118,9 @@ const forceDeleteDirectory = async (dirPath, signal) => {
     } catch (err) {
       if (signal?.aborted) {
         return;
-      } else if (err.code === "EBUSY" || err.code === "EPERM" || err.code === "EACCES") {
+      } else if (err.code === 'EBUSY' || err.code === 'EPERM' || err.code === 'EACCES') {
         debug(`Waiting to delete ${dirPath}`, `Got ${err.code}, retrying in a bit...`);
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 200));
       } else {
         exitWithError(`Failed to delete ${dirPath}`, err);
       }
@@ -174,11 +175,11 @@ export const findFiles = async (dir, suffix) => {
 export const createOrAppendJsonFile = async (file, data, append) => {
   let newJsonObj = data;
   if (existsSync(file)) {
-    const existingJsonObj = JSON.parse(await fs.readFile(file, "utf-8"));
+    const existingJsonObj = JSON.parse(await fs.readFile(file, 'utf-8'));
     newJsonObj = append(existingJsonObj, newJsonObj);
   }
 
-  await fs.writeFile(file, JSON.stringify(newJsonObj, null, 2), { encoding: "utf-8", flag: "w" });
+  await fs.writeFile(file, JSON.stringify(newJsonObj, null, 2), { encoding: 'utf-8', flag: 'w' });
 };
 
 /**
@@ -188,9 +189,9 @@ export const createOrAppendJsonFile = async (file, data, append) => {
  * @param {string} file - Absolute path to a slang file
  * @returns {{type: string, line: number, value: string}[]} - Array containing metadata
  */
-export const extractCommentMetadata = async (file) => {
-  const fileContents = await fs.readFile(file, "utf8");
-  const lines = fileContents.split("\n");
+export const extractCommentMetadata = async file => {
+  const fileContents = await fs.readFile(file, 'utf8');
+  const lines = fileContents.split('\n');
   const metadata = [];
   lines.forEach((l, i) => {
     const match = l.match(/\/\/\s*\[(.+?)\](.*)/);
@@ -203,12 +204,56 @@ export const extractCommentMetadata = async (file) => {
 };
 
 /**
+ * Prints a separator
+ */
+export const separator = () => console.log(chalk.gray('─'.repeat(80)));
+
+/**
+ * Log a styled message to the console.
+ * @param {'err' | 'warn' | 'debug' | 'info' | 'ok'} type - Type of message
+ * @param {string} message - Message
+ */
+const prettyPrint = (type, message) => {
+  // prettier-ignore
+  const [headerValue, headerStyle, multilineHeaderValue, multilineHeaderStyle] = {
+    err:   [ '█ Error', chalk.red.bold,           '│      ', chalk.red.bold           ],
+    info:  [ '█ Info ', chalk.gray.bold,          '│      ', chalk.gray.bold          ],
+    ok:    [ '█ Ok   ', chalk.green.bold,         '│      ', chalk.green.bold         ],
+    warn:  [ '█ Warn ', chalk.yellowBright.bold,  '│      ', chalk.yellowBright.bold  ],
+    debug: [ '█ Debug', chalk.magentaBright.bold, '│      ', chalk.magentaBright.bold ],
+    pass:  [ ' Pass ',  chalk.bgGreen.black,      '│     ',  chalk.green              ],
+    fail:  [ ' Fail ',  chalk.bgRed.black,        '│     ',  chalk.red                ],
+  }[type];
+
+  const maxWidth = process.stdout.columns - 1;
+  const headerSpace = ' ';
+  let availableWidth = maxWidth - headerSpace.length - headerValue.length;
+
+  const wrapped = wrapAnsi(message, availableWidth, {
+    trim: false,
+    hard: true,
+    wordWrap: true,
+    wordWrapWidth: availableWidth,
+  }).split('\n');
+
+  for (let i = 0; i < wrapped.length; i++) {
+    const line = wrapped[i];
+    if (i === 0) {
+      console.log(headerStyle(headerValue) + headerSpace + line);
+    } else {
+      console.log(multilineHeaderStyle(multilineHeaderValue) + headerSpace + line);
+    }
+  }
+};
+
+/**
  * Abort the process with an error message
  * @param {string} message - Error message to print
  * @param {string} hint - Hint to print
  */
 export const exitWithError = (message, hint) => {
-  console.error(chalk.red.bold("▪ Error ") + message + (hint ? chalk.gray(` (${hint})`) : ""));
+  // console.error(chalk.red.bold('█ Error ') + message + (hint ? chalk.gray(` (${hint})`) : ''));
+  prettyPrint('err', message + (hint ? chalk.gray(` (${hint})`) : ''));
   process.exit(1);
 };
 
@@ -218,7 +263,8 @@ export const exitWithError = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const info = (message, hint) => {
-  console.log(chalk.gray.bold("▪ Info  ") + message + (hint ? chalk.gray(` (${hint})`) : ""));
+  // console.log(chalk.gray.bold('█ Info  ') + message + (hint ? chalk.gray(` (${hint})`) : ''));
+  prettyPrint('info', message + (hint ? chalk.gray(` (${hint})`) : ''));
 };
 
 /**
@@ -227,7 +273,8 @@ export const info = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const ok = (message, hint) => {
-  console.log(chalk.green.bold("▪ Ok    ") + message + (hint ? chalk.gray(` (${hint})`) : ""));
+  // console.log(chalk.green.bold('█ Ok    ') + message + (hint ? chalk.gray(` (${hint})`) : ''));
+  prettyPrint('ok', message + (hint ? chalk.gray(` (${hint})`) : ''));
 };
 
 /**
@@ -236,9 +283,8 @@ export const ok = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const warn = (message, hint) => {
-  console.warn(
-    chalk.yellowBright.bold("▪ Warn  ") + message + (hint ? chalk.gray(` (${hint})`) : "")
-  );
+  // console.warn(    chalk.yellowBright.bold('█ Warn  ') + message + (hint ? chalk.gray(` (${hint})`) : ''),  );
+  prettyPrint('warn', message + (hint ? chalk.gray(` (${hint})`) : ''));
 };
 
 /**
@@ -247,28 +293,24 @@ export const warn = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const debug = (message, hint) => {
-  console.debug(
-    chalk.magentaBright.bold("▪ Debug ") + message + (hint ? chalk.gray(` (${hint})`) : "")
-  );
+  // console.debug(    chalk.magentaBright.bold('█ Debug ') + message + (hint ? chalk.gray(` (${hint})`) : ''),  );
+  prettyPrint('debug', message + (hint ? chalk.gray(` (${hint})`) : ''));
 };
 
 /**
  * Print a test success message
  * @param {string} message - Message to append
  */
-export const pass = (message) => {
-  console.log(" " + chalk.bgGreen.black(" Pass ") + " " + chalk.gray(message));
+export const pass = message => {
+  // console.log(' ' + chalk.bgGreen.black(' Pass ') + ' ' + chalk.gray(message));
+  prettyPrint('pass', message);
 };
 
 /**
  * Print a test failure message
  * @param {string} message - Message to append
  */
-export const fail = (message) => {
-  console.log(" " + chalk.bgRed.black(" Fail ") + " " + chalk.gray(message));
+export const fail = message => {
+  // console.log(' ' + chalk.bgRed.black(' Fail ') + ' ' + chalk.gray(message));
+  prettyPrint('fail', message);
 };
-
-/**
- * Prints a separator
- */
-export const separator = () => console.log(chalk.gray("-".repeat(30)));

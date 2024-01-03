@@ -1,5 +1,5 @@
-import path from "node:path";
-import { BENCH_LOG_FILE, SLANG_BENCH_DIR, SLANG_BENCH_SUFFIX } from "./config.js";
+import path from 'node:path';
+import { BENCH_LOG_FILE, SLANG_BENCH_DIR, SLANG_BENCH_SUFFIX } from './config.js';
 import {
   createOrAppendJsonFile,
   exitWithError,
@@ -8,7 +8,7 @@ import {
   info,
   runProcess,
   runSlangFile,
-} from "./utils.js";
+} from './utils.js';
 
 /**
  * Finds all benchmarks in the slang bench directory
@@ -30,11 +30,11 @@ const findBenchmarks = async () => {
  * @returns {Promise<{date: string, hash: string, message: string}>} - Promise that resolves to git status
  */
 const gitStatus = async () => {
-  const formats = ["%ci", "%H", "%s"];
+  const formats = ['%ci', '%H', '%s'];
   const cmd = `git log -1 --pretty=format:`;
-  info(`Getting git status`, `Command: "${cmd}" and formats "${formats.join(", ")}"`);
+  info(`Getting git status`, `Command: "${cmd}" and formats "${formats.join(', ')}"`);
   const [date, hash, message] = await Promise.all(
-    formats.map((f) => runProcess(cmd + f, `Getting git log faied`))
+    formats.map(f => runProcess(cmd + f, `Getting git log faied`)),
   );
   return { date, hash, message };
 };
@@ -44,10 +44,10 @@ const gitStatus = async () => {
  * @returns {Promise<string>} - Promise that resolves to the processor name
  */
 const getProcessorName = async () => {
-  const cmd = "wmic cpu get name";
+  const cmd = 'wmic cpu get name';
   info(`Getting processor name`, `Command: "${cmd}"`);
   const labelAndName = await runProcess(cmd, `Getting processor name failed`);
-  return labelAndName.split("\r\n")[1].trim();
+  return labelAndName.split('\r\n')[1].trim();
 };
 
 /**
@@ -55,24 +55,24 @@ const getProcessorName = async () => {
  * @param {ReturnType<extractCommentMetadata>} metadata - Metadata extracted from benchmark file
  * @returns {(output: string[]) => object} - Benchmark result factory function
  */
-const getBenchmarkFactory = (metadata) => {
-  if (metadata[0].type === "LatencyBenchmark") {
+const getBenchmarkFactory = metadata => {
+  if (metadata[0].type === 'LatencyBenchmark') {
     const [benchmarkTypeHeader, expectedValueHeader, valueHeader, durationInSecsHeader] = metadata;
     const isValid =
-      benchmarkTypeHeader.type === "LatencyBenchmark" &&
-      expectedValueHeader.type === "ExpectedValue" &&
-      valueHeader.type === "Value" &&
-      durationInSecsHeader.type === "DurationInSecs";
+      benchmarkTypeHeader.type === 'LatencyBenchmark' &&
+      expectedValueHeader.type === 'ExpectedValue' &&
+      valueHeader.type === 'Value' &&
+      durationInSecsHeader.type === 'DurationInSecs';
 
     if (!isValid) {
-      exitWithError("LatencyBenchmark metadata is invalid.", `Metadata: ${metadata.join("\n")}`);
+      exitWithError('LatencyBenchmark metadata is invalid.', `Metadata: ${metadata.join('\n')}`);
     }
 
-    const latencyBenchmarkFactory = (output) => {
+    const latencyBenchmarkFactory = output => {
       if (output.length !== 2) {
         exitWithError(
           `LatencyBenchmark output is invalid, expected 2 lines, got ${output.length}.`,
-          `Output: ${output.join("\n")}`
+          `Output: ${output.join('\n')}`,
         );
       }
 
@@ -81,12 +81,12 @@ const getBenchmarkFactory = (metadata) => {
       if (value !== expectedValueHeader.value) {
         exitWithError(
           `LatencyBenchmark value is invalid, expected ${expectedValueHeader.value}, got ${value}.`,
-          `Output: ${output.join("\n")}`
+          `Output: ${output.join('\n')}`,
         );
       }
 
       return {
-        benchmarkType: "LatencyBenchmark",
+        benchmarkType: 'LatencyBenchmark',
         name: benchmarkTypeHeader.value,
         expectedValue: expectedValueHeader.value,
         value,
@@ -94,30 +94,30 @@ const getBenchmarkFactory = (metadata) => {
       };
     };
     return latencyBenchmarkFactory;
-  } else if (metadata[0].type === "ThroughputBenchmark") {
+  } else if (metadata[0].type === 'ThroughputBenchmark') {
     const [benchmarkTypeHeader, throughputHeader, valueHeader, durationInSecsHeader] = metadata;
     const isValid =
-      benchmarkTypeHeader.type === "ThroughputBenchmark" &&
-      throughputHeader.type === "Throughput" &&
-      valueHeader.type === "Value" &&
-      durationInSecsHeader.type === "DurationInSecs";
+      benchmarkTypeHeader.type === 'ThroughputBenchmark' &&
+      throughputHeader.type === 'Throughput' &&
+      valueHeader.type === 'Value' &&
+      durationInSecsHeader.type === 'DurationInSecs';
 
     if (!isValid) {
-      exitWithError("ThroughputBenchmark metadata is invalid.", `Metadata: ${metadata.join("\n")}`);
+      exitWithError('ThroughputBenchmark metadata is invalid.', `Metadata: ${metadata.join('\n')}`);
     }
 
-    const throughputBenchmarkFactory = (output) => {
+    const throughputBenchmarkFactory = output => {
       if (output.length !== 3) {
         exitWithError(
           `ThroughputBenchmark output is invalid, expected 3 lines, got ${output.length}.`,
-          `Output: ${output.join("\n")}`
+          `Output: ${output.join('\n')}`,
         );
       }
 
       const [throughput, value, durationInSecs] = output;
 
       return {
-        benchmarkType: "ThroughputBenchmark",
+        benchmarkType: 'ThroughputBenchmark',
         name: benchmarkTypeHeader.value,
         throughput,
         value,
@@ -127,14 +127,14 @@ const getBenchmarkFactory = (metadata) => {
     return throughputBenchmarkFactory;
   }
 
-  exitWithError("Unkown benchmark type.", `Metadata: ${metadata.join("\n")}`);
+  exitWithError('Unkown benchmark type.', `Metadata: ${metadata.join('\n')}`);
 };
 
 /**
  * Runs all benchmarks and writes results to a log file
  * @param {string[]} configs - Array of build configs to run benchmarks for
  */
-export const runBenchmarks = async (configs) => {
+export const runBenchmarks = async configs => {
   const benchmarksPaths = await findBenchmarks();
 
   const benchmarks = [];
@@ -154,7 +154,7 @@ export const runBenchmarks = async (configs) => {
   const processorName = await getProcessorName();
 
   for (const benchmark of benchmarks) {
-    info("Running benchmark", benchmark.filePath);
+    info('Running benchmark', benchmark.filePath);
 
     for (const config of configs) {
       const { output, exitCode } = await runSlangFile(benchmark.filePath, config);
@@ -162,7 +162,7 @@ export const runBenchmarks = async (configs) => {
       if (exitCode !== 0) {
         exitWithError(
           `Benchmark failed with exit code ${exitCode}.`,
-          `Output: ${output.join("\n")}`
+          `Output: ${output.join('\n')}`,
         );
       }
 
