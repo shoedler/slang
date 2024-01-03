@@ -412,12 +412,7 @@ static InterpretResult run() {
       case OP_GET_INDEX: {
         Value index = pop();
         Value assignee = pop();
-        if (!IS_SEQ(assignee)) {
-          runtime_error("Only sequences can be indexed.");
-          return INTERPRET_RUNTIME_ERROR;
-        }
 
-        ObjSeq* seq = AS_SEQ(assignee);
         if (!IS_NUMBER(index)) {
           push(NIL_VAL);
           break;
@@ -430,24 +425,37 @@ static InterpretResult run() {
           break;
         }
 
-        if (i < 0 || i >= seq->items.count) {
-          runtime_error("Index out of bounds.");
+        if (IS_STRING(assignee)) {
+          ObjString* string = AS_STRING(assignee);
+          if (i < 0 || i >= string->length) {
+            runtime_error("Index out of bounds.");
+            return INTERPRET_RUNTIME_ERROR;
+          }
+
+          ObjString* char_str = copy_string(AS_CSTRING(assignee) + i, 1);
+          push(OBJ_VAL(char_str));
+          break;
+        } else if (IS_SEQ(assignee)) {
+          ObjSeq* seq = AS_SEQ(assignee);
+          if (i < 0 || i >= seq->items.count) {
+            runtime_error("Index out of bounds.");
+            return INTERPRET_RUNTIME_ERROR;
+          }
+
+          push(seq->items.values[i]);
+        } else {
+          runtime_error("Only sequences and strings can be get-indexed.");
           return INTERPRET_RUNTIME_ERROR;
         }
-
-        push(seq->items.values[i]);
         break;
       }
       case OP_SET_INDEX: {
-        Value value = pop();
+        Value value =
+            pop();  // We should peek, because assignment is an expression! But,
+                    // the order is wrong so we push it back on the stack later
         Value index = pop();
         Value assignee = pop();
-        if (!IS_SEQ(assignee)) {
-          runtime_error("Only sequences can be indexed.");
-          return INTERPRET_RUNTIME_ERROR;
-        }
 
-        ObjSeq* seq = AS_SEQ(assignee);
         if (!IS_NUMBER(index)) {
           push(NIL_VAL);
           break;
@@ -460,13 +468,20 @@ static InterpretResult run() {
           break;
         }
 
-        if (i < 0 || i >= seq->items.count) {
-          runtime_error("Index out of bounds.");
+        if (IS_SEQ(assignee)) {
+          ObjSeq* seq = AS_SEQ(assignee);
+
+          if (i < 0 || i >= seq->items.count) {
+            runtime_error("Index out of bounds.");
+            return INTERPRET_RUNTIME_ERROR;
+          }
+
+          seq->items.values[i] = value;
+          push(value);
+        } else {
+          runtime_error("Only sequences can be set-indexed.");
           return INTERPRET_RUNTIME_ERROR;
         }
-
-        seq->items.values[i] = value;
-        push(value);
         break;
       }
       case OP_GET_PROPERTY: {

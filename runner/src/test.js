@@ -37,6 +37,7 @@ const findTests = async () => {
  */
 export const runTests = async (config, signal) => {
   const tests = await findTests();
+  const getTestName = filePath => path.parse(filePath).name;
   const failedTests = [];
   let totalAssertions = 0;
 
@@ -120,26 +121,30 @@ export const runTests = async (config, signal) => {
     }
 
     // Print test results
-    const testName = path.parse(test).name;
     if (errorMessages.length > 0) {
-      fail(testName + chalk.gray(` Filepath: ${test}`) + `\n${errorMessages.join('\n')}`);
-      failedTests.push(test);
+      fail(getTestName(test) + chalk.gray(` Filepath: ${test}`) + `\n${errorMessages.join('\n')}`);
+      failedTests.push({ test, errorMessages });
     } else {
-      pass(testName + chalk.gray(` Filepath: ${test}`));
+      pass(getTestName(test) + chalk.gray(` Filepath: ${test}`));
     }
   }
 
   let passedAmount = tests.length - failedTests.length;
   const allPassed = passedAmount === tests.length;
   const finishMessage =
-    'Done. ' + `${passedAmount}/${tests.length} passed, made ${totalAssertions} assertions.`;
+    'Summary. ' + `${passedAmount}/${tests.length} passed, made ${totalAssertions} assertions.`;
 
   if (allPassed) {
     pass(chalk.green(finishMessage));
   } else {
     fail(
-      `${chalk.red(finishMessage)} ${chalk.red(' Failed tests:')}\n${failedTests
-        .map(test => chalk.red(` × ${test}`))
+      `${chalk.red(finishMessage)} ${chalk.red('Failed tests:')}\n${failedTests
+        .map(
+          ({ test, errorMessages }) =>
+            `${chalk.red(' █ ')}${getTestName(test)}\n${chalk.red(' │ ')}${errorMessages.join(
+              `\n${chalk.red(' │ ')}`,
+            )}`,
+        )
         .join('\n')}`,
     );
   }

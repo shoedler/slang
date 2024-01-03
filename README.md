@@ -5,7 +5,7 @@
 A stack-based bytecode Vm written in C, based on the book [Crafting Interpreters](https://craftinginterpreters.com/).
 In contrast to the book, this Vm is not focused on space-efficiency, but more on ease of implementation and speed.
 
-## TODOs
+## Roadmap
 
 ### Initial
 
@@ -56,7 +56,7 @@ Devise a system to load modules. I want most of the stdlib to be native code to 
 
 ## Ideas
 
-- [ ] Implement a register-based VM https://www.lua.org/doc/jucs05.pdf
+- [ ] Implement a register-based Vm https://www.lua.org/doc/jucs05.pdf
 - [ ] Constant folding directly in the compiler
 - [ ] Implement a JIT compiler
 - [ ] Infer names of anonymous functions (Improves stack traces)
