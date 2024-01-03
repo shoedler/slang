@@ -12,23 +12,24 @@ import { MSBUILD_EXE, SLANG_BIN_DIR, SLANG_PROJ_DIR } from './config.js';
  * @param {string} cmd - Command to run
  * @param {string} errorMessage - Error message to throw if command fails (non-zero exit code or stderr)
  * @param {AbortSignal} signal - Abort signal to use
- * @returns {Promise<string>} - Promise that resolves to stdout
+ * @param {boolean} abortOnError - Whether to abort (exiting the app) on error (non-zero exit code or stderr)
+ * @returns {Promise<string | undefined>} - Promise that resolves to stdout or undefined if abortOnError is false and the process fails
  */
-export const runProcess = (cmd, errorMessage, signal = null) => {
+export const runProcess = (cmd, errorMessage, signal = null, abortOnError = true) => {
   const options = signal ? { signal } : {};
   const child = spawn(cmd, { shell: true, ...options });
 
   return new Promise(resolve => {
     let output = '';
-    let error = '';
+    let errorOutput = '';
 
     child.stdout.on('data', data => (output += data.toString()));
-    child.stderr.on('data', data => (error += data.toString()));
+    child.stderr.on('data', data => (errorOutput += data.toString()));
     child.on('error', err => {
       if (err.name === 'AbortError') {
         info('Aborting process...', cmd);
       } else {
-        exitWithError(errorMessage, err);
+        abort(errorMessage, err); // That's a no-no, we'll abort here.
       }
     });
     child.on('close', (code, nodeSignal) => {
@@ -36,10 +37,15 @@ export const runProcess = (cmd, errorMessage, signal = null) => {
         return resolve(output);
       }
 
-      if (code === 0 && error === '') {
+      if (code === 0 && errorOutput === '') {
         return resolve(output);
       } else {
-        exitWithError(errorMessage, `Exit code: ${code}, stderr: ${error}, stdout: ${output}`);
+        if (abortOnError) {
+          abort(errorMessage, `Exit code: ${code}, stderr: ${errorOutput}, stdout: ${output}`);
+        } else {
+          error(errorMessage, `Exit code: ${code}, stderr: ${errorOutput}, stdout: ${output}`);
+          resolve(undefined);
+        }
       }
     });
   });
@@ -86,7 +92,7 @@ export const runSlangFile = async (file, config, signal = null, colorStderr = fa
       if (err.name === 'AbortError') {
         info('Aborting process...', cmd);
       } else {
-        exitWithError(err);
+        abort(err); // That's a no-no, we'll abort here.
       }
     });
 
@@ -122,7 +128,7 @@ const forceDeleteDirectory = async (dirPath, signal) => {
         debug(`Waiting to delete ${dirPath}`, `Got ${err.code}, retrying in a bit...`);
         await new Promise(resolve => setTimeout(resolve, 200));
       } else {
-        exitWithError(`Failed to delete ${dirPath}`, err);
+        abort(`Failed to delete ${dirPath}`, err);
       }
     }
   }
@@ -132,13 +138,14 @@ const forceDeleteDirectory = async (dirPath, signal) => {
  * Build slang with a given config
  * @param {string} config - Build config to use
  * @param {AbortSignal} signal - Abort signal to use
+ * @param {boolean} abortOnError - Whether to abort (exiting the app) on error (non-zero exit code or stderr)
  * @returns {Promise<string>} - Promise that resolves when build completes
  */
-export const buildSlangConfig = async (config, signal = null) => {
+export const buildSlangConfig = async (config, signal = null, abortOnError = true) => {
   const cmd = `cd ${SLANG_PROJ_DIR} && ${MSBUILD_EXE} Slang.sln /p:Configuration=${config}`;
   await forceDeleteDirectory(path.join(SLANG_BIN_DIR, config), signal);
   info(`Building slang ${config}`, `Command: "${cmd}"`);
-  return await runProcess(cmd, `Building config "${config}" failed`, signal);
+  return await runProcess(cmd, `Building config "${config}" failed`, signal, abortOnError);
 };
 
 /**
@@ -217,6 +224,7 @@ const prettyPrint = (type, message) => {
   // prettier-ignore
   const [headerValue, headerStyle, multilineHeaderValue, multilineHeaderStyle] = {
     err:   [ '█ Error', chalk.red.bold,           '│      ', chalk.red.bold           ],
+    abort: [ '█ Abort', chalk.red.bold,           '│      ', chalk.red.bold           ],
     info:  [ '█ Info ', chalk.gray.bold,          '│      ', chalk.gray.bold          ],
     ok:    [ '█ Ok   ', chalk.green.bold,         '│      ', chalk.green.bold         ],
     warn:  [ '█ Warn ', chalk.yellowBright.bold,  '│      ', chalk.yellowBright.bold  ],
@@ -247,13 +255,21 @@ const prettyPrint = (type, message) => {
 };
 
 /**
+ * Print an error message
+ * @param {string} message - Error message to print
+ * @param {string} hint - Hint to print
+ */
+export const error = (message, hint) => {
+  prettyPrint('err', message + (hint ? chalk.gray(` (${hint})`) : ''));
+};
+
+/**
  * Abort the process with an error message
  * @param {string} message - Error message to print
  * @param {string} hint - Hint to print
  */
-export const exitWithError = (message, hint) => {
-  // console.error(chalk.red.bold('█ Error ') + message + (hint ? chalk.gray(` (${hint})`) : ''));
-  prettyPrint('err', message + (hint ? chalk.gray(` (${hint})`) : ''));
+export const abort = (message, hint) => {
+  prettyPrint('abort', message + (hint ? chalk.gray(` (${hint})`) : ''));
   process.exit(1);
 };
 
@@ -263,7 +279,6 @@ export const exitWithError = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const info = (message, hint) => {
-  // console.log(chalk.gray.bold('█ Info  ') + message + (hint ? chalk.gray(` (${hint})`) : ''));
   prettyPrint('info', message + (hint ? chalk.gray(` (${hint})`) : ''));
 };
 
@@ -273,7 +288,6 @@ export const info = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const ok = (message, hint) => {
-  // console.log(chalk.green.bold('█ Ok    ') + message + (hint ? chalk.gray(` (${hint})`) : ''));
   prettyPrint('ok', message + (hint ? chalk.gray(` (${hint})`) : ''));
 };
 
@@ -283,7 +297,6 @@ export const ok = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const warn = (message, hint) => {
-  // console.warn(    chalk.yellowBright.bold('█ Warn  ') + message + (hint ? chalk.gray(` (${hint})`) : ''),  );
   prettyPrint('warn', message + (hint ? chalk.gray(` (${hint})`) : ''));
 };
 
@@ -293,7 +306,6 @@ export const warn = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const debug = (message, hint) => {
-  // console.debug(    chalk.magentaBright.bold('█ Debug ') + message + (hint ? chalk.gray(` (${hint})`) : ''),  );
   prettyPrint('debug', message + (hint ? chalk.gray(` (${hint})`) : ''));
 };
 
@@ -302,7 +314,6 @@ export const debug = (message, hint) => {
  * @param {string} message - Message to append
  */
 export const pass = message => {
-  // console.log(' ' + chalk.bgGreen.black(' Pass ') + ' ' + chalk.gray(message));
   prettyPrint('pass', message);
 };
 
@@ -311,6 +322,5 @@ export const pass = message => {
  * @param {string} message - Message to append
  */
 export const fail = message => {
-  // console.log(' ' + chalk.bgRed.black(' Fail ') + ' ' + chalk.gray(message));
   prettyPrint('fail', message);
 };

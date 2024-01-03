@@ -1,6 +1,6 @@
 import fs from 'node:fs';
-import { debug, exitWithError, info, warn } from './utils.js';
 import { LOCALE } from './config.js';
+import { abort, debug, info, warn } from './utils.js';
 
 /**
  * Watch for changes according to the given trigger in path and run the given action when triggered.
@@ -55,7 +55,7 @@ export const watch = (path, watchOptions, trigger, action) => {
             warn('Aborted current run.');
           } else {
             controller.abort();
-            exitWithError('Error while running watch-action', err);
+            abort('Error while running watch-action', err);
           }
         }
       }, 200);

@@ -1,7 +1,8 @@
 import chalk from 'chalk';
+import path from 'node:path';
 import { SLANG_TEST_DIR, SLANG_TEST_SUFFIX } from './config.js';
 import {
-  exitWithError,
+  abort,
   extractCommentMetadata,
   fail,
   findFiles,
@@ -9,7 +10,6 @@ import {
   pass,
   runSlangFile,
 } from './utils.js';
-import path from 'node:path';
 
 const EXPECT = 'Expect';
 const EXPECT_COMPILE_ERROR = 'ExpectCompileError';
@@ -23,7 +23,7 @@ const findTests = async () => {
   const tests = await findFiles(SLANG_TEST_DIR, SLANG_TEST_SUFFIX);
 
   if (tests.length === 0)
-    exitWithError(`No tests found in ${SLANG_TEST_DIR} with suffix ${SLANG_TEST_SUFFIX}`);
+    abort(`No tests found in ${SLANG_TEST_DIR} with suffix ${SLANG_TEST_SUFFIX}`);
 
   info(`Found ${tests.length} slang tests`);
 
@@ -59,7 +59,7 @@ export const runTests = async (config, signal) => {
       const { type, value: expected, line } = commentMetadata[i];
 
       if (![EXPECT, EXPECT_COMPILE_ERROR, EXPECT_RUNTIME_ERROR].includes(type)) {
-        exitWithError('Unknown expectation type', `Type: ${type}`);
+        abort('Unknown expectation type', `Type: ${type}`);
       }
 
       const actual = output[i];

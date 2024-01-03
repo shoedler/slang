@@ -7,15 +7,7 @@ import {
   SLANG_TEST_SUFFIX,
 } from './config.js';
 import { runTests } from './test.js';
-import {
-  buildSlangConfig,
-  exitWithError,
-  info,
-  ok,
-  runSlangFile,
-  separator,
-  warn,
-} from './utils.js';
+import { abort, buildSlangConfig, info, ok, runSlangFile, separator, warn } from './utils.js';
 import { watch } from './watch.js';
 
 const cmd = process.argv[2];
@@ -44,14 +36,16 @@ switch (cmd) {
       filename =>
         filename.endsWith('.c') || filename.endsWith('.h') || sampleFilePath.endsWith(filename),
       async signal => {
-        await buildSlangConfig(config, signal);
+        const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
+        if (!didBuild) {
+          return;
+        }
+
         info('Running slang file', sampleFilePath);
         const { exitCode, rawOutput } = await runSlangFile(sampleFilePath, config, signal, true);
-
         console.clear();
         console.log(rawOutput);
         separator();
-
         if (exitCode === 0) {
           ok('Ran with 0 exit code');
         } else {
@@ -69,13 +63,17 @@ switch (cmd) {
       filename =>
         filename.endsWith('.c') || filename.endsWith('.h') || filename.endsWith(SLANG_TEST_SUFFIX),
       async signal => {
-        await buildSlangConfig(config, signal);
+        const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
+        if (!didBuild) {
+          return;
+        }
+
         await runTests(config, signal);
       },
     );
     break;
   }
   default: {
-    exitWithError('Unknown command', `Command: ${cmd}`);
+    abort('Unknown command', `Command: ${cmd}`);
   }
 }

@@ -1,8 +1,8 @@
 import path from 'node:path';
 import { BENCH_LOG_FILE, SLANG_BENCH_DIR, SLANG_BENCH_SUFFIX } from './config.js';
 import {
+  abort,
   createOrAppendJsonFile,
-  exitWithError,
   extractCommentMetadata,
   findFiles,
   info,
@@ -18,7 +18,7 @@ const findBenchmarks = async () => {
   const benchmarks = await findFiles(SLANG_BENCH_DIR, SLANG_BENCH_SUFFIX);
 
   if (benchmarks.length === 0)
-    exitWithError(`No benchmarks found in ${SLANG_BENCH_DIR} with suffix ${SLANG_BENCH_SUFFIX}`);
+    abort(`No benchmarks found in ${SLANG_BENCH_DIR} with suffix ${SLANG_BENCH_SUFFIX}`);
 
   info(`Found ${benchmarks.length} slang benchmarks`);
 
@@ -65,12 +65,12 @@ const getBenchmarkFactory = metadata => {
       durationInSecsHeader.type === 'DurationInSecs';
 
     if (!isValid) {
-      exitWithError('LatencyBenchmark metadata is invalid.', `Metadata: ${metadata.join('\n')}`);
+      abort('LatencyBenchmark metadata is invalid.', `Metadata: ${metadata.join('\n')}`);
     }
 
     const latencyBenchmarkFactory = output => {
       if (output.length !== 2) {
-        exitWithError(
+        abort(
           `LatencyBenchmark output is invalid, expected 2 lines, got ${output.length}.`,
           `Output: ${output.join('\n')}`,
         );
@@ -79,7 +79,7 @@ const getBenchmarkFactory = metadata => {
       const [value, durationInSecs] = output;
 
       if (value !== expectedValueHeader.value) {
-        exitWithError(
+        abort(
           `LatencyBenchmark value is invalid, expected ${expectedValueHeader.value}, got ${value}.`,
           `Output: ${output.join('\n')}`,
         );
@@ -103,12 +103,12 @@ const getBenchmarkFactory = metadata => {
       durationInSecsHeader.type === 'DurationInSecs';
 
     if (!isValid) {
-      exitWithError('ThroughputBenchmark metadata is invalid.', `Metadata: ${metadata.join('\n')}`);
+      abort('ThroughputBenchmark metadata is invalid.', `Metadata: ${metadata.join('\n')}`);
     }
 
     const throughputBenchmarkFactory = output => {
       if (output.length !== 3) {
-        exitWithError(
+        abort(
           `ThroughputBenchmark output is invalid, expected 3 lines, got ${output.length}.`,
           `Output: ${output.join('\n')}`,
         );
@@ -127,7 +127,7 @@ const getBenchmarkFactory = metadata => {
     return throughputBenchmarkFactory;
   }
 
-  exitWithError('Unkown benchmark type.', `Metadata: ${metadata.join('\n')}`);
+  abort('Unkown benchmark type.', `Metadata: ${metadata.join('\n')}`);
 };
 
 /**
@@ -160,10 +160,7 @@ export const runBenchmarks = async configs => {
       const { output, exitCode } = await runSlangFile(benchmark.filePath, config);
 
       if (exitCode !== 0) {
-        exitWithError(
-          `Benchmark failed with exit code ${exitCode}.`,
-          `Output: ${output.join('\n')}`,
-        );
+        abort(`Benchmark failed with exit code ${exitCode}.`, `Output: ${output.join('\n')}`);
       }
 
       const benchmarkResult = benchmark.benchmarkFactory(output);
