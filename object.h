@@ -154,6 +154,8 @@ typedef struct {
   ObjFunction* function;
   ObjUpvalue** upvalues;
   int upvalue_count;
+  Value globals_owner;  // The owner of the globals table
+  HashTable globals;    // Pointer to the globals table of the owner
 } ObjClosure;
 
 typedef struct {

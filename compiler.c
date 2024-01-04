@@ -442,8 +442,9 @@ static void number(bool can_assign) {
 // The string has already been consumed and is referenced by the previous token.
 static void string(bool can_assign) {
   // TODO (enhance): Handle escape sequences here.
-  emit_constant(OBJ_VAL(
-      copy_string(parser.previous.start + 1, parser.previous.length - 2)));
+  emit_constant(OBJ_VAL(copy_string(
+      parser.previous.start + 1,
+      parser.previous.length - 2)));  // +1 and -2 to strip the quotes
 }
 
 // Compiles a unary expression and emits the corresponding instruction.
@@ -1264,6 +1265,14 @@ static void declaration_class() {
   current_class = current_class->enclosing;
 }
 
+static void declaration_import() {
+  if (current->scope_depth > 0) {
+    error("Can't import in a local scope.");
+  }
+
+  error("Not implemented yet.");
+}
+
 // Compiles a declaration.
 static void declaration() {
   if (match(TOKEN_CLASS)) {
@@ -1272,6 +1281,8 @@ static void declaration() {
     declaration_function();
   } else if (match(TOKEN_LET)) {
     declaration_let();
+  } else if (match(TOKEN_IMPORT)) {
+    declaration_import();
   } else {
     statement();
   }

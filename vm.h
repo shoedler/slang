@@ -23,6 +23,9 @@ typedef struct {
   ObjClosure* closure;
   uint16_t* ip;
   Value* slots;
+  HashTable globals;
+  Value globals_owner;  // The owner of the globals table
+  HashTable globals;    // Pointer to the globals table of the owner
 } CallFrame;
 
 // The virtual machine.
@@ -35,8 +38,7 @@ typedef struct {
   uint16_t*
       ip;  // Instruction pointer, points to the NEXT instruction to execute
   Value stack[STACK_MAX];
-  Value* stack_top;  // Points to where the next value to be pushed will go
-  HashTable globals;
+  Value* stack_top;   // Points to where the next value to be pushed will go
   HashTable strings;  // Interned strings
   ObjString* init_string;
   ObjUpvalue* open_upvalues;
