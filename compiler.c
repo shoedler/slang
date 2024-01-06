@@ -343,12 +343,13 @@ static void dot(bool can_assign) {
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();
     emit_two(OP_SET_PROPERTY, name);
-  } else if (match(TOKEN_OPAR)) {
-    // Shorthand for method calls. This combines two instructions into one:
-    // getting a property and calling a method.
-    uint16_t arg_count = argument_list();
-    emit_two(OP_INVOKE, name);
-    emit_one(arg_count);
+    // ⚠️ This is currently commented out, bc it needs an overhaul after modules. Will currently
+    // break everything. } else if (match(TOKEN_OPAR)) {
+    //   // Shorthand for method calls. This combines two instructions into one:
+    //   // getting a property and calling a method.
+    //   uint16_t arg_count = argument_list();
+    //   emit_two(OP_INVOKE, name);
+    //   emit_one(arg_count);
   } else {
     emit_two(OP_GET_PROPERTY, name);
   }

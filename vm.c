@@ -254,6 +254,69 @@ static bool invoke(ObjString* name, int arg_count) {
   return invoke_from_class(instance->klass, name, arg_count);
 }
 
+// Binds a native method
+static ObjClosure* bind_native(NativeFn method, int arity) {
+  // Build an object
+  Value native_fn = OBJ_VAL(new_native(method));
+
+  // Build a wrapper function that calls the object
+  ObjFunction* method_wrapper = new_function();
+  method_wrapper->arity = arity;
+
+  // Add the native function to the constant pool of our wrapper function
+  uint16_t constant_index = add_constant(&method_wrapper->chunk, native_fn);
+  write_chunk(&method_wrapper->chunk, OP_CONSTANT, 1);
+  write_chunk(&method_wrapper->chunk, constant_index, 1);
+
+  // Load the receiver and the arguments onto the stack
+  write_chunk(&method_wrapper->chunk, OP_GET_LOCAL, 1);  // Receiver
+  write_chunk(&method_wrapper->chunk, 0, 1);             // Index 0 is the receiver, e.g. "this"
+  for (int i = 0; i < arity; i++) {
+    write_chunk(&method_wrapper->chunk, OP_GET_LOCAL, 1);
+    write_chunk(&method_wrapper->chunk, i + 1, 1);  // arg i
+  }
+
+  // Call the native function with the receiver and the arguments
+  write_chunk(&method_wrapper->chunk, OP_CALL, 1);
+  write_chunk(&method_wrapper->chunk, arity + 1, 1);
+
+  // Return from the wrapper with whatever the native function returned
+  write_chunk(&method_wrapper->chunk, OP_RETURN, 1);
+  return new_closure(method_wrapper);
+}
+
+// This is an example builtin function. We can already index strings, this is just for testing and
+// for acting as a template for other builtins.
+static Value __builtin_string_get(int argc, Value argv[]) {
+  if (argc != 2) {
+    runtime_error("Expected 2 arguments for String.get but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+  if (!IS_STRING(argv[0])) {
+    runtime_error("Expected first argument to be a string but got %s.", type_name(argv[0]));
+    return exit_with_runtime_error();
+  }
+  if (!IS_NUMBER(argv[1])) {
+    runtime_error("Expected second argument to be a number but got %s.", type_name(argv[1]));
+    return exit_with_runtime_error();
+  }
+
+  double index_raw = AS_NUMBER(argv[1]);
+  int index;
+  if (!is_int(index_raw, &index)) {
+    runtime_error("Expected second argument to be an integer number but got %f.", index_raw);
+    return exit_with_runtime_error();
+  }
+
+  if (index < 0 || index >= AS_STRING(argv[0])->length) {
+    runtime_error("Index out of bounds.");
+    return exit_with_runtime_error();
+  }
+
+  ObjString* char_str = copy_string(AS_CSTRING(argv[0]) + index, 1);
+  return OBJ_VAL(char_str);
+}
+
 // Binds a method to an instance by creating a new bound method object and
 // pushing it onto the stack.
 static bool bind_method(ObjClass* klass, ObjString* name) {
@@ -536,25 +599,83 @@ static Value run() {
         break;
       }
       case OP_GET_PROPERTY: {
-        if (!IS_INSTANCE(peek(0))) {
-          runtime_error("Only instances can have properties.");
-          return exit_with_runtime_error();
-        }
-
-        ObjInstance* instance = AS_INSTANCE(peek(0));
         ObjString* name = READ_STRING();
-
-        Value value;
-        if (hashtable_get(&instance->fields, name, &value)) {
-          pop();  // Instance.
-          push(value);
+        switch (peek(0).type) {
+          case VAL_OBJ: {
+            switch (OBJ_TYPE(peek(0))) {
+              case OBJ_STRING: {
+                if (strcmp("len", name->chars) ==
+                    0) {  // TODO (robust): We should check such "syntheticFields" in
+                          // OP_SET_PROPERTY for robustness. At this point, you can only set fields
+                          // on instances anyway - but when we add internal base-classes for
+                          // primitive types this can get ugly really fast
+                  Value value = pop();  // Value to get the length of
+                  int length = AS_STRING(value)->length;
+                  push(NUMBER_VAL(length));
+                  goto done_getting_property;
+                }
+                // This one can be removed, since we have an extra op for this anyway, it's just a
+                // template on how to
+                // call a native function on a given value
+                else if (strcmp("get", name->chars) ==
+                         0) {  // TODO (robust): We should check such "syntheticFields" in
+                               // OP_SET_PROPERTY for robustness. At this point, you can only set
+                               // fields on instances anyway - but when we add internal
+                               // base-classes for primitive types this can get ugly really fast
+                  ObjBoundMethod* bound_native =
+                      new_bound_method(peek(0), bind_native(__builtin_string_get, 1));
+                  pop();  // Pop the string
+                  push(OBJ_VAL(bound_native));
+                  goto done_getting_property;
+                }
+                break;
+              }
+              case OBJ_SEQ: {
+                if (strcmp("len", name->chars) ==
+                    0) {  // TODO (robust): We should check such "syntheticFields" in
+                          // OP_SET_PROPERTY for robustness. At this point, you can only set fields
+                          // on instances anyway - but when we add internal base-classes for
+                          // primitive types this can get ugly really fast
+                  Value value = pop();  // Value to get the length of
+                  int length = AS_SEQ(value)->items.count;
+                  push(NUMBER_VAL(length));
+                  goto done_getting_property;
+                }
+                break;
+              }
+              case OBJ_INSTANCE: {
+                ObjInstance* instance = AS_INSTANCE(peek(0));
+                Value value;
+                if (hashtable_get(&instance->fields, name, &value)) {
+                  pop();  // Instance.
+                  push(value);
+                  goto done_getting_property;
+                } else if (bind_method(instance->klass, name)) {
+                  goto done_getting_property;
+                }
+                break;
+              }
+            }
+            break;
+          }
+        }
+        // Built-in properties for all values
+        if (strcmp("type", name->chars) ==
+            0) {  // TODO (robust): We should check such "syntheticFields" in OP_SET_PROPERTY for
+                  // robustness. At this point, you can only set fields on instances anyway - but
+                  // when we add internal base-classes for primitive types this can get ugly really
+                  // fast
+          Value value = pop();  // Value to get the type of
+          const char* type_name_ = type_name(value);
+          int length = (int)strlen(type_name_);
+          push(OBJ_VAL(copy_string(type_name_, length)));
           break;
         }
 
-        if (!bind_method(instance->klass, name)) {
-          runtime_error("Property %s does not exist on type %s.", name->chars, type_name(instance));
-          return exit_with_runtime_error();
-        }
+        runtime_error("Property %s does not exist on type %s.", name->chars, type_name(peek(0)));
+        return exit_with_runtime_error();
+
+      done_getting_property:
         break;
       }
       case OP_SET_PROPERTY: {
@@ -564,7 +685,8 @@ static Value run() {
         }
 
         ObjInstance* instance = AS_INSTANCE(peek(1));
-        hashtable_set(&instance->fields, READ_STRING(),
+        ObjString* name = READ_STRING();
+        hashtable_set(&instance->fields, name,
                       peek(0));  // Create or update
         Value value = pop();
         pop();
@@ -593,8 +715,9 @@ static Value run() {
             exit_with_runtime_error();
             return NIL_VAL;
           }
-
+          push(module);  // Show ourselves to the GC before we put it in the hashtable
           hashtable_set(&vm.modules, name, module);
+          break;
         }
         push(module);
         break;

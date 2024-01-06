@@ -44,6 +44,7 @@ switch (cmd) {
         info('Running slang file', sampleFilePath);
         const { exitCode, rawOutput } = await runSlangFile(sampleFilePath, config, signal, true);
         console.clear();
+        separator();
         console.log(rawOutput);
         separator();
         if (exitCode === 0) {

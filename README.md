@@ -44,13 +44,16 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 - [ ] Implement hashtable keys for all types: Objs are by reference, primitives and strings by value
 - [ ] Allow return stats without suffixed `;`
 
-## Imrpovements
+## Improvements
 
 - [ ] Move exit codes to `common.h` and replace all magic numbers with them
+- [ ] Align error messages. Some use `'` around names, or type names, some don't.
 
 ### Optimizations
 
+- [ ] ⚠️ Re-add `OP_INVOKE`
 - [ ] Implement a fast hashtable-get function which uses a shortened version of `find_entry`.
+- [ ] Cache modules in the Vm. It's awfully slow and happens during runtime... I hate that very much.
 - [ ] Cache function / method calls in the Vm
 
 ### Modularity & Standard Library
