@@ -8,7 +8,7 @@
 
 // A hash table entry.
 typedef struct {
-  ObjString* key;
+  Value key;
   Value value;
 } Entry;
 
@@ -26,13 +26,13 @@ void init_hashtable(HashTable* table);
 void free_hashtable(HashTable* table);
 
 // Gets a value from a hashtable.
-bool hashtable_get(HashTable* table, ObjString* key, Value* value);
+bool hashtable_get(HashTable* table, Value key, Value* value);
 
 // Adds a value to a hashtable.
-bool hashtable_set(HashTable* table, ObjString* key, Value value);
+bool hashtable_set(HashTable* table, Value key, Value value);
 
 // Deletes a value from a hashtable.
-bool hashtable_delete(HashTable* table, ObjString* key);
+bool hashtable_delete(HashTable* table, Value key);
 
 // Copies all entries from one hashtable to another.
 void hashtable_add_all(HashTable* from, HashTable* to);

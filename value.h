@@ -13,6 +13,7 @@ typedef enum {
   VAL_NIL,
   VAL_NUMBER,
   VAL_OBJ,
+  VAL_EMPTY_INTERNAL,
 } ValueType;
 
 // The single value construct used to represent all values in the language.
@@ -36,6 +37,11 @@ typedef struct {
 
 // Determines whether a value is of type object.
 #define IS_OBJ(value) ((value).type == VAL_OBJ)
+
+// Determines whether a value is of type empty.
+// Users will never see this type, it is used internally to represent empty buckets in the
+// hashtable.
+#define IS_EMPTY_INTERNAL(value) ((value).type == VAL_EMPTY_INTERNAL)
 
 // Unpacks a value into a C boolean.
 // Value must be of type bool.
@@ -61,6 +67,11 @@ typedef struct {
 // Converts a C object pointer into a value.
 #define OBJ_VAL(object) ((Value){VAL_OBJ, {.obj = (Obj*)object}})
 
+// The singleton empty value.
+// Users will never see this value, it is used internally to represent empty buckets in the
+// hashtable.
+#define EMPTY_INTERNAL_VAL ((Value){VAL_EMPTY_INTERNAL, {.number = 0}})
+
 // Dynamic array of values. This represents the constant pool of a chunk.
 // See https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
 typedef struct {
@@ -84,5 +95,8 @@ void free_value_array(ValueArray* array);
 
 // Print a value to stdout.
 void print_value(Value value);
+
+// Get the hashcode of a value, based on its type.
+uint32_t hash_value(Value value);
 
 #endif

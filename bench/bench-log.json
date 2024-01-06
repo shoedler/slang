@@ -354,5 +354,77 @@
       "value": "216600000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-01-06T22:30:57.086Z",
+    "commit": {
+      "date": "2024-01-06 22:01:16 +0100",
+      "hash": "733e123545d0cc9268a60950812199ada134efc8",
+      "message": "Adds synthesized properties and methods. Currently, OP_INVOKE is out-of-order bc of this."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "note": "Despite the commit message, OP_INVOKE was indeed re-enabled for this run. The performance literally went down the drain due to the hashtable now accepting values as keys. This is not really inferrable from the commit message - the actual changes will be in the next commit (-> the commit with which this result was added)",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "8.006000"
+    }
+  },
+  {
+    "date": "2024-01-06T22:30:57.086Z",
+    "commit": {
+      "date": "2024-01-06 22:01:16 +0100",
+      "hash": "733e123545d0cc9268a60950812199ada134efc8",
+      "message": "Adds synthesized properties and methods. Currently, OP_INVOKE is out-of-order bc of this."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "note": "Despite the commit message, OP_INVOKE was indeed re-enabled for this run. The performance literally went down the drain due to the hashtable now accepting values as keys. This is not really inferrable from the commit message - the actual changes will be in the next commit (-> the commit with which this result was added)",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "1.029000"
+    }
+  },
+  {
+    "date": "2024-01-06T22:30:57.086Z",
+    "commit": {
+      "date": "2024-01-06 22:01:16 +0100",
+      "hash": "733e123545d0cc9268a60950812199ada134efc8",
+      "message": "Adds synthesized properties and methods. Currently, OP_INVOKE is out-of-order bc of this."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "note": "Despite the commit message, OP_INVOKE was indeed re-enabled for this run. The performance literally went down the drain due to the hashtable now accepting values as keys. This is not really inferrable from the commit message - the actual changes will be in the next commit (-> the commit with which this result was added)",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "173",
+      "value": "10380000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-01-06T22:30:57.086Z",
+    "commit": {
+      "date": "2024-01-06 22:01:16 +0100",
+      "hash": "733e123545d0cc9268a60950812199ada134efc8",
+      "message": "Adds synthesized properties and methods. Currently, OP_INVOKE is out-of-order bc of this."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "note": "Despite the commit message, OP_INVOKE was indeed re-enabled for this run. The performance literally went down the drain due to the hashtable now accepting values as keys. This is not really inferrable from the commit message - the actual changes will be in the next commit (-> the commit with which this result was added)",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "1066",
+      "value": "63960000",
+      "durationInSecs": "5"
+    }
   }
 ]

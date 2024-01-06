@@ -31,7 +31,7 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
   - [ ] 21 $\to$ 2: Constant time global variable lookup.
   - [ ] 23 $\to$ 2: `continue` Statement
   - [ ] 23 $\to$ 1: `switch` Statement. Starting point for the `match` statement.
-  - [ ] 20 $\to$ 1: Index a hashtable with any primitive. This is a good introduction to the goal of being able to index with reference types.
+  - [x] 20 $\to$ 1: Index a hashtable with any primitive. ~~This is a good introduction to the goal of being able to index with reference types.~~ $\to$ Done. Added indexing by reference aswell.
   - [ ] 19 $\to$ 1: Store strings as flexible array members
   - [ ] 25 $\to$ 2: Closing over the loop variable.
   - [ ] 22 $\to$ 3: Add `const`

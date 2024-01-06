@@ -67,7 +67,7 @@ static void exit_with_compile_error() {
 static void define_native(const char* name, NativeFn function) {
   push(OBJ_VAL(copy_string(name, (int)strlen(name))));
   push(OBJ_VAL(new_native(function)));
-  hashtable_set(&vm.globals, AS_STRING(vm.stack[0]), vm.stack[1]);
+  hashtable_set(&vm.globals, vm.stack[0], vm.stack[1]);
   pop();
   pop();
 }
@@ -195,7 +195,7 @@ static bool call_value(Value callee, int arg_count) {
         vm.stack_top[-arg_count - 1] = OBJ_VAL(new_instance(klass));
         Value initializer;
 
-        if (hashtable_get(&klass->methods, vm.init_string, &initializer)) {
+        if (hashtable_get(&klass->methods, OBJ_VAL(vm.init_string), &initializer)) {
           return call(AS_CLOSURE(initializer), arg_count);
         } else if (arg_count != 0) {
           runtime_error("Expected 0 arguments but got %d.", arg_count);
@@ -226,7 +226,7 @@ static bool call_value(Value callee, int arg_count) {
 // table and calling it. (Combines "get-property" and "call" opcodes)
 static bool invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
   Value method;
-  if (!hashtable_get(&klass->methods, name, &method)) {
+  if (!hashtable_get(&klass->methods, OBJ_VAL(name), &method)) {
     runtime_error("Undefined property '%s' in '%s'", name->chars, klass->name->chars);
     return false;
   }
@@ -246,7 +246,7 @@ static bool invoke(ObjString* name, int arg_count) {
 
   Value value;
   // It could be a field which is a function, we need to check that first
-  if (hashtable_get(&instance->fields, name, &value)) {
+  if (hashtable_get(&instance->fields, OBJ_VAL(name), &value)) {
     vm.stack_top[-arg_count - 1] = value;
     return call_value(value, arg_count);
   }
@@ -321,7 +321,7 @@ static Value __builtin_string_get(int argc, Value argv[]) {
 // pushing it onto the stack.
 static bool bind_method(ObjClass* klass, ObjString* name) {
   Value method;
-  if (!hashtable_get(&klass->methods, name, &method)) {
+  if (!hashtable_get(&klass->methods, OBJ_VAL(name), &method)) {
     return false;
   }
 
@@ -381,7 +381,7 @@ static void define_method(ObjString* name) {
   Value method = peek(0);
   ObjClass* klass = AS_CLASS(peek(1));  // We trust the compiler that this value
                                         // is actually a class
-  hashtable_set(&klass->methods, name, method);
+  hashtable_set(&klass->methods, OBJ_VAL(name), method);
   pop();
 }
 
@@ -482,7 +482,7 @@ static Value run() {
       case OP_GET_GLOBAL: {
         ObjString* name = READ_STRING();
         Value value;
-        if (!hashtable_get(&vm.globals, name, &value)) {
+        if (!hashtable_get(&vm.globals, OBJ_VAL(name), &value)) {
           runtime_error("Undefined variable '%s'.", name->chars);
           return exit_with_runtime_error();
         }
@@ -496,7 +496,7 @@ static Value run() {
       }
       case OP_DEFINE_GLOBAL: {
         ObjString* name = READ_STRING();
-        hashtable_set(&vm.globals, name,
+        hashtable_set(&vm.globals, OBJ_VAL(name),
                       peek(0));  // peek, because assignment is an expression!
         pop();
         break;
@@ -508,9 +508,9 @@ static Value run() {
       }
       case OP_SET_GLOBAL: {
         ObjString* name = READ_STRING();
-        if (hashtable_set(&vm.globals, name,
+        if (hashtable_set(&vm.globals, OBJ_VAL(name),
                           peek(0))) {  // peek, because assignment is an expression!
-          hashtable_delete(&vm.globals, name);
+          hashtable_delete(&vm.globals, OBJ_VAL(name));
           runtime_error("Undefined variable '%s'.", name->chars);
           return exit_with_runtime_error();
         }
@@ -646,7 +646,7 @@ static Value run() {
               case OBJ_INSTANCE: {
                 ObjInstance* instance = AS_INSTANCE(peek(0));
                 Value value;
-                if (hashtable_get(&instance->fields, name, &value)) {
+                if (hashtable_get(&instance->fields, OBJ_VAL(name), &value)) {
                   pop();  // Instance.
                   push(value);
                   goto done_getting_property;
@@ -686,7 +686,7 @@ static Value run() {
 
         ObjInstance* instance = AS_INSTANCE(peek(1));
         ObjString* name = READ_STRING();
-        hashtable_set(&instance->fields, name,
+        hashtable_set(&instance->fields, OBJ_VAL(name),
                       peek(0));  // Create or update
         Value value = pop();
         pop();
@@ -697,7 +697,7 @@ static Value run() {
         ObjString* name = READ_STRING();
         Value module;
 
-        if (!hashtable_get(&vm.modules, name, &module)) {
+        if (!hashtable_get(&vm.modules, OBJ_VAL(name), &module)) {
           // Try to open the module instead
           char tmp[256];
           if (sprintf(tmp, "C:\\Projects\\slang\\%s.sl", name->chars) < 0) {
@@ -716,7 +716,7 @@ static Value run() {
             return NIL_VAL;
           }
           push(module);  // Show ourselves to the GC before we put it in the hashtable
-          hashtable_set(&vm.modules, name, module);
+          hashtable_set(&vm.modules, OBJ_VAL(name), module);
           break;
         }
         push(module);

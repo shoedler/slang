@@ -44,7 +44,7 @@ static ObjString* allocate_string(char* chars, int length, uint32_t hash) {
   string->hash = hash;
 
   push(OBJ_VAL(string));  // Prevent GC from freeing string
-  hashtable_set(&vm.strings, string, NIL_VAL);
+  hashtable_set(&vm.strings, OBJ_VAL(string), NIL_VAL);
   pop();
 
   return string;
