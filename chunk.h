@@ -48,6 +48,7 @@ typedef enum {
   OP_CLASS,
   OP_INHERIT,
   OP_METHOD,
+  OP_IMPORT,
 } OpCode;
 
 // Dynamic array of instructions.

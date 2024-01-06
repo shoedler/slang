@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -45,6 +46,23 @@ static void runtime_error(const char* format, ...) {
   reset_stack();
 }
 
+// This is just a placeholder to find where we actually throw rt errors.
+// I want another way to do this, but I don't know how yet.
+static Value exit_with_runtime_error() {
+  free_vm();
+  // TODO (recovery): Find a way to progpagate errors */
+  exit(70);
+  return NIL_VAL;
+}
+
+// This is just a plcaeholder to find where we actually throw compile errors.
+// I want another way to do this, but I don't know how yet.
+static void exit_with_compile_error() {
+  free_vm();
+  // TODO (recovery): Find a way to progpagate errors */
+  exit(65);
+}
+
 // Defines a native function in the global scope.
 static void define_native(const char* name, NativeFn function) {
   push(OBJ_VAL(copy_string(name, (int)strlen(name))));
@@ -66,6 +84,7 @@ void init_vm() {
 
   init_hashtable(&vm.globals);
   init_hashtable(&vm.strings);
+  init_hashtable(&vm.modules);
 
   vm.init_string = NULL;
   vm.init_string = copy_string(
@@ -297,7 +316,7 @@ static void concatenate() {
 
 // This function represents the main loop of the virtual machine.
 // It fetches the next instruction, decodes it, and dispatches it
-static InterpretResult run() {
+static Value run() {
   CallFrame* frame = &vm.frames[vm.frame_count - 1];
 
 // Read a single piece of data from the current instruction pointer and advance
@@ -316,7 +335,7 @@ static InterpretResult run() {
   do {                                                \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
       runtime_error("Operands must be numbers.");     \
-      return INTERPRET_RUNTIME_ERROR;                 \
+      return exit_with_runtime_error();               \
     }                                                 \
     double b = AS_NUMBER(pop());                      \
     double a = AS_NUMBER(pop());                      \
@@ -369,7 +388,7 @@ static InterpretResult run() {
         Value value;
         if (!hashtable_get(&vm.globals, name, &value)) {
           runtime_error("Undefined variable '%s'.", name->chars);
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
         push(value);
         break;
@@ -399,7 +418,7 @@ static InterpretResult run() {
                 peek(0))) {  // peek, because assignment is an expression!
           hashtable_delete(&vm.globals, name);
           runtime_error("Undefined variable '%s'.", name->chars);
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
         break;
       }
@@ -429,7 +448,7 @@ static InterpretResult run() {
           ObjString* string = AS_STRING(assignee);
           if (i < 0 || i >= string->length) {
             runtime_error("Index out of bounds.");
-            return INTERPRET_RUNTIME_ERROR;
+            return exit_with_runtime_error();
           }
 
           ObjString* char_str = copy_string(AS_CSTRING(assignee) + i, 1);
@@ -439,13 +458,13 @@ static InterpretResult run() {
           ObjSeq* seq = AS_SEQ(assignee);
           if (i < 0 || i >= seq->items.count) {
             runtime_error("Index out of bounds.");
-            return INTERPRET_RUNTIME_ERROR;
+            return exit_with_runtime_error();
           }
 
           push(seq->items.values[i]);
         } else {
           runtime_error("Only sequences and strings can be get-indexed.");
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
         break;
       }
@@ -473,21 +492,21 @@ static InterpretResult run() {
 
           if (i < 0 || i >= seq->items.count) {
             runtime_error("Index out of bounds.");
-            return INTERPRET_RUNTIME_ERROR;
+            return exit_with_runtime_error();
           }
 
           seq->items.values[i] = value;
           push(value);
         } else {
           runtime_error("Only sequences can be set-indexed.");
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
         break;
       }
       case OP_GET_PROPERTY: {
         if (!IS_INSTANCE(peek(0))) {
           runtime_error("Only instances can have properties.");
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
 
         ObjInstance* instance = AS_INSTANCE(peek(0));
@@ -502,14 +521,14 @@ static InterpretResult run() {
 
         if (!bind_method(instance->klass, name)) {
           runtime_error("Undefined property '%s'.", name->chars);
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
         break;
       }
       case OP_SET_PROPERTY: {
         if (!IS_INSTANCE(peek(1))) {
           runtime_error("Only instances can have fields.");
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
 
         ObjInstance* instance = AS_INSTANCE(peek(1));
@@ -520,13 +539,45 @@ static InterpretResult run() {
         push(value);
         break;
       }
+      case OP_IMPORT: {
+        ObjString* name = READ_STRING();
+        Value module;
+
+        if (!hashtable_get(&vm.modules, name, &module)) {
+          // Try to open the module instead
+          char tmp[256];
+          if (sprintf(tmp, "C:\\Projects\\slang\\%s.sl", name->chars) < 0) {
+            runtime_error(
+                "Could not import module '%s.sl'. Could not format string",
+                name->chars);
+            exit_with_runtime_error();
+            return NIL_VAL;
+          }
+
+          vm.exit_on_frame = vm.frame_count;
+          module = run_file(tmp, 1 /* new scope */);
+          vm.exit_on_frame = -1;
+
+          if (!IS_OBJ(module)) {
+            runtime_error("Could not import module '%s'. Expected object type",
+                          name->chars);
+            exit_with_runtime_error();
+            return NIL_VAL;
+          }
+
+          hashtable_set(&vm.modules, name, module);
+        }
+        push(module);
+        break;
+      }
       case OP_GET_BASE_METHOD: {
         ObjString* name = READ_STRING();
         ObjClass* baseclass = AS_CLASS(pop());
 
         if (!bind_method(baseclass, name)) {
           runtime_error("Undefined property '%s'.", name->chars);
-          return INTERPRET_RUNTIME_ERROR;
+          exit_with_runtime_error();
+          return NIL_VAL;
         }
         break;
       }
@@ -563,7 +614,7 @@ static InterpretResult run() {
           push(NUMBER_VAL(a + b));
         } else {
           runtime_error("Operands must be two numbers or two strings.");
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
         break;
       }
@@ -582,7 +633,7 @@ static InterpretResult run() {
       case OP_NEGATE:
         if (!IS_NUMBER(peek(0))) {
           runtime_error("Operand must be a number.");
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
@@ -635,7 +686,7 @@ static InterpretResult run() {
       case OP_CALL: {
         int arg_count = READ_ONE();
         if (!call_value(peek(arg_count), arg_count)) {
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
         frame = &vm.frames[vm.frame_count - 1];
         break;
@@ -644,7 +695,7 @@ static InterpretResult run() {
         ObjString* method = READ_STRING();
         int arg_count = READ_ONE();
         if (!invoke(method, arg_count)) {
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
         frame = &vm.frames[vm.frame_count - 1];
         break;
@@ -654,7 +705,7 @@ static InterpretResult run() {
         int arg_count = READ_ONE();
         ObjClass* baseclass = AS_CLASS(pop());
         if (!invoke_from_class(baseclass, method, arg_count)) {
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
         frame = &vm.frames[vm.frame_count - 1];
         break;
@@ -685,11 +736,13 @@ static InterpretResult run() {
         close_upvalues(frame->slots);
         vm.frame_count--;
         if (vm.frame_count == 0) {
-          pop();
-          return INTERPRET_OK;
+          return pop();
         }
 
         vm.stack_top = frame->slots;
+        if (vm.exit_on_frame == vm.frame_count) {
+          return result;
+        }
         push(result);
         frame = &vm.frames[vm.frame_count - 1];
         break;
@@ -702,7 +755,7 @@ static InterpretResult run() {
         ObjClass* subclass = AS_CLASS(peek(0));
         if (!IS_CLASS(baseclass)) {
           runtime_error("Base class must be a class.");
-          return INTERPRET_RUNTIME_ERROR;
+          return exit_with_runtime_error();
         }
         hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);
         pop();  // Subclass.
@@ -720,10 +773,12 @@ static InterpretResult run() {
 #undef BINARY_OP
 }
 
-InterpretResult interpret(const char* source) {
-  ObjFunction* function = compile(source);
-  if (function == NULL)
-    return INTERPRET_COMPILE_ERROR;
+Value interpret(const char* source, bool local_scope) {
+  ObjFunction* function = compile(source, local_scope);
+  if (function == NULL) {
+    exit_with_compile_error();
+    return NIL_VAL;
+  }
 
   push(OBJ_VAL(function));
   ObjClosure* closure = new_closure(function);
@@ -732,4 +787,52 @@ InterpretResult interpret(const char* source) {
   call(closure, 0);
 
   return run();
+}
+
+static char* read_file(const char* path) {
+  if (path == NULL) {
+    INTERNAL_ERROR("Cannot open NULL path \"%s\"", path);
+    exit(74);
+  }
+
+  FILE* file = fopen(path, "rb");
+  if (file == NULL) {
+    INTERNAL_ERROR("Could not open file \"%s\"", path);
+    exit(74);
+  }
+
+  fseek(file, 0L, SEEK_END);
+  size_t file_size = ftell(file);
+  rewind(file);
+
+  char* buffer = (char*)malloc(file_size + 1);
+  if (buffer == NULL) {
+    INTERNAL_ERROR("Not enough memory to read \"%s\"\n", path);
+    exit(74);
+  }
+
+  size_t bytes_read = fread(buffer, sizeof(char), file_size, file);
+  if (bytes_read < file_size) {
+    INTERNAL_ERROR("Could not read file \"%s\"\n", path);
+    exit(74);
+  }
+
+  buffer[bytes_read] = '\0';
+
+  fclose(file);
+  return buffer;
+}
+
+Value run_file(const char* path, bool local_scope) {
+  char* source = read_file(path);
+
+  if (source == NULL) {
+    free(source);
+    return NIL_VAL;
+  }
+
+  Value result = interpret(source, local_scope);
+  free(source);
+
+  return result;
 }

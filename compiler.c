@@ -442,8 +442,9 @@ static void number(bool can_assign) {
 // The string has already been consumed and is referenced by the previous token.
 static void string(bool can_assign) {
   // TODO (enhance): Handle escape sequences here.
-  emit_constant(OBJ_VAL(
-      copy_string(parser.previous.start + 1, parser.previous.length - 2)));
+  emit_constant(OBJ_VAL(copy_string(
+      parser.previous.start + 1,
+      parser.previous.length - 2)));  // +1 and -2 to strip the quotes
 }
 
 // Compiles a unary expression and emits the corresponding instruction.
@@ -1045,13 +1046,9 @@ static void statement_if() {
 
 // Compiles a return statement.
 // The return keyword has already been consumed at this point.
-// Handles illegal return statements (in toplevel or in a constructor).
+// Handles illegal return statements in a constructor.
 // The return value is an expression or nil.
 static void statement_return() {
-  if (current->type == TYPE_TOPLEVEL) {
-    error("Can't return from top-level code.");
-  }
-
   // TODO (syntax): We don't want semicolons after return statements - but it's
   // almost impossible to get rid of them here Since there could literally come
   // anything after a return statement.
@@ -1141,6 +1138,18 @@ static void statement_for() {
   end_scope();
 }
 
+// Compiles an import statement.
+// The import keyword has already been consumed at this point.
+static void statement_import() {
+  consume(TOKEN_ID, "Expecting module name.");
+
+  uint16_t name_constant = string_constant(&parser.previous);
+  declare_local();
+
+  emit_two(OP_IMPORT, name_constant);
+  define_variable(name_constant);
+}
+
 // Compiles a block.
 static void block() {
   while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF)) {
@@ -1162,6 +1171,8 @@ static void statement() {
     statement_return();
   } else if (match(TOKEN_FOR)) {
     statement_for();
+  } else if (match(TOKEN_IMPORT)) {
+    statement_import();
   } else if (match(TOKEN_OBRACE)) {
     begin_scope();
     block();
@@ -1231,7 +1242,7 @@ static void declaration_class() {
         BASE_CLASS_KEYWORD));  // TODO (optimize): Maybe use BASE_CLASS_KEYWORD
                                // as a lexeme, then synthetic_token is not
                                // needed.
-    define_variable(0);
+    define_variable(0 /* ignore, we're not in global scope */);
 
     named_variable(class_name, false);
     emit_one(OP_INHERIT);
@@ -1281,7 +1292,7 @@ static void declaration() {
   }
 }
 
-ObjFunction* compile(const char* source) {
+ObjFunction* compile(const char* source, bool local_scope) {
   init_scanner(source);
   Compiler compiler;
   init_compiler(&compiler, TYPE_TOPLEVEL, NULL);
@@ -1289,6 +1300,10 @@ ObjFunction* compile(const char* source) {
 #ifdef DEBUG_PRINT_CODE
   printf("== Begin compilation ==\n");
 #endif
+
+  if (local_scope) {
+    begin_scope();
+  }
 
   parser.had_error = false;
   parser.panic_mode = false;

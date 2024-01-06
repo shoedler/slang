@@ -238,6 +238,9 @@ static void mark_roots() {
   // Also mark the globals hashtable.
   mark_hashtable(&vm.globals);
 
+  // And the modules hashtable.
+  mark_hashtable(&vm.modules);
+
   // And the compiler roots. The GC can run while compiling, so we need to mark
   // the compiler's internal state as well.
   mark_compiler_roots();
@@ -301,7 +304,14 @@ void collect_garbage() {
   hashtable_remove_white(&vm.strings);
   sweep();
 
-  vm.next_gc = vm.bytes_allocated * GC_HEAP_GROW_FACTOR;
+  // If we reach the threshold, we grow the heap by adding a fixed amount of
+  // bytes. This ties next_gc down to earth, so it
+  // doesn't grow into the abyss of the space-time continuum.
+  if (vm.bytes_allocated < GC_HEAP_GROW_THRESHOLD) {
+    vm.next_gc = vm.bytes_allocated * GC_HEAP_GROW_FACTOR;
+  } else {
+    vm.next_gc = vm.bytes_allocated + GC_HEAP_GROW_THRESHOLD;
+  }
 
 #ifdef DEBUG_LOG_GC
   printf(

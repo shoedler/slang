@@ -30,12 +30,6 @@
     fprintf(stderr, format_literal "\n", ##__VA_ARGS__); \
   } while (0)
 
-#define WINTERNAL_ERROR(wformat_literal, ...)               \
-  do {                                                      \
-    ##PRINT_ERROR_HEADER("INTERNAL ERROR");                 \
-    fwprintf(stderr, wformat_literal L"\n", ##__VA_ARGS__); \
-  } while (0)
-
 #define NOT_IMPLEMENTED(what)                       \
   do {                                              \
     ##PRINT_ERROR_HEADER("NOT IMPLEMENTED ERROR");  \

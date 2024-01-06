@@ -35,9 +35,10 @@ typedef struct {
   uint16_t*
       ip;  // Instruction pointer, points to the NEXT instruction to execute
   Value stack[STACK_MAX];
-  Value* stack_top;  // Points to where the next value to be pushed will go
-  HashTable globals;
+  Value* stack_top;   // Points to where the next value to be pushed will go
+  HashTable globals;  // Global variables
   HashTable strings;  // Interned strings
+  HashTable modules;  // Modules
   ObjString* init_string;
   ObjUpvalue* open_upvalues;
   Obj* objects;
@@ -46,17 +47,11 @@ typedef struct {
   size_t next_gc;
   int gray_count;
   int gray_capacity;
+  int exit_on_frame;
   Obj** gray_stack;  // Worklist for the garbage collector. This field is not
                      // managed by our own memory allocator, but rather by the
                      // system's allocator.
 } Vm;
-
-// Possible outcomes of interpreting code
-typedef enum {
-  INTERPRET_OK,
-  INTERPRET_COMPILE_ERROR,
-  INTERPRET_RUNTIME_ERROR
-} InterpretResult;
 
 extern Vm vm;
 
@@ -66,9 +61,15 @@ void init_vm();
 // Free the virtual machine.
 void free_vm();
 
-// This function is the main entry point for the virtual machine.
-// It takes a string of source code, compiles it, and then runs it.
-InterpretResult interpret(const char* source);
+// Takes a string of source code, compiles it and then runs it.
+// Returns the result of the interpretation as a value.
+// If local_scope is true, the code will be executed in a new scope.
+Value interpret(const char* source, bool local_scope);
+
+// Reads a file, compiles it and then runs it.
+// Returns the result of the interpretation as a value.
+// If local_scope is true, the code will be executed in a new scope.
+Value run_file(const char* file_name, bool local_scope);
 
 // Push a value onto the stack.
 void push(Value value);

@@ -26,7 +26,7 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
   - [ ] 24 $\to$ 1: Move `ip` into a register. This is a must-have.
   - [x] 14 $\to$ 2: Allow more than 256 constants per chunk ~~by adding `OP_CONSTANT_LONG`~~. This is a must-have. (Just bumped the stack-width to 16 bits - lol)
   - [x] 22 $\to$ 4: Allow more than 256 locals per scope. This is a must-have. (Just bumped the stack-width to 16 bits - lol)
-  - [ ] 17 $\to$ 3: Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `a ? b else c`. This is a must-have.
+  - [ ] 17 $\to$ 3: Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `a then b else c`. This is a must-have.
   - [ ] 16 $\to$ 1: String interpolation. C#-style `$"Hello {name}"`
   - [ ] 21 $\to$ 2: Constant time global variable lookup.
   - [ ] 23 $\to$ 2: `continue` Statement
@@ -44,7 +44,22 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 - [ ] Implement hashtable keys for all types: Objs are by reference, primitives and strings by value
 - [ ] Allow return stats without suffixed `;`
 
+## Imrpovements
+
+- [ ] Move exit codes to `common.h` and replace all magic numbers with them
+
+### Optimizations
+
+- [ ] Implement a fast hashtable-get function which uses a shortened version of `find_entry`.
+- [ ] Cache function / method calls in the Vm
+
 ### Modularity & Standard Library
+
+- The active call frame is the source of the current "globals".
+- Every closure object has a reference to its globals.
+- When a closure is created for a function, it should capture the current globals and use them as its own globals. This is necessary to implement modules.
+- Then, to import a module.
+- There probably needs to be a reference to the owner of the closures globals, so that the gc collects it when the module is no longer used.
 
 Devise a system to load modules. I want most of the stdlib to be native code to improve performance, but I also want to be able to load modules from disk.
 

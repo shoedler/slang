@@ -163,6 +163,8 @@
 // -----------------------------------------
 // Sequences
 // -----------------------------------------
+import system
+
 let x = [1,2,3]
 print x
 print x[0]
@@ -187,5 +189,7 @@ let s = Seq()
 s.printList()
 s.list[1] = -2
 s.printList()
+
+print system.clock()
 
 print make_list()[2]
