@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "object.h"
 #include "value.h"
+#include "vm.h"
 
 #define VALUE_STR_LEN 25
 
@@ -28,7 +29,8 @@ static void debug_print_function(ObjFunction* function) {
     return;
   }
   const char* fn_str[VALUE_STR_LEN];
-  sprintf(fn_str, "Fn %s, arity %d", function->name->chars, function->arity);
+  sprintf(fn_str, "%s %s, arity %d", type_name(OBJ_VAL(function)), function->name->chars,
+          function->arity);
   PRINT_VALUE_STR(fn_str);
 }
 
@@ -39,7 +41,7 @@ static void debug_print_object(Value value) {
       break;
     case OBJ_CLASS:
       const char* class_str[VALUE_STR_LEN];
-      sprintf(class_str, "Cls %s", AS_CLASS(value)->name->chars);
+      sprintf(class_str, "%s %s", type_name(value), AS_CLASS(value)->name->chars);
       PRINT_VALUE_STR(class_str);
       break;
     case OBJ_CLOSURE:
@@ -50,11 +52,11 @@ static void debug_print_object(Value value) {
       break;
     case OBJ_INSTANCE:
       const char* instance_str[VALUE_STR_LEN];
-      sprintf(instance_str, "Instance %s", AS_INSTANCE(value)->klass->name->chars);
+      sprintf(instance_str, "%s %s", type_name(value), AS_INSTANCE(value)->klass->name->chars);
       PRINT_VALUE_STR(instance_str);
       break;
     case OBJ_NATIVE:
-      PRINT_VALUE_STR("Native Fn");
+      PRINT_VALUE_STR(type_name(value));
       break;
     case OBJ_STRING:
       const char* str_str[VALUE_STR_LEN];
@@ -62,7 +64,7 @@ static void debug_print_object(Value value) {
       PRINT_VALUE_STR(str_str);
       break;
     case OBJ_UPVALUE:
-      PRINT_VALUE_STR("Upvalue");
+      PRINT_VALUE_STR(type_name(value));
       break;
   }
 }

@@ -117,6 +117,39 @@ static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
 }
 
+const char* type_name(Value value) {
+  if (value.type == VAL_BOOL) {
+    return "Bool";
+  } else if (value.type == VAL_NIL) {
+    return "Nil";
+  } else if (value.type == VAL_NUMBER) {
+    return "Number";
+  } else if (value.type == VAL_OBJ) {
+    switch (OBJ_TYPE(value)) {
+      case OBJ_BOUND_METHOD:
+        return "BoundMethod";
+      case OBJ_CLASS:
+        return "Class";
+      case OBJ_CLOSURE:
+        return "Closure";
+      case OBJ_FUNCTION:
+        return "Fn";
+      case OBJ_INSTANCE:
+        return "Instance";
+      case OBJ_NATIVE:
+        return "NativeFn";
+      case OBJ_STRING:
+        return "String";
+      case OBJ_SEQ:
+        return "Seq";
+      case OBJ_UPVALUE:
+        return "Upvalue";
+    }
+  }
+
+  return "Unknown";
+}
+
 // Returns true if a floating point number is an integer, false otherwise.
 // Assignes the resulting integer value to the integer pointer.
 static bool is_int(double number, int* integer) {
@@ -153,8 +186,8 @@ static bool call_value(Value callee, int arg_count) {
     switch (OBJ_TYPE(callee)) {
       case OBJ_BOUND_METHOD: {
         ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
-        // Put the receiver in slot 0, so we can access "this"
-        vm.stack_top[-arg_count - 1] = bound->receiver;
+        vm.stack_top[-arg_count - 1] =
+            bound->receiver;  // Put the receiver in slot 0, so we can access "this"
         return call(bound->method, arg_count);
       }
       case OBJ_CLASS: {
@@ -185,7 +218,7 @@ static bool call_value(Value callee, int arg_count) {
         break;  // Non-callable object type.
     }
   }
-  runtime_error("Can only call functions and classes.");
+  runtime_error("Attempted to call non-callable value of type %s.", type_name(callee));
   return false;
 }
 
@@ -194,7 +227,7 @@ static bool call_value(Value callee, int arg_count) {
 static bool invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
   Value method;
   if (!hashtable_get(&klass->methods, name, &method)) {
-    runtime_error("Undefined property '%s'.", name->chars);
+    runtime_error("Undefined property '%s' in '%s'", name->chars, klass->name->chars);
     return false;
   }
   return call(AS_CLOSURE(method), arg_count);
@@ -205,7 +238,7 @@ static bool invoke(ObjString* name, int arg_count) {
   Value receiver = peek(arg_count);
 
   if (!IS_INSTANCE(receiver)) {
-    runtime_error("Only instances have methods.");
+    runtime_error("%s cannot be invoked.", type_name(receiver));
     return false;
   }
 
@@ -328,15 +361,19 @@ static Value run() {
 // Read a string from the constant pool.
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
-#define BINARY_OP(value_type, op)                     \
-  do {                                                \
-    if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) { \
-      runtime_error("Operands must be numbers.");     \
-      return exit_with_runtime_error();               \
-    }                                                 \
-    double b = AS_NUMBER(pop());                      \
-    double a = AS_NUMBER(pop());                      \
-    push(value_type(a op b));                         \
+// Perform a binary operation on the top two values on the stack.
+// This consumes two pieces of data from the stack, and pushes the result
+// value_type is the type of the result value, op is the operator to use
+#define BINARY_OP(value_type, op)                                                               \
+  do {                                                                                          \
+    if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                                           \
+      runtime_error("Operands must be numbers. Left was %s, right was %s.", type_name(peek(1)), \
+                    type_name(peek(0)));                                                        \
+      return exit_with_runtime_error();                                                         \
+    }                                                                                           \
+    double b = AS_NUMBER(pop());                                                                \
+    double a = AS_NUMBER(pop());                                                                \
+    push(value_type(a op b));                                                                   \
   } while (false)
 
   for (;;) {
@@ -457,14 +494,16 @@ static Value run() {
 
           push(seq->items.values[i]);
         } else {
-          runtime_error("Only sequences and strings can be get-indexed.");
+          runtime_error("%s cannot be get-indexed.", type_name(assignee));
           return exit_with_runtime_error();
         }
         break;
       }
       case OP_SET_INDEX: {
         Value value = pop();  // We should peek, because assignment is an expression! But,
-                              // the order is wrong so we push it back on the stack later
+                              // the order is wrong so we push it back on the stack later.
+                              // We are being careful not to trigger a GC in this block,
+                              // because value might get collected if we do.
         Value index = pop();
         Value assignee = pop();
 
@@ -491,7 +530,7 @@ static Value run() {
           seq->items.values[i] = value;
           push(value);
         } else {
-          runtime_error("Only sequences can be set-indexed.");
+          runtime_error("%s cannot be set-indexed.", type_name(assignee));
           return exit_with_runtime_error();
         }
         break;
@@ -513,14 +552,14 @@ static Value run() {
         }
 
         if (!bind_method(instance->klass, name)) {
-          runtime_error("Undefined property '%s'.", name->chars);
+          runtime_error("Property %s does not exist on type %s.", name->chars, type_name(instance));
           return exit_with_runtime_error();
         }
         break;
       }
       case OP_SET_PROPERTY: {
         if (!IS_INSTANCE(peek(1))) {
-          runtime_error("Only instances can have fields.");
+          runtime_error("%s cannot have fields.", type_name(peek(1)));
           return exit_with_runtime_error();
         }
 
@@ -565,7 +604,7 @@ static Value run() {
         ObjClass* baseclass = AS_CLASS(pop());
 
         if (!bind_method(baseclass, name)) {
-          runtime_error("Undefined property '%s'.", name->chars);
+          runtime_error("Undefined property '%s' in '%s'.", name->chars, baseclass->name->chars);
           exit_with_runtime_error();
           return NIL_VAL;
         }
@@ -603,7 +642,10 @@ static Value run() {
           double a = AS_NUMBER(pop());
           push(NUMBER_VAL(a + b));
         } else {
-          runtime_error("Operands must be two numbers or two strings.");
+          runtime_error(
+              "Operands must be two numbers or two strings. Left was "
+              "%s, right was %s.",
+              type_name(peek(1)), type_name(peek(0)));
           return exit_with_runtime_error();
         }
         break;
@@ -622,7 +664,7 @@ static Value run() {
         break;
       case OP_NEGATE:
         if (!IS_NUMBER(peek(0))) {
-          runtime_error("Operand must be a number.");
+          runtime_error("Operand must be a number. Was %s.", type_name(peek(0)));
           return exit_with_runtime_error();
         }
         push(NUMBER_VAL(-AS_NUMBER(pop())));
@@ -744,7 +786,7 @@ static Value run() {
         Value baseclass = peek(1);
         ObjClass* subclass = AS_CLASS(peek(0));
         if (!IS_CLASS(baseclass)) {
-          runtime_error("Base class must be a class.");
+          runtime_error("Base class must be a class. Was %s.", type_name(baseclass));
           return exit_with_runtime_error();
         }
         hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);

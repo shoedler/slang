@@ -60,6 +60,9 @@ void init_vm();
 // Free the virtual machine.
 void free_vm();
 
+// Gets the name of a type
+const char* type_name(Value value);
+
 // Takes a string of source code, compiles it and then runs it.
 // Returns the result of the interpretation as a value.
 // If local_scope is true, the code will be executed in a new scope.
