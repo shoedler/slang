@@ -20,8 +20,7 @@
 #define PRINT_NO_NUM() printf(ANSI_RED_STR("       "))
 
 // VALUE_STR_LEN chars wide
-#define PRINT_VALUE_STR(_str) \
-  printf("%-*.*s", VALUE_STR_LEN, VALUE_STR_LEN, _str)
+#define PRINT_VALUE_STR(_str) printf("%-*.*s", VALUE_STR_LEN, VALUE_STR_LEN, _str)
 
 static void debug_print_function(ObjFunction* function) {
   if (function->name == NULL) {
@@ -51,8 +50,7 @@ static void debug_print_object(Value value) {
       break;
     case OBJ_INSTANCE:
       const char* instance_str[VALUE_STR_LEN];
-      sprintf(instance_str, "Instance %s",
-              AS_INSTANCE(value)->klass->name->chars);
+      sprintf(instance_str, "Instance %s", AS_INSTANCE(value)->klass->name->chars);
       PRINT_VALUE_STR(instance_str);
       break;
     case OBJ_NATIVE:
@@ -119,10 +117,7 @@ static int byte_instruction(const char* name, Chunk* chunk, int offset) {
   return offset + 2;
 }
 
-static int jump_instruction(const char* name,
-                            int sign,
-                            Chunk* chunk,
-                            int offset) {
+static int jump_instruction(const char* name, int sign, Chunk* chunk, int offset) {
   uint16_t jump = chunk->code[offset + 1];
   char* jmp_str[13];
   sprintf(jmp_str, "%04d -> %04d", offset, offset + 3 + sign * jump);
@@ -173,8 +168,8 @@ static int invoke_instruction(const char* name, Chunk* chunk, int offset) {
   PRINT_OPCODE(name);
   PRINT_NUMBER(constant);
   const char* method_str[VALUE_STR_LEN];
-  sprintf(method_str, "%s, %d args",
-          AS_STRING(chunk->constants.values[constant])->chars, arg_count);
+  sprintf(method_str, "%s, %d args", AS_STRING(chunk->constants.values[constant])->chars,
+          arg_count);
   PRINT_VALUE_STR(method_str);
 
   return offset + 3;

@@ -116,10 +116,7 @@ void hashtable_add_all(HashTable* from, HashTable* to) {
   }
 }
 
-ObjString* hashtable_find_string(HashTable* table,
-                                 const char* chars,
-                                 int length,
-                                 uint32_t hash) {
+ObjString* hashtable_find_string(HashTable* table, const char* chars, int length, uint32_t hash) {
   if (table->count == 0) {
     return NULL;
   }

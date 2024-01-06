@@ -53,12 +53,7 @@ typedef struct {
   bool is_local;
 } Upvalue;
 
-typedef enum {
-  TYPE_FUNCTION,
-  TYPE_CONSTRUCTOR,
-  TYPE_METHOD,
-  TYPE_TOPLEVEL
-} FunctionType;
+typedef enum { TYPE_FUNCTION, TYPE_CONSTRUCTOR, TYPE_METHOD, TYPE_TOPLEVEL } FunctionType;
 
 // A construct holding the compiler's state.
 typedef struct Compiler {
@@ -241,9 +236,7 @@ static void emit_return() {
 }
 
 // Initializes a new compiler.
-static void init_compiler(Compiler* compiler,
-                          FunctionType type,
-                          ObjString* name) {
+static void init_compiler(Compiler* compiler, FunctionType type, ObjString* name) {
   compiler->enclosing = current;
   compiler->function = NULL;
   compiler->type = type;
@@ -277,9 +270,8 @@ static ObjFunction* end_compiler() {
 
 #ifdef DEBUG_PRINT_CODE
   if (!parser.had_error) {
-    disassemble_chunk(current_chunk(), function->name != NULL
-                                           ? function->name->chars
-                                           : "[Toplevel]");
+    disassemble_chunk(current_chunk(),
+                      function->name != NULL ? function->name->chars : "[Toplevel]");
 
     if (current->enclosing == NULL) {
       printf("\n== End of compilation ==\n\n");
@@ -301,8 +293,7 @@ static void end_scope() {
   current->scope_depth--;
 
   while (current->local_count > 0 &&
-         current->locals[current->local_count - 1].depth >
-             current->scope_depth) {
+         current->locals[current->local_count - 1].depth > current->scope_depth) {
     // Since we're leaving the scope, we don't need the local variables anymore.
     // The ones who got captured by a closure are still needed, and are
     // going to need to live on the heap.
@@ -423,11 +414,10 @@ static void list_literal(bool can_assign) {
   if (count <= MAX_LIST_ITEMS) {
     emit_two(OP_LIST_LITERAL, (uint16_t)count);
   } else {
-    error_at_current(
-        "Can't have more than MAX_LIST_ITEMS items in a list.");  // TODO
-                                                                  // (enhance):
-                                                                  // Interpolate
-                                                                  // MAX_LIST_ITEMS
+    error_at_current("Can't have more than MAX_LIST_ITEMS items in a list.");  // TODO
+                                                                               // (enhance):
+                                                                               // Interpolate
+                                                                               // MAX_LIST_ITEMS
   }
 }
 
@@ -442,9 +432,8 @@ static void number(bool can_assign) {
 // The string has already been consumed and is referenced by the previous token.
 static void string(bool can_assign) {
   // TODO (enhance): Handle escape sequences here.
-  emit_constant(OBJ_VAL(copy_string(
-      parser.previous.start + 1,
-      parser.previous.length - 2)));  // +1 and -2 to strip the quotes
+  emit_constant(OBJ_VAL(copy_string(parser.previous.start + 1,
+                                    parser.previous.length - 2)));  // +1 and -2 to strip the quotes
 }
 
 // Compiles a unary expression and emits the corresponding instruction.
@@ -602,11 +591,10 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
       do {
         current->function->arity++;
         if (current->function->arity > MAX_FN_ARGS) {
-          error_at_current(
-              "Can't have more than MAX_FN_ARGS parameters.");  // TODO
-                                                                // (enhance):
-                                                                // Interpolate
-                                                                // MAX_FN_ARGS
+          error_at_current("Can't have more than MAX_FN_ARGS parameters.");  // TODO
+                                                                             // (enhance):
+                                                                             // Interpolate
+                                                                             // MAX_FN_ARGS
         }
         uint16_t constant = parse_variable("Expecting parameter name.");
         define_variable(constant);
@@ -640,8 +628,7 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
     error_at_current("Expecting '{' before function body.");
   }
 
-  ObjFunction* function =
-      end_compiler();  // Also handles end of scope. (end_scope())
+  ObjFunction* function = end_compiler();  // Also handles end of scope. (end_scope())
 
   emit_two(OP_CLOSURE, make_constant(OBJ_VAL(function)));
   for (int i = 0; i < function->upvalue_count; i++) {
@@ -651,8 +638,7 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
 }
 
 static void anonymous_function(bool can_assign) {
-  function(can_assign /* does not matter */, TYPE_FUNCTION,
-           copy_string("<Anon>", 7));
+  function(can_assign /* does not matter */, TYPE_FUNCTION, copy_string("<Anon>", 7));
 }
 
 // Compiles a class method.
@@ -661,8 +647,7 @@ static void method() {
   consume(TOKEN_FN, "Expecting method initializer.");
   consume(TOKEN_ID, "Expecting method name.");
   uint16_t constant = string_constant(&parser.previous);
-  ObjString* method_name =
-      copy_string(parser.previous.start, parser.previous.length);
+  ObjString* method_name = copy_string(parser.previous.start, parser.previous.length);
 
   function(false /* does not matter */, TYPE_METHOD, method_name);
   emit_two(OP_METHOD, constant);
@@ -673,8 +658,7 @@ static void constructor() {
   uint16_t constant = string_constant(&parser.previous);
   // TODO (optimize): Maybe preload this? A constructor is always called the
   // the same name - so we could just load it once and then reuse it.
-  ObjString* ctor_name =
-      copy_string(parser.previous.start, parser.previous.length);
+  ObjString* ctor_name = copy_string(parser.previous.start, parser.previous.length);
 
   function(false /* does not matter */, TYPE_CONSTRUCTOR, ctor_name);
   emit_two(OP_METHOD, constant);
@@ -1201,8 +1185,7 @@ static void declaration_let() {
 // Since functions are first-class, this is similar to a variable declaration.
 static void declaration_function() {
   uint16_t global = parse_variable("Expecting variable name.");
-  ObjString* fn_name =
-      copy_string(parser.previous.start, parser.previous.length);
+  ObjString* fn_name = copy_string(parser.previous.start, parser.previous.length);
 
   mark_initialized();
   function(false /* does not matter */, TYPE_FUNCTION, fn_name);
@@ -1238,10 +1221,9 @@ static void declaration_class() {
     }
 
     begin_scope();
-    add_local(synthetic_token(
-        BASE_CLASS_KEYWORD));  // TODO (optimize): Maybe use BASE_CLASS_KEYWORD
-                               // as a lexeme, then synthetic_token is not
-                               // needed.
+    add_local(synthetic_token(BASE_CLASS_KEYWORD));  // TODO (optimize): Maybe use
+                                                     // BASE_CLASS_KEYWORD as a lexeme, then
+                                                     // synthetic_token is not needed.
     define_variable(0 /* ignore, we're not in global scope */);
 
     named_variable(class_name, false);

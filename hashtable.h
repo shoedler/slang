@@ -39,10 +39,7 @@ void hashtable_add_all(HashTable* from, HashTable* to);
 
 // Finds a string in the hashtable by a c string.
 // Compares strings by value
-ObjString* hashtable_find_string(HashTable* table,
-                                 const char* chars,
-                                 int length,
-                                 uint32_t hash);
+ObjString* hashtable_find_string(HashTable* table, const char* chars, int length, uint32_t hash);
 
 // Removes all white entries from a hashtable.
 // This is intended to be used for the vm's interned strings, as white entries

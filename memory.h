@@ -22,13 +22,11 @@
 #define GROW_CAPACITY(capacity) ((capacity) < 8 ? 8 : (capacity) * 2)
 
 // Grow a dynamic array.
-#define GROW_ARRAY(type, pointer, old_count, new_count)  \
-  (type*)reallocate(pointer, sizeof(type) * (old_count), \
-                    sizeof(type) * (new_count))
+#define GROW_ARRAY(type, pointer, old_count, new_count) \
+  (type*)reallocate(pointer, sizeof(type) * (old_count), sizeof(type) * (new_count))
 
 // Free a dynamic array.
-#define FREE_ARRAY(type, pointer, old_count) \
-  reallocate(pointer, sizeof(type) * (old_count), 0)
+#define FREE_ARRAY(type, pointer, old_count) reallocate(pointer, sizeof(type) * (old_count), 0)
 
 // Reallocate memory. This is the single function which
 // handles dynamic array memory management.

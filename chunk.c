@@ -14,8 +14,7 @@ void write_chunk(Chunk* chunk, uint16_t data, int line) {
   if (chunk->capacity < chunk->count + 1) {
     int oldCapacity = chunk->capacity;
     chunk->capacity = GROW_CAPACITY(oldCapacity);
-    chunk->code =
-        GROW_ARRAY(uint16_t, chunk->code, oldCapacity, chunk->capacity);
+    chunk->code = GROW_ARRAY(uint16_t, chunk->code, oldCapacity, chunk->capacity);
     chunk->lines = GROW_ARRAY(int, chunk->lines, oldCapacity, chunk->capacity);
   }
 

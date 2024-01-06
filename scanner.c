@@ -109,10 +109,7 @@ static void skip_whitespace() {
   }
 }
 
-static TokenType check_keyword(int start,
-                               int length,
-                               const char* rest,
-                               TokenType type) {
+static TokenType check_keyword(int start, int length, const char* rest, TokenType type) {
   if (scanner.current - scanner.start == start + length &&
       memcmp(scanner.start + start, rest, length) == 0) {
     return type;
@@ -221,8 +218,7 @@ static Token number() {
   }
 
 #ifdef DEBUG_PRINT_TOKENS
-  printf("NUMBER: %.*s\n", (int)(scanner.current - scanner.start),
-         scanner.start);
+  printf("NUMBER: %.*s\n", (int)(scanner.current - scanner.start), scanner.start);
 #endif
 
   return make_token(TOKEN_NUMBER);
@@ -243,8 +239,7 @@ static Token string() {
   advance();  // Consume the closing ".
 
 #ifdef DEBUG_PRINT_TOKENS
-  printf("STRING: %.*s\n", (int)(scanner.current - scanner.start),
-         scanner.start);
+  printf("STRING: %.*s\n", (int)(scanner.current - scanner.start), scanner.start);
 #endif
 
   return make_token(TOKEN_STRING);

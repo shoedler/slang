@@ -49,8 +49,7 @@ void mark_obj(Obj* object) {
   }
 
 #ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_YELLOW_STR("[MARK] ") "%p, ",
-         (void*)object);
+  printf(ANSI_RED_STR("[GC] ") ANSI_YELLOW_STR("[MARK] ") "%p, ", (void*)object);
   print_value(OBJ_VAL(object));
   printf("\n");
 #endif
@@ -59,8 +58,7 @@ void mark_obj(Obj* object) {
 
   if (vm.gray_capacity < vm.gray_count + 1) {
     vm.gray_capacity = GROW_CAPACITY(vm.gray_capacity);
-    vm.gray_stack =
-        (Obj**)realloc(vm.gray_stack, sizeof(Obj*) * vm.gray_capacity);
+    vm.gray_stack = (Obj**)realloc(vm.gray_stack, sizeof(Obj*) * vm.gray_capacity);
 
     // TODO (recovery): Handle out of memory
     if (vm.gray_stack == NULL) {
@@ -90,8 +88,7 @@ void mark_array(ValueArray* array) {
 // been marked as well.
 static void blacken_object(Obj* object) {
 #ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_BLUE_STR("[BLACKEN] ") "%p, ",
-         (void*)object);
+  printf(ANSI_RED_STR("[GC] ") ANSI_BLUE_STR("[BLACKEN] ") "%p, ", (void*)object);
   print_value(OBJ_VAL(object));
   printf("\n");
 #endif
@@ -150,8 +147,8 @@ static void blacken_object(Obj* object) {
 // How we free an object depends on its type.
 static void free_object(Obj* object) {
 #ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "%p, type %s\n",
-         (void*)object, obj_type_to_string(object->type));
+  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "%p, type %s\n", (void*)object,
+         obj_type_to_string(object->type));
 #endif
 
   switch (object->type) {
@@ -230,8 +227,7 @@ static void mark_roots() {
   }
 
   // Open upvalues are also roots directly accessible by the vm.
-  for (ObjUpvalue* upvalue = vm.open_upvalues; upvalue != NULL;
-       upvalue = upvalue->next) {
+  for (ObjUpvalue* upvalue = vm.open_upvalues; upvalue != NULL; upvalue = upvalue->next) {
     mark_obj((Obj*)upvalue);
   }
 
@@ -314,10 +310,8 @@ void collect_garbage() {
   }
 
 #ifdef DEBUG_LOG_GC
-  printf(
-      ANSI_RED_STR(
-          "[GC] ") "Done. collected %zu bytes (from %zu to %zu) next at %zu\n",
-      before - vm.bytes_allocated, before, vm.bytes_allocated, vm.next_gc);
+  printf(ANSI_RED_STR("[GC] ") "Done. collected %zu bytes (from %zu to %zu) next at %zu\n",
+         before - vm.bytes_allocated, before, vm.bytes_allocated, vm.next_gc);
   printf("== Gc end collect ==\n");
 #endif
 }

@@ -14,8 +14,7 @@ void write_value_array(ValueArray* array, Value value) {
   if (array->capacity < array->count + 1) {
     int old_capacity = array->capacity;
     array->capacity = GROW_CAPACITY(old_capacity);
-    array->values =
-        GROW_ARRAY(Value, array->values, old_capacity, array->capacity);
+    array->values = GROW_ARRAY(Value, array->values, old_capacity, array->capacity);
   }
 
   array->values[array->count] = value;

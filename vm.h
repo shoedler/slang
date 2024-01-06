@@ -32,8 +32,7 @@ typedef struct {
   int frame_count;
 
   Chunk* chunk;
-  uint16_t*
-      ip;  // Instruction pointer, points to the NEXT instruction to execute
+  uint16_t* ip;  // Instruction pointer, points to the NEXT instruction to execute
   Value stack[STACK_MAX];
   Value* stack_top;   // Points to where the next value to be pushed will go
   HashTable globals;  // Global variables

@@ -87,10 +87,10 @@ void init_vm() {
   init_hashtable(&vm.modules);
 
   vm.init_string = NULL;
-  vm.init_string = copy_string(
-      CLASS_CONSTRUCTOR_KEYWORD,
-      CLASS_CONSTRUCTOR_KEYWORD_LENGTH);  // Might trigger GC, that's why we
-                                          // need to initialize it to NULL first
+  vm.init_string =
+      copy_string(CLASS_CONSTRUCTOR_KEYWORD,
+                  CLASS_CONSTRUCTOR_KEYWORD_LENGTH);  // Might trigger GC, that's why we
+                                                      // need to initialize it to NULL first
 
   define_native("clock", native_clock);
 }
@@ -130,8 +130,7 @@ static bool is_int(double number, int* integer) {
 // Returns true if the call succeeded, false otherwise.
 static bool call(ObjClosure* closure, int arg_count) {
   if (arg_count != closure->function->arity) {
-    runtime_error("Expected %d arguments but got %d.", closure->function->arity,
-                  arg_count);
+    runtime_error("Expected %d arguments but got %d.", closure->function->arity, arg_count);
     return false;
   }
 
@@ -273,9 +272,8 @@ static ObjUpvalue* capture_upvalue(Value* local) {
 static void close_upvalues(Value* last) {
   while (vm.open_upvalues != NULL && vm.open_upvalues->location >= last) {
     ObjUpvalue* upvalue = vm.open_upvalues;
-    upvalue->closed =
-        *upvalue->location;  // Move the value (via location pointer) from the
-                             // stack to the heap (closed field)
+    upvalue->closed = *upvalue->location;  // Move the value (via location pointer) from the
+                                           // stack to the heap (closed field)
     upvalue->location = &upvalue->closed;  // Point to ourselves for the value
     vm.open_upvalues = upvalue->next;
   }
@@ -325,8 +323,7 @@ static Value run() {
 
 // Read a constant from the constant pool. This consumes one piece of data
 // on the stack, which is the index of the constant to read
-#define READ_CONSTANT() \
-  (frame->closure->function->chunk.constants.values[READ_ONE()])
+#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_ONE()])
 
 // Read a string from the constant pool.
 #define READ_STRING() AS_STRING(READ_CONSTANT())
@@ -345,9 +342,8 @@ static Value run() {
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
 #ifdef DEBUG_TRACE_EXECUTION
-    disassemble_instruction(
-        &frame->closure->function->chunk,
-        (int)(frame->ip - frame->closure->function->chunk.code));
+    disassemble_instruction(&frame->closure->function->chunk,
+                            (int)(frame->ip - frame->closure->function->chunk.code));
 
     printf(ANSI_CYAN_STR(" Stack "));
     for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
@@ -407,15 +403,13 @@ static Value run() {
       }
       case OP_SET_LOCAL: {
         uint16_t slot = READ_ONE();
-        frame->slots[slot] =
-            peek(0);  // peek, because assignment is an expression!
+        frame->slots[slot] = peek(0);  // peek, because assignment is an expression!
         break;
       }
       case OP_SET_GLOBAL: {
         ObjString* name = READ_STRING();
-        if (hashtable_set(
-                &vm.globals, name,
-                peek(0))) {  // peek, because assignment is an expression!
+        if (hashtable_set(&vm.globals, name,
+                          peek(0))) {  // peek, because assignment is an expression!
           hashtable_delete(&vm.globals, name);
           runtime_error("Undefined variable '%s'.", name->chars);
           return exit_with_runtime_error();
@@ -469,9 +463,8 @@ static Value run() {
         break;
       }
       case OP_SET_INDEX: {
-        Value value =
-            pop();  // We should peek, because assignment is an expression! But,
-                    // the order is wrong so we push it back on the stack later
+        Value value = pop();  // We should peek, because assignment is an expression! But,
+                              // the order is wrong so we push it back on the stack later
         Value index = pop();
         Value assignee = pop();
 
@@ -547,9 +540,7 @@ static Value run() {
           // Try to open the module instead
           char tmp[256];
           if (sprintf(tmp, "C:\\Projects\\slang\\%s.sl", name->chars) < 0) {
-            runtime_error(
-                "Could not import module '%s.sl'. Could not format string",
-                name->chars);
+            runtime_error("Could not import module '%s.sl'. Could not format string", name->chars);
             exit_with_runtime_error();
             return NIL_VAL;
           }
@@ -559,8 +550,7 @@ static Value run() {
           vm.exit_on_frame = -1;
 
           if (!IS_OBJ(module)) {
-            runtime_error("Could not import module '%s'. Expected object type",
-                          name->chars);
+            runtime_error("Could not import module '%s'. Expected object type", name->chars);
             exit_with_runtime_error();
             return NIL_VAL;
           }

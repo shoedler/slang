@@ -11,17 +11,15 @@
 #endif
 
 // Allocates a new object of the given type.
-#define ALLOCATE_OBJ(type, objectType) \
-  (type*)allocate_object(sizeof(type), objectType)
+#define ALLOCATE_OBJ(type, objectType) (type*)allocate_object(sizeof(type), objectType)
 
 // Allocates a new object of the given type and size.
 // It also initializes the object's fields. Might trigger GC, but (obviously)
 // won't free the new object to be allocated.
 static Obj* allocate_object(size_t size, ObjType type) {
-  Obj* object = (Obj*)reallocate(
-      NULL, 0,
-      size);  // Might trigger GC, but it's fine since our new object isn't
-              // referenced by anything yet -> not reachable by GC
+  Obj* object = (Obj*)reallocate(NULL, 0,
+                                 size);  // Might trigger GC, but it's fine since our new object
+                                         // isn't referenced by anything yet -> not reachable by GC
   object->type = type;
   object->is_marked = false;
 
@@ -29,8 +27,7 @@ static Obj* allocate_object(size_t size, ObjType type) {
   vm.objects = object;
 
 #ifdef DEBUG_LOG_GC_ALLOCATIONS
-  printf(ANSI_RED_STR("[GC] ")
-             ANSI_MAGENTA_STR("[ALLOC] ") "%p allocate %zu for type %s\n",
+  printf(ANSI_RED_STR("[GC] ") ANSI_MAGENTA_STR("[ALLOC] ") "%p allocate %zu for type %s\n",
          (void*)object, size, obj_type_to_string(type));
 #endif
 
