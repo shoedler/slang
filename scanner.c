@@ -145,7 +145,14 @@ static TokenType identifier_type() {
       }
     }
     case 'e':
-      return check_keyword(1, 3, "lse", TOKEN_ELSE);
+      if (scanner.current - scanner.start > 1) {
+        switch (scanner.start[1]) {
+          case 'l':
+            return check_keyword(2, 2, "se", TOKEN_ELSE);
+          case 'x':
+            return check_keyword(2, 4, "port", TOKEN_EXPORT);
+        }
+      }
     case 'f':
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {

@@ -58,7 +58,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.SlangScript",
-                    "match": "\\b(if|for|else|while|fn|ret|print|or|and|cls|ctor|import)\\b"
+                    "match": "\\b(if|for|else|while|fn|ret|print|or|and|cls|ctor|import|export)\\b"
                 },
                 {
                     "name": "storage.type.SlangScript",

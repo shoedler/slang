@@ -203,8 +203,8 @@ ObjNative* new_native(NativeFn function);
 ObjUpvalue* new_upvalue(Value* slot);
 
 // Copies a string literal into a heap-allocated string object.
-// This does not take ownership of the string, but rather - as the name suggests
-// - copies it. Might trigger garbage collection.
+// This does not take ownership of the string, but rather - as the name suggests - copies it. Might
+// trigger garbage collection.
 ObjString* copy_string(const char* chars, int length);
 
 // Creates a string object from a C string.

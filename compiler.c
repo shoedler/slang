@@ -345,12 +345,12 @@ static void dot(bool can_assign) {
     emit_two(OP_SET_PROPERTY, name);
     // ⚠️ This is currently commented out, bc it needs an overhaul after modules. Will currently
     // break method/prop accesses on primitives.
-  } else if (match(TOKEN_OPAR)) {
-    // Shorthand for method calls. This combines two instructions into one:
-    // getting a property and calling a method.
-    uint16_t arg_count = argument_list();
-    emit_two(OP_INVOKE, name);
-    emit_one(arg_count);
+    // } else if (match(TOKEN_OPAR)) {
+    //   // Shorthand for method calls. This combines two instructions into one:
+    //   // getting a property and calling a method.
+    //   uint16_t arg_count = argument_list();
+    //   emit_two(OP_INVOKE, name);
+    //   emit_one(arg_count);
   } else {
     emit_two(OP_GET_PROPERTY, name);
   }
@@ -657,10 +657,11 @@ static void method() {
 
 static void constructor() {
   consume(TOKEN_CTOR, "Expecting constructor.");
-  uint16_t constant = string_constant(&parser.previous);
+  Token ctor = synthetic_token(CLASS_CONSTRUCTOR_RESERVED_WORD);
+  uint16_t constant = string_constant(&ctor);
   // TODO (optimize): Maybe preload this? A constructor is always called the
   // the same name - so we could just load it once and then reuse it.
-  ObjString* ctor_name = copy_string(parser.previous.start, parser.previous.length);
+  ObjString* ctor_name = copy_string(ctor.start, ctor.length);
 
   function(false /* does not matter */, TYPE_CONSTRUCTOR, ctor_name);
   emit_two(OP_METHOD, constant);
@@ -1136,6 +1137,16 @@ static void statement_import() {
   define_variable(name_constant);
 }
 
+// Compiles an export statement.
+// The export keyword has already been consumed at this point.
+static void statement_export() {
+  consume(TOKEN_ID, "Expecting variable name.");
+
+  named_variable(parser.previous, false);
+  uint16_t name_constant = string_constant(&parser.previous);
+  emit_two(OP_EXPORT, name_constant);
+}
+
 // Compiles a block.
 static void block() {
   while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF)) {
@@ -1159,6 +1170,8 @@ static void statement() {
     statement_for();
   } else if (match(TOKEN_IMPORT)) {
     statement_import();
+  } else if (match(TOKEN_EXPORT)) {
+    statement_export();
   } else if (match(TOKEN_OBRACE)) {
     begin_scope();
     block();

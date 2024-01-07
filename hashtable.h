@@ -28,7 +28,8 @@ void free_hashtable(HashTable* table);
 // Gets a value from a hashtable.
 bool hashtable_get(HashTable* table, Value key, Value* value);
 
-// Adds a value to a hashtable.
+// Adds a value to a hashtable. Returns true if the value was added, false if
+// it was an update.
 bool hashtable_set(HashTable* table, Value key, Value value);
 
 // Deletes a value from a hashtable.

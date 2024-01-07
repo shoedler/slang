@@ -37,6 +37,7 @@ typedef enum {
   TOKEN_IF,        // 'if'
   TOKEN_IMPORT,    // 'import'
   TOKEN_ELSE,      // 'else'
+  TOKEN_EXPORT,    // 'export'
   TOKEN_WHILE,     // 'while'
   TOKEN_FOR,       // 'for'
   TOKEN_BREAK,     // 'break'

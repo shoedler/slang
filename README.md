@@ -52,6 +52,7 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 ### Optimizations
 
 - [ ] ⚠️ Re-add `OP_INVOKE`
+- [ ] Improve `hash_value` and `values_equal`. I guess with the switch to allowing all values as keys it went down the drain.
 - [ ] Implement a fast hashtable-get function which uses a shortened version of `find_entry`.
 - [ ] Cache modules in the Vm. It's awfully slow and happens during runtime... I hate that very much.
 - [ ] Cache function / method calls in the Vm

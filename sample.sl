@@ -164,6 +164,19 @@
 // Sequences
 // -----------------------------------------
 import system
+
+// let a = Range.__ctor(0, 10) // Does not work, because __ctor is not bound to Range if you call it like this
+let a = Range(0, 10)
+
+let iter = a.__iter()
+let res
+while res = iter() {
+  print res
+}
+
+print Range.__name
+print Range.__ctor
+
 let x = [1,2,3]
 print x
 print x[0]

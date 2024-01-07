@@ -241,8 +241,10 @@ static void mark_roots() {
   // the compiler's internal state as well.
   mark_compiler_roots();
 
-  // And the init string.
-  mark_obj((Obj*)vm.init_string);
+  // And the reserved method names.
+  for (int i = 0; i < METHOD_MAX; i++) {
+    mark_value(vm.reserved_method_names[i]);
+  }
 }
 
 // Traces all references from the gray stack and marks them black e.g. marking

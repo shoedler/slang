@@ -11,6 +11,7 @@
 #include "vm.h"
 
 Vm vm;
+Value run_file(const char* path, bool local_scope);
 
 static Value native_clock(int arg_count, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
@@ -63,13 +64,27 @@ static void exit_with_compile_error() {
   exit(65);
 }
 
-// Defines a native function in the global scope.
-static void define_native(const char* name, NativeFn function) {
+// Defines a native function in the given table.
+static void define_native(HashTable* table, const char* name, NativeFn function) {
   push(OBJ_VAL(copy_string(name, (int)strlen(name))));
   push(OBJ_VAL(new_native(function)));
-  hashtable_set(&vm.globals, vm.stack[0], vm.stack[1]);
+  hashtable_set(table, vm.stack[0], vm.stack[1]);
   pop();
   pop();
+}
+
+// Defines an object in the given table.
+static void define_obj(HashTable* table, const char* name, Obj* obj) {
+  push(OBJ_VAL(copy_string(name, (int)strlen(name))));
+  push(OBJ_VAL(obj));
+  hashtable_set(table, vm.stack[0], vm.stack[1]);
+  pop();
+  pop();
+}
+
+// Defines a global variable in the globals table.
+static void define_global(const char name[], Obj* obj) {
+  define_obj(&vm.globals, name, obj);
 }
 
 void init_vm() {
@@ -86,19 +101,36 @@ void init_vm() {
   init_hashtable(&vm.strings);
   init_hashtable(&vm.modules);
 
-  vm.init_string = NULL;
-  vm.init_string =
-      copy_string(CLASS_CONSTRUCTOR_KEYWORD,
-                  CLASS_CONSTRUCTOR_KEYWORD_LENGTH);  // Might trigger GC, that's why we
-                                                      // need to initialize it to NULL first
+  // Create the reserved method names
+  memset(vm.reserved_method_names, 0, sizeof(vm.reserved_method_names));
+  vm.reserved_method_names[METHOD_CTOR] =
+      OBJ_VAL(copy_string(CLASS_CONSTRUCTOR_RESERVED_WORD, CLASS_CONSTRUCTOR_RESERVED_WORD_LENGTH));
+  vm.reserved_method_names[METHOD_NAME] =
+      OBJ_VAL(copy_string(NAME_RESERVED_WORD, NAME_RESERVED_WORD_LENGTH));
 
-  define_native("clock", native_clock);
+  // Create the object class
+  vm.object_class = new_class(copy_string("Object", 6));
+  define_global("Object", (Obj*)vm.object_class);
+
+  // Create the std library instance
+  vm.std = new_instance(vm.object_class);
+  define_global("Std", (Obj*)vm.std);
+  define_native(&vm.std->fields, "clock", native_clock);
+
+  // Load the std module
+  Value std_module =
+      run_file("C:\\Projects\\slang\\modules\\std.sl", true /* create a new local scope */);
+  if (!IS_OBJ(std_module)) {
+    INTERNAL_ERROR("Failed to load std module during Vm initialization.");
+  } else {
+    hashtable_set(&vm.modules, OBJ_VAL(copy_string("Std", 3)), std_module);
+  }
 }
 
 void free_vm() {
   free_hashtable(&vm.globals);
   free_hashtable(&vm.strings);
-  vm.init_string = NULL;
+  memset(vm.reserved_method_names, 0, sizeof(vm.reserved_method_names));
   free_objects();
 }
 
@@ -193,10 +225,10 @@ static bool call_value(Value callee, int arg_count) {
       case OBJ_CLASS: {
         ObjClass* klass = AS_CLASS(callee);
         vm.stack_top[-arg_count - 1] = OBJ_VAL(new_instance(klass));
-        Value initializer;
+        Value ctor;
 
-        if (hashtable_get(&klass->methods, OBJ_VAL(vm.init_string), &initializer)) {
-          return call(AS_CLOSURE(initializer), arg_count);
+        if (hashtable_get(&klass->methods, vm.reserved_method_names[METHOD_CTOR], &ctor)) {
+          return call(AS_CLOSURE(ctor), arg_count);
         } else if (arg_count != 0) {
           runtime_error("Expected 0 arguments but got %d.", arg_count);
           return false;
@@ -285,9 +317,9 @@ static ObjClosure* bind_native(NativeFn method, int arity) {
   return new_closure(method_wrapper);
 }
 
-// This is an example builtin function. We can already index strings, this is just for testing and
-// for acting as a template for other builtins.
-static Value __builtin_string_get(int argc, Value argv[]) {
+// This is an example std function. We can already index strings, this is just for testing and
+// for acting as a template for other stds.
+static Value __std_string_get(int argc, Value argv[]) {
   if (argc != 2) {
     runtime_error("Expected 2 arguments for String.get but got %d.", argc);
     return exit_with_runtime_error();
@@ -494,6 +526,8 @@ static Value run() {
         push(*frame->closure->upvalues[slot]->location);
         break;
       }
+      case OP_EXPORT:  // This is currently the same as OP_DEFINE_GLOBAL, but it will be different
+                       // when we (correct) modules
       case OP_DEFINE_GLOBAL: {
         ObjString* name = READ_STRING();
         hashtable_set(&vm.globals, OBJ_VAL(name),
@@ -623,9 +657,25 @@ static Value run() {
                                // fields on instances anyway - but when we add internal
                                // base-classes for primitive types this can get ugly really fast
                   ObjBoundMethod* bound_native =
-                      new_bound_method(peek(0), bind_native(__builtin_string_get, 1));
+                      new_bound_method(peek(0), bind_native(__std_string_get, 1));
                   pop();  // Pop the string
                   push(OBJ_VAL(bound_native));
+                  goto done_getting_property;
+                }
+                break;
+              }
+              case OBJ_CLASS: {
+                ObjClass* klass = AS_CLASS(peek(0));
+                if (values_equal(OBJ_VAL(name), vm.reserved_method_names[METHOD_NAME])) {
+                  pop();  // Pop the class
+                  push(OBJ_VAL(klass->name));
+                  goto done_getting_property;
+                } else if (values_equal(OBJ_VAL(name), vm.reserved_method_names[METHOD_CTOR])) {
+                  pop();  // Pop the class, should be fine since we don't trigger the GC in this
+                          // block
+                  Value ctor;
+                  hashtable_get(&klass->methods, OBJ_VAL(name), &ctor);
+                  push(ctor);
                   goto done_getting_property;
                 }
                 break;
@@ -686,8 +736,7 @@ static Value run() {
 
         ObjInstance* instance = AS_INSTANCE(peek(1));
         ObjString* name = READ_STRING();
-        hashtable_set(&instance->fields, OBJ_VAL(name),
-                      peek(0));  // Create or update
+        hashtable_set(&instance->fields, OBJ_VAL(name), peek(0));  // Create or update
         Value value = pop();
         pop();
         push(value);
@@ -700,7 +749,7 @@ static Value run() {
         if (!hashtable_get(&vm.modules, OBJ_VAL(name), &module)) {
           // Try to open the module instead
           char tmp[256];
-          if (sprintf(tmp, "C:\\Projects\\slang\\%s.sl", name->chars) < 0) {
+          if (sprintf(tmp, "C:\\Projects\\slang\\modules\\%s.sl", name->chars) < 0) {
             runtime_error("Could not import module '%s.sl'. Could not format string", name->chars);
             exit_with_runtime_error();
             return NIL_VAL;

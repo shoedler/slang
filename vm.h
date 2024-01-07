@@ -9,8 +9,11 @@
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
-#define CLASS_CONSTRUCTOR_KEYWORD "ctor"
-#define CLASS_CONSTRUCTOR_KEYWORD_LENGTH (sizeof(CLASS_CONSTRUCTOR_KEYWORD) - 1)
+#define CLASS_CONSTRUCTOR_RESERVED_WORD "__ctor"
+#define CLASS_CONSTRUCTOR_RESERVED_WORD_LENGTH (sizeof(CLASS_CONSTRUCTOR_RESERVED_WORD) - 1)
+
+#define NAME_RESERVED_WORD "__name"
+#define NAME_RESERVED_WORD_LENGTH (sizeof(NAME_RESERVED_WORD) - 1)
 
 #define THIS_KEYWORD "this"
 #define THIS_KEYWORD_LENGTH (sizeof(THIS_KEYWORD) - 1)
@@ -25,6 +28,13 @@ typedef struct {
   Value* slots;
 } CallFrame;
 
+typedef enum {
+  METHOD_CTOR,
+  METHOD_NAME,
+
+  METHOD_MAX,
+} ReservedMethodNames;
+
 // The virtual machine.
 // Contains all the state the Vm requires to execute code.
 typedef struct {
@@ -37,16 +47,22 @@ typedef struct {
   Value* stack_top;   // Points to where the next value to be pushed will go
   HashTable globals;  // Global variables
   HashTable strings;  // Interned strings
-  HashTable modules;  // Modules
-  ObjString* init_string;
   ObjUpvalue* open_upvalues;
   Obj* objects;
+
+  HashTable modules;  // Modules
+  int exit_on_frame;
+
+  ObjClass* object_class;                   // The class of all objects
+  ObjInstance* std;                         // The std (standard library) object instance
+  Value reserved_method_names[METHOD_MAX];  // Reserved method names. They deliberately are not
+                                            // using a values array because they are not dynaminc
+                                            // and not garbage collected (e.g. always marked)
 
   size_t bytes_allocated;
   size_t next_gc;
   int gray_count;
   int gray_capacity;
-  int exit_on_frame;
   Obj** gray_stack;  // Worklist for the garbage collector. This field is not
                      // managed by our own memory allocator, but rather by the
                      // system's allocator.

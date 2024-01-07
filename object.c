@@ -149,10 +149,10 @@ ObjString* copy_string(const char* chars, int length) {
 
 static void print_function(ObjFunction* function) {
   if (function->name == NULL) {
-    printf("[Toplevel Fn]");
+    printf("<Fn Toplevel>");
     return;
   }
-  printf("[Fn %s, arity %d]", function->name->chars, function->arity);
+  printf("<Fn %s, arity %d>", function->name->chars, function->arity);
 }
 
 void print_object(Value value) {
@@ -161,7 +161,7 @@ void print_object(Value value) {
       print_function(AS_BOUND_METHOD(value)->method->function);
       break;
     case OBJ_CLASS:
-      printf("%s", AS_CLASS(value)->name->chars);
+      printf("<Class %s>", AS_CLASS(value)->name->chars);
       break;
     case OBJ_CLOSURE:
       print_function(AS_CLOSURE(value)->function);
@@ -170,10 +170,10 @@ void print_object(Value value) {
       print_function(AS_FUNCTION(value));
       break;
     case OBJ_INSTANCE:
-      printf("[Instance of %s]", AS_INSTANCE(value)->klass->name->chars);
+      printf("<Instance of %s>", AS_INSTANCE(value)->klass->name->chars);
       break;
     case OBJ_NATIVE:
-      printf("[Native Fn]");
+      printf("<Fn Native>");
       break;
     case OBJ_STRING:
       printf("%s", AS_CSTRING(value));
@@ -182,14 +182,14 @@ void print_object(Value value) {
       break;
     case OBJ_SEQ: {
       ObjSeq* seq = AS_SEQ(value);
-      printf("{Seq %d [", seq->items.count);
+      printf("<Seq %d [", seq->items.count);
       for (int i = 0; i < seq->items.count; i++) {
         print_value(seq->items.values[i]);
         if (i != seq->items.count - 1) {
           printf(", ");
         }
       }
-      printf("]}");
+      printf("]>");
       break;
     }
   }
