@@ -93,10 +93,18 @@ void write_value_array(ValueArray* array, Value value);
 // Free a value array.
 void free_value_array(ValueArray* array);
 
-// Print a value to stdout.
-void print_value(Value value);
+// Returns true if a floating point number is an integer, false otherwise.
+// Assignes the resulting integer value to the integer pointer.
+bool is_int(double number, int* integer);
 
 // Get the hashcode of a value, based on its type.
 uint32_t hash_value(Value value);
+
+// Creates a string representation of a value.
+// The string is allocated on the heap, and **must** be freed by the caller.
+char* value_to_str(Value value);
+
+// Gets the name of a type.
+const char* type_name(Value value);
 
 #endif

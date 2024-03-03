@@ -12,7 +12,7 @@
 void* reallocate(void* pointer, size_t old_size, size_t new_size) {
   vm.bytes_allocated += new_size - old_size;
 
-  if (new_size > old_size) {
+  if (vm.pause_gc == 0 && new_size > old_size) {
     // Only collect_garbage if we're not freeing memory
 #ifdef DEBUG_STRESS_GC
     collect_garbage();
@@ -50,8 +50,7 @@ void mark_obj(Obj* object) {
 
 #ifdef DEBUG_LOG_GC
   printf(ANSI_RED_STR("[GC] ") ANSI_YELLOW_STR("[MARK] ") "%p, ", (void*)object);
-  print_value(OBJ_VAL(object));
-  printf("\n");
+  printf("%s\n", obj_type_to_string(object->type));
 #endif
 
   object->is_marked = true;
@@ -89,8 +88,7 @@ void mark_array(ValueArray* array) {
 static void blacken_object(Obj* object) {
 #ifdef DEBUG_LOG_GC
   printf(ANSI_RED_STR("[GC] ") ANSI_BLUE_STR("[BLACKEN] ") "%p, ", (void*)object);
-  print_value(OBJ_VAL(object));
-  printf("\n");
+  printf("%s\n", obj_type_to_string(object->type));
 #endif
 
   switch (object->type) {
@@ -237,14 +235,20 @@ static void mark_roots() {
   // And the modules hashtable.
   mark_hashtable(&vm.modules);
 
-  // And the compiler roots. The GC can run while compiling, so we need to mark
-  // the compiler's internal state as well.
-  mark_compiler_roots();
+  // And the object class.
+  mark_obj((Obj*)vm.object_class);
+
+  // And the builtin object.
+  mark_obj((Obj*)vm.builtin);
 
   // And the reserved method names.
   for (int i = 0; i < METHOD_MAX; i++) {
     mark_value(vm.reserved_method_names[i]);
   }
+
+  // And the compiler roots. The GC can run while compiling, so we need to mark
+  // the compiler's internal state as well.
+  mark_compiler_roots();
 }
 
 // Traces all references from the gray stack and marks them black e.g. marking

@@ -54,11 +54,12 @@ typedef struct {
   int exit_on_frame;
 
   ObjClass* object_class;                   // The class of all objects
-  ObjInstance* std;                         // The std (standard library) object instance
+  ObjInstance* builtin;                     // The builtin (builtin things) object instance
   Value reserved_method_names[METHOD_MAX];  // Reserved method names. They deliberately are not
                                             // using a values array because they are not dynaminc
                                             // and not garbage collected (e.g. always marked)
 
+  int pause_gc;
   size_t bytes_allocated;
   size_t next_gc;
   int gray_count;
@@ -75,9 +76,6 @@ void init_vm();
 
 // Free the virtual machine.
 void free_vm();
-
-// Gets the name of a type
-const char* type_name(Value value);
 
 // Takes a string of source code, compiles it and then runs it.
 // Returns the result of the interpretation as a value.

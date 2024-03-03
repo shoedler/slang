@@ -8,10 +8,10 @@
 #define GC_HEAP_GROW_THRESHOLD 0x4000000  // 64 MB
 #define GC_DEFAULT_THRESHOLD 1024 * 1024 * 2
 
-// Allocate memory for an array.
+// Allocate memory for an array. Might trigger gc.
 #define ALLOCATE(type, count) (type*)reallocate(NULL, 0, sizeof(type) * (count))
 
-// Free memory of an array by resizing it to 0.
+// Free memory of an array by resizing it to 0. Might trigger gc.
 #define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
 
 // Grow the capacity of a dynamic array.

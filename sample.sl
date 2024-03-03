@@ -163,18 +163,54 @@
 // -----------------------------------------
 // Sequences
 // -----------------------------------------
-import system
+// let x = [1,2,3]
+// print x
+// print x[0]
+
+// x[0] = 4
+// print x[0]
+// x[1] = ["Foo", "Bar"]
+// print x
+
+// cls List {
+//   ctor {
+//     this.list = [1,2,3]
+//   }
+
+//   fn printList {
+//     print this.list
+//   }
+// }
+
+// fn make_list -> [1,2,3]
+// let s = List()
+// s.printList()
+// s.list[1] = -2
+// s.printList()
+
+// // print system.clock()
+// print "Hello"
+// print 123.type
+// print "Hello".len
+// // print "Hello".get(0)
+
+// -----------------------------------------
+// Modules
+// -----------------------------------------
+// import std // Not needed currently, bc 'export' = OP_DEFINE_GLOBAL
 
 // let a = Range.__ctor(0, 10) // Does not work, because __ctor is not bound to Range if you call it like this
 let a = Range(0, 10)
 
-let iter = a.__iter()
+let iter = a.__iter() // Create a new iterator
 let res
 while res = iter() {
   print res
 }
 
 print Range.__name
+let foo = "Foo"
+print foo.str + " is of type " + foo.type
 print Range.__ctor
 
 let x = [1,2,3]
@@ -202,8 +238,12 @@ s.printList()
 s.list[1] = -2
 s.printList()
 
-print system.clock()
+// print system.clock()
 print "Hello"
 print 123.type
 print "Hello".len
-print "Hello".get(0)
+// print "Hello".get(0)
+
+
+
+

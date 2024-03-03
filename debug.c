@@ -23,72 +23,10 @@
 // VALUE_STR_LEN chars wide
 #define PRINT_VALUE_STR(_str) printf("%-*.*s", VALUE_STR_LEN, VALUE_STR_LEN, _str)
 
-static void debug_print_function(ObjFunction* function) {
-  if (function->name == NULL) {
-    PRINT_VALUE_STR("Toplevel");
-    return;
-  }
-  const char* fn_str[VALUE_STR_LEN];
-  sprintf(fn_str, "%s %s, arity %d", type_name(OBJ_VAL(function)), function->name->chars,
-          function->arity);
-  PRINT_VALUE_STR(fn_str);
-}
-
-static void debug_print_object(Value value) {
-  switch (OBJ_TYPE(value)) {
-    case OBJ_BOUND_METHOD:
-      debug_print_function(AS_BOUND_METHOD(value)->method->function);
-      break;
-    case OBJ_CLASS:
-      const char* class_str[VALUE_STR_LEN];
-      sprintf(class_str, "%s %s", type_name(value), AS_CLASS(value)->name->chars);
-      PRINT_VALUE_STR(class_str);
-      break;
-    case OBJ_CLOSURE:
-      debug_print_function(AS_CLOSURE(value)->function);
-      break;
-    case OBJ_FUNCTION:
-      debug_print_function(AS_FUNCTION(value));
-      break;
-    case OBJ_INSTANCE:
-      const char* instance_str[VALUE_STR_LEN];
-      sprintf(instance_str, "%s %s", type_name(value), AS_INSTANCE(value)->klass->name->chars);
-      PRINT_VALUE_STR(instance_str);
-      break;
-    case OBJ_NATIVE:
-      PRINT_VALUE_STR(type_name(value));
-      break;
-    case OBJ_STRING:
-      const char* str_str[VALUE_STR_LEN];
-      sprintf(str_str, "%s", AS_CSTRING(value));
-      PRINT_VALUE_STR(str_str);
-      break;
-    case OBJ_UPVALUE:
-      PRINT_VALUE_STR(type_name(value));
-      break;
-  }
-}
-
 void debug_print_value(Value value) {
-  switch (value.type) {
-    case VAL_BOOL:
-      AS_BOOL(value) ? PRINT_VALUE_STR("true") : PRINT_VALUE_STR("false");
-      break;
-    case VAL_NIL:
-      PRINT_VALUE_STR("nil");
-      break;
-    case VAL_NUMBER: {
-      static char str[VALUE_STR_LEN];
-      sprintf(str, "%g", AS_NUMBER(value));
-      PRINT_VALUE_STR(str);
-      break;
-    }
-    case VAL_OBJ:
-      return debug_print_object(value);
-    default:
-      INTERNAL_ERROR("Unhandled value type: %d", value.type);
-      break;
-  }
+  char* str = value_to_str(value);
+  PRINT_VALUE_STR(str);
+  free(str);
 }
 
 void disassemble_chunk(Chunk* chunk, const char* name) {

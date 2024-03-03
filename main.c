@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "vm.h"
@@ -26,9 +27,9 @@ void usage() {
 }
 
 int main(int argc, char* argv[]) {
-  // init_vm();
-  // run_file("C:\\Projects\\slang\\sample.sl", false);
-  // free_vm();
+  init_vm();
+  run_file("C:\\Projects\\slang\\sample.sl", false);
+  free_vm();
 
   // Print args
   if (argc == 2 && strcmp(argv[1], "repl") == 0) {

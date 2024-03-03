@@ -1,4 +1,3 @@
-#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,14 +9,18 @@
 #include "object.h"
 #include "vm.h"
 
+#if defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_ALLOCATIONS) || defined(DEBUG_TRACE_EXECUTION)
+#include "debug.h"
+#endif
+
 Vm vm;
-Value run_file(const char* path, bool local_scope);
 
 static Value native_clock(int arg_count, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 
 static void reset_stack() {
+  vm.pause_gc = 0;
   vm.stack_top = vm.stack;
   vm.frame_count = 0;
   vm.open_upvalues = NULL;
@@ -87,6 +90,29 @@ static void define_global(const char name[], Obj* obj) {
   define_obj(&vm.globals, name, obj);
 }
 
+// Creates a sequence of length "count" from the top "count" values on the stack.
+// The resulting sequence is pushed onto the stack.
+static void make_seq(int count) {
+  // Since we know the count, we can preallocate the value array for the list. This avoids
+  // using write_value_array within the loop, which can trigger a GC due to growing the array
+  // and free items in the middle of the loop. Also, it lets us pop the list items on the
+  // stack, instead of peeking and then having to pop them later (Requiring us to loop over
+  // the array twice)
+  ValueArray items;
+  init_value_array(&items);
+
+  items.values = GROW_ARRAY(Value, items.values, 0, count);
+  items.capacity = count;
+  items.count = count;
+
+  for (int i = count - 1; i >= 0; i--) {
+    items.values[i] = pop();
+  }
+
+  ObjSeq* seq = take_seq(&items);
+  push(OBJ_VAL(seq));
+}
+
 void init_vm() {
   reset_stack();
   vm.objects = NULL;
@@ -96,6 +122,7 @@ void init_vm() {
   vm.gray_count = 0;
   vm.gray_capacity = 0;
   vm.gray_stack = NULL;
+  vm.pause_gc = 1;  // Pause while we initialize the vm.
 
   init_hashtable(&vm.globals);
   init_hashtable(&vm.strings);
@@ -112,10 +139,10 @@ void init_vm() {
   vm.object_class = new_class(copy_string("Object", 6));
   define_global("Object", (Obj*)vm.object_class);
 
-  // Create the std library instance
-  vm.std = new_instance(vm.object_class);
-  define_global("Std", (Obj*)vm.std);
-  define_native(&vm.std->fields, "clock", native_clock);
+  // Create the builtin obj instance
+  vm.builtin = new_instance(vm.object_class);
+  define_global("__builtin", (Obj*)vm.builtin);
+  define_native(&vm.builtin->fields, "clock", native_clock);
 
   // Load the std module
   Value std_module =
@@ -123,8 +150,15 @@ void init_vm() {
   if (!IS_OBJ(std_module)) {
     INTERNAL_ERROR("Failed to load std module during Vm initialization.");
   } else {
+    // We add the std library as a module - currently, this does nothing because 'export's are just
+    // defined globally, omitting the need for any real modules. But, when we have implemented
+    // 'export' fr, then we need to 'import' the std module in order to use it - so we might as well
+    // do it here correctly already.
     hashtable_set(&vm.modules, OBJ_VAL(copy_string("Std", 3)), std_module);
   }
+
+  vm.pause_gc = 0;
+  reset_stack();
 }
 
 void free_vm() {
@@ -147,47 +181,6 @@ Value pop() {
 // Look at the value without popping it
 static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
-}
-
-const char* type_name(Value value) {
-  if (value.type == VAL_BOOL) {
-    return "Bool";
-  } else if (value.type == VAL_NIL) {
-    return "Nil";
-  } else if (value.type == VAL_NUMBER) {
-    return "Number";
-  } else if (value.type == VAL_OBJ) {
-    switch (OBJ_TYPE(value)) {
-      case OBJ_BOUND_METHOD:
-        return "BoundMethod";
-      case OBJ_CLASS:
-        return "Class";
-      case OBJ_CLOSURE:
-        return "Closure";
-      case OBJ_FUNCTION:
-        return "Fn";
-      case OBJ_INSTANCE:
-        return "Instance";
-      case OBJ_NATIVE:
-        return "NativeFn";
-      case OBJ_STRING:
-        return "String";
-      case OBJ_SEQ:
-        return "Seq";
-      case OBJ_UPVALUE:
-        return "Upvalue";
-    }
-  }
-
-  return "Unknown";
-}
-
-// Returns true if a floating point number is an integer, false otherwise.
-// Assignes the resulting integer value to the integer pointer.
-static bool is_int(double number, int* integer) {
-  double dint = rint(number);
-  *integer = (int)dint;
-  return number == dint;
 }
 
 // Executes a call to a function or method by creating a new call frame and
@@ -317,9 +310,31 @@ static ObjClosure* bind_native(NativeFn method, int arity) {
   return new_closure(method_wrapper);
 }
 
-// This is an example std function. We can already index strings, this is just for testing and
-// for acting as a template for other stds.
-static Value __std_string_get(int argc, Value argv[]) {
+// This is an example builtin function. It takes a single argument and returns its hash value
+static Value __builint_hash_value(int argc, Value argv[]) {
+  if (argc != 1) {
+    runtime_error("Expected 1 argument but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  return NUMBER_VAL(hash_value(argv[0]));
+}
+
+// This is an example builtin function. It takes a single argument and returns a string
+static Value __builtin_to_str(int argc, Value argv[]) {
+  if (argc != 1) {
+    runtime_error("Expected 1 argument but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  char* str_val = value_to_str(argv[0]);
+  ObjString* str_obj = take_string(str_val, strlen(str_val));
+  return OBJ_VAL(str_obj);
+}
+
+// This is an example builtin function. We can already index strings, this is just for testing and
+// for acting as a template for other builtins.
+static Value __builtin_string_get(int argc, Value argv[]) {
   if (argc != 2) {
     runtime_error("Expected 2 arguments for String.get but got %d.", argc);
     return exit_with_runtime_error();
@@ -423,7 +438,7 @@ static bool is_falsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
-// Concatenates two strings into a new string and pushes it onto the stack
+// Concatenates two strings on the stack into a new string and pushes it onto the stack
 static void concatenate() {
   ObjString* b = AS_STRING(peek(0));  // Peek, so it doesn't get freed by the GC
   ObjString* a = AS_STRING(peek(1));  // Peek, so it doesn't get freed by the GC
@@ -473,18 +488,18 @@ static Value run() {
 
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-#ifdef DEBUG_TRACE_EXECUTION
     disassemble_instruction(&frame->closure->function->chunk,
                             (int)(frame->ip - frame->closure->function->chunk.code));
 
     printf(ANSI_CYAN_STR(" Stack "));
     for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
       printf(ANSI_CYAN_STR("["));
-      print_value(*slot);
+      char* str = value_to_str(*slot);
+      printf("%s", str);
+      free(str);
       printf(ANSI_CYAN_STR("]"));
     }
     printf("\n");
-#endif
 #endif
 
     uint16_t instruction;
@@ -648,16 +663,15 @@ static Value run() {
                   push(NUMBER_VAL(length));
                   goto done_getting_property;
                 }
-                // This one can be removed, since we have an extra op for this anyway, it's just a
-                // template on how to
-                // call a native function on a given value
+                // This one can be removed, since we have an explicit op for this anyway, it's just
+                // a template on how to call a native function on a given value
                 else if (strcmp("get", name->chars) ==
                          0) {  // TODO (robust): We should check such "syntheticFields" in
                                // OP_SET_PROPERTY for robustness. At this point, you can only set
-                               // fields on instances anyway - but when we add internal
-                               // base-classes for primitive types this can get ugly really fast
+                               // fields on instances anyway - but when we add internal base-classes
+                               // for primitive types this can get ugly really fast
                   ObjBoundMethod* bound_native =
-                      new_bound_method(peek(0), bind_native(__std_string_get, 1));
+                      new_bound_method(peek(0), bind_native(__builtin_string_get, 1));
                   pop();  // Pop the string
                   push(OBJ_VAL(bound_native));
                   goto done_getting_property;
@@ -719,6 +733,16 @@ static Value run() {
           const char* type_name_ = type_name(value);
           int length = (int)strlen(type_name_);
           push(OBJ_VAL(copy_string(type_name_, length)));
+          break;
+        }
+
+        if (strcmp("str", name->chars) ==
+            0) {  // TODO (robust): We should check such "syntheticFields" in OP_SET_PROPERTY for
+                  // robustness. At this point, you can only set fields on instances anyway - but
+                  // when we add internal base-classes for primitive types this can get ugly really
+                  // fast
+          Value value = pop();  // Value to get the type of
+          push(__builtin_to_str(1, &value));
           break;
         }
 
@@ -842,33 +866,15 @@ static Value run() {
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
       case OP_PRINT: {
-        print_value(pop());
-        printf("\n");
+        char* str = value_to_str(peek(0));
+        printf("%s\n", str);
+        free(str);
+        pop();
         break;
       }
       case OP_LIST_LITERAL: {
         int count = READ_ONE();
-
-        // Since we know the count, we can preallocate the value array for the
-        // list. This avoids using write_value_array within the loop, which can
-        // trigger a GC due to growing the array and free items in the middle of
-        // the loop. Also, it lets us pop the list items on the stack, instead
-        // of peeking and then having to pop them later (Requiring us to loop
-        // over the array twice)
-        ValueArray items;
-        init_value_array(&items);
-
-        items.values = GROW_ARRAY(Value, items.values, 0, count);
-        items.capacity = count;
-        items.count = count;
-
-        for (int i = count - 1; i >= 0; i--) {
-          items.values[i] = pop();
-        }
-
-        ObjSeq* seq = take_seq(&items);
-        push(OBJ_VAL(seq));
-
+        make_seq(count);
         break;
       }
       case OP_JUMP: {
@@ -1028,6 +1034,12 @@ static char* read_file(const char* path) {
 }
 
 Value run_file(const char* path, bool local_scope) {
+#ifdef DEBUG_TRACE_EXECUTION
+  printf(ANSI_MAGENTA_STR("===== "));
+  printf(ANSI_CYAN_STR("Running file: %s, New local scope: %s\n"), path,
+         local_scope ? "true" : "false");
+#endif
+
   char* source = read_file(path);
 
   if (source == NULL) {

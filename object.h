@@ -217,9 +217,6 @@ ObjString* take_string(char* chars, int length);
 // be freed when the object is freed. Might trigger garbage collection.
 ObjSeq* take_seq(ValueArray* items);
 
-// Prints an object to stdout.
-void print_object(Value value);
-
 static inline bool is_obj_type(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }

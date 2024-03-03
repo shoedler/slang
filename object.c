@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <memory.h>
 
 #include "hashtable.h"
 #include "memory.h"
@@ -11,7 +11,7 @@
 #endif
 
 // Allocates a new object of the given type.
-#define ALLOCATE_OBJ(type, objectType) (type*)allocate_object(sizeof(type), objectType)
+#define ALLOCATE_OBJ(type, object_type) (type*)allocate_object(sizeof(type), object_type)
 
 // Allocates a new object of the given type and size.
 // It also initializes the object's fields. Might trigger GC, but (obviously)
@@ -145,52 +145,4 @@ ObjString* copy_string(const char* chars, int length) {
   memcpy(heap_chars, chars, length);
   heap_chars[length] = '\0';
   return allocate_string(heap_chars, length, hash);
-}
-
-static void print_function(ObjFunction* function) {
-  if (function->name == NULL) {
-    printf("<Fn Toplevel>");
-    return;
-  }
-  printf("<Fn %s, arity %d>", function->name->chars, function->arity);
-}
-
-void print_object(Value value) {
-  switch (OBJ_TYPE(value)) {
-    case OBJ_BOUND_METHOD:
-      print_function(AS_BOUND_METHOD(value)->method->function);
-      break;
-    case OBJ_CLASS:
-      printf("<Class %s>", AS_CLASS(value)->name->chars);
-      break;
-    case OBJ_CLOSURE:
-      print_function(AS_CLOSURE(value)->function);
-      break;
-    case OBJ_FUNCTION:
-      print_function(AS_FUNCTION(value));
-      break;
-    case OBJ_INSTANCE:
-      printf("<Instance of %s>", AS_INSTANCE(value)->klass->name->chars);
-      break;
-    case OBJ_NATIVE:
-      printf("<Fn Native>");
-      break;
-    case OBJ_STRING:
-      printf("%s", AS_CSTRING(value));
-      break;
-    case OBJ_UPVALUE:
-      break;
-    case OBJ_SEQ: {
-      ObjSeq* seq = AS_SEQ(value);
-      printf("<Seq %d [", seq->items.count);
-      for (int i = 0; i < seq->items.count; i++) {
-        print_value(seq->items.values[i]);
-        if (i != seq->items.count - 1) {
-          printf(", ");
-        }
-      }
-      printf("]>");
-      break;
-    }
-  }
 }
