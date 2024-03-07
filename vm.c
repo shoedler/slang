@@ -20,9 +20,9 @@ static Value native_clock(int arg_count, Value* args) {
 }
 
 static void reset_stack() {
-  vm.pause_gc = 0;
-  vm.stack_top = vm.stack;
-  vm.frame_count = 0;
+  vm.pause_gc      = 0;
+  vm.stack_top     = vm.stack;
+  vm.frame_count   = 0;
   vm.open_upvalues = NULL;
 }
 
@@ -36,9 +36,9 @@ static void runtime_error(const char* format, ...) {
 
   // Stacktrace
   for (int i = vm.frame_count - 1; i >= 0; i--) {
-    CallFrame* frame = &vm.frames[i];
+    CallFrame* frame      = &vm.frames[i];
     ObjFunction* function = frame->closure->function;
-    size_t instruction = frame->ip - function->chunk.code - 1;
+    size_t instruction    = frame->ip - function->chunk.code - 1;
     fprintf(stderr, "at line %d ", function->chunk.lines[instruction]);
     if (function->name == NULL) {
       fprintf(stderr, "at the toplevel\n");
@@ -101,9 +101,9 @@ static void make_seq(int count) {
   ValueArray items;
   init_value_array(&items);
 
-  items.values = GROW_ARRAY(Value, items.values, 0, count);
+  items.values   = GROW_ARRAY(Value, items.values, 0, count);
   items.capacity = count;
-  items.count = count;
+  items.count    = count;
 
   for (int i = count - 1; i >= 0; i--) {
     items.values[i] = pop();
@@ -122,11 +122,11 @@ void init_vm() {
   vm.objects = NULL;
 
   vm.bytes_allocated = 0;
-  vm.next_gc = GC_DEFAULT_THRESHOLD;
-  vm.gray_count = 0;
-  vm.gray_capacity = 0;
-  vm.gray_stack = NULL;
-  vm.pause_gc = 1;  // Pause while we initialize the vm.
+  vm.next_gc         = GC_DEFAULT_THRESHOLD;
+  vm.gray_count      = 0;
+  vm.gray_capacity   = 0;
+  vm.gray_stack      = NULL;
+  vm.pause_gc        = 1;  // Pause while we initialize the vm.
 
   init_hashtable(&vm.globals);
   init_hashtable(&vm.strings);
@@ -134,8 +134,7 @@ void init_vm() {
 
   // Create the reserved method names
   memset(vm.reserved_method_names, 0, sizeof(vm.reserved_method_names));
-  vm.reserved_method_names[METHOD_CTOR] =
-      OBJ_VAL(copy_string(KEYWORD_CONSTRUCTOR, KEYWORD_CONSTRUCTOR_LEN));
+  vm.reserved_method_names[METHOD_CTOR] = OBJ_VAL(copy_string(KEYWORD_CONSTRUCTOR, KEYWORD_CONSTRUCTOR_LEN));
   vm.reserved_method_names[METHOD_NAME] = OBJ_VAL(copy_string(KEYWORD_NAME, KEYWORD_NAME_LEN));
 
   // Create the object class
@@ -194,9 +193,9 @@ static bool call(ObjClosure* closure, int arg_count) {
   }
 
   CallFrame* frame = &vm.frames[vm.frame_count++];
-  frame->closure = closure;
-  frame->ip = closure->function->chunk.code;
-  frame->slots = vm.stack_top - arg_count - 1;
+  frame->closure   = closure;
+  frame->ip        = closure->function->chunk.code;
+  frame->slots     = vm.stack_top - arg_count - 1;
   return true;
 }
 
@@ -221,7 +220,7 @@ static bool call_value(Value callee, int arg_count) {
         return call(bound->method, arg_count);
       }
       case OBJ_CLASS: {
-        ObjClass* klass = AS_CLASS(callee);
+        ObjClass* klass              = AS_CLASS(callee);
         vm.stack_top[-arg_count - 1] = OBJ_VAL(new_instance(klass));
         Value ctor;
 
@@ -233,19 +232,16 @@ static bool call_value(Value callee, int arg_count) {
         }
         return true;
       }
-      case OBJ_CLOSURE:
-        return call(AS_CLOSURE(callee), arg_count);
-      case OBJ_FUNCTION:
-        return call(AS_FUNCTION(callee), arg_count);
+      case OBJ_CLOSURE: return call(AS_CLOSURE(callee), arg_count);
+      case OBJ_FUNCTION: return call(AS_FUNCTION(callee), arg_count);
       case OBJ_NATIVE: {
         NativeFn native = AS_NATIVE(callee);
-        Value result = native(arg_count, vm.stack_top - arg_count);
+        Value result    = native(arg_count, vm.stack_top - arg_count);
         vm.stack_top -= arg_count + 1;
         push(result);
         return true;
       }
-      default:
-        break;  // Non-callable object type.
+      default: break;  // Non-callable object type.
     }
   }
   runtime_error("Attempted to call non-callable value of type %s.", type_name(callee));
@@ -260,10 +256,8 @@ static bool invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
     Value method;
     if (hashtable_get(&klass->methods, OBJ_VAL(name), &method)) {
       switch (AS_OBJ(method)->type) {
-        case OBJ_CLOSURE:
-          return call(AS_CLOSURE(method), arg_count);
-        case OBJ_NATIVE:
-          return invoke_native(AS_NATIVE(method), arg_count);
+        case OBJ_CLOSURE: return call(AS_CLOSURE(method), arg_count);
+        case OBJ_NATIVE: return invoke_native(AS_NATIVE(method), arg_count);
         default: {
           runtime_error("Cannot invoke method of type '%s' on class", type_name(method));
           return false;
@@ -316,8 +310,8 @@ static Value __builtin_get_type(int argc, Value argv[]) {
   }
 
   const char* type_name_ = type_name(argv[0]);
-  int length = (int)strlen(type_name_);
-  ObjString* str_obj = copy_string(type_name_, strlen(type_name_));
+  int length             = (int)strlen(type_name_);
+  ObjString* str_obj     = copy_string(type_name_, strlen(type_name_));
   return OBJ_VAL(str_obj);
 }
 
@@ -328,7 +322,7 @@ static Value __builtin_to_str(int argc, Value argv[]) {
     return exit_with_runtime_error();
   }
 
-  char* str_val = value_to_str(argv[0]);
+  char* str_val      = value_to_str(argv[0]);
   ObjString* str_obj = take_string(str_val, strlen(str_val));
   return OBJ_VAL(str_obj);
 }
@@ -352,13 +346,13 @@ static bool bind_method(ObjClass* klass, ObjString* name) {
 // variable. If there is, it returns that one instead.
 static ObjUpvalue* capture_upvalue(Value* local) {
   ObjUpvalue* prev_upvalue = NULL;
-  ObjUpvalue* upvalue = vm.open_upvalues;
+  ObjUpvalue* upvalue      = vm.open_upvalues;
 
   // Are there any open upvalues from start (actually, start = the top of the
   // list, e.g. "last" in terms of reading a file with your eyes) to local?
   while (upvalue != NULL && upvalue->location > local) {
     prev_upvalue = upvalue;
-    upvalue = upvalue->next;
+    upvalue      = upvalue->next;
   }
 
   // If there is one, return it
@@ -368,7 +362,7 @@ static ObjUpvalue* capture_upvalue(Value* local) {
 
   // Otherwise, create one and insert it into the list
   ObjUpvalue* created_upvalue = new_upvalue(local);
-  created_upvalue->next = upvalue;
+  created_upvalue->next       = upvalue;
 
   if (prev_upvalue == NULL) {
     vm.open_upvalues = created_upvalue;
@@ -384,17 +378,17 @@ static ObjUpvalue* capture_upvalue(Value* local) {
 static void close_upvalues(Value* last) {
   while (vm.open_upvalues != NULL && vm.open_upvalues->location >= last) {
     ObjUpvalue* upvalue = vm.open_upvalues;
-    upvalue->closed = *upvalue->location;  // Move the value (via location pointer) from the
-                                           // stack to the heap (closed field)
-    upvalue->location = &upvalue->closed;  // Point to ourselves for the value
-    vm.open_upvalues = upvalue->next;
+    upvalue->closed     = *upvalue->location;  // Move the value (via location pointer) from the
+                                               // stack to the heap (closed field)
+    upvalue->location = &upvalue->closed;      // Point to ourselves for the value
+    vm.open_upvalues  = upvalue->next;
   }
 }
 
 // Adds a method to the class on top of the stack.
 // The methods closure is on top of the stack, the class is one below that.
 static void define_method(ObjString* name) {
-  Value method = peek(0);
+  Value method    = peek(0);
   ObjClass* klass = AS_CLASS(peek(1));  // We trust the compiler that this value
                                         // is actually a class
   hashtable_set(&klass->methods, OBJ_VAL(name), method);
@@ -412,7 +406,7 @@ static void concatenate() {
   ObjString* b = AS_STRING(peek(0));  // Peek, so it doesn't get freed by the GC
   ObjString* a = AS_STRING(peek(1));  // Peek, so it doesn't get freed by the GC
 
-  int length = a->length + b->length;
+  int length  = a->length + b->length;
   char* chars = ALLOCATE(char, length + 1);
   memcpy(chars, a->chars, a->length);
   memcpy(chars + a->length, b->chars, b->length);
@@ -478,18 +472,10 @@ static Value run() {
         push(constant);
         break;
       }
-      case OP_NIL:
-        push(NIL_VAL);
-        break;
-      case OP_TRUE:
-        push(BOOL_VAL(true));
-        break;
-      case OP_FALSE:
-        push(BOOL_VAL(false));
-        break;
-      case OP_POP:
-        pop();
-        break;
+      case OP_NIL: push(NIL_VAL); break;
+      case OP_TRUE: push(BOOL_VAL(true)); break;
+      case OP_FALSE: push(BOOL_VAL(false)); break;
+      case OP_POP: pop(); break;
       case OP_GET_LOCAL: {
         uint16_t slot = READ_ONE();
         push(frame->slots[slot]);
@@ -520,7 +506,7 @@ static Value run() {
         break;
       }
       case OP_SET_LOCAL: {
-        uint16_t slot = READ_ONE();
+        uint16_t slot      = READ_ONE();
         frame->slots[slot] = peek(0);  // peek, because assignment is an expression!
         break;
       }
@@ -535,13 +521,12 @@ static Value run() {
         break;
       }
       case OP_SET_UPVALUE: {
-        uint16_t slot = READ_ONE();
-        *frame->closure->upvalues[slot]->location =
-            peek(0);  // peek, because assignment is an expression!
+        uint16_t slot                             = READ_ONE();
+        *frame->closure->upvalues[slot]->location = peek(0);  // peek, because assignment is an expression!
         break;
       }
       case OP_GET_INDEX: {
-        Value index = pop();
+        Value index    = pop();
         Value assignee = pop();
 
         if (!IS_NUMBER(index)) {
@@ -585,7 +570,7 @@ static Value run() {
                               // the order is wrong so we push it back on the stack later.
                               // We are being careful not to trigger a GC in this block,
                               // because value might get collected if we do.
-        Value index = pop();
+        Value index    = pop();
         Value assignee = pop();
 
         if (!IS_NUMBER(index)) {
@@ -628,7 +613,7 @@ static Value run() {
                           // on instances anyway - but when we add internal base-classes for
                           // primitive types this can get ugly really fast
                   Value value = pop();  // Value to get the length of
-                  int length = AS_STRING(value)->length;
+                  int length  = AS_STRING(value)->length;
                   push(NUMBER_VAL(length));
                   goto done_getting_property;
                 }
@@ -657,7 +642,7 @@ static Value run() {
                           // on instances anyway - but when we add internal base-classes for
                           // primitive types this can get ugly really fast
                   Value value = pop();  // Value to get the length of
-                  int length = AS_SEQ(value)->items.count;
+                  int length  = AS_SEQ(value)->items.count;
                   push(NUMBER_VAL(length));
                   goto done_getting_property;
                 }
@@ -701,7 +686,7 @@ static Value run() {
         }
 
         ObjInstance* instance = AS_INSTANCE(peek(1));
-        ObjString* name = READ_STRING();
+        ObjString* name       = READ_STRING();
         hashtable_set(&instance->fields, OBJ_VAL(name), peek(0));  // Create or update
         Value value = pop();
         pop();
@@ -722,7 +707,7 @@ static Value run() {
           }
 
           vm.exit_on_frame = vm.frame_count;
-          module = run_file(tmp, 1 /* new scope */);
+          module           = run_file(tmp, 1 /* new scope */);
           vm.exit_on_frame = -1;
 
           if (!IS_OBJ(module)) {
@@ -738,12 +723,11 @@ static Value run() {
         break;
       }
       case OP_GET_BASE_METHOD: {
-        ObjString* name = READ_STRING();
+        ObjString* name     = READ_STRING();
         ObjClass* baseclass = AS_CLASS(pop());
 
         if (!bind_method(baseclass, name)) {
-          runtime_error("Property '%s' does not exist in '%s'.", name->chars,
-                        baseclass->name->chars);
+          runtime_error("Property '%s' does not exist in '%s'.", name->chars, baseclass->name->chars);
           exit_with_runtime_error();
           return NIL_VAL;
         }
@@ -761,18 +745,10 @@ static Value run() {
         push(BOOL_VAL(!values_equal(a, b)));
         break;
       }
-      case OP_GT:
-        BINARY_OP(BOOL_VAL, >);
-        break;
-      case OP_LT:
-        BINARY_OP(BOOL_VAL, <);
-        break;
-      case OP_GTEQ:
-        BINARY_OP(BOOL_VAL, >=);
-        break;
-      case OP_LTEQ:
-        BINARY_OP(BOOL_VAL, <=);
-        break;
+      case OP_GT: BINARY_OP(BOOL_VAL, >); break;
+      case OP_LT: BINARY_OP(BOOL_VAL, <); break;
+      case OP_GTEQ: BINARY_OP(BOOL_VAL, >=); break;
+      case OP_LTEQ: BINARY_OP(BOOL_VAL, <=); break;
       case OP_ADD: {
         if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
           concatenate();
@@ -789,18 +765,10 @@ static Value run() {
         }
         break;
       }
-      case OP_SUBTRACT:
-        BINARY_OP(NUMBER_VAL, -);
-        break;
-      case OP_MULTIPLY:
-        BINARY_OP(NUMBER_VAL, *);
-        break;
-      case OP_DIVIDE:
-        BINARY_OP(NUMBER_VAL, /);
-        break;
-      case OP_NOT:
-        push(BOOL_VAL(is_falsey(pop())));
-        break;
+      case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
+      case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
+      case OP_DIVIDE: BINARY_OP(NUMBER_VAL, /); break;
+      case OP_NOT: push(BOOL_VAL(is_falsey(pop()))); break;
       case OP_NEGATE:
         if (!IS_NUMBER(peek(0))) {
           runtime_error("Operand must be a number. Was %s.", type_name(peek(0)));
@@ -846,7 +814,7 @@ static Value run() {
       }
       case OP_INVOKE: {
         ObjString* method = READ_STRING();
-        int arg_count = READ_ONE();
+        int arg_count     = READ_ONE();
         if (!invoke(method, arg_count)) {
           return exit_with_runtime_error();
         }
@@ -854,8 +822,8 @@ static Value run() {
         break;
       }
       case OP_BASE_INVOKE: {
-        ObjString* method = READ_STRING();
-        int arg_count = READ_ONE();
+        ObjString* method   = READ_STRING();
+        int arg_count       = READ_ONE();
         ObjClass* baseclass = AS_CLASS(pop());
         if (!invoke_from_class(baseclass, method, arg_count)) {
           return exit_with_runtime_error();
@@ -865,13 +833,13 @@ static Value run() {
       }
       case OP_CLOSURE: {
         ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
-        ObjClosure* closure = new_closure(function);
+        ObjClosure* closure   = new_closure(function);
         push(OBJ_VAL(closure));
 
         // Bring closure to life
         for (int i = 0; i < closure->upvalue_count; i++) {
           uint16_t is_local = READ_ONE();
-          uint16_t index = READ_ONE();
+          uint16_t index    = READ_ONE();
           if (is_local) {
             closure->upvalues[i] = capture_upvalue(frame->slots + index);
           } else {
@@ -905,7 +873,7 @@ static Value run() {
         push(OBJ_VAL(new_class(READ_STRING(), vm.object_class)));
         break;
       case OP_INHERIT: {
-        Value baseclass = peek(1);
+        Value baseclass    = peek(1);
         ObjClass* subclass = AS_CLASS(peek(0));
         if (!IS_CLASS(baseclass)) {
           runtime_error("Base class must be a class. Was %s.", type_name(baseclass));
@@ -916,9 +884,7 @@ static Value run() {
         pop();  // Subclass.
         break;
       }
-      case OP_METHOD:
-        define_method(READ_STRING());
-        break;
+      case OP_METHOD: define_method(READ_STRING()); break;
     }
   }
 
@@ -981,8 +947,7 @@ static char* read_file(const char* path) {
 Value run_file(const char* path, bool local_scope) {
 #ifdef DEBUG_TRACE_EXECUTION
   printf(ANSI_MAGENTA_STR("===== "));
-  printf(ANSI_CYAN_STR("Running file: %s, New local scope: %s\n"), path,
-         local_scope ? "true" : "false");
+  printf(ANSI_CYAN_STR("Running file: %s, New local scope: %s\n"), path, local_scope ? "true" : "false");
 #endif
 
   char* source = read_file(path);

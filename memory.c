@@ -57,7 +57,7 @@ void mark_obj(Obj* object) {
 
   if (vm.gray_capacity < vm.gray_count + 1) {
     vm.gray_capacity = GROW_CAPACITY(vm.gray_capacity);
-    vm.gray_stack = (Obj**)realloc(vm.gray_stack, sizeof(Obj*) * vm.gray_capacity);
+    vm.gray_stack    = (Obj**)realloc(vm.gray_stack, sizeof(Obj*) * vm.gray_capacity);
 
     // TODO (recovery): Handle out of memory
     if (vm.gray_stack == NULL) {
@@ -125,17 +125,14 @@ static void blacken_object(Obj* object) {
       mark_hashtable(&instance->fields);
       break;
     }
-    case OBJ_UPVALUE:
-      mark_value(((ObjUpvalue*)object)->closed);
-      break;
+    case OBJ_UPVALUE: mark_value(((ObjUpvalue*)object)->closed); break;
     case OBJ_SEQ: {
       ObjSeq* seq = (ObjSeq*)object;
       mark_array(&seq->items);
       break;
     }
     case OBJ_NATIVE:
-    case OBJ_STRING:
-      break;
+    case OBJ_STRING: break;
     default:
       break;  // TODO (recovery): What do we do here? Throw? Probably yes, bc we
               // need to mark all objects
@@ -151,9 +148,7 @@ static void free_object(Obj* object) {
 #endif
 
   switch (object->type) {
-    case OBJ_BOUND_METHOD:
-      FREE(ObjBoundMethod, object);
-      break;
+    case OBJ_BOUND_METHOD: FREE(ObjBoundMethod, object); break;
     case OBJ_CLASS: {
       ObjClass* klass = (ObjClass*)object;
       free_hashtable(&klass->methods);
@@ -178,9 +173,7 @@ static void free_object(Obj* object) {
       FREE(ObjInstance, object);
       break;
     }
-    case OBJ_NATIVE:
-      FREE(ObjNative, object);
-      break;
+    case OBJ_NATIVE: FREE(ObjNative, object); break;
     case OBJ_STRING: {
       ObjString* string = (ObjString*)object;
       FREE_ARRAY(char, string->chars, string->length + 1);
@@ -271,13 +264,13 @@ static void trace_references() {
 // mark phase and are therefore unreachable.
 static void sweep() {
   Obj* previous = NULL;
-  Obj* object = vm.objects;
+  Obj* object   = vm.objects;
 
   while (object != NULL) {
     if (object->is_marked) {
       object->is_marked = false;  // Unmark for next gc cycle
-      previous = object;
-      object = object->next;
+      previous          = object;
+      object            = object->next;
     } else {
       Obj* unreached = object;
 

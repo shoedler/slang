@@ -20,15 +20,15 @@ static Obj* allocate_object(size_t size, ObjType type) {
   Obj* object = (Obj*)reallocate(NULL, 0,
                                  size);  // Might trigger GC, but it's fine since our new object
                                          // isn't referenced by anything yet -> not reachable by GC
-  object->type = type;
+  object->type      = type;
   object->is_marked = false;
 
   object->next = vm.objects;
-  vm.objects = object;
+  vm.objects   = object;
 
 #ifdef DEBUG_LOG_GC_ALLOCATIONS
-  printf(ANSI_RED_STR("[GC] ") ANSI_MAGENTA_STR("[ALLOC] ") "%p allocate %zu for type %s\n",
-         (void*)object, size, obj_type_to_string(type));
+  printf(ANSI_RED_STR("[GC] ") ANSI_MAGENTA_STR("[ALLOC] ") "%p allocate %zu for type %s\n", (void*)object,
+         size, obj_type_to_string(type));
 #endif
 
   return object;
@@ -39,9 +39,9 @@ static Obj* allocate_object(size_t size, ObjType type) {
 // Both the string object and the c string are heap-allocated.
 static ObjString* allocate_string(char* chars, int length, uint32_t hash) {
   ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
-  string->length = length;
-  string->chars = chars;
-  string->hash = hash;
+  string->length    = length;
+  string->chars     = chars;
+  string->hash      = hash;
 
   push(OBJ_VAL(string));  // Prevent GC from freeing string
   hashtable_set(&vm.strings, OBJ_VAL(string), NIL_VAL);
@@ -52,31 +52,31 @@ static ObjString* allocate_string(char* chars, int length, uint32_t hash) {
 
 ObjBoundMethod* new_bound_method(Value receiver, ObjClosure* method) {
   ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
-  bound->receiver = receiver;
-  bound->method = method;
+  bound->receiver       = receiver;
+  bound->method         = method;
   return bound;
 }
 
 ObjClass* new_class(ObjString* name, ObjClass* base) {
   ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
-  klass->name = name;
-  klass->base = base;
+  klass->name     = name;
+  klass->base     = base;
   init_hashtable(&klass->methods);
   return klass;
 }
 
 ObjInstance* new_instance(ObjClass* klass) {
   ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
-  instance->klass = klass;
+  instance->klass       = klass;
   init_hashtable(&instance->fields);
   return instance;
 }
 
 ObjUpvalue* new_upvalue(Value* slot) {
   ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
-  upvalue->closed = NIL_VAL;
-  upvalue->location = slot;
-  upvalue->next = NULL;
+  upvalue->closed     = NIL_VAL;
+  upvalue->location   = slot;
+  upvalue->next       = NULL;
   return upvalue;
 }
 
@@ -86,25 +86,25 @@ ObjClosure* new_closure(ObjFunction* function) {
     upvalues[i] = NULL;
   }
 
-  ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
-  closure->function = function;
-  closure->upvalues = upvalues;
+  ObjClosure* closure    = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
+  closure->function      = function;
+  closure->upvalues      = upvalues;
   closure->upvalue_count = function->upvalue_count;
   return closure;
 }
 
 ObjFunction* new_function() {
-  ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
-  function->arity = 0;
+  ObjFunction* function   = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
+  function->arity         = 0;
   function->upvalue_count = 0;
-  function->name = NULL;
+  function->name          = NULL;
   init_chunk(&function->chunk);
   return function;
 }
 
 ObjNative* new_native(NativeFn function) {
   ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
-  native->function = function;
+  native->function  = function;
   return native;
 }
 
@@ -120,12 +120,12 @@ static uint32_t hash_string(const char* key, int length) {
 
 ObjSeq* take_seq(ValueArray items) {
   ObjSeq* list = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
-  list->items = items;
+  list->items  = items;
   return list;
 }
 
 ObjString* take_string(char* chars, int length) {
-  uint32_t hash = hash_string(chars, length);
+  uint32_t hash       = hash_string(chars, length);
   ObjString* interned = hashtable_find_string(&vm.strings, chars, length, hash);
   if (interned != NULL) {
     FREE_ARRAY(char, chars, length + 1);
@@ -136,7 +136,7 @@ ObjString* take_string(char* chars, int length) {
 }
 
 ObjString* copy_string(const char* chars, int length) {
-  uint32_t hash = hash_string(chars, length);
+  uint32_t hash       = hash_string(chars, length);
   ObjString* interned = hashtable_find_string(&vm.strings, chars, length, hash);
   if (interned != NULL) {
     return interned;

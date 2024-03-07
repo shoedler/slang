@@ -73,7 +73,7 @@ typedef struct ClassCompiler {
 } ClassCompiler;
 
 Parser parser;
-Compiler* current = NULL;
+Compiler* current            = NULL;
 ClassCompiler* current_class = NULL;
 Chunk* compiling_chunk;
 
@@ -237,27 +237,27 @@ static void emit_return() {
 
 // Initializes a new compiler.
 static void init_compiler(Compiler* compiler, FunctionType type, ObjString* name) {
-  compiler->enclosing = current;
-  compiler->function = NULL;
-  compiler->type = type;
+  compiler->enclosing   = current;
+  compiler->function    = NULL;
+  compiler->type        = type;
   compiler->local_count = 0;
   compiler->scope_depth = 0;
-  compiler->function = new_function();
-  current = compiler;
+  compiler->function    = new_function();
+  current               = compiler;
 
   if (type != TYPE_TOPLEVEL) {
     current->function->name = name;
   }
 
-  Local* local = &current->locals[current->local_count++];
-  local->depth = 0;
+  Local* local       = &current->locals[current->local_count++];
+  local->depth       = 0;
   local->is_captured = false;
 
   if (type != TYPE_FUNCTION) {
-    local->name.start = KEYWORD_THIS;
+    local->name.start  = KEYWORD_THIS;
     local->name.length = KEYWORD_THIS_LEN;
   } else {
-    local->name.start = "";  // Not accessible.
+    local->name.start  = "";  // Not accessible.
     local->name.length = 0;
   }
 }
@@ -270,8 +270,7 @@ static ObjFunction* end_compiler() {
 
 #ifdef DEBUG_PRINT_CODE
   if (!parser.had_error) {
-    disassemble_chunk(current_chunk(),
-                      function->name != NULL ? function->name->chars : "[Toplevel]");
+    disassemble_chunk(current_chunk(), function->name != NULL ? function->name->chars : "[Toplevel]");
 
     if (current->enclosing == NULL) {
       printf("\n== End of compilation ==\n\n");
@@ -292,8 +291,7 @@ static void begin_scope() {
 static void end_scope() {
   current->scope_depth--;
 
-  while (current->local_count > 0 &&
-         current->locals[current->local_count - 1].depth > current->scope_depth) {
+  while (current->local_count > 0 && current->locals[current->local_count - 1].depth > current->scope_depth) {
     // Since we're leaving the scope, we don't need the local variables anymore.
     // The ones who got captured by a closure are still needed, and are
     // going to need to live on the heap.
@@ -376,18 +374,10 @@ static void literal(bool can_assign) {
   TokenType op_type = parser.previous.type;
 
   switch (op_type) {
-    case TOKEN_FALSE:
-      emit_one(OP_FALSE);
-      break;
-    case TOKEN_NIL:
-      emit_one(OP_NIL);
-      break;
-    case TOKEN_TRUE:
-      emit_one(OP_TRUE);
-      break;
-    default:
-      INTERNAL_ERROR("Unhandled literal: %d", op_type);
-      return;
+    case TOKEN_FALSE: emit_one(OP_FALSE); break;
+    case TOKEN_NIL: emit_one(OP_NIL); break;
+    case TOKEN_TRUE: emit_one(OP_TRUE); break;
+    default: INTERNAL_ERROR("Unhandled literal: %d", op_type); return;
   }
 }
 
@@ -446,15 +436,9 @@ static void unary(bool can_assign) {
 
   // Emit the operator instruction.
   switch (operator_type) {
-    case TOKEN_NOT:
-      emit_one(OP_NOT);
-      break;
-    case TOKEN_MINUS:
-      emit_one(OP_NEGATE);
-      break;
-    default:
-      INTERNAL_ERROR("Unhandled unary operator type: %d", operator_type);
-      return;
+    case TOKEN_NOT: emit_one(OP_NOT); break;
+    case TOKEN_MINUS: emit_one(OP_NEGATE); break;
+    default: INTERNAL_ERROR("Unhandled unary operator type: %d", operator_type); return;
   }
 }
 
@@ -463,43 +447,21 @@ static void unary(bool can_assign) {
 // token. The operator is in the previous token.
 static void binary(bool can_assign) {
   TokenType op_type = parser.previous.type;
-  ParseRule* rule = get_rule(op_type);
+  ParseRule* rule   = get_rule(op_type);
   parse_precedence((Precedence)(rule->precedence + 1));
 
   switch (op_type) {
-    case TOKEN_NEQ:
-      emit_one(OP_NEQ);
-      break;
-    case TOKEN_EQ:
-      emit_one(OP_EQ);
-      break;
-    case TOKEN_GT:
-      emit_one(OP_GT);
-      break;
-    case TOKEN_GTEQ:
-      emit_one(OP_GTEQ);
-      break;
-    case TOKEN_LT:
-      emit_one(OP_LT);
-      break;
-    case TOKEN_LTEQ:
-      emit_one(OP_LTEQ);
-      break;
-    case TOKEN_PLUS:
-      emit_one(OP_ADD);
-      break;
-    case TOKEN_MINUS:
-      emit_one(OP_SUBTRACT);
-      break;
-    case TOKEN_MULT:
-      emit_one(OP_MULTIPLY);
-      break;
-    case TOKEN_DIV:
-      emit_one(OP_DIVIDE);
-      break;
-    default:
-      INTERNAL_ERROR("Unhandled binary operator type: %d", op_type);
-      break;
+    case TOKEN_NEQ: emit_one(OP_NEQ); break;
+    case TOKEN_EQ: emit_one(OP_EQ); break;
+    case TOKEN_GT: emit_one(OP_GT); break;
+    case TOKEN_GTEQ: emit_one(OP_GTEQ); break;
+    case TOKEN_LT: emit_one(OP_LT); break;
+    case TOKEN_LTEQ: emit_one(OP_LTEQ); break;
+    case TOKEN_PLUS: emit_one(OP_ADD); break;
+    case TOKEN_MINUS: emit_one(OP_SUBTRACT); break;
+    case TOKEN_MULT: emit_one(OP_MULTIPLY); break;
+    case TOKEN_DIV: emit_one(OP_DIVIDE); break;
+    default: INTERNAL_ERROR("Unhandled binary operator type: %d", op_type); break;
   }
 }
 
@@ -515,7 +477,7 @@ static void named_variable(Token name, bool can_assign) {
     get_op = OP_GET_UPVALUE;
     set_op = OP_SET_UPVALUE;
   } else {
-    arg = string_constant(&name);
+    arg    = string_constant(&name);
     get_op = OP_GET_GLOBAL;
     set_op = OP_SET_GLOBAL;
   }
@@ -539,7 +501,7 @@ static void variable(bool can_assign) {
 // Synthetic refers to the fact that the token is not from the source code.
 static Token synthetic_token(const char* text) {
   Token token;
-  token.start = text;
+  token.start  = text;
   token.length = (int)strlen(text);
   return token;
 }
@@ -646,7 +608,7 @@ static void anonymous_function(bool can_assign) {
 static void method() {
   consume(TOKEN_FN, "Expecting method initializer.");
   consume(TOKEN_ID, "Expecting method name.");
-  uint16_t constant = string_constant(&parser.previous);
+  uint16_t constant      = string_constant(&parser.previous);
   ObjString* method_name = copy_string(parser.previous.start, parser.previous.length);
 
   function(false /* does not matter */, TYPE_METHOD, method_name);
@@ -655,7 +617,7 @@ static void method() {
 
 static void constructor() {
   consume(TOKEN_CTOR, "Expecting constructor.");
-  Token ctor = synthetic_token(KEYWORD_CONSTRUCTOR);
+  Token ctor        = synthetic_token(KEYWORD_CONSTRUCTOR);
   uint16_t constant = string_constant(&ctor);
   // TODO (optimize): Maybe preload this? A constructor is always called the
   // the same name - so we could just load it once and then reuse it.
@@ -690,7 +652,7 @@ static void or_(bool can_assign) {
   // well, it would have to be renamed then and accept a new parameter (the type
   // of jump to emit).
   int else_jump = emit_jump(OP_JUMP_IF_FALSE);
-  int end_jump = emit_jump(OP_JUMP);
+  int end_jump  = emit_jump(OP_JUMP);
 
   patch_jump(else_jump);
   emit_one(OP_POP);
@@ -712,50 +674,50 @@ static void this_(bool can_assign) {
 }
 
 ParseRule rules[] = {
-    [TOKEN_OPAR] = {grouping, call, PREC_CALL},
-    [TOKEN_CPAR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_CBRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACK] = {list_literal, indexing, PREC_CALL},
-    [TOKEN_CBRACK] = {NULL, NULL, PREC_NONE},
-    [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
-    [TOKEN_DOT] = {NULL, dot, PREC_CALL},
-    [TOKEN_MINUS] = {unary, binary, PREC_TERM},
-    [TOKEN_PLUS] = {NULL, binary, PREC_TERM},
-    [TOKEN_DIV] = {NULL, binary, PREC_FACTOR},
-    [TOKEN_MULT] = {NULL, binary, PREC_FACTOR},
-    [TOKEN_NOT] = {unary, NULL, PREC_NONE},
-    [TOKEN_NEQ] = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_ASSIGN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_EQ] = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_GT] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_GTEQ] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LT] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LTEQ] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_ID] = {variable, NULL, PREC_NONE},
-    [TOKEN_STRING] = {string, NULL, PREC_NONE},
-    [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
-    [TOKEN_AND] = {NULL, and_, PREC_AND},
-    [TOKEN_CLASS] = {NULL, NULL, PREC_NONE},
-    [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_FALSE] = {literal, NULL, PREC_NONE},
-    [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_FN] = {anonymous_function, NULL, PREC_NONE},
-    [TOKEN_LAMBDA] = {NULL, NULL, PREC_NONE},
-    [TOKEN_IF] = {NULL, NULL, PREC_NONE},
-    [TOKEN_NIL] = {literal, NULL, PREC_NONE},
-    [TOKEN_OR] = {NULL, or_, PREC_OR},
-    [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
-    [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_BASE] = {base_, NULL, PREC_NONE},
-    [TOKEN_THIS] = {this_, NULL, PREC_NONE},
-    [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
-    [TOKEN_LET] = {NULL, NULL, PREC_NONE},
-    [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_BREAK] = {NULL, NULL, PREC_NONE},
+    [TOKEN_OPAR]     = {grouping, call, PREC_CALL},
+    [TOKEN_CPAR]     = {NULL, NULL, PREC_NONE},
+    [TOKEN_OBRACE]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_CBRACE]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_OBRACK]   = {list_literal, indexing, PREC_CALL},
+    [TOKEN_CBRACK]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_COMMA]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_DOT]      = {NULL, dot, PREC_CALL},
+    [TOKEN_MINUS]    = {unary, binary, PREC_TERM},
+    [TOKEN_PLUS]     = {NULL, binary, PREC_TERM},
+    [TOKEN_DIV]      = {NULL, binary, PREC_FACTOR},
+    [TOKEN_MULT]     = {NULL, binary, PREC_FACTOR},
+    [TOKEN_NOT]      = {unary, NULL, PREC_NONE},
+    [TOKEN_NEQ]      = {NULL, binary, PREC_EQUALITY},
+    [TOKEN_ASSIGN]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_EQ]       = {NULL, binary, PREC_EQUALITY},
+    [TOKEN_GT]       = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_GTEQ]     = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_LT]       = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_LTEQ]     = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_ID]       = {variable, NULL, PREC_NONE},
+    [TOKEN_STRING]   = {string, NULL, PREC_NONE},
+    [TOKEN_NUMBER]   = {number, NULL, PREC_NONE},
+    [TOKEN_AND]      = {NULL, and_, PREC_AND},
+    [TOKEN_CLASS]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_ELSE]     = {NULL, NULL, PREC_NONE},
+    [TOKEN_FALSE]    = {literal, NULL, PREC_NONE},
+    [TOKEN_FOR]      = {NULL, NULL, PREC_NONE},
+    [TOKEN_FN]       = {anonymous_function, NULL, PREC_NONE},
+    [TOKEN_LAMBDA]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_IF]       = {NULL, NULL, PREC_NONE},
+    [TOKEN_NIL]      = {literal, NULL, PREC_NONE},
+    [TOKEN_OR]       = {NULL, or_, PREC_OR},
+    [TOKEN_PRINT]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_RETURN]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_BASE]     = {base_, NULL, PREC_NONE},
+    [TOKEN_THIS]     = {this_, NULL, PREC_NONE},
+    [TOKEN_TRUE]     = {literal, NULL, PREC_NONE},
+    [TOKEN_LET]      = {NULL, NULL, PREC_NONE},
+    [TOKEN_WHILE]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_BREAK]    = {NULL, NULL, PREC_NONE},
     [TOKEN_CONTINUE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
+    [TOKEN_ERROR]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_EOF]      = {NULL, NULL, PREC_NONE},
 };
 
 // Returns the rule for the given token type.
@@ -857,7 +819,7 @@ static void add_local(Token name) {
   }
 
   Local* local = &current->locals[current->local_count++];
-  local->name = name;
+  local->name  = name;
   local->depth = -1;  // Means it is not initialized, bc it's value (rvalue) is
                       // not yet evaluated.
   local->is_captured = false;
@@ -883,7 +845,7 @@ static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
   }
 
   compiler->upvalues[upvalue_count].is_local = is_local;
-  compiler->upvalues[upvalue_count].index = index;
+  compiler->upvalues[upvalue_count].index    = index;
   return compiler->function->upvalue_count++;
 }
 
@@ -977,8 +939,7 @@ static void synchronize() {
       case TOKEN_IF:
       case TOKEN_WHILE:
       case TOKEN_PRINT:
-      case TOKEN_RETURN:
-        return;
+      case TOKEN_RETURN: return;
 
       default:;  // Do nothing.
     }
@@ -1100,7 +1061,7 @@ static void statement_for() {
 
   // Loop increment
   if (!match(TOKEN_SCOLON)) {
-    int body_jump = emit_jump(OP_JUMP);
+    int body_jump      = emit_jump(OP_JUMP);
     int incrementStart = current_chunk()->count;
     expression();
     emit_one(OP_POP);  // Discard the result of the increment expression.
@@ -1197,7 +1158,7 @@ static void declaration_let() {
 // The fn keyword has already been consumed at this point.
 // Since functions are first-class, this is similar to a variable declaration.
 static void declaration_function() {
-  uint16_t global = parse_variable("Expecting variable name.");
+  uint16_t global    = parse_variable("Expecting variable name.");
   ObjString* fn_name = copy_string(parser.previous.start, parser.previous.length);
 
   mark_initialized();
@@ -1210,7 +1171,7 @@ static void declaration_function() {
 // Also handles inheritance.
 static void declaration_class() {
   consume(TOKEN_ID, "Expecting class name.");
-  Token class_name = parser.previous;
+  Token class_name       = parser.previous;
   uint16_t name_constant = string_constant(&parser.previous);
   declare_local();
 
@@ -1221,8 +1182,8 @@ static void declaration_class() {
 
   ClassCompiler class_compiler;
   class_compiler.has_baseclass = false;
-  class_compiler.enclosing = current_class;
-  current_class = &class_compiler;
+  class_compiler.enclosing     = current_class;
+  current_class                = &class_compiler;
 
   // Inherit from base class
   if (match(TOKEN_COLON)) {
@@ -1300,7 +1261,7 @@ ObjFunction* compile(const char* source, bool local_scope) {
     begin_scope();
   }
 
-  parser.had_error = false;
+  parser.had_error  = false;
   parser.panic_mode = false;
 
   advance();

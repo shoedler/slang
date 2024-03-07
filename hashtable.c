@@ -3,9 +3,9 @@
 #include "value.h"
 
 void init_hashtable(HashTable* table) {
-  table->count = 0;
+  table->count    = 0;
   table->capacity = 0;
-  table->entries = NULL;
+  table->entries  = NULL;
 }
 
 void free_hashtable(HashTable* table) {
@@ -15,7 +15,7 @@ void free_hashtable(HashTable* table) {
 
 // Find the entry for key. Returns NULL if no entry is found.
 static Entry* find_entry(Entry* entries, int capacity, Value key) {
-  uint32_t index = hash_value(key) & (capacity - 1);
+  uint32_t index   = hash_value(key) & (capacity - 1);
   Entry* tombstone = NULL;
 
   for (;;) {
@@ -43,7 +43,7 @@ static Entry* find_entry(Entry* entries, int capacity, Value key) {
 static void adjust_capacity(HashTable* table, int capacity) {
   Entry* entries = ALLOCATE(Entry, capacity);
   for (int i = 0; i < capacity; i++) {
-    entries[i].key = EMPTY_INTERNAL_VAL;
+    entries[i].key   = EMPTY_INTERNAL_VAL;
     entries[i].value = NIL_VAL;
   }
 
@@ -54,13 +54,13 @@ static void adjust_capacity(HashTable* table, int capacity) {
       continue;
 
     Entry* dest = find_entry(entries, capacity, entry->key);
-    dest->key = entry->key;
+    dest->key   = entry->key;
     dest->value = entry->value;
     table->count++;
   }
 
   FREE_ARRAY(Entry, table->entries, table->capacity);
-  table->entries = entries;
+  table->entries  = entries;
   table->capacity = capacity;
 }
 
@@ -82,12 +82,12 @@ bool hashtable_set(HashTable* table, Value key, Value value) {
     adjust_capacity(table, capacity);
   }
 
-  Entry* entry = find_entry(table->entries, table->capacity, key);
+  Entry* entry    = find_entry(table->entries, table->capacity, key);
   bool is_new_key = IS_EMPTY_INTERNAL(entry->key);
   if (is_new_key && IS_NIL(entry->value))
     table->count++;
 
-  entry->key = key;
+  entry->key   = key;
   entry->value = value;
   return is_new_key;
 }
@@ -102,7 +102,7 @@ bool hashtable_delete(HashTable* table, Value key) {
     return false;
 
   // Place a tombstone in the entry.
-  entry->key = EMPTY_INTERNAL_VAL;
+  entry->key   = EMPTY_INTERNAL_VAL;
   entry->value = BOOL_VAL(true);
   return true;
 }
@@ -136,8 +136,7 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
 
     // Check if we found the string.
     ObjString* string = AS_STRING(entry->key);
-    if (string->length == length && string->hash == hash &&
-        memcmp(string->chars, chars, length) == 0) {
+    if (string->length == length && string->hash == hash && memcmp(string->chars, chars, length) == 0) {
       // We found it.
       return string;
     }

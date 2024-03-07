@@ -8,16 +8,16 @@
 #include "value.h"
 
 void init_value_array(ValueArray* array) {
-  array->values = NULL;
+  array->values   = NULL;
   array->capacity = 0;
-  array->count = 0;
+  array->count    = 0;
 }
 
 void write_value_array(ValueArray* array, Value value) {
   if (array->capacity < array->count + 1) {
     int old_capacity = array->capacity;
-    array->capacity = GROW_CAPACITY(old_capacity);
-    array->values = GROW_ARRAY(Value, array->values, old_capacity, array->capacity);
+    array->capacity  = GROW_CAPACITY(old_capacity);
+    array->values    = GROW_ARRAY(Value, array->values, old_capacity, array->capacity);
   }
 
   array->values[array->count] = value;
@@ -31,7 +31,7 @@ void free_value_array(ValueArray* array) {
 
 bool is_int(double number, int* integer) {
   double dint = rint(number);
-  *integer = (int)dint;
+  *integer    = (int)dint;
   return number == dint;
 }
 
@@ -42,12 +42,9 @@ bool values_equal(Value a, Value b) {
   }
 
   switch (a.type) {
-    case VAL_BOOL:
-      return AS_BOOL(a) == AS_BOOL(b);
-    case VAL_NIL:
-      return true;
-    case VAL_NUMBER:
-      return AS_NUMBER(a) == AS_NUMBER(b);
+    case VAL_BOOL: return AS_BOOL(a) == AS_BOOL(b);
+    case VAL_NIL: return true;
+    case VAL_NUMBER: return AS_NUMBER(a) == AS_NUMBER(b);
     case VAL_OBJ: {
       if (IS_STRING(a) && IS_STRING(b)) {
         return AS_STRING(a) == AS_STRING(b);
@@ -57,11 +54,8 @@ bool values_equal(Value a, Value b) {
       }
       return false;
     }
-    case VAL_EMPTY_INTERNAL:
-      return true;
-    default:
-      INTERNAL_ERROR("Unhandled comparison type: %d", a.type);
-      return false;
+    case VAL_EMPTY_INTERNAL: return true;
+    default: INTERNAL_ERROR("Unhandled comparison type: %d", a.type); return false;
   }
 }
 
@@ -80,12 +74,9 @@ static uint32_t hash_doube(double value) {
 uint32_t hash_value(Value value) {
   // TODO (optimize): This is hot, maybe we can do better?
   switch (value.type) {
-    case VAL_BOOL:
-      return AS_BOOL(value) ? 4 : 3;
-    case VAL_NIL:
-      return 2;
-    case VAL_NUMBER:
-      return hash_doube(AS_NUMBER(value));
+    case VAL_BOOL: return AS_BOOL(value) ? 4 : 3;
+    case VAL_NIL: return 2;
+    case VAL_NUMBER: return hash_doube(AS_NUMBER(value));
     case VAL_OBJ: {
       if (IS_STRING(value)) {
         ObjString* string = AS_STRING(value);
@@ -94,11 +85,8 @@ uint32_t hash_value(Value value) {
         return (uint32_t)(intptr_t)AS_OBJ(value);  // Hash objects by pointer for now...
       }
     }
-    case VAL_EMPTY_INTERNAL:
-      return 0;
-    default:
-      INTERNAL_ERROR("Unhandled hash type: %d", value.type);
-      return 0;
+    case VAL_EMPTY_INTERNAL: return 0;
+    default: INTERNAL_ERROR("Unhandled hash type: %d", value.type); return 0;
   }
 }
 
@@ -164,7 +152,7 @@ char* value_to_str(Value value) {
           }
 
           size_t buf_size = sizeof(STR_OBJ_CLASS("")) + klass->name->length;
-          char* chars = malloc(buf_size);
+          char* chars     = malloc(buf_size);
           if (chars == NULL) {
             INTERNAL_ERROR("Could not allocate memory for class string");
           }
@@ -174,9 +162,7 @@ char* value_to_str(Value value) {
         case OBJ_BOUND_METHOD:
           value = OBJ_VAL(AS_BOUND_METHOD(value)->method->function);
           goto handle_as_function;
-        case OBJ_CLOSURE:
-          value = OBJ_VAL(AS_CLOSURE(value)->function);
-          goto handle_as_function;
+        case OBJ_CLOSURE: value = OBJ_VAL(AS_CLOSURE(value)->function); goto handle_as_function;
         case OBJ_FUNCTION: {
         handle_as_function:
           ObjFunction* function = AS_FUNCTION(value);
@@ -185,7 +171,7 @@ char* value_to_str(Value value) {
           }
 
           size_t buf_size = sizeof(STR_OBJ_FUNCTION("")) + function->name->length;
-          char* chars = malloc(buf_size);
+          char* chars     = malloc(buf_size);
           if (chars == NULL) {
             INTERNAL_ERROR("Could not allocate memory for function string");
           }
@@ -199,7 +185,7 @@ char* value_to_str(Value value) {
           }
 
           size_t buf_size = sizeof(STR_OBJ_INSTANCE("")) + instance->klass->name->length;
-          char* chars = malloc(buf_size);
+          char* chars     = malloc(buf_size);
           if (chars == NULL) {
             INTERNAL_ERROR("Could not allocate memory for instance string");
           }
@@ -214,7 +200,7 @@ char* value_to_str(Value value) {
         }
         case OBJ_STRING: {
           ObjString* string = AS_STRING(value);
-          char* chars = malloc(string->length + 1);
+          char* chars       = malloc(string->length + 1);
           if (chars == NULL) {
             INTERNAL_ERROR("Could not allocate memory for string string");
           }
@@ -222,9 +208,9 @@ char* value_to_str(Value value) {
           return chars;
         }
         case OBJ_SEQ: {
-          ObjSeq* seq = AS_SEQ(value);
+          ObjSeq* seq     = AS_SEQ(value);
           size_t buf_size = 64;  // Start with a reasonable size
-          char* chars = malloc(buf_size);
+          char* chars     = malloc(buf_size);
           if (chars == NULL) {
             INTERNAL_ERROR("Could not allocate memory for seq string");
           }
@@ -239,7 +225,7 @@ char* value_to_str(Value value) {
                                       // after this iteration.
             if (new_buf_size > buf_size) {
               buf_size = new_buf_size;
-              chars = realloc(chars, buf_size);
+              chars    = realloc(chars, buf_size);
               if (chars == NULL) {
                 INTERNAL_ERROR("Could not reallocate memory for value-of-seq string");
               }
@@ -256,8 +242,7 @@ char* value_to_str(Value value) {
         }
       }
     }
-    default:
-      return _strdup(STR_UNKNOWN);
+    default: return _strdup(STR_UNKNOWN);
   }
 
 #undef STR_TRUE
@@ -288,24 +273,15 @@ const char* type_name(Value value) {
     return "Num";
   } else if (value.type == VAL_OBJ) {
     switch (OBJ_TYPE(value)) {
-      case OBJ_BOUND_METHOD:
-        return "BoundMethod";
-      case OBJ_CLASS:
-        return "Class";
-      case OBJ_CLOSURE:
-        return "Closure";
-      case OBJ_FUNCTION:
-        return "Fn";
-      case OBJ_INSTANCE:
-        return "Instance";
-      case OBJ_NATIVE:
-        return "NativeFn";
-      case OBJ_STRING:
-        return "Str";
-      case OBJ_SEQ:
-        return "Seq";
-      case OBJ_UPVALUE:
-        return "Upvalue";
+      case OBJ_BOUND_METHOD: return "BoundMethod";
+      case OBJ_CLASS: return "Class";
+      case OBJ_CLOSURE: return "Closure";
+      case OBJ_FUNCTION: return "Fn";
+      case OBJ_INSTANCE: return "Instance";
+      case OBJ_NATIVE: return "NativeFn";
+      case OBJ_STRING: return "Str";
+      case OBJ_SEQ: return "Seq";
+      case OBJ_UPVALUE: return "Upvalue";
     }
   }
 

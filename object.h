@@ -84,26 +84,16 @@ typedef enum {
 #if (defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_ALLOCATIONS))
 inline static const char* obj_type_to_string(ObjType type) {
   switch (type) {
-    case OBJ_CLASS:
-      return "OBJ_CLASS";
-    case OBJ_CLOSURE:
-      return "OBJ_CLOSURE";
-    case OBJ_FUNCTION:
-      return "OBJ_FUNCTION";
-    case OBJ_INSTANCE:
-      return "OBJ_INSTANCE";
-    case OBJ_NATIVE:
-      return "OBJ_NATIVE";
-    case OBJ_SEQ:
-      return "OBJ_SEQ";
-    case OBJ_STRING:
-      return "OBJ_STRING";
-    case OBJ_UPVALUE:
-      return "OBJ_UPVALUE";
-    case OBJ_BOUND_METHOD:
-      return "OBJ_BOUND_METHOD";
-    default:
-      return "UKNOWN_OBJECT_TYPE";
+    case OBJ_CLASS: return "OBJ_CLASS";
+    case OBJ_CLOSURE: return "OBJ_CLOSURE";
+    case OBJ_FUNCTION: return "OBJ_FUNCTION";
+    case OBJ_INSTANCE: return "OBJ_INSTANCE";
+    case OBJ_NATIVE: return "OBJ_NATIVE";
+    case OBJ_SEQ: return "OBJ_SEQ";
+    case OBJ_STRING: return "OBJ_STRING";
+    case OBJ_UPVALUE: return "OBJ_UPVALUE";
+    case OBJ_BOUND_METHOD: return "OBJ_BOUND_METHOD";
+    default: return "UKNOWN_OBJECT_TYPE";
   }
 }
 #endif
