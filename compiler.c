@@ -254,8 +254,8 @@ static void init_compiler(Compiler* compiler, FunctionType type, ObjString* name
   local->is_captured = false;
 
   if (type != TYPE_FUNCTION) {
-    local->name.start = THIS_KEYWORD;
-    local->name.length = THIS_KEYWORD_LENGTH;
+    local->name.start = KEYWORD_THIS;
+    local->name.length = KEYWORD_THIS_LEN;
   } else {
     local->name.start = "";  // Not accessible.
     local->name.length = 0;
@@ -551,27 +551,27 @@ static Token synthetic_token(const char* text) {
 // The next token to be parsed is the dot operator.
 static void base_(bool can_assign) {
   if (current_class == NULL) {
-    error("Can't use '" BASE_CLASS_KEYWORD "' outside of a class.");
+    error("Can't use '" KEYWORD_BASE "' outside of a class.");
   } else if (!current_class->has_baseclass) {
-    error("Can't use '" BASE_CLASS_KEYWORD "' in a class with no base class.");
+    error("Can't use '" KEYWORD_BASE "' in a class with no base class.");
   }
 
-  consume(TOKEN_DOT, "Expecting '.' after '" BASE_CLASS_KEYWORD "'.");
+  consume(TOKEN_DOT, "Expecting '.' after '" KEYWORD_BASE "'.");
   if (!match(TOKEN_ID)) {
     consume(TOKEN_CTOR, "Expecting base class method name.");
   }
   uint16_t name = string_constant(&parser.previous);
 
-  named_variable(synthetic_token(THIS_KEYWORD), false);
+  named_variable(synthetic_token(KEYWORD_THIS), false);
   if (match(TOKEN_OPAR)) {
     // Shorthand for method calls. This combines two instructions into one:
     // getting a property and calling a method.
     uint16_t arg_count = argument_list();
-    named_variable(synthetic_token(BASE_CLASS_KEYWORD), false);
+    named_variable(synthetic_token(KEYWORD_BASE), false);
     emit_two(OP_BASE_INVOKE, name);
     emit_one(arg_count);
   } else {
-    named_variable(synthetic_token(BASE_CLASS_KEYWORD), false);
+    named_variable(synthetic_token(KEYWORD_BASE), false);
     emit_two(OP_GET_BASE_METHOD, name);
   }
 }
@@ -655,7 +655,7 @@ static void method() {
 
 static void constructor() {
   consume(TOKEN_CTOR, "Expecting constructor.");
-  Token ctor = synthetic_token(CLASS_CONSTRUCTOR_RESERVED_WORD);
+  Token ctor = synthetic_token(KEYWORD_CONSTRUCTOR);
   uint16_t constant = string_constant(&ctor);
   // TODO (optimize): Maybe preload this? A constructor is always called the
   // the same name - so we could just load it once and then reuse it.
@@ -1234,9 +1234,9 @@ static void declaration_class() {
     }
 
     begin_scope();
-    add_local(synthetic_token(BASE_CLASS_KEYWORD));  // TODO (optimize): Maybe use
-                                                     // BASE_CLASS_KEYWORD as a lexeme, then
-                                                     // synthetic_token is not needed.
+    add_local(synthetic_token(KEYWORD_BASE));  // TODO (optimize): Maybe use
+                                               // KEYWORD_BASE as a lexeme, then
+                                               // synthetic_token is not needed.
     define_variable(0 /* ignore, we're not in global scope */);
 
     named_variable(class_name, false);

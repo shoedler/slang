@@ -223,7 +223,7 @@ print x[0]
 x[1] = ["Foo", "Bar"]
 print x
 
-cls Seq {
+cls List {
   ctor {
     this.list = [1,2,3]
   }
@@ -234,7 +234,7 @@ cls Seq {
 }
 
 fn make_list -> [1,2,3]
-let s = Seq()
+let s = List()
 s.printList()
 s.list[1] = -2
 s.printList()
@@ -243,6 +243,7 @@ s.printList()
 print "Hello"
 // print 123.type()
 print s.str()
+print s.list.str()
 print 312.str()
 print 312.hash()
 print 321.type()

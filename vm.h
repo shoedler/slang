@@ -9,16 +9,16 @@
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
-#define CLASS_CONSTRUCTOR_RESERVED_WORD "__ctor"
-#define CLASS_CONSTRUCTOR_RESERVED_WORD_LENGTH (sizeof(CLASS_CONSTRUCTOR_RESERVED_WORD) - 1)
+#define KEYWORD_CONSTRUCTOR "__ctor"
+#define KEYWORD_CONSTRUCTOR_LEN (sizeof(KEYWORD_CONSTRUCTOR) - 1)
 
-#define NAME_RESERVED_WORD "__name"
-#define NAME_RESERVED_WORD_LENGTH (sizeof(NAME_RESERVED_WORD) - 1)
+#define KEYWORD_NAME "__name"
+#define KEYWORD_NAME_LEN (sizeof(KEYWORD_NAME) - 1)
 
-#define THIS_KEYWORD "this"
-#define THIS_KEYWORD_LENGTH (sizeof(THIS_KEYWORD) - 1)
+#define KEYWORD_THIS "this"
+#define KEYWORD_THIS_LEN (sizeof(KEYWORD_THIS) - 1)
 
-#define BASE_CLASS_KEYWORD "base"
+#define KEYWORD_BASE "base"
 
 // Holds the state of a stack frame.
 // Represents a single ongoing function call.

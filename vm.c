@@ -135,9 +135,8 @@ void init_vm() {
   // Create the reserved method names
   memset(vm.reserved_method_names, 0, sizeof(vm.reserved_method_names));
   vm.reserved_method_names[METHOD_CTOR] =
-      OBJ_VAL(copy_string(CLASS_CONSTRUCTOR_RESERVED_WORD, CLASS_CONSTRUCTOR_RESERVED_WORD_LENGTH));
-  vm.reserved_method_names[METHOD_NAME] =
-      OBJ_VAL(copy_string(NAME_RESERVED_WORD, NAME_RESERVED_WORD_LENGTH));
+      OBJ_VAL(copy_string(KEYWORD_CONSTRUCTOR, KEYWORD_CONSTRUCTOR_LEN));
+  vm.reserved_method_names[METHOD_NAME] = OBJ_VAL(copy_string(KEYWORD_NAME, KEYWORD_NAME_LEN));
 
   // Create the object class
   vm.object_class = new_class(copy_string("Object", 6), NULL);
@@ -153,21 +152,6 @@ void init_vm() {
   vm.builtin = new_instance(vm.object_class);
   define_global("__builtin", (Obj*)vm.builtin);
   define_native(&vm.builtin->fields, "clock", native_clock);
-
-  //// Load the std module
-  // Value std_module =
-  //     run_file("C:\\Projects\\slang\\modules\\std.sl", true /* create a new local scope */);
-  // if (!IS_OBJ(std_module)) {
-  //   INTERNAL_ERROR("Failed to load std module during Vm initialization.");
-  // } else {
-  //   // We add the std library as a module - currently, this does nothing because 'export's are
-  //   just
-  //   // defined globally, omitting the need for any real modules. But, when we have implemented
-  //   // 'export' fr, then we need to 'import' the std module in order to use it - so we might as
-  //   well
-  //   // do it here correctly already.
-  //   hashtable_set(&vm.modules, OBJ_VAL(copy_string("Std", 3)), std_module);
-  // }
 
   vm.pause_gc = 0;
   reset_stack();
