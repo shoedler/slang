@@ -113,6 +113,10 @@ static void make_seq(int count) {
   push(OBJ_VAL(seq));
 }
 
+static Value __builtin_to_str(int argc, Value argv[]);
+static Value __builint_hash_value(int argc, Value argv[]);
+static Value __builtin_get_type(int argc, Value argv[]);
+
 void init_vm() {
   reset_stack();
   vm.objects = NULL;
@@ -138,6 +142,9 @@ void init_vm() {
   // Create the object class
   vm.object_class = new_class(copy_string("Object", 6), NULL);
   define_global("Object", (Obj*)vm.object_class);
+  define_native(&vm.object_class->methods, "str", __builtin_to_str);
+  define_native(&vm.object_class->methods, "hash", __builint_hash_value);
+  define_native(&vm.object_class->methods, "type", __builtin_get_type);
 
   vm.module_class = new_class(copy_string("Module", 6), vm.object_class);
   define_global("Module", (Obj*)vm.module_class);
@@ -147,18 +154,20 @@ void init_vm() {
   define_global("__builtin", (Obj*)vm.builtin);
   define_native(&vm.builtin->fields, "clock", native_clock);
 
-  // Load the std module
-  Value std_module =
-      run_file("C:\\Projects\\slang\\modules\\std.sl", true /* create a new local scope */);
-  if (!IS_OBJ(std_module)) {
-    INTERNAL_ERROR("Failed to load std module during Vm initialization.");
-  } else {
-    // We add the std library as a module - currently, this does nothing because 'export's are just
-    // defined globally, omitting the need for any real modules. But, when we have implemented
-    // 'export' fr, then we need to 'import' the std module in order to use it - so we might as well
-    // do it here correctly already.
-    hashtable_set(&vm.modules, OBJ_VAL(copy_string("Std", 3)), std_module);
-  }
+  //// Load the std module
+  // Value std_module =
+  //     run_file("C:\\Projects\\slang\\modules\\std.sl", true /* create a new local scope */);
+  // if (!IS_OBJ(std_module)) {
+  //   INTERNAL_ERROR("Failed to load std module during Vm initialization.");
+  // } else {
+  //   // We add the std library as a module - currently, this does nothing because 'export's are
+  //   just
+  //   // defined globally, omitting the need for any real modules. But, when we have implemented
+  //   // 'export' fr, then we need to 'import' the std module in order to use it - so we might as
+  //   well
+  //   // do it here correctly already.
+  //   hashtable_set(&vm.modules, OBJ_VAL(copy_string("Std", 3)), std_module);
+  // }
 
   vm.pause_gc = 0;
   reset_stack();
@@ -207,6 +216,15 @@ static bool call(ObjClosure* closure, int arg_count) {
   return true;
 }
 
+// Invokes a native function, as if it was a class method. Meaning, it assumes that before the
+// arguments on the stack is the receiver (acting as an "instance") of the method.
+static bool invoke_native(NativeFn native, int arg_count) {
+  Value result = native(arg_count, vm.stack_top - arg_count - 1);  // -1 for the receiver
+  vm.stack_top -= arg_count + 1;
+  push(result);
+  return true;
+}
+
 // Calls a callable value (function, method, class, etc.)
 // Returns true if the call succeeded, false otherwise.
 static bool call_value(Value callee, int arg_count) {
@@ -252,13 +270,26 @@ static bool call_value(Value callee, int arg_count) {
 
 // Invokes a method on a class by looking up the method in the class' method
 // table and calling it. (Combines "get-property" and "call" opcodes)
+// Scans upwards through the class hierarchy to find the method.
 static bool invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
-  Value method;
-  if (!hashtable_get(&klass->methods, OBJ_VAL(name), &method)) {
-    runtime_error("Undefined property '%s' in '%s'", name->chars, klass->name->chars);
-    return false;
+  while (klass != NULL) {
+    Value method;
+    if (hashtable_get(&klass->methods, OBJ_VAL(name), &method)) {
+      switch (AS_OBJ(method)->type) {
+        case OBJ_CLOSURE:
+          return call(AS_CLOSURE(method), arg_count);
+        case OBJ_NATIVE:
+          return invoke_native(AS_NATIVE(method), arg_count);
+        default: {
+          runtime_error("Cannot invoke method of type '%s' on class", type_name(method));
+          return false;
+        }
+      }
+    }
+    klass = klass->base;
   }
-  return call(AS_CLOSURE(method), arg_count);
+  runtime_error("Undefined property '%s' in '%s'", name->chars, klass->name->chars);
+  return false;
 }
 
 // Invokes a method on the top of the stack.
@@ -266,8 +297,9 @@ static bool invoke(ObjString* name, int arg_count) {
   Value receiver = peek(arg_count);
 
   if (!IS_INSTANCE(receiver)) {
-    runtime_error("%s cannot be invoked.", type_name(receiver));
-    return false;
+    // TODO (unfinished): We should check the base-class of the type of the receiver. They are
+    // currently not implemented.
+    return invoke_from_class(vm.object_class, name, arg_count);
   }
 
   ObjInstance* instance = AS_INSTANCE(receiver);
@@ -282,89 +314,39 @@ static bool invoke(ObjString* name, int arg_count) {
   return invoke_from_class(instance->klass, name, arg_count);
 }
 
-// Binds a native method
-static ObjClosure* bind_native(NativeFn method, int arity) {
-  // Build an object
-  Value native_fn = OBJ_VAL(new_native(method));
-
-  // Build a wrapper function that calls the object
-  ObjFunction* method_wrapper = new_function();
-  method_wrapper->arity = arity;
-
-  // Add the native function to the constant pool of our wrapper function
-  uint16_t constant_index = add_constant(&method_wrapper->chunk, native_fn);
-  write_chunk(&method_wrapper->chunk, OP_CONSTANT, 1);
-  write_chunk(&method_wrapper->chunk, constant_index, 1);
-
-  // Load the receiver and the arguments onto the stack
-  write_chunk(&method_wrapper->chunk, OP_GET_LOCAL, 1);  // Receiver
-  write_chunk(&method_wrapper->chunk, 0, 1);             // Index 0 is the receiver, e.g. "this"
-  for (int i = 0; i < arity; i++) {
-    write_chunk(&method_wrapper->chunk, OP_GET_LOCAL, 1);
-    write_chunk(&method_wrapper->chunk, i + 1, 1);  // arg i
-  }
-
-  // Call the native function with the receiver and the arguments
-  write_chunk(&method_wrapper->chunk, OP_CALL, 1);
-  write_chunk(&method_wrapper->chunk, arity + 1, 1);
-
-  // Return from the wrapper with whatever the native function returned
-  write_chunk(&method_wrapper->chunk, OP_RETURN, 1);
-  return new_closure(method_wrapper);
-}
-
 // This is an example builtin function. It takes a single argument and returns its hash value
 static Value __builint_hash_value(int argc, Value argv[]) {
-  if (argc != 1) {
-    runtime_error("Expected 1 argument but got %d.", argc);
+  if (argc != 0) {
+    runtime_error("Expected 0 argument but got %d.", argc);
     return exit_with_runtime_error();
   }
 
   return NUMBER_VAL(hash_value(argv[0]));
 }
 
-// This is an example builtin function. It takes a single argument and returns a string
+// Takes a value and returns its type (string)
+static Value __builtin_get_type(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 argument but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  const char* type_name_ = type_name(argv[0]);
+  int length = (int)strlen(type_name_);
+  ObjString* str_obj = copy_string(type_name_, strlen(type_name_));
+  return OBJ_VAL(str_obj);
+}
+
+// Takes a value and returns a string representation of its value
 static Value __builtin_to_str(int argc, Value argv[]) {
-  if (argc != 1) {
-    runtime_error("Expected 1 argument but got %d.", argc);
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
     return exit_with_runtime_error();
   }
 
   char* str_val = value_to_str(argv[0]);
   ObjString* str_obj = take_string(str_val, strlen(str_val));
   return OBJ_VAL(str_obj);
-}
-
-// This is an example builtin function. We can already index strings, this is just for testing and
-// for acting as a template for other builtins.
-static Value __builtin_string_get(int argc, Value argv[]) {
-  if (argc != 2) {
-    runtime_error("Expected 2 arguments for String.get but got %d.", argc);
-    return exit_with_runtime_error();
-  }
-  if (!IS_STRING(argv[0])) {
-    runtime_error("Expected first argument to be a string but got %s.", type_name(argv[0]));
-    return exit_with_runtime_error();
-  }
-  if (!IS_NUMBER(argv[1])) {
-    runtime_error("Expected second argument to be a number but got %s.", type_name(argv[1]));
-    return exit_with_runtime_error();
-  }
-
-  double index_raw = AS_NUMBER(argv[1]);
-  int index;
-  if (!is_int(index_raw, &index)) {
-    runtime_error("Expected second argument to be an integer number but got %f.", index_raw);
-    return exit_with_runtime_error();
-  }
-
-  if (index < 0 || index >= AS_STRING(argv[0])->length) {
-    runtime_error("Index out of bounds.");
-    return exit_with_runtime_error();
-  }
-
-  ObjString* char_str = copy_string(AS_CSTRING(argv[0]) + index, 1);
-  return OBJ_VAL(char_str);
 }
 
 // Binds a method to an instance by creating a new bound method object and
@@ -666,19 +648,6 @@ static Value run() {
                   push(NUMBER_VAL(length));
                   goto done_getting_property;
                 }
-                // This one can be removed, since we have an explicit op for this anyway, it's just
-                // a template on how to call a native function on a given value
-                else if (strcmp("get", name->chars) ==
-                         0) {  // TODO (robust): We should check such "syntheticFields" in
-                               // OP_SET_PROPERTY for robustness. At this point, you can only set
-                               // fields on instances anyway - but when we add internal base-classes
-                               // for primitive types this can get ugly really fast
-                  ObjBoundMethod* bound_native =
-                      new_bound_method(peek(0), bind_native(__builtin_string_get, 1));
-                  pop();  // Pop the string
-                  push(OBJ_VAL(bound_native));
-                  goto done_getting_property;
-                }
                 break;
               }
               case OBJ_CLASS: {
@@ -726,27 +695,13 @@ static Value run() {
             break;
           }
         }
-        // Built-in properties for all values
-        if (strcmp("type", name->chars) ==
-            0) {  // TODO (robust): We should check such "syntheticFields" in OP_SET_PROPERTY for
-                  // robustness. At this point, you can only set fields on instances anyway - but
-                  // when we add internal base-classes for primitive types this can get ugly really
-                  // fast
-          Value value = pop();  // Value to get the type of
-          const char* type_name_ = type_name(value);
-          int length = (int)strlen(type_name_);
-          push(OBJ_VAL(copy_string(type_name_, length)));
-          break;
-        }
 
-        if (strcmp("str", name->chars) ==
-            0) {  // TODO (robust): We should check such "syntheticFields" in OP_SET_PROPERTY for
-                  // robustness. At this point, you can only set fields on instances anyway - but
-                  // when we add internal base-classes for primitive types this can get ugly really
-                  // fast
-          Value value = pop();  // Value to get the type of
-          push(__builtin_to_str(1, &value));
-          break;
+        // If we get here, check if it is a method on the origin object class
+        Value value;
+        if (hashtable_get(&vm.object_class->methods, OBJ_VAL(name), &value)) {
+          pop();  // Pop the object
+          push(value);
+          goto done_getting_property;
         }
 
         runtime_error("Property '%s' does not exist on type %s.", name->chars, type_name(peek(0)));

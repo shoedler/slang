@@ -197,7 +197,7 @@
 // -----------------------------------------
 // Modules
 // -----------------------------------------
-// import std // Not needed currently, bc 'export' = OP_DEFINE_GLOBAL
+import std
 
 // let a = Range.__ctor(0, 10) // Does not work, because __ctor is not bound to Range if you call it like this
 let a = Range(0, 10)
@@ -210,7 +210,8 @@ while res = iter() {
 
 print Range.__name
 let foo = "Foo"
-print foo.str + " is of type " + foo.type
+// print foo.str()
+// print foo.str() + " is of type " + foo.type()
 print Range.__ctor
 
 let x = [1,2,3]
@@ -240,7 +241,11 @@ s.printList()
 
 // print system.clock()
 print "Hello"
-print 123.type
+// print 123.type()
+print s.str()
+print 312.str()
+print 312.hash()
+print 321.type()
 print "Hello".len
 // print "Hello".get(0)
 

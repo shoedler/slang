@@ -180,10 +180,7 @@ char* value_to_str(Value value) {
         case OBJ_FUNCTION: {
         handle_as_function:
           ObjFunction* function = AS_FUNCTION(value);
-          if (function->name == NULL) {
-            return _strdup(STR_OBJ_FN_TOPLEVEL);
-          }
-          if (function->name->chars == NULL) {
+          if (function->name == NULL || function->name->chars == NULL) {
             return _strdup(UNNAMED_FN);
           }
 

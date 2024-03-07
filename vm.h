@@ -44,7 +44,7 @@ typedef struct {
   Chunk* chunk;
   uint16_t* ip;  // Instruction pointer, points to the NEXT instruction to execute
   Value stack[STACK_MAX];
-  Value* stack_top;   // Points to where the next value to be pushed will go
+  Value* stack_top;   // Stack pointer
   HashTable globals;  // Global variables
   HashTable strings;  // Interned strings
   ObjUpvalue* open_upvalues;
