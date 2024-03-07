@@ -156,10 +156,11 @@ typedef struct {
   int upvalue_count;
 } ObjClosure;
 
-typedef struct {
+typedef struct ObjClass {
   Obj obj;
   ObjString* name;
   HashTable methods;
+  struct ObjClass* base;
 } ObjClass;
 
 typedef struct {
@@ -184,7 +185,7 @@ ObjInstance* new_instance(ObjClass* klass);
 
 // Creates, initializes and allocates a new class object. Might trigger garbage
 // collection.
-ObjClass* new_class(ObjString* name);
+ObjClass* new_class(ObjString* name, ObjClass* base);
 
 // Creates, initializes and allocates a new closure object. Might trigger
 // garbage collection.

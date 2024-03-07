@@ -101,6 +101,7 @@ static void blacken_object(Obj* object) {
     case OBJ_CLASS: {
       ObjClass* klass = (ObjClass*)object;
       mark_obj((Obj*)klass->name);
+      mark_obj((Obj*)klass->base);
       mark_hashtable(&klass->methods);
       break;
     }
@@ -237,6 +238,9 @@ static void mark_roots() {
 
   // And the object class.
   mark_obj((Obj*)vm.object_class);
+
+  // And the module class.
+  mark_obj((Obj*)vm.module_class);
 
   // And the builtin object.
   mark_obj((Obj*)vm.builtin);

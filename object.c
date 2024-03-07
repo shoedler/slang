@@ -57,9 +57,10 @@ ObjBoundMethod* new_bound_method(Value receiver, ObjClosure* method) {
   return bound;
 }
 
-ObjClass* new_class(ObjString* name) {
+ObjClass* new_class(ObjString* name, ObjClass* base) {
   ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
   klass->name = name;
+  klass->base = base;
   init_hashtable(&klass->methods);
   return klass;
 }

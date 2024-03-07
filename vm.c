@@ -136,8 +136,11 @@ void init_vm() {
       OBJ_VAL(copy_string(NAME_RESERVED_WORD, NAME_RESERVED_WORD_LENGTH));
 
   // Create the object class
-  vm.object_class = new_class(copy_string("Object", 6));
+  vm.object_class = new_class(copy_string("Object", 6), NULL);
   define_global("Object", (Obj*)vm.object_class);
+
+  vm.module_class = new_class(copy_string("Module", 6), vm.object_class);
+  define_global("Module", (Obj*)vm.module_class);
 
   // Create the builtin obj instance
   vm.builtin = new_instance(vm.object_class);
@@ -746,7 +749,7 @@ static Value run() {
           break;
         }
 
-        runtime_error("Property %s does not exist on type %s.", name->chars, type_name(peek(0)));
+        runtime_error("Property '%s' does not exist on type %s.", name->chars, type_name(peek(0)));
         return exit_with_runtime_error();
 
       done_getting_property:
@@ -800,7 +803,8 @@ static Value run() {
         ObjClass* baseclass = AS_CLASS(pop());
 
         if (!bind_method(baseclass, name)) {
-          runtime_error("Undefined property '%s' in '%s'.", name->chars, baseclass->name->chars);
+          runtime_error("Property '%s' does not exist in '%s'.", name->chars,
+                        baseclass->name->chars);
           exit_with_runtime_error();
           return NIL_VAL;
         }
@@ -958,7 +962,8 @@ static Value run() {
         break;
       }
       case OP_CLASS:
-        push(OBJ_VAL(new_class(READ_STRING())));
+        // Initially, a class always inherits from Object
+        push(OBJ_VAL(new_class(READ_STRING(), vm.object_class)));
         break;
       case OP_INHERIT: {
         Value baseclass = peek(1);
@@ -968,6 +973,7 @@ static Value run() {
           return exit_with_runtime_error();
         }
         hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);
+        subclass->base = AS_CLASS(baseclass);
         pop();  // Subclass.
         break;
       }
