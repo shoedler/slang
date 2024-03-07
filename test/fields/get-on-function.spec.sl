@@ -1,4 +1,4 @@
 fn foo() {}
 
-foo.bar // [ExpectRuntimeError] Only instances can have properties.
+foo.bar // [ExpectRuntimeError] Property 'bar' does not exist on type Closure.
         // [ExpectRuntimeError] at line 3 at the toplevel

@@ -1,2 +1,2 @@
-true.foo = "value" // [ExpectRuntimeError] Only instances can have fields.
+true.foo = "value" // [ExpectRuntimeError] Bool cannot have fields.
                    // [ExpectRuntimeError] at line 1 at the toplevel

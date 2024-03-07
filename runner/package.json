@@ -6,7 +6,8 @@
   "scripts": {
     "bench": "node src/index.js bench",
     "test": "node src/index.js test",
-    "watch": "node src/index.js watch"
+    "watch-sample": "node src/index.js watch-sample",
+    "watch-tests": "node src/index.js watch-tests"
   },
   "keywords": [],
   "author": "shoedler",

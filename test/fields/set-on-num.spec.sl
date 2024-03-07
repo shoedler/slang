@@ -1,2 +1,2 @@
-123.foo = "value" // [ExpectRuntimeError] Only instances can have fields.
+123.foo = "value" // [ExpectRuntimeError] Num cannot have fields.
                   // [ExpectRuntimeError] at line 1 at the toplevel

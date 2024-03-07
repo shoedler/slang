@@ -1,2 +1,2 @@
-123() // [ExpectRuntimeError] Can only call functions and classes.
+123() // [ExpectRuntimeError] Attempted to call non-callable value of type Num.
       // [ExpectRuntimeError] at line 1 at the toplevel

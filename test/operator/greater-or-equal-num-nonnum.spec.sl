@@ -1,2 +1,2 @@
-1 >= "1" // [ExpectRuntimeError] Operands must be numbers.
+1 >= "1" // [ExpectRuntimeError] Operands must be numbers. Left was Num, right was Str.
          // [ExpectRuntimeError] at line 1 at the toplevel

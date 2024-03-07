@@ -9,6 +9,7 @@ import {
   info,
   pass,
   runSlangFile,
+  updateCommentMetadata,
 } from './utils.js';
 
 const EXPECT = 'Expect';
@@ -34,8 +35,9 @@ const findTests = async () => {
  * Runs all test
  * @param {string} config - Build configuration to use
  * @param {AbortSignal} signal - Abort signal to use
+ * @param {boolean} updateFiles - Whether to update test files with new expectations
  */
-export const runTests = async (config, signal) => {
+export const runTests = async (config, signal, updateFiles = false) => {
   const tests = await findTests();
   const getTestName = filePath => path.parse(filePath).name;
   const failedTests = [];
@@ -53,6 +55,8 @@ export const runTests = async (config, signal) => {
 
     const minLen = Math.min(commentMetadata.length, output.length);
     const diffs = [];
+    const metadataWithActual = []; // This is used to update the test file e.g. after changing error messages.
+    // Just makes it easier to update the file
 
     // Check that expectations are met. Only check minLen - excess output or expectations are
     // handled in the evaluation
@@ -67,6 +71,7 @@ export const runTests = async (config, signal) => {
       totalAssertions++;
       if (actual !== expected) {
         diffs.push({ actual, expected, line });
+        metadataWithActual.push({ type, value: actual, line });
       }
     }
 
@@ -117,6 +122,14 @@ export const runTests = async (config, signal) => {
             chalk.italic(`(output index ${i}):`),
           )} ${actual}`,
         );
+      }
+    }
+
+    if (updateFiles) {
+      // If the test only had failed assertions, we update the test file.
+      // This is only temporary and will be removed once the files are updated.
+      if (diffs.length > 0 && diffs.length + 1 === errorMessages.length) {
+        updateCommentMetadata(test, metadataWithActual);
       }
     }
 

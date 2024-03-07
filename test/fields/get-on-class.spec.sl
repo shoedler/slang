@@ -1,3 +1,3 @@
 cls Foo {}
-Foo.bar // [ExpectRuntimeError] Only instances can have properties.
+Foo.bar // [ExpectRuntimeError] Property 'bar' does not exist on type Class.
         // [ExpectRuntimeError] at line 2 at the toplevel

@@ -1,2 +1,2 @@
-print "foo"[0] = "a" // [ExpectRuntimeError] Only sequences can be set-indexed.
+print "foo"[0] = "a" // [ExpectRuntimeError] Str cannot be set-indexed.
                      // [ExpectRuntimeError] at line 1 at the toplevel

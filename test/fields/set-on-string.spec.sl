@@ -1,2 +1,2 @@
-"str".foo = "value" // [ExpectRuntimeError] Only instances can have fields.
+"str".foo = "value" // [ExpectRuntimeError] Str cannot have fields.
                     // [ExpectRuntimeError] at line 1 at the toplevel

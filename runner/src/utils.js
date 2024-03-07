@@ -211,6 +211,29 @@ export const extractCommentMetadata = async file => {
 };
 
 /**
+ * Update comment-based metadata in a slang file. Only handles [Expect]
+ * @param {string} file - Absolute path to a slang file
+ * @param {{type: string, line: number, value: string}[]} metadata - Array containing the new metadata
+ */
+export const updateCommentMetadata = async (file, metadata) => {
+  const fileContents = await fs.readFile(file, 'utf8');
+  const lines = fileContents.split('\n');
+  metadata.forEach(({ type, line, value }) => {
+    const match = lines[line - 1].match(/(.*)\/\/\s*\[(.+?)\](.*)/);
+    if (match) {
+      const [_, prefix, __, ___] = match;
+      lines[line - 1] = `${prefix}// [${type}] ${value}`;
+    } else
+      throw new Error(
+        `Failed to update metadata in ${file}. Line ${line} does not contain metadata: ${
+          lines[line - 1]
+        }`,
+      );
+  });
+  await fs.writeFile(file, lines.join('\n'), 'utf8');
+};
+
+/**
  * Prints a separator
  */
 export const separator = () => console.log(chalk.gray('─'.repeat(80)));

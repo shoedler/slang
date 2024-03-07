@@ -1,2 +1,2 @@
-true() // [ExpectRuntimeError] Can only call functions and classes.
+true() // [ExpectRuntimeError] Attempted to call non-callable value of type Bool.
        // [ExpectRuntimeError] at line 1 at the toplevel

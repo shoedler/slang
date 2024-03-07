@@ -1,2 +1,2 @@
-nil.foo // [ExpectRuntimeError] Only instances can have properties.
+nil.foo // [ExpectRuntimeError] Property 'foo' does not exist on type Nil.
         // [ExpectRuntimeError] at line 1 at the toplevel

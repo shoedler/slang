@@ -24,7 +24,7 @@ switch (cmd) {
   case 'test': {
     const config = BUILD_CONFIG_RELEASE;
     await buildSlangConfig(config);
-    await runTests(config);
+    await runTests(config, undefined, process.argv[3] === 'update-files');
     break;
   }
   case 'watch-sample': {
@@ -75,6 +75,15 @@ switch (cmd) {
     break;
   }
   default: {
-    abort('Unknown command', `Command: ${cmd}`);
+    const hint = [
+      'Available commands:',
+      '  - bench           Run benchmarks',
+      '  - test            Run tests (.spec.sl files)',
+      '    - update-files  Update test files with new expectations',
+      '  - watch-sample    Watch sample file',
+      '  - watch-tests     Watch test files',
+    ];
+
+    abort('Unknown command', hint.join('\n'));
   }
 }

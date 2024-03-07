@@ -1,2 +1,2 @@
-1 + nil // [ExpectRuntimeError] Operands must be two numbers or two strings.
+1 + nil // [ExpectRuntimeError] Operands must be two numbers or two strings. Left was Num, right was Nil.
         // [ExpectRuntimeError] at line 1 at the toplevel

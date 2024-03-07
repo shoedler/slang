@@ -7,4 +7,4 @@ cls Foo {
 }
 
 let foo = Foo() // [Expect] ctor
-print foo // [Expect] [Instance of Foo]
+print foo // [Expect] <Instance Foo>

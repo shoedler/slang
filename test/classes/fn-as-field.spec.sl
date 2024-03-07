@@ -11,4 +11,4 @@ cls Foo {
 
 let foo = Foo()
 foo.field() // [Expect] not a method
-print foo.field // [Expect] [Fn bar, arity 0]
+print foo.field // [Expect] <Fn bar>

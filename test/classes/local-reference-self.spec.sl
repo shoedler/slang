@@ -5,5 +5,5 @@
     }
   }
 
-  print Foo().returnSelf() // [Expect] Foo
+  print Foo().returnSelf() // [Expect] <Class Foo>
 }
