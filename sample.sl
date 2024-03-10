@@ -188,7 +188,7 @@
 // s.list[1] = -2
 // s.printList()
 
-// // print system.clock()
+// // print sys.clock()
 // print "Hello"
 // print 123.type
 // print "Hello".len
@@ -210,8 +210,8 @@ while res = iter() {
 
 print Range.__name
 let foo = "Foo"
-// print foo.str()
-// print foo.str() + " is of type " + foo.type()
+print foo.str()
+print foo.str() + " is of type " + foo.type_name()
 print Range.__ctor
 
 let x = [1,2,3]
@@ -239,17 +239,16 @@ s.printList()
 s.list[1] = -2
 s.printList()
 
-// print system.clock()
+// print sys.clock()
 print "Hello"
-// print 123.type()
+// print 123.type_name()
 print s.str()
 print s.list.str()
 print 312.str()
 print 312.hash()
-print 321.type()
-print "Hello".len
-// print "Hello".get(0)
+print 321.type_name()
+print "Hello".len()
 
-
+sys.log("Hello", [1,2,3], sys.clock(), nil.type_name(), s.list.len(), s.list.type_name())
 
 

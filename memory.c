@@ -229,11 +229,14 @@ static void mark_roots() {
   // And the modules hashtable.
   mark_hashtable(&vm.modules);
 
-  // And the object class.
+  // And the base classes
   mark_obj((Obj*)vm.object_class);
-
-  // And the module class.
   mark_obj((Obj*)vm.module_class);
+  mark_obj((Obj*)vm.string_class);
+  mark_obj((Obj*)vm.number_class);
+  mark_obj((Obj*)vm.bool_class);
+  mark_obj((Obj*)vm.nil_class);
+  mark_obj((Obj*)vm.seq_class);
 
   // And the builtin object.
   mark_obj((Obj*)vm.builtin);

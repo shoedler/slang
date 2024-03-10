@@ -16,6 +16,12 @@ typedef enum {
   VAL_EMPTY_INTERNAL,
 } ValueType;
 
+#define TYPENAME_NUMBER "Num"
+#define TYPENAME_STRING "Str"
+#define TYPENAME_BOOL "Bool"
+#define TYPENAME_NIL "Nil"
+#define TYPENAME_SEQ "Seq"
+
 // The single value construct used to represent all values in the language.
 typedef struct {
   ValueType type;

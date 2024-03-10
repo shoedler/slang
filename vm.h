@@ -53,8 +53,14 @@ typedef struct {
   HashTable modules;  // Modules
   int exit_on_frame;
 
-  ObjClass* object_class;                   // The class of all objects
-  ObjClass* module_class;                   // The module class
+  ObjClass* object_class;  // The class of all objects
+  ObjClass* module_class;  // The module class
+  ObjClass* string_class;  // The string class
+  ObjClass* number_class;  // The number class
+  ObjClass* bool_class;    // The bool class
+  ObjClass* nil_class;     // The nil class
+  ObjClass* seq_class;     // The sequence class
+
   ObjInstance* builtin;                     // The builtin (builtin things) object instance
   Value reserved_method_names[METHOD_MAX];  // Reserved method names. They deliberately are not
                                             // using a values array because they are not dynaminc

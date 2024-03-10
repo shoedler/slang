@@ -6,7 +6,7 @@ cls Range {
 
   fn __iter() {
     let me = this
-    fn make_iter(index)  {
+    fn make_iter(index) {
       let self = me
       let i = index
       fn next()  {
@@ -25,4 +25,4 @@ cls Range {
 
 export Range
 
-ret Object();
+ret Module();

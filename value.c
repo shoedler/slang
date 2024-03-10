@@ -100,6 +100,9 @@ char* value_to_str(Value value) {
 //
 // TODO (cleanup): We use typenames in the following macros. We should define them in a single place
 // and use them in type_name and value_to_str.
+//
+// TODO (cleanup): Remove the cases for which we have a base class. Define these cases as a separate
+// function.
 #define STR_TRUE "true"
 #define STR_FALSE "false"
 #define STR_NIL "nil"
@@ -266,11 +269,11 @@ char* value_to_str(Value value) {
 
 const char* type_name(Value value) {
   if (value.type == VAL_BOOL) {
-    return "Bool";
+    return TYPENAME_BOOL;
   } else if (value.type == VAL_NIL) {
-    return "Nil";
+    return TYPENAME_NIL;
   } else if (value.type == VAL_NUMBER) {
-    return "Num";
+    return TYPENAME_NUMBER;
   } else if (value.type == VAL_OBJ) {
     switch (OBJ_TYPE(value)) {
       case OBJ_BOUND_METHOD: return "BoundMethod";
@@ -279,8 +282,8 @@ const char* type_name(Value value) {
       case OBJ_FUNCTION: return "Fn";
       case OBJ_INSTANCE: return "Instance";
       case OBJ_NATIVE: return "NativeFn";
-      case OBJ_STRING: return "Str";
-      case OBJ_SEQ: return "Seq";
+      case OBJ_STRING: return TYPENAME_STRING;
+      case OBJ_SEQ: return TYPENAME_SEQ;
       case OBJ_UPVALUE: return "Upvalue";
     }
   }

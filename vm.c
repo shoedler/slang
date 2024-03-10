@@ -19,6 +19,20 @@ static Value native_clock(int arg_count, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 
+static Value native_print(int arg_count, Value* args) {
+  for (int i = 0; i < arg_count; i++) {
+    char* str = value_to_str(args[i]);
+    printf("%s", str);
+    free(str);
+
+    if (i < arg_count - 1) {
+      printf(" ");
+    }
+  }
+  printf("\n");
+  return NIL_VAL;
+}
+
 static void reset_stack() {
   vm.pause_gc      = 0;
   vm.stack_top     = vm.stack;
@@ -115,7 +129,9 @@ static void make_seq(int count) {
 
 static Value __builtin_to_str(int argc, Value argv[]);
 static Value __builint_hash_value(int argc, Value argv[]);
-static Value __builtin_get_type(int argc, Value argv[]);
+static Value __builtin_get_typename(int argc, Value argv[]);
+static Value __builtin_str_len(int argc, Value argv[]);
+static Value __builtin_seq_len(int argc, Value argv[]);
 
 void init_vm() {
   reset_stack();
@@ -142,15 +158,47 @@ void init_vm() {
   define_global("Object", (Obj*)vm.object_class);
   define_native(&vm.object_class->methods, "str", __builtin_to_str);
   define_native(&vm.object_class->methods, "hash", __builint_hash_value);
-  define_native(&vm.object_class->methods, "type", __builtin_get_type);
+  define_native(&vm.object_class->methods, "type_name", __builtin_get_typename);
 
+  // Create the module class
   vm.module_class = new_class(copy_string("Module", 6), vm.object_class);
   define_global("Module", (Obj*)vm.module_class);
 
+  // Create the string class
+  vm.string_class = new_class(copy_string(TYPENAME_STRING, sizeof(TYPENAME_STRING) - 1), vm.object_class);
+  define_global(TYPENAME_STRING, (Obj*)vm.string_class);
+  define_native(&vm.string_class->methods, "len", __builtin_str_len);
+
+  // Create the number class
+  vm.number_class = new_class(copy_string(TYPENAME_NUMBER, sizeof(TYPENAME_NUMBER) - 1), vm.object_class);
+  define_global(TYPENAME_NUMBER, (Obj*)vm.number_class);
+
+  // Create the boolean class
+  vm.bool_class = new_class(copy_string(TYPENAME_BOOL, sizeof(TYPENAME_BOOL) - 1), vm.object_class);
+  define_global(TYPENAME_BOOL, (Obj*)vm.bool_class);
+
+  // Create the nil class
+  vm.nil_class = new_class(copy_string(TYPENAME_NIL, sizeof(TYPENAME_NIL) - 1), vm.object_class);
+  define_global(TYPENAME_NIL, (Obj*)vm.nil_class);
+
+  // Create the sequence class
+  vm.seq_class = new_class(copy_string(TYPENAME_SEQ, sizeof(TYPENAME_SEQ) - 1), vm.object_class);
+  define_global(TYPENAME_SEQ, (Obj*)vm.seq_class);
+  define_native(&vm.seq_class->methods, "len", __builtin_seq_len);
+
   // Create the builtin obj instance
   vm.builtin = new_instance(vm.object_class);
-  define_global("__builtin", (Obj*)vm.builtin);
+  define_global("sys", (Obj*)vm.builtin);
   define_native(&vm.builtin->fields, "clock", native_clock);
+  define_native(&vm.builtin->fields, "log", native_print);
+
+  // Load the global standard library module
+  Value std_module = run_file("C:\\Projects\\slang\\modules\\std.sl", true /* create a new local scope */);
+  if (!IS_OBJ(std_module)) {
+    INTERNAL_ERROR("Failed to load std module during Vm initialization.");
+  } else {
+    hashtable_set(&vm.modules, OBJ_VAL(copy_string("std", 3)), std_module);
+  }
 
   vm.pause_gc = 0;
   reset_stack();
@@ -178,7 +226,7 @@ static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
 }
 
-// Executes a call to a function or method by creating a new call frame and
+// Executes a call to a managed-code function or method by creating a new call frame and
 // pushing it onto the frame stack.
 // Returns true if the call succeeded, false otherwise.
 static bool call(ObjClosure* closure, int arg_count) {
@@ -252,9 +300,11 @@ static bool call_value(Value callee, int arg_count) {
 // table and calling it. (Combines "get-property" and "call" opcodes)
 // Scans upwards through the class hierarchy to find the method.
 static bool invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
-  while (klass != NULL) {
+  ObjClass* source_klass = klass;
+
+  while (source_klass != NULL) {
     Value method;
-    if (hashtable_get(&klass->methods, OBJ_VAL(name), &method)) {
+    if (hashtable_get(&source_klass->methods, OBJ_VAL(name), &method)) {
       switch (AS_OBJ(method)->type) {
         case OBJ_CLOSURE: return call(AS_CLOSURE(method), arg_count);
         case OBJ_NATIVE: return invoke_native(AS_NATIVE(method), arg_count);
@@ -264,9 +314,10 @@ static bool invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
         }
       }
     }
-    klass = klass->base;
+    source_klass = source_klass->base;
   }
-  runtime_error("Undefined property '%s' in '%s'", name->chars, klass->name->chars);
+  runtime_error("Undefined property '%s' in '%s' or any of its parent classes", name->chars,
+                klass->name->chars);
   return false;
 }
 
@@ -274,15 +325,32 @@ static bool invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
 static bool invoke(ObjString* name, int arg_count) {
   Value receiver = peek(arg_count);
 
+  // Handle primitive and internal types which have a corresponding class
   if (!IS_INSTANCE(receiver)) {
-    // TODO (unfinished): We should check the base-class of the type of the receiver. They are
-    // currently not implemented.
+    switch (receiver.type) {
+      case VAL_NIL: return invoke_from_class(vm.nil_class, name, arg_count); break;
+      case VAL_BOOL: return invoke_from_class(vm.bool_class, name, arg_count); break;
+      case VAL_NUMBER: return invoke_from_class(vm.number_class, name, arg_count); break;
+      case VAL_OBJ: {
+        switch (OBJ_TYPE(receiver)) {
+          case OBJ_STRING: return invoke_from_class(vm.string_class, name, arg_count); break;
+          case OBJ_SEQ: return invoke_from_class(vm.seq_class, name, arg_count); break;
+          default: {
+            runtime_error("Cannot invoke method '%s' on internal class instance of type %s.", name->chars,
+                          type_name(receiver));
+            return false;
+          }
+        }
+        break;
+      }
+    }
     return invoke_from_class(vm.object_class, name, arg_count);
   }
 
+  // Handle managed-code class instances
   ObjInstance* instance = AS_INSTANCE(receiver);
-
   Value value;
+
   // It could be a field which is a function, we need to check that first
   if (hashtable_get(&instance->fields, OBJ_VAL(name), &value)) {
     vm.stack_top[-arg_count - 1] = value;
@@ -292,7 +360,7 @@ static bool invoke(ObjString* name, int arg_count) {
   return invoke_from_class(instance->klass, name, arg_count);
 }
 
-// This is an example builtin function. It takes a single argument and returns its hash value
+// Built-in function to retrieve the hash value of a value
 static Value __builint_hash_value(int argc, Value argv[]) {
   if (argc != 0) {
     runtime_error("Expected 0 argument but got %d.", argc);
@@ -302,20 +370,20 @@ static Value __builint_hash_value(int argc, Value argv[]) {
   return NUMBER_VAL(hash_value(argv[0]));
 }
 
-// Takes a value and returns its type (string)
-static Value __builtin_get_type(int argc, Value argv[]) {
+// Built-in function to retrieve the type of a value in the form of a string
+static Value __builtin_get_typename(int argc, Value argv[]) {
   if (argc != 0) {
     runtime_error("Expected 0 argument but got %d.", argc);
     return exit_with_runtime_error();
   }
 
-  const char* type_name_ = type_name(argv[0]);
-  int length             = (int)strlen(type_name_);
-  ObjString* str_obj     = copy_string(type_name_, strlen(type_name_));
+  const char* TYPENAME_ = type_name(argv[0]);
+  int length            = (int)strlen(TYPENAME_);
+  ObjString* str_obj    = copy_string(TYPENAME_, strlen(TYPENAME_));
   return OBJ_VAL(str_obj);
 }
 
-// Takes a value and returns a string representation of its value
+// Built-in function to convert a value to a string
 static Value __builtin_to_str(int argc, Value argv[]) {
   if (argc != 0) {
     runtime_error("Expected 0 arguments but got %d.", argc);
@@ -325,6 +393,28 @@ static Value __builtin_to_str(int argc, Value argv[]) {
   char* str_val      = value_to_str(argv[0]);
   ObjString* str_obj = take_string(str_val, strlen(str_val));
   return OBJ_VAL(str_obj);
+}
+
+// Built-in function to retrieve the length of a string
+static Value __builtin_str_len(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  int length = AS_STRING(argv[0])->length;
+  return NUMBER_VAL(length);
+}
+
+// Built-in function to retrieve the length of a sequence
+static Value __builtin_seq_len(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  int length = AS_SEQ(argv[0])->items.count;
+  return NUMBER_VAL(length);
 }
 
 // Binds a method to an instance by creating a new bound method object and
@@ -606,19 +696,6 @@ static Value run() {
         switch (peek(0).type) {
           case VAL_OBJ: {
             switch (OBJ_TYPE(peek(0))) {
-              case OBJ_STRING: {
-                if (strcmp("len", name->chars) ==
-                    0) {  // TODO (robust): We should check such "syntheticFields" in
-                          // OP_SET_PROPERTY for robustness. At this point, you can only set fields
-                          // on instances anyway - but when we add internal base-classes for
-                          // primitive types this can get ugly really fast
-                  Value value = pop();  // Value to get the length of
-                  int length  = AS_STRING(value)->length;
-                  push(NUMBER_VAL(length));
-                  goto done_getting_property;
-                }
-                break;
-              }
               case OBJ_CLASS: {
                 ObjClass* klass = AS_CLASS(peek(0));
                 if (values_equal(OBJ_VAL(name), vm.reserved_method_names[METHOD_NAME])) {
@@ -631,19 +708,6 @@ static Value run() {
                   Value ctor;
                   hashtable_get(&klass->methods, OBJ_VAL(name), &ctor);
                   push(ctor);
-                  goto done_getting_property;
-                }
-                break;
-              }
-              case OBJ_SEQ: {
-                if (strcmp("len", name->chars) ==
-                    0) {  // TODO (robust): We should check such "syntheticFields" in
-                          // OP_SET_PROPERTY for robustness. At this point, you can only set fields
-                          // on instances anyway - but when we add internal base-classes for
-                          // primitive types this can get ugly really fast
-                  Value value = pop();  // Value to get the length of
-                  int length  = AS_SEQ(value)->items.count;
-                  push(NUMBER_VAL(length));
                   goto done_getting_property;
                 }
                 break;
@@ -697,29 +761,30 @@ static Value run() {
         ObjString* name = READ_STRING();
         Value module;
 
-        if (!hashtable_get(&vm.modules, OBJ_VAL(name), &module)) {
-          // Try to open the module instead
-          char tmp[256];
-          if (sprintf(tmp, "C:\\Projects\\slang\\modules\\%s.sl", name->chars) < 0) {
-            runtime_error("Could not import module '%s.sl'. Could not format string", name->chars);
-            exit_with_runtime_error();
-            return NIL_VAL;
-          }
-
-          vm.exit_on_frame = vm.frame_count;
-          module           = run_file(tmp, 1 /* new scope */);
-          vm.exit_on_frame = -1;
-
-          if (!IS_OBJ(module)) {
-            runtime_error("Could not import module '%s'. Expected object type", name->chars);
-            exit_with_runtime_error();
-            return NIL_VAL;
-          }
-          push(module);  // Show ourselves to the GC before we put it in the hashtable
-          hashtable_set(&vm.modules, OBJ_VAL(name), module);
+        // Check if we have already imported the module
+        if (hashtable_get(&vm.modules, OBJ_VAL(name), &module)) {
+          push(module);
           break;
         }
-        push(module);
+
+        // Try to open the module instead
+        char tmp[256];
+        if (sprintf(tmp, "C:\\Projects\\slang\\modules\\%s.sl", name->chars) < 0) {
+          runtime_error("Could not import module '%s.sl'. Could not format string", name->chars);
+          return exit_with_runtime_error();
+        }
+
+        int previous_exit_frame = vm.exit_on_frame;
+        vm.exit_on_frame        = vm.frame_count;
+        module                  = run_file(tmp, 1 /* new scope */);
+        vm.exit_on_frame        = previous_exit_frame;
+
+        if (!IS_OBJ(module)) {
+          runtime_error("Could not import module '%s'. Expected object type", name->chars);
+          return exit_with_runtime_error();
+        }
+        push(module);  // Show ourselves to the GC before we put it in the hashtable
+        hashtable_set(&vm.modules, OBJ_VAL(name), module);
         break;
       }
       case OP_GET_BASE_METHOD: {
@@ -728,8 +793,7 @@ static Value run() {
 
         if (!bind_method(baseclass, name)) {
           runtime_error("Property '%s' does not exist in '%s'.", name->chars, baseclass->name->chars);
-          exit_with_runtime_error();
-          return NIL_VAL;
+          return exit_with_runtime_error();
         }
         break;
       }
@@ -959,6 +1023,11 @@ Value run_file(const char* path, bool local_scope) {
 
   Value result = interpret(source, local_scope);
   free(source);
+
+#ifdef DEBUG_TRACE_EXECUTION
+  printf(ANSI_MAGENTA_STR("===== "));
+  printf(ANSI_CYAN_STR("Done running file: %s\n"), path);
+#endif
 
   return result;
 }
