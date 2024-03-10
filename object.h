@@ -81,7 +81,7 @@ typedef enum {
   OBJ_BOUND_METHOD,
 } ObjType;
 
-#if (defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_ALLOCATIONS))
+#if defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_ALLOCATIONS) || defined(DEBUG_LOG_GC_FREE)
 inline static const char* obj_type_to_string(ObjType type) {
   switch (type) {
     case OBJ_CLASS: return "OBJ_CLASS";

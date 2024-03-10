@@ -157,7 +157,8 @@ char* value_to_str(Value value) {
           size_t buf_size = sizeof(STR_OBJ_CLASS("")) + klass->name->length;
           char* chars     = malloc(buf_size);
           if (chars == NULL) {
-            INTERNAL_ERROR("Could not allocate memory for class string");
+            // "Could not allocate memory for class string"
+            return NULL;
           }
           snprintf(chars, buf_size, STR_OBJ_CLASS("%s"), klass->name->chars);
           return chars;
@@ -169,14 +170,18 @@ char* value_to_str(Value value) {
         case OBJ_FUNCTION: {
         handle_as_function:
           ObjFunction* function = AS_FUNCTION(value);
-          if (function->name == NULL || function->name->chars == NULL) {
+          if (function->name == NULL) {
+            return _strdup(STR_OBJ_FN_TOPLEVEL);
+          }
+          if (function->name->chars == NULL) {
             return _strdup(UNNAMED_FN);
           }
 
           size_t buf_size = sizeof(STR_OBJ_FUNCTION("")) + function->name->length;
           char* chars     = malloc(buf_size);
           if (chars == NULL) {
-            INTERNAL_ERROR("Could not allocate memory for function string");
+            // "Could not allocate memory for function string"
+            return NULL;
           }
           snprintf(chars, buf_size, STR_OBJ_FUNCTION("%s"), function->name->chars);
           return chars;
@@ -190,7 +195,8 @@ char* value_to_str(Value value) {
           size_t buf_size = sizeof(STR_OBJ_INSTANCE("")) + instance->klass->name->length;
           char* chars     = malloc(buf_size);
           if (chars == NULL) {
-            INTERNAL_ERROR("Could not allocate memory for instance string");
+            // "Could not allocate memory for instance string"
+            return NULL;
           }
           snprintf(chars, buf_size, STR_OBJ_INSTANCE("%s"), instance->klass->name->chars);
           return chars;
@@ -205,7 +211,8 @@ char* value_to_str(Value value) {
           ObjString* string = AS_STRING(value);
           char* chars       = malloc(string->length + 1);
           if (chars == NULL) {
-            INTERNAL_ERROR("Could not allocate memory for string string");
+            // "Could not allocate memory for string string"
+            return NULL;
           }
           strcpy(chars, string->chars);
           return chars;
@@ -215,12 +222,17 @@ char* value_to_str(Value value) {
           size_t buf_size = 64;  // Start with a reasonable size
           char* chars     = malloc(buf_size);
           if (chars == NULL) {
-            INTERNAL_ERROR("Could not allocate memory for seq string");
+            // "Could not allocate memory for seq string"
+            return NULL;
           }
 
           strcpy(chars, "[");
           for (int i = 0; i < seq->items.count; i++) {
             char* item = value_to_str(seq->items.values[i]);
+            if (item == NULL) {
+              // "Could not allocate memory for value-of-seq string"
+              return NULL;
+            }
 
             // Expand chars to fit the separator plus the next item
             size_t new_buf_size = strlen(chars) + strlen(item) + sizeof(SEQ_SEPARATOR) +
@@ -230,7 +242,8 @@ char* value_to_str(Value value) {
               buf_size = new_buf_size;
               chars    = realloc(chars, buf_size);
               if (chars == NULL) {
-                INTERNAL_ERROR("Could not reallocate memory for value-of-seq string");
+                // "Could not reallocate memory for value-of-seq string"
+                return NULL;
               }
             }
 

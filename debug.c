@@ -26,6 +26,10 @@
 
 void debug_print_value(Value value) {
   char* str = value_to_str(value);
+  if (str == NULL) {
+    INTERNAL_ERROR("Failed to convert value to string");
+    exit(70);
+  }
   PRINT_VALUE_STR(str);
   free(str);
 }

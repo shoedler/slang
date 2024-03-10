@@ -4,7 +4,7 @@
 #include "compiler.h"
 #include "vm.h"
 
-#ifdef DEBUG_LOG_GC
+#if defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_FREE)
 #include <stdio.h>
 #include "debug.h"
 #endif
@@ -142,9 +142,16 @@ static void blacken_object(Obj* object) {
 // Frees an object from our heap.
 // How we free an object depends on its type.
 static void free_object(Obj* object) {
-#ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "%p, type %s\n", (void*)object,
-         obj_type_to_string(object->type));
+#ifdef DEBUG_LOG_GC_FREE
+  // Try and get a string representation of the object type.
+  char* str = value_to_str(OBJ_VAL(object));
+  if (str == NULL) {
+    str = "N/A";
+  }
+
+  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "%p, type: %s, value_to_str: %s\n", (void*)object,
+         obj_type_to_string(object->type), str);
+  free(str);
 #endif
 
   switch (object->type) {

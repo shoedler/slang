@@ -15,6 +15,8 @@
 
 Vm vm;
 
+static Value exit_with_runtime_error();
+
 static Value native_clock(int arg_count, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
 }
@@ -22,6 +24,11 @@ static Value native_clock(int arg_count, Value* args) {
 static Value native_print(int arg_count, Value* args) {
   for (int i = 0; i < arg_count; i++) {
     char* str = value_to_str(args[i]);
+    if (str == NULL) {
+      INTERNAL_ERROR("Failed to convert value to string");
+      return exit_with_runtime_error();
+    }
+
     printf("%s", str);
     free(str);
 
@@ -192,13 +199,13 @@ void init_vm() {
   define_native(&vm.builtin->fields, "clock", native_clock);
   define_native(&vm.builtin->fields, "log", native_print);
 
-  // Load the global standard library module
-  Value std_module = run_file("C:\\Projects\\slang\\modules\\std.sl", true /* create a new local scope */);
-  if (!IS_OBJ(std_module)) {
-    INTERNAL_ERROR("Failed to load std module during Vm initialization.");
-  } else {
-    hashtable_set(&vm.modules, OBJ_VAL(copy_string("std", 3)), std_module);
-  }
+  // // Load the global standard library module
+  // Value std_module = run_file("C:\\Projects\\slang\\modules\\std.sl", true /* create a new local scope */);
+  // if (!IS_OBJ(std_module)) {
+  //   INTERNAL_ERROR("Failed to load std module during Vm initialization.");
+  // } else {
+  //   hashtable_set(&vm.modules, OBJ_VAL(copy_string("std", 3)), std_module);
+  // }
 
   vm.pause_gc = 0;
   reset_stack();
@@ -390,7 +397,12 @@ static Value __builtin_to_str(int argc, Value argv[]) {
     return exit_with_runtime_error();
   }
 
-  char* str_val      = value_to_str(argv[0]);
+  char* str_val = value_to_str(argv[0]);
+  if (str_val == NULL) {
+    INTERNAL_ERROR("Failed to convert value to string");
+    return exit_with_runtime_error();
+  }
+
   ObjString* str_obj = take_string(str_val, strlen(str_val));
   return OBJ_VAL(str_obj);
 }
@@ -548,6 +560,10 @@ static Value run() {
     for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
       printf(ANSI_CYAN_STR("["));
       char* str = value_to_str(*slot);
+      if (str == NULL) {
+        INTERNAL_ERROR("Failed to convert value to string");
+        return exit_with_runtime_error();
+      }
       printf("%s", str);
       free(str);
       printf(ANSI_CYAN_STR("]"));
@@ -842,6 +858,10 @@ static Value run() {
         break;
       case OP_PRINT: {
         char* str = value_to_str(peek(0));
+        if (str == NULL) {
+          INTERNAL_ERROR("Failed to convert value to string");
+          return exit_with_runtime_error();
+        }
         printf("%s\n", str);
         free(str);
         pop();
