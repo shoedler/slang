@@ -113,7 +113,6 @@ char* value_to_str(Value value) {
 #define STR_OBJ_FUNCTION(fmt) "<Fn "##fmt##">"
 #define STR_OBJ_INSTANCE(fmt) "<Instance "##fmt##">"
 #define STR_OBJ_SEQ(fmt) "<Seq ["##fmt##"]>"
-#define STR_OBJ_FN_TOPLEVEL "<ToplevelFn>"
 #define STR_OBJ_NATIVE "<NativeFn>"
 #define STR_OBJ_UPVALUE "<Upvalue>"
 #define STR_INT "%d"
@@ -170,10 +169,7 @@ char* value_to_str(Value value) {
         case OBJ_FUNCTION: {
         handle_as_function:
           ObjFunction* function = AS_FUNCTION(value);
-          if (function->name == NULL) {
-            return _strdup(STR_OBJ_FN_TOPLEVEL);
-          }
-          if (function->name->chars == NULL) {
+          if (function->name == NULL || function->name->chars == NULL) {
             return _strdup(UNNAMED_FN);
           }
 

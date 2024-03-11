@@ -9,6 +9,10 @@
 #include "debug.h"
 #endif
 
+#ifdef DEBUG_LOG_GC_FREE
+#include "string.h"
+#endif
+
 void* reallocate(void* pointer, size_t old_size, size_t new_size) {
   vm.bytes_allocated += new_size - old_size;
 
@@ -116,6 +120,7 @@ static void blacken_object(Obj* object) {
     case OBJ_FUNCTION: {
       ObjFunction* function = (ObjFunction*)object;
       mark_obj((Obj*)function->name);
+      mark_obj((Obj*)function->globals_context);
       mark_array(&function->chunk.constants);
       break;
     }
@@ -143,15 +148,8 @@ static void blacken_object(Obj* object) {
 // How we free an object depends on its type.
 static void free_object(Obj* object) {
 #ifdef DEBUG_LOG_GC_FREE
-  // Try and get a string representation of the object type.
-  char* str = value_to_str(OBJ_VAL(object));
-  if (str == NULL) {
-    str = "N/A";
-  }
-
-  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "%p, type: %s, value_to_str: %s\n", (void*)object,
-         obj_type_to_string(object->type), str);
-  free(str);
+  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "%p, type: %s\n", (void*)object,
+         obj_type_to_string(object->type));
 #endif
 
   switch (object->type) {
@@ -223,6 +221,10 @@ static void mark_roots() {
   // Call frames are also roots, because they contain function call state.
   for (int i = 0; i < vm.frame_count; i++) {
     mark_obj((Obj*)vm.frames[i].closure);
+    // Mark the globals hashtable of the frame, if there is one.
+    if (vm.frames[i].globals != NULL) {
+      mark_hashtable(vm.frames[i].globals);
+    }
   }
 
   // Open upvalues are also roots directly accessible by the vm.
@@ -230,8 +232,10 @@ static void mark_roots() {
     mark_obj((Obj*)upvalue);
   }
 
-  // Also mark the globals hashtable.
-  mark_hashtable(&vm.globals);
+  // Also mark the module, if there is one.
+  if (vm.module != NULL) {
+    mark_obj((Obj*)vm.module);
+  }
 
   // And the modules hashtable.
   mark_hashtable(&vm.modules);

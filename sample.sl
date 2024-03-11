@@ -198,6 +198,7 @@
 // Modules
 // -----------------------------------------
 import std
+let Range = std.Range
 
 // let a = Range.__ctor(0, 10) // Does not work, because __ctor is not bound to Range if you call it like this
 let a = Range(0, 10)
@@ -239,7 +240,8 @@ s.printList()
 s.list[1] = -2
 s.printList()
 
-// print sys.clock()
+// print clock()
+// print __builtin.clock() // Also works
 print "Hello"
 // print 123.type_name()
 print s.str()
@@ -249,6 +251,6 @@ print 312.hash()
 print 321.type_name()
 print "Hello".len()
 
-sys.log("Hello", [1,2,3], sys.clock(), nil.type_name(), s.list.len(), s.list.type_name())
+log("Hello", [1,2,3], clock(), nil.type_name(), s.list.len(), s.list.type_name())
 
 

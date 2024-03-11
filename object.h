@@ -110,12 +110,15 @@ struct ObjSeq {
   ValueArray items;
 };
 
+struct ObjInstance;
+
 typedef struct {
   Obj obj;
   int arity;
   int upvalue_count;
   Chunk chunk;
   ObjString* name;
+  struct ObjInstance* globals_context;
 } ObjFunction;
 
 typedef Value (*NativeFn)(int argCount, Value* args);
@@ -153,7 +156,7 @@ typedef struct ObjClass {
   struct ObjClass* base;
 } ObjClass;
 
-typedef struct {
+typedef struct ObjInstance {
   Obj obj;
   ObjClass* klass;
   HashTable fields;

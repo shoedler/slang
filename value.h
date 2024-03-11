@@ -21,6 +21,7 @@ typedef enum {
 #define TYPENAME_BOOL "Bool"
 #define TYPENAME_NIL "Nil"
 #define TYPENAME_SEQ "Seq"
+#define INSTANCENAME_BUILTIN "__builtin"
 
 // The single value construct used to represent all values in the language.
 typedef struct {

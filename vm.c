@@ -60,12 +60,8 @@ static void runtime_error(const char* format, ...) {
     CallFrame* frame      = &vm.frames[i];
     ObjFunction* function = frame->closure->function;
     size_t instruction    = frame->ip - function->chunk.code - 1;
-    fprintf(stderr, "at line %d ", function->chunk.lines[instruction]);
-    if (function->name == NULL) {
-      fprintf(stderr, "at the toplevel\n");
-    } else {
-      fprintf(stderr, "in \"%s\"\n", function->name->chars);
-    }
+    fprintf(stderr, "\tat line %d ", function->chunk.lines[instruction]);
+    fprintf(stderr, "in \"%s\"\n", function->name->chars);
   }
 
   reset_stack();
@@ -106,11 +102,6 @@ static void define_obj(HashTable* table, const char* name, Obj* obj) {
   pop();
 }
 
-// Defines a global variable in the globals table.
-static void define_global(const char name[], Obj* obj) {
-  define_obj(&vm.globals, name, obj);
-}
-
 // Creates a sequence of length "count" from the top "count" values on the stack.
 // The resulting sequence is pushed onto the stack.
 static void make_seq(int count) {
@@ -142,8 +133,8 @@ static Value __builtin_seq_len(int argc, Value argv[]);
 
 void init_vm() {
   reset_stack();
-  vm.objects = NULL;
-
+  vm.objects         = NULL;
+  vm.module          = NULL;  // No active module
   vm.bytes_allocated = 0;
   vm.next_gc         = GC_DEFAULT_THRESHOLD;
   vm.gray_count      = 0;
@@ -151,7 +142,6 @@ void init_vm() {
   vm.gray_stack      = NULL;
   vm.pause_gc        = 1;  // Pause while we initialize the vm.
 
-  init_hashtable(&vm.globals);
   init_hashtable(&vm.strings);
   init_hashtable(&vm.modules);
 
@@ -162,42 +152,44 @@ void init_vm() {
 
   // Create the object class
   vm.object_class = new_class(copy_string("Object", 6), NULL);
-  define_global("Object", (Obj*)vm.object_class);
+
+  // Create the builtin obj instance
+  vm.builtin = new_instance(vm.object_class);
+  define_obj(&vm.builtin->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
+  define_native(&vm.builtin->fields, "clock", native_clock);
+  define_native(&vm.builtin->fields, "log", native_print);
+
+  // ... and define the object methods
+  define_obj(&vm.builtin->fields, "Object", (Obj*)vm.object_class);
   define_native(&vm.object_class->methods, "str", __builtin_to_str);
   define_native(&vm.object_class->methods, "hash", __builint_hash_value);
   define_native(&vm.object_class->methods, "type_name", __builtin_get_typename);
 
   // Create the module class
   vm.module_class = new_class(copy_string("Module", 6), vm.object_class);
-  define_global("Module", (Obj*)vm.module_class);
+  define_obj(&vm.builtin->fields, "Module", (Obj*)vm.module_class);
 
   // Create the string class
   vm.string_class = new_class(copy_string(TYPENAME_STRING, sizeof(TYPENAME_STRING) - 1), vm.object_class);
-  define_global(TYPENAME_STRING, (Obj*)vm.string_class);
+  define_obj(&vm.builtin->fields, TYPENAME_STRING, (Obj*)vm.string_class);
   define_native(&vm.string_class->methods, "len", __builtin_str_len);
 
   // Create the number class
   vm.number_class = new_class(copy_string(TYPENAME_NUMBER, sizeof(TYPENAME_NUMBER) - 1), vm.object_class);
-  define_global(TYPENAME_NUMBER, (Obj*)vm.number_class);
+  define_obj(&vm.builtin->fields, TYPENAME_NUMBER, (Obj*)vm.number_class);
 
   // Create the boolean class
   vm.bool_class = new_class(copy_string(TYPENAME_BOOL, sizeof(TYPENAME_BOOL) - 1), vm.object_class);
-  define_global(TYPENAME_BOOL, (Obj*)vm.bool_class);
+  define_obj(&vm.builtin->fields, TYPENAME_BOOL, (Obj*)vm.bool_class);
 
   // Create the nil class
   vm.nil_class = new_class(copy_string(TYPENAME_NIL, sizeof(TYPENAME_NIL) - 1), vm.object_class);
-  define_global(TYPENAME_NIL, (Obj*)vm.nil_class);
+  define_obj(&vm.builtin->fields, TYPENAME_NIL, (Obj*)vm.nil_class);
 
   // Create the sequence class
   vm.seq_class = new_class(copy_string(TYPENAME_SEQ, sizeof(TYPENAME_SEQ) - 1), vm.object_class);
-  define_global(TYPENAME_SEQ, (Obj*)vm.seq_class);
+  define_obj(&vm.builtin->fields, TYPENAME_SEQ, (Obj*)vm.seq_class);
   define_native(&vm.seq_class->methods, "len", __builtin_seq_len);
-
-  // Create the builtin obj instance
-  vm.builtin = new_instance(vm.object_class);
-  define_global("sys", (Obj*)vm.builtin);
-  define_native(&vm.builtin->fields, "clock", native_clock);
-  define_native(&vm.builtin->fields, "log", native_print);
 
   // // Load the global standard library module
   // Value std_module = run_file("C:\\Projects\\slang\\modules\\std.sl", true /* create a new local scope */);
@@ -212,7 +204,6 @@ void init_vm() {
 }
 
 void free_vm() {
-  free_hashtable(&vm.globals);
   free_hashtable(&vm.strings);
   memset(vm.reserved_method_names, 0, sizeof(vm.reserved_method_names));
   free_objects();
@@ -251,6 +242,8 @@ static bool call(ObjClosure* closure, int arg_count) {
   frame->closure   = closure;
   frame->ip        = closure->function->chunk.code;
   frame->slots     = vm.stack_top - arg_count - 1;
+  frame->globals   = &closure->function->globals_context->fields;
+
   return true;
 }
 
@@ -561,8 +554,7 @@ static Value run() {
       printf(ANSI_CYAN_STR("["));
       char* str = value_to_str(*slot);
       if (str == NULL) {
-        INTERNAL_ERROR("Failed to convert value to string");
-        return exit_with_runtime_error();
+        str = _strdup("<???>");
       }
       printf("%s", str);
       free(str);
@@ -590,9 +582,11 @@ static Value run() {
       case OP_GET_GLOBAL: {
         ObjString* name = READ_STRING();
         Value value;
-        if (!hashtable_get(&vm.globals, OBJ_VAL(name), &value)) {
-          runtime_error("Undefined variable '%s'.", name->chars);
-          return exit_with_runtime_error();
+        if (!hashtable_get(frame->globals, OBJ_VAL(name), &value)) {
+          if (!hashtable_get(&vm.builtin->fields, OBJ_VAL(name), &value)) {
+            runtime_error("Undefined variable '%s'.", name->chars);
+            return exit_with_runtime_error();
+          }
         }
         push(value);
         break;
@@ -606,8 +600,7 @@ static Value run() {
                        // when we (correct) modules
       case OP_DEFINE_GLOBAL: {
         ObjString* name = READ_STRING();
-        hashtable_set(&vm.globals, OBJ_VAL(name),
-                      peek(0));  // peek, because assignment is an expression!
+        hashtable_set(frame->globals, OBJ_VAL(name), peek(0));
         pop();
         break;
       }
@@ -618,9 +611,9 @@ static Value run() {
       }
       case OP_SET_GLOBAL: {
         ObjString* name = READ_STRING();
-        if (hashtable_set(&vm.globals, OBJ_VAL(name),
+        if (hashtable_set(frame->globals, OBJ_VAL(name),
                           peek(0))) {  // peek, because assignment is an expression!
-          hashtable_delete(&vm.globals, OBJ_VAL(name));
+          hashtable_delete(frame->globals, OBJ_VAL(name));
           runtime_error("Undefined variable '%s'.", name->chars);
           return exit_with_runtime_error();
         }
@@ -795,8 +788,8 @@ static Value run() {
         module                  = run_file(tmp, 1 /* new scope */);
         vm.exit_on_frame        = previous_exit_frame;
 
-        if (!IS_OBJ(module)) {
-          runtime_error("Could not import module '%s'. Expected object type", name->chars);
+        if (!IS_OBJ(module) && !IS_INSTANCE(module) && !AS_INSTANCE(module)->klass == vm.module_class) {
+          runtime_error("Could not import module '%s'. Expected module type", name->chars);
           return exit_with_runtime_error();
         }
         push(module);  // Show ourselves to the GC before we put it in the hashtable
@@ -978,8 +971,20 @@ static Value run() {
 #undef BINARY_OP
 }
 
-Value interpret(const char* source, bool local_scope) {
-  ObjFunction* function = compile(source, local_scope);
+static void start_module() {
+  ObjInstance* module = new_instance(vm.module_class);
+  vm.module           = (Obj*)module;
+
+  define_obj(&module->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
+}
+
+Value interpret(const char* source, bool is_module) {
+  Obj* enclosing_module = vm.module;
+  if (is_module) {
+    start_module();
+  }
+
+  ObjFunction* function = compile(source, is_module);
   if (function == NULL) {
     exit_with_compile_error();
     return NIL_VAL;
@@ -989,9 +994,17 @@ Value interpret(const char* source, bool local_scope) {
   ObjClosure* closure = new_closure(function);
   pop();
   push(OBJ_VAL(closure));
-  call(closure, 0);
+  call_value(OBJ_VAL(closure), 0);
 
-  return run();
+  Value result = run();
+
+  if (is_module) {
+    Value out = OBJ_VAL(vm.module);
+    vm.module = enclosing_module;
+    return out;
+  }
+
+  return result;
 }
 
 static char* read_file(const char* path) {
@@ -1028,10 +1041,10 @@ static char* read_file(const char* path) {
   return buffer;
 }
 
-Value run_file(const char* path, bool local_scope) {
+Value run_file(const char* path, bool is_module) {
 #ifdef DEBUG_TRACE_EXECUTION
   printf(ANSI_MAGENTA_STR("===== "));
-  printf(ANSI_CYAN_STR("Running file: %s, New local scope: %s\n"), path, local_scope ? "true" : "false");
+  printf(ANSI_CYAN_STR("Running file: %s, Is module: %s\n"), path, is_module ? "true" : "false");
 #endif
 
   char* source = read_file(path);
@@ -1041,7 +1054,7 @@ Value run_file(const char* path, bool local_scope) {
     return NIL_VAL;
   }
 
-  Value result = interpret(source, local_scope);
+  Value result = interpret(source, is_module);
   free(source);
 
 #ifdef DEBUG_TRACE_EXECUTION

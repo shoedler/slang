@@ -27,6 +27,9 @@ void usage() {
 }
 
 int main(int argc, char* argv[]) {
+  init_vm();
+  run_file("C:\\Projects\\slang\\sample.sl", true);
+  free_vm();
   // Print args
   if (argc == 2 && strcmp(argv[1], "repl") == 0) {
     init_vm();
@@ -34,7 +37,7 @@ int main(int argc, char* argv[]) {
     free_vm();
   } else if (argc == 3 && strcmp(argv[1], "run") == 0) {
     init_vm();
-    run_file(argv[2], false /* no new local scope */);
+    run_file(argv[2], true /* is module */);
     free_vm();
   } else {
     usage();

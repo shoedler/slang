@@ -53,7 +53,7 @@ typedef struct {
   bool is_local;
 } Upvalue;
 
-typedef enum { TYPE_FUNCTION, TYPE_CONSTRUCTOR, TYPE_METHOD, TYPE_TOPLEVEL } FunctionType;
+typedef enum { TYPE_FUNCTION, TYPE_CONSTRUCTOR, TYPE_METHOD, TYPE_TOPLEVEL, TYPE_MODULE } FunctionType;
 
 // A construct holding the compiler's state.
 typedef struct Compiler {
@@ -237,23 +237,27 @@ static void emit_return() {
 
 // Initializes a new compiler.
 static void init_compiler(Compiler* compiler, FunctionType type, ObjString* name) {
-  compiler->enclosing   = current;
-  compiler->function    = NULL;
-  compiler->type        = type;
-  compiler->local_count = 0;
-  compiler->scope_depth = 0;
-  compiler->function    = new_function();
-  current               = compiler;
+  compiler->enclosing = current;
+  current             = compiler;
 
-  if (type != TYPE_TOPLEVEL) {
-    current->function->name = name;
+  compiler->function                  = NULL;
+  compiler->type                      = type;
+  compiler->local_count               = 0;
+  compiler->scope_depth               = 0;
+  compiler->function                  = new_function();
+  compiler->function->globals_context = (ObjInstance*)vm.module;
+
+  switch (type) {
+    case TYPE_TOPLEVEL: current->function->name = copy_string("Toplevel", 10); break;
+    case TYPE_MODULE: current->function->name = copy_string("Module", 8); break;
+    default: current->function->name = name; break;
   }
 
   Local* local       = &current->locals[current->local_count++];
   local->depth       = 0;
   local->is_captured = false;
 
-  if (type != TYPE_FUNCTION) {
+  if (type == TYPE_CONSTRUCTOR || type == TYPE_METHOD) {
     local->name.start  = KEYWORD_THIS;
     local->name.length = KEYWORD_THIS_LEN;
   } else {
@@ -1248,18 +1252,15 @@ static void declaration() {
   }
 }
 
-ObjFunction* compile(const char* source, bool local_scope) {
+ObjFunction* compile(const char* source, bool is_module) {
   init_scanner(source);
   Compiler compiler;
-  init_compiler(&compiler, TYPE_TOPLEVEL, NULL);
+
+  init_compiler(&compiler, is_module ? TYPE_MODULE : TYPE_TOPLEVEL, NULL);
 
 #ifdef DEBUG_PRINT_CODE
   printf("== Begin compilation ==\n");
 #endif
-
-  if (local_scope) {
-    begin_scope();
-  }
 
   parser.had_error  = false;
   parser.panic_mode = false;

@@ -26,6 +26,7 @@ typedef struct {
   ObjClosure* closure;
   uint16_t* ip;
   Value* slots;
+  HashTable* globals;  // Global variables
 } CallFrame;
 
 typedef enum {
@@ -45,12 +46,12 @@ typedef struct {
   uint16_t* ip;  // Instruction pointer, points to the NEXT instruction to execute
   Value stack[STACK_MAX];
   Value* stack_top;   // Stack pointer
-  HashTable globals;  // Global variables
   HashTable strings;  // Interned strings
   ObjUpvalue* open_upvalues;
   Obj* objects;
 
   HashTable modules;  // Modules
+  Obj* module;        // The current module
   int exit_on_frame;
 
   ObjClass* object_class;  // The class of all objects

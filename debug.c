@@ -1,6 +1,7 @@
 #include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "object.h"
 #include "value.h"
 #include "vm.h"
@@ -27,8 +28,7 @@
 void debug_print_value(Value value) {
   char* str = value_to_str(value);
   if (str == NULL) {
-    INTERNAL_ERROR("Failed to convert value to string");
-    exit(70);
+    str = _strdup("<???>");
   }
   PRINT_VALUE_STR(str);
   free(str);
