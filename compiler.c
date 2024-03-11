@@ -1100,16 +1100,6 @@ static void statement_import() {
   define_variable(name_constant);
 }
 
-// Compiles an export statement.
-// The export keyword has already been consumed at this point.
-static void statement_export() {
-  consume(TOKEN_ID, "Expecting variable name.");
-
-  named_variable(parser.previous, false);
-  uint16_t name_constant = string_constant(&parser.previous);
-  emit_two(OP_EXPORT, name_constant);
-}
-
 // Compiles a block.
 static void block() {
   while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF)) {
@@ -1133,8 +1123,6 @@ static void statement() {
     statement_for();
   } else if (match(TOKEN_IMPORT)) {
     statement_import();
-  } else if (match(TOKEN_EXPORT)) {
-    statement_export();
   } else if (match(TOKEN_OBRACE)) {
     begin_scope();
     block();

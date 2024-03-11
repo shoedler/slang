@@ -596,8 +596,6 @@ static Value run() {
         push(*frame->closure->upvalues[slot]->location);
         break;
       }
-      case OP_EXPORT:  // This is currently the same as OP_DEFINE_GLOBAL, but it will be different
-                       // when we (correct) modules
       case OP_DEFINE_GLOBAL: {
         ObjString* name = READ_STRING();
         hashtable_set(frame->globals, OBJ_VAL(name), peek(0));

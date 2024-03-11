@@ -138,7 +138,6 @@ static TokenType identifier_type() {
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
           case 'l': return check_keyword(2, 2, "se", TOKEN_ELSE);
-          case 'x': return check_keyword(2, 4, "port", TOKEN_EXPORT);
         }
       }
     case 'f':

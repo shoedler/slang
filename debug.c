@@ -174,7 +174,6 @@ int disassemble_instruction(Chunk* chunk, int offset) {
     case OP_DIVIDE: return simple_instruction("OP_DIVIDE", offset);
     case OP_NOT: return simple_instruction("OP_NOT", offset);
     case OP_IMPORT: return constant_instruction("OP_IMPORT", chunk, offset);
-    case OP_EXPORT: return constant_instruction("OP_EXPORT", chunk, offset);
     default: INTERNAL_ERROR("Unhandled opcode: %d\n", instruction); return offset + 1;
   }
 }
