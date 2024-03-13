@@ -15,7 +15,36 @@
 
 Vm vm;
 
+// A call to a function or method must be handled differently depending on whether it's a:
+// - Native function: Return a value "immediately".
+// - Managed-code functions just update the frame and then the vm will execute the new frame.
+//   meaning it will return a value "later".
+// We need to differentiate between these two cases when calling a function internally.
+typedef enum {
+  CALL_FAILED,
+  CALL_RETURNED,  // The call returned immediately
+  CALL_RUNNING,   // The call is running and we need to execute the new frame
+} CallResult;
+
 static Value exit_with_runtime_error();
+static Value run();
+static Value __builtin_obj_to_str(int argc, Value argv[]);
+static Value __builint_hash_value(int argc, Value argv[]);
+static Value __builtin_get_typename(int argc, Value argv[]);
+static Value __builtin_str_len(int argc, Value argv[]);
+static Value __builtin_seq_len(int argc, Value argv[]);
+static Value __builtin_bool_to_str(int argc, Value argv[]);
+static Value __builtin_nil_to_str(int argc, Value argv[]);
+static Value __builtin_number_to_str(int argc, Value argv[]);
+static Value __builtin_class_to_str(int argc, Value argv[]);
+static Value __builtin_function_to_str(int argc, Value argv[]);
+static Value __builtin_closure_to_str(int argc, Value argv[]);
+static Value __builtin_bound_method_to_str(int argc, Value argv[]);
+static Value __builtin_instance_to_str(int argc, Value argv[]);
+static Value __builtin_native_to_str(int argc, Value argv[]);
+static Value __builtin_upvalue_to_str(int argc, Value argv[]);
+static Value __builtin_string_to_str(int argc, Value argv[]);
+static Value __builtin_seq_to_str(int argc, Value argv[]);
 
 static Value native_clock(int arg_count, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
@@ -125,12 +154,6 @@ static void make_seq(int count) {
   push(OBJ_VAL(seq));
 }
 
-static Value __builtin_to_str(int argc, Value argv[]);
-static Value __builint_hash_value(int argc, Value argv[]);
-static Value __builtin_get_typename(int argc, Value argv[]);
-static Value __builtin_str_len(int argc, Value argv[]);
-static Value __builtin_seq_len(int argc, Value argv[]);
-
 void init_vm() {
   reset_stack();
   vm.objects         = NULL;
@@ -161,7 +184,7 @@ void init_vm() {
 
   // ... and define the object methods
   define_obj(&vm.builtin->fields, "Object", (Obj*)vm.object_class);
-  define_native(&vm.object_class->methods, "str", __builtin_to_str);
+  define_native(&vm.object_class->methods, "str", __builtin_obj_to_str);
   define_native(&vm.object_class->methods, "hash", __builint_hash_value);
   define_native(&vm.object_class->methods, "type_name", __builtin_get_typename);
 
@@ -172,32 +195,29 @@ void init_vm() {
   // Create the string class
   vm.string_class = new_class(copy_string(TYPENAME_STRING, sizeof(TYPENAME_STRING) - 1), vm.object_class);
   define_obj(&vm.builtin->fields, TYPENAME_STRING, (Obj*)vm.string_class);
+  define_native(&vm.string_class->methods, "str", __builtin_string_to_str);
   define_native(&vm.string_class->methods, "len", __builtin_str_len);
 
   // Create the number class
   vm.number_class = new_class(copy_string(TYPENAME_NUMBER, sizeof(TYPENAME_NUMBER) - 1), vm.object_class);
   define_obj(&vm.builtin->fields, TYPENAME_NUMBER, (Obj*)vm.number_class);
+  define_native(&vm.number_class->methods, "str", __builtin_number_to_str);
 
   // Create the boolean class
   vm.bool_class = new_class(copy_string(TYPENAME_BOOL, sizeof(TYPENAME_BOOL) - 1), vm.object_class);
   define_obj(&vm.builtin->fields, TYPENAME_BOOL, (Obj*)vm.bool_class);
+  define_native(&vm.bool_class->methods, "str", __builtin_bool_to_str);
 
   // Create the nil class
   vm.nil_class = new_class(copy_string(TYPENAME_NIL, sizeof(TYPENAME_NIL) - 1), vm.object_class);
   define_obj(&vm.builtin->fields, TYPENAME_NIL, (Obj*)vm.nil_class);
+  define_native(&vm.nil_class->methods, "str", __builtin_nil_to_str);
 
   // Create the sequence class
   vm.seq_class = new_class(copy_string(TYPENAME_SEQ, sizeof(TYPENAME_SEQ) - 1), vm.object_class);
   define_obj(&vm.builtin->fields, TYPENAME_SEQ, (Obj*)vm.seq_class);
+  define_native(&vm.seq_class->methods, "str", __builtin_seq_to_str);
   define_native(&vm.seq_class->methods, "len", __builtin_seq_len);
-
-  // // Load the global standard library module
-  // Value std_module = run_file("C:\\Projects\\slang\\modules\\std.sl", true /* create a new local scope */);
-  // if (!IS_OBJ(std_module)) {
-  //   INTERNAL_ERROR("Failed to load std module during Vm initialization.");
-  // } else {
-  //   hashtable_set(&vm.modules, OBJ_VAL(copy_string("std", 3)), std_module);
-  // }
 
   vm.pause_gc = 0;
   reset_stack();
@@ -224,18 +244,40 @@ static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
 }
 
-// Executes a call to a managed-code function or method by creating a new call frame and
-// pushing it onto the frame stack.
-// Returns true if the call succeeded, false otherwise.
-static bool call(ObjClosure* closure, int arg_count) {
+// Retrieves the class of a value. Everything in Slang is an 'object', so this function will always return
+// a class.
+static ObjClass* value_get_class(Value value) {
+  // Handle primitive and internal types which have a corresponding class
+  if (!IS_INSTANCE(value)) {
+    switch (value.type) {
+      case VAL_NIL: return vm.nil_class;
+      case VAL_BOOL: return vm.bool_class;
+      case VAL_NUMBER: return vm.number_class;
+      case VAL_OBJ: {
+        switch (OBJ_TYPE(value)) {
+          case OBJ_STRING: return vm.string_class;
+          case OBJ_SEQ: return vm.seq_class;
+        }
+      }
+    }
+    return vm.object_class;
+  }
+
+  // Instances are easy, just return the class. Most of them are probably managed-code classes.
+  return AS_INSTANCE(value)->klass;
+}
+
+// Executes a call to a managed-code function or method by creating a new call frame and pushing it onto the
+// frame stack. Returns true if the call succeeded, false otherwise.
+static CallResult call_managed(ObjClosure* closure, int arg_count) {
   if (arg_count != closure->function->arity) {
     runtime_error("Expected %d arguments but got %d.", closure->function->arity, arg_count);
-    return false;
+    return CALL_FAILED;
   }
 
   if (vm.frame_count == FRAMES_MAX) {
     runtime_error("Stack overflow.");
-    return false;
+    return CALL_FAILED;
   }
 
   CallFrame* frame = &vm.frames[vm.frame_count++];
@@ -244,73 +286,72 @@ static bool call(ObjClosure* closure, int arg_count) {
   frame->slots     = vm.stack_top - arg_count - 1;
   frame->globals   = &closure->function->globals_context->fields;
 
-  return true;
+  return CALL_RUNNING;
 }
 
-// Invokes a native function, as if it was a class method. Meaning, it assumes that before the
+// Calls a native function with the given number of arguments (on the stack).
+// Returns true if the call succeeded, false otherwise.
+// If has_receiver is true then it is invoked as if it was a class method. Meaning, it assumes that before the
 // arguments on the stack is the receiver (acting as an "instance") of the method.
-static bool invoke_native(NativeFn native, int arg_count) {
-  Value result = native(arg_count, vm.stack_top - arg_count - 1);  // -1 for the receiver
+static CallResult call_native(NativeFn native, int arg_count, bool has_receiver) {
+  Value* args  = vm.stack_top - arg_count - (has_receiver ? 1 : 0);
+  Value result = native(arg_count, args);
   vm.stack_top -= arg_count + 1;
   push(result);
-  return true;
+
+  return CALL_RETURNED;
 }
 
-// Calls a callable value (function, method, class, etc.)
+// Calls a callable value (function, method, class (ctor), etc.)
 // Returns true if the call succeeded, false otherwise.
-static bool call_value(Value callee, int arg_count) {
+static CallResult call_value(Value callee, int arg_count) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
       case OBJ_BOUND_METHOD: {
-        ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
-        vm.stack_top[-arg_count - 1] =
-            bound->receiver;  // Put the receiver in slot 0, so we can access "this"
-        return call(bound->method, arg_count);
+        ObjBoundMethod* bound        = AS_BOUND_METHOD(callee);
+        vm.stack_top[-arg_count - 1] = bound->receiver;  // Slot 0, so we can access "this"
+        return call_value(OBJ_VAL(bound->method), arg_count);
       }
       case OBJ_CLASS: {
-        ObjClass* klass              = AS_CLASS(callee);
-        vm.stack_top[-arg_count - 1] = OBJ_VAL(new_instance(klass));
-        Value ctor;
+        ObjClass* klass = AS_CLASS(callee);
+        vm.stack_top[-arg_count - 1] =
+            OBJ_VAL(new_instance(klass));  // This is the actual "this", e.g. new instance
+        Value ctor;                        // The 'ctor' is actually optional
 
         if (hashtable_get(&klass->methods, vm.reserved_method_names[METHOD_CTOR], &ctor)) {
-          return call(AS_CLOSURE(ctor), arg_count);
+          return call_managed(AS_CLOSURE(ctor), arg_count);
         } else if (arg_count != 0) {
           runtime_error("Expected 0 arguments but got %d.", arg_count);
-          return false;
+          return CALL_FAILED;
         }
-        return true;
+        return CALL_RETURNED;
       }
-      case OBJ_CLOSURE: return call(AS_CLOSURE(callee), arg_count);
-      case OBJ_FUNCTION: return call(AS_FUNCTION(callee), arg_count);
-      case OBJ_NATIVE: {
-        NativeFn native = AS_NATIVE(callee);
-        Value result    = native(arg_count, vm.stack_top - arg_count);
-        vm.stack_top -= arg_count + 1;
-        push(result);
-        return true;
-      }
+      case OBJ_CLOSURE: return call_managed(AS_CLOSURE(callee), arg_count);
+      case OBJ_FUNCTION: return call_managed(AS_FUNCTION(callee), arg_count);
+      case OBJ_NATIVE:
+        return call_native(AS_NATIVE(callee), arg_count, false /* no receiver, just a plain call */);
       default: break;  // Non-callable object type.
     }
   }
   runtime_error("Attempted to call non-callable value of type %s.", type_name(callee));
-  return false;
+  return CALL_FAILED;
 }
 
 // Invokes a method on a class by looking up the method in the class' method
 // table and calling it. (Combines "get-property" and "call" opcodes)
 // Scans upwards through the class hierarchy to find the method.
-static bool invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
+static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
   ObjClass* source_klass = klass;
 
   while (source_klass != NULL) {
     Value method;
     if (hashtable_get(&source_klass->methods, OBJ_VAL(name), &method)) {
       switch (AS_OBJ(method)->type) {
-        case OBJ_CLOSURE: return call(AS_CLOSURE(method), arg_count);
-        case OBJ_NATIVE: return invoke_native(AS_NATIVE(method), arg_count);
+        case OBJ_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
+        case OBJ_NATIVE: return call_native(AS_NATIVE(method), arg_count, true /* has receiver */);
         default: {
           runtime_error("Cannot invoke method of type '%s' on class", type_name(method));
-          return false;
+          return CALL_FAILED;
         }
       }
     }
@@ -318,33 +359,17 @@ static bool invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
   }
   runtime_error("Undefined property '%s' in '%s' or any of its parent classes", name->chars,
                 klass->name->chars);
-  return false;
+  return CALL_FAILED;
 }
 
 // Invokes a method on the top of the stack.
-static bool invoke(ObjString* name, int arg_count) {
-  Value receiver = peek(arg_count);
+static CallResult invoke(ObjString* name, int arg_count) {
+  Value receiver  = peek(arg_count);
+  ObjClass* klass = value_get_class(receiver);
 
   // Handle primitive and internal types which have a corresponding class
   if (!IS_INSTANCE(receiver)) {
-    switch (receiver.type) {
-      case VAL_NIL: return invoke_from_class(vm.nil_class, name, arg_count); break;
-      case VAL_BOOL: return invoke_from_class(vm.bool_class, name, arg_count); break;
-      case VAL_NUMBER: return invoke_from_class(vm.number_class, name, arg_count); break;
-      case VAL_OBJ: {
-        switch (OBJ_TYPE(receiver)) {
-          case OBJ_STRING: return invoke_from_class(vm.string_class, name, arg_count); break;
-          case OBJ_SEQ: return invoke_from_class(vm.seq_class, name, arg_count); break;
-          default: {
-            runtime_error("Cannot invoke method '%s' on internal class instance of type %s.", name->chars,
-                          type_name(receiver));
-            return false;
-          }
-        }
-        break;
-      }
-    }
-    return invoke_from_class(vm.object_class, name, arg_count);
+    return invoke_from_class(klass, name, arg_count);
   }
 
   // Handle managed-code class instances
@@ -357,7 +382,59 @@ static bool invoke(ObjString* name, int arg_count) {
     return call_value(value, arg_count);
   }
 
-  return invoke_from_class(instance->klass, name, arg_count);
+  return invoke_from_class(klass, name, arg_count);
+}
+// Executes a callframe by running the bytecode until it returns a value or an error occurs.
+static Value run_frame() {
+  int exit_on_frame = vm.exit_on_frame;
+  vm.exit_on_frame  = vm.frame_count - 1;
+
+  Value result = run();
+
+  vm.exit_on_frame = exit_on_frame;
+  return result;
+}
+
+// Internal function to execute a call to a managed-code OR native function.
+// Arguments are expected to be on the stack, with the function preceding them.
+// Returns the value returned by the function, or NIL_VAL if the call failed.
+//
+// This is pretty similar to call_value, but it's intended to also EXECUTE the function. For native functions,
+// the result will be available "immediately", but for managed_code we have to execute the new call frame
+// (provided by call_managed) to get to the result. That's why we have this function - so we can execute any
+// callable value internally
+static Value exec_fn(Obj* callee, int arg_count) {
+  CallResult result = CALL_FAILED;
+  switch (callee->type) {
+    case OBJ_CLOSURE: result = call_managed((ObjClosure*)callee, arg_count); break;
+    case OBJ_NATIVE:
+      result = call_native((ObjNative*)callee, arg_count, false /* no receiver, just a plain call */);
+      break;
+  }
+
+  if (result == CALL_RETURNED) {
+    return pop();
+  } else if (result == CALL_RUNNING) {
+    return run_frame();
+  }
+
+  return NIL_VAL;
+}
+
+// Internal function to execute a method on a value. This is similar to exec_fn, but it's expected that
+// there's a receiver on the stack before the arguments.
+static Value exec_method(ObjString* name, int arg_count) {
+  Value receiver    = peek(arg_count);
+  ObjClass* klass   = value_get_class(receiver);
+  CallResult result = invoke_from_class(klass, name, arg_count);
+
+  if (result == CALL_RETURNED) {
+    return pop();
+  } else if (result == CALL_RUNNING) {
+    return run_frame();
+  }
+
+  return NIL_VAL;
 }
 
 // Built-in function to retrieve the hash value of a value
@@ -383,21 +460,298 @@ static Value __builtin_get_typename(int argc, Value argv[]) {
   return OBJ_VAL(str_obj);
 }
 
-// Built-in function to convert a value to a string
-static Value __builtin_to_str(int argc, Value argv[]) {
+// Built-in function to convert an object to a string
+static Value __builtin_obj_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 argument but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  return OBJ_VAL(copy_string("Object", 6));
+}
+
+// Built-in function to convert a nil to a string
+static Value __builtin_nil_to_str(int argc, Value argv[]) {
   if (argc != 0) {
     runtime_error("Expected 0 arguments but got %d.", argc);
     return exit_with_runtime_error();
   }
 
-  char* str_val = value_to_str(argv[0]);
-  if (str_val == NULL) {
-    INTERNAL_ERROR("Failed to convert value to string");
+  if (IS_NIL(argv[0])) {
+    ObjString* str_obj = copy_string("nil", 3);
+    return OBJ_VAL(str_obj);
+  }
+
+  runtime_error("Expected nil but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+}
+
+// Built-in function to convert a value to a string
+static Value __builtin_bool_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
     return exit_with_runtime_error();
   }
 
-  ObjString* str_obj = take_string(str_val, strlen(str_val));
+  if (IS_BOOL(argv[0])) {
+    if (AS_BOOL(argv[0])) {
+      ObjString* str_obj = copy_string("true", 4);
+      return OBJ_VAL(str_obj);
+    } else {
+      ObjString* str_obj = copy_string("false", 5);
+      return OBJ_VAL(str_obj);
+    }
+  }
+
+  runtime_error("Expected a boolean but got %s.", type_name(argv[0]));
+    return exit_with_runtime_error();
+  }
+
+// Built-in function to convert a number to a string
+static Value __builtin_number_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (IS_NUMBER(argv[0])) {
+    double number = AS_NUMBER(argv[0]);
+    char buffer[64];
+    int integer;
+    int len = 0;
+
+    if (is_int(number, &integer)) {
+      len = snprintf(buffer, sizeof(buffer), "%d", integer);
+    } else {
+      len = snprintf(buffer, sizeof(buffer), "%f", number);
+    }
+
+    ObjString* str_obj = copy_string(buffer, len);
   return OBJ_VAL(str_obj);
+  }
+
+  runtime_error("Expected a number but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+}
+
+// Built-in functiont to convert a class to a string
+static Value __builtin_class_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (IS_CLASS(argv[0])) {
+    ObjClass* klass = AS_CLASS(argv[0]);
+    ObjString* name = klass->name;
+    if (name == NULL || name->chars == NULL) {
+      name = copy_string("???", 3);
+    }
+    push(OBJ_VAL(name));
+
+    size_t buf_size = sizeof("<Class >") + name->length;
+    char* chars     = malloc(buf_size);
+    snprintf(chars, buf_size, "<Class %s>", name->chars);
+    // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+    // allocates the memory - we don't want this block in our own memory pool.
+    ObjString* str_obj = copy_string(chars, buf_size);
+
+    free(chars);
+    pop();
+    return OBJ_VAL(str_obj);
+  }
+
+  runtime_error("Expected a class but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+}
+
+// Built-in function to convert a function to a string
+static Value __builtin_function_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (IS_FUNCTION(argv[0])) {
+    ObjFunction* function = AS_FUNCTION(argv[0]);
+    ObjString* name       = function->name;
+    if (name == NULL || name->chars == NULL) {
+      name = copy_string("???", 3);
+    }
+    push(OBJ_VAL(name));
+
+    size_t buf_size = sizeof("<Fn >") + name->length;
+    char* chars     = malloc(buf_size);
+    snprintf(chars, buf_size, "<Fn %s>", name->chars);
+    // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+    // allocates the memory - we don't want this block in our own memory pool.
+    ObjString* str_obj = copy_string(chars, buf_size);
+
+    free(chars);
+    pop();
+    return OBJ_VAL(str_obj);
+  }
+
+  runtime_error("Expected a function but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+}
+
+// Built-in function to convert a closure to a string
+static Value __builtin_closure_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (IS_CLOSURE(argv[0])) {
+    ObjFunction* fn = AS_CLOSURE(argv[0])->function;
+    return __builtin_function_to_str(0, &OBJ_VAL(fn));
+  }
+
+  runtime_error("Expected a closure but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+}
+
+// Built-in function to convert a bound method to a string
+static Value __builtin_bound_method_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (IS_BOUND_METHOD(argv[0])) {
+    ObjBoundMethod* bound = AS_BOUND_METHOD(argv[0]);
+    if (bound->method->type == OBJ_CLOSURE) {
+      return __builtin_function_to_str(0, &OBJ_VAL(((ObjClosure*)bound->method)->function));
+    }
+    
+    return __builtin_native_to_str(0, &OBJ_VAL((ObjNative*)bound->method));
+  }
+
+  runtime_error("Expected a bound method but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+}
+
+// Built-in function to convert an instance to a string
+static Value __builtin_instance_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (IS_INSTANCE(argv[0])) {
+    ObjInstance* instance = AS_INSTANCE(argv[0]);
+    ObjString* name       = instance->klass->name;
+    if (name == NULL || name->chars == NULL) {
+      name = copy_string("???", 3);
+    }
+    push(OBJ_VAL(name));
+
+    size_t buf_size = sizeof("<Instance >") + name->length;
+    char* chars     = malloc(buf_size);
+    snprintf(chars, buf_size, "<Instance %s>", name->chars);
+    // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+    // allocates the memory - we don't want this block in our own memory pool.
+    ObjString* str_obj = copy_string(chars, buf_size);
+
+    free(chars);
+    pop();
+    return OBJ_VAL(str_obj);
+  }
+
+  runtime_error("Expected an instance but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+}
+
+// Built-in function to convert a native function to a string
+static Value __builtin_native_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (IS_NATIVE(argv[0])) {
+    return OBJ_VAL(copy_string("<Native Fn>", 11));
+  }
+
+  runtime_error("Expected a native fn but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+}
+
+// Built-in function to convert an upvalue to a string
+static Value __builtin_upvalue_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  return OBJ_VAL(copy_string("<Upvalue>", 9));
+}
+
+// Built-in function to convert a string to a string
+static Value __builtin_string_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (IS_STRING(argv[0])) {
+    return argv[0];
+  }
+
+  runtime_error("Expected a string but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+}
+
+// Built-in function to convert a sequence to a string
+static Value __builtin_seq_to_str(int argc, Value argv[]) {
+#define SEQ_SEPARATOR ", "
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (IS_SEQ(argv[0])) {
+    ObjSeq* seq     = AS_SEQ(argv[0]);
+    size_t buf_size = 64;  // Start with a reasonable size
+    char* chars     = malloc(buf_size);
+
+    strcpy(chars, "[");
+    for (int i = 0; i < seq->items.count; i++) {
+      // Use the default to-string method of the value to convert the item to a string
+      push(seq->items.values[i]);
+      ObjString* item_str = AS_STRING(exec_method(copy_string("str", 3), 0));  // Convert to string
+
+      // Expand chars to fit the separator plus the next item
+      size_t new_buf_size = strlen(chars) + strlen(item_str->chars) + sizeof(SEQ_SEPARATOR) +
+                            2;  // +2 so we are able to add the closing bracket if we're done
+                                // after this iteration.
+      if (new_buf_size > buf_size) {
+        buf_size = new_buf_size;
+        chars    = realloc(chars, buf_size);
+        if (chars == NULL) {
+          return OBJ_VAL(copy_string("[???]", 5));
+        }
+      }
+
+      strcat(chars, item_str->chars);
+      if (i < seq->items.count - 1) {
+        strcat(chars, SEQ_SEPARATOR);
+      }
+    }
+
+    strcat(chars, "]");
+
+    // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+    // allocates the memory - we don't want this block in our own memory pool.
+    ObjString* str_obj = copy_string(chars, buf_size);
+    free(chars);
+    return OBJ_VAL(str_obj);
+  }
+
+  runtime_error("Expected a sequence but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+#undef SEQ_SEPARATOR
 }
 
 // Built-in function to retrieve the length of a string
@@ -430,7 +784,7 @@ static bool bind_method(ObjClass* klass, ObjString* name) {
     return false;
   }
 
-  ObjBoundMethod* bound = new_bound_method(peek(0), AS_CLOSURE(method));
+  ObjBoundMethod* bound = new_bound_method(peek(0), AS_OBJ(method));
   pop();
   push(OBJ_VAL(bound));
   return true;
@@ -496,7 +850,7 @@ static bool is_falsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
-// Concatenates two strings on the stack into a new string and pushes it onto the stack
+// Concatenates two strings on the stack (pops them) into a new string and pushes it onto the stack
 static void concatenate() {
   ObjString* b = AS_STRING(peek(0));  // Peek, so it doesn't get freed by the GC
   ObjString* a = AS_STRING(peek(1));  // Peek, so it doesn't get freed by the GC
@@ -881,7 +1235,7 @@ static Value run() {
       }
       case OP_CALL: {
         int arg_count = READ_ONE();
-        if (!call_value(peek(arg_count), arg_count)) {
+        if (call_value(peek(arg_count), arg_count) == CALL_FAILED) {
           return exit_with_runtime_error();
         }
         frame = &vm.frames[vm.frame_count - 1];
@@ -890,7 +1244,7 @@ static Value run() {
       case OP_INVOKE: {
         ObjString* method = READ_STRING();
         int arg_count     = READ_ONE();
-        if (!invoke(method, arg_count)) {
+        if (invoke(method, arg_count) == CALL_FAILED) {
           return exit_with_runtime_error();
         }
         frame = &vm.frames[vm.frame_count - 1];
@@ -900,7 +1254,7 @@ static Value run() {
         ObjString* method   = READ_STRING();
         int arg_count       = READ_ONE();
         ObjClass* baseclass = AS_CLASS(pop());
-        if (!invoke_from_class(baseclass, method, arg_count)) {
+        if (invoke_from_class(baseclass, method, arg_count) == CALL_FAILED) {
           return exit_with_runtime_error();
         }
         frame = &vm.frames[vm.frame_count - 1];

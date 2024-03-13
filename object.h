@@ -27,7 +27,7 @@
 #define IS_INSTANCE(value) is_obj_type(value, OBJ_INSTANCE)
 
 // Determines whether a value is of type native function.
-#define IS_NATIVE(value) i_obj_type(value, OBJ_NATIVE)
+#define IS_NATIVE(value) is_obj_type(value, OBJ_NATIVE)
 
 // Determines whether a value is of type string.
 #define IS_STRING(value) is_obj_type(value, OBJ_STRING)
@@ -80,23 +80,6 @@ typedef enum {
   OBJ_UPVALUE,
   OBJ_BOUND_METHOD,
 } ObjType;
-
-#if defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_ALLOCATIONS) || defined(DEBUG_LOG_GC_FREE)
-inline static const char* obj_type_to_string(ObjType type) {
-  switch (type) {
-    case OBJ_CLASS: return "OBJ_CLASS";
-    case OBJ_CLOSURE: return "OBJ_CLOSURE";
-    case OBJ_FUNCTION: return "OBJ_FUNCTION";
-    case OBJ_INSTANCE: return "OBJ_INSTANCE";
-    case OBJ_NATIVE: return "OBJ_NATIVE";
-    case OBJ_SEQ: return "OBJ_SEQ";
-    case OBJ_STRING: return "OBJ_STRING";
-    case OBJ_UPVALUE: return "OBJ_UPVALUE";
-    case OBJ_BOUND_METHOD: return "OBJ_BOUND_METHOD";
-    default: return "UKNOWN_OBJECT_TYPE";
-  }
-}
-#endif
 
 // The base object construct.
 struct Obj {
@@ -165,12 +148,12 @@ typedef struct ObjInstance {
 typedef struct {
   Obj obj;
   Value receiver;
-  ObjClosure* method;
+  Obj* method;
 } ObjBoundMethod;
 
 // Creates, initializes and allocates a new bound method object. Might trigger
 // garbage collection.
-ObjBoundMethod* new_bound_method(Value receiver, ObjClosure* method);
+ObjBoundMethod* new_bound_method(Value receiver, Obj* method);
 
 // Creates, initializes and allocates a new instance object. Might trigger
 // garbage collection.

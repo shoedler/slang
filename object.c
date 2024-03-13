@@ -50,7 +50,7 @@ static ObjString* allocate_string(char* chars, int length, uint32_t hash) {
   return string;
 }
 
-ObjBoundMethod* new_bound_method(Value receiver, ObjClosure* method) {
+ObjBoundMethod* new_bound_method(Value receiver, Obj* method) {
   ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
   bound->receiver       = receiver;
   bound->method         = method;
