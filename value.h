@@ -2,6 +2,7 @@
 #define value_h
 
 #include "common.h"
+#include <stdio.h>
 
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
@@ -107,11 +108,12 @@ bool is_int(double number, int* integer);
 // Get the hashcode of a value, based on its type.
 uint32_t hash_value(Value value);
 
-// Creates a string representation of a value.
-// The string is allocated on the heap, and **must** be freed by the caller.
-char* value_to_str(Value value);
-
 // Gets the name of a type.
 const char* type_name(Value value);
+
+// Prints a value to a file. Will look different from the values default print representation, but it will
+// guarantee that the gc will not be called.
+// Returns the number of characters printed.
+int print_value_safe(FILE* file, Value value);
 
 #endif

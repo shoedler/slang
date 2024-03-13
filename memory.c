@@ -7,6 +7,7 @@
 #if defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_FREE)
 #include <stdio.h>
 #include "debug.h"
+#include "value.h"
 #endif
 
 #ifdef DEBUG_LOG_GC_FREE
@@ -53,8 +54,8 @@ void mark_obj(Obj* object) {
   }
 
 #ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_YELLOW_STR("[MARK] ") "%p, ", (void*)object);
-  printf("%s\n", obj_type_to_string(object->type));
+  printf(ANSI_RED_STR("[GC] ") ANSI_YELLOW_STR("[MARK] ") "at %p, ", (void*)object);
+  printf("%s\n", type_name(OBJ_VAL(object)));
 #endif
 
   object->is_marked = true;
@@ -91,8 +92,8 @@ void mark_array(ValueArray* array) {
 // been marked as well.
 static void blacken_object(Obj* object) {
 #ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_BLUE_STR("[BLACKEN] ") "%p, ", (void*)object);
-  printf("%s\n", obj_type_to_string(object->type));
+  printf(ANSI_RED_STR("[GC] ") ANSI_BLUE_STR("[BLACKEN] ") "at %p, ", (void*)object);
+  printf("%s\n", type_name(OBJ_VAL(object)));
 #endif
 
   switch (object->type) {
@@ -148,8 +149,10 @@ static void blacken_object(Obj* object) {
 // How we free an object depends on its type.
 static void free_object(Obj* object) {
 #ifdef DEBUG_LOG_GC_FREE
-  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "%p, type: %s\n", (void*)object,
-         obj_type_to_string(object->type));
+  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "at %p, type: %s, value: ", (void*)object,
+         type_name(OBJ_VAL(object)));
+  print_value_safe(stdout, OBJ_VAL(object));
+  printf("\n");
 #endif
 
   switch (object->type) {

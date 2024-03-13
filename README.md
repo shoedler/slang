@@ -48,6 +48,7 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 
 - [ ] Move exit codes to `common.h` and replace all magic numbers with them
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
+- [ ] Make macros in `value.h` for internal types and their values (e.g. `true` and `false`).
 - [ ] Add a test for `ObjBoundMethod` where it's method is a `NativeFn`, because it was previously only a `ObjClosure`.
 
 ### Optimizations

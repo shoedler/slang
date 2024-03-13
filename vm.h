@@ -101,7 +101,4 @@ void push(Value value);
 // Pop a value off the stack.
 Value pop();
 
-// Creates a string representation of a value.
-ObjString* to_str(Value value);
-
 #endif

@@ -26,12 +26,21 @@
 #define PRINT_VALUE_STR(_str) printf("%-*.*s", VALUE_STR_LEN, VALUE_STR_LEN, _str)
 
 void debug_print_value(Value value) {
-  char* str = value_to_str(value);
-  if (str == NULL) {
-    str = _strdup("<???>");
+  int written = print_value_safe(stdout, value);
+
+  if (written < 0)
+    written = 0;
+
+  // Pad or erase to fit VALUE_STR_LEN
+  if (written < VALUE_STR_LEN) {
+    for (; written < VALUE_STR_LEN; written++) {
+      printf(" ");
+    }
+  } else {
+    for (int i = VALUE_STR_LEN; i > written; i--) {
+      printf("\b \b");
+    }
   }
-  PRINT_VALUE_STR(str);
-  free(str);
 }
 
 void disassemble_chunk(Chunk* chunk, const char* name) {

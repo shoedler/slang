@@ -28,11 +28,8 @@ typedef enum {
 
 static Value exit_with_runtime_error();
 static Value run();
+
 static Value __builtin_obj_to_str(int argc, Value argv[]);
-static Value __builint_hash_value(int argc, Value argv[]);
-static Value __builtin_get_typename(int argc, Value argv[]);
-static Value __builtin_str_len(int argc, Value argv[]);
-static Value __builtin_seq_len(int argc, Value argv[]);
 static Value __builtin_bool_to_str(int argc, Value argv[]);
 static Value __builtin_nil_to_str(int argc, Value argv[]);
 static Value __builtin_number_to_str(int argc, Value argv[]);
@@ -45,6 +42,12 @@ static Value __builtin_native_to_str(int argc, Value argv[]);
 static Value __builtin_upvalue_to_str(int argc, Value argv[]);
 static Value __builtin_string_to_str(int argc, Value argv[]);
 static Value __builtin_seq_to_str(int argc, Value argv[]);
+static ObjString* to_str(Value value);
+
+static Value __builint_hash_value(int argc, Value argv[]);
+static Value __builtin_get_typename(int argc, Value argv[]);
+static Value __builtin_str_len(int argc, Value argv[]);
+static Value __builtin_seq_len(int argc, Value argv[]);
 
 static Value native_clock(int arg_count, Value* args) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
@@ -52,15 +55,8 @@ static Value native_clock(int arg_count, Value* args) {
 
 static Value native_print(int arg_count, Value* args) {
   for (int i = 0; i < arg_count; i++) {
-    char* str = value_to_str(args[i]);
-    if (str == NULL) {
-      INTERNAL_ERROR("Failed to convert value to string");
-      return exit_with_runtime_error();
-    }
-
-    printf("%s", str);
-    free(str);
-
+    ObjString* str = to_str(args[i]);
+    printf("%s", str->chars);
     if (i < arg_count - 1) {
       printf(" ");
     }
@@ -460,6 +456,35 @@ static Value __builtin_get_typename(int argc, Value argv[]) {
   return OBJ_VAL(str_obj);
 }
 
+// Function to convert any value to a string.
+// This is faster than using the "str" method, but it's less flexible.
+// Should probably test how much faster it is, because I don't like it.
+static ObjString* to_str(Value value) {
+  switch (value.type) {
+    case VAL_BOOL: return AS_STRING(__builtin_bool_to_str(0, &value));
+    case VAL_NIL: return AS_STRING(__builtin_nil_to_str(0, &value));
+    case VAL_NUMBER: return AS_STRING(__builtin_number_to_str(0, &value));
+    case VAL_OBJ: {
+      switch (OBJ_TYPE(value)) {
+        case OBJ_CLASS: return AS_STRING(__builtin_class_to_str(0, &value));
+        case OBJ_CLOSURE: return AS_STRING(__builtin_closure_to_str(0, &value));
+        case OBJ_BOUND_METHOD: return AS_STRING(__builtin_bound_method_to_str(0, &value));
+        case OBJ_INSTANCE: return AS_STRING(__builtin_instance_to_str(0, &value));
+        case OBJ_NATIVE: return AS_STRING(__builtin_native_to_str(0, &value));
+        case OBJ_STRING: return AS_STRING(__builtin_string_to_str(0, &value));
+        case OBJ_SEQ: return AS_STRING(__builtin_seq_to_str(0, &value));
+        case OBJ_FUNCTION: return AS_STRING(__builtin_function_to_str(0, &value));
+        case OBJ_UPVALUE: return AS_STRING(__builtin_upvalue_to_str(0, &value));
+        default: break;
+      }
+      break;
+    }
+    default: break;
+  }
+
+  return copy_string("???", 3);
+}
+
 // Built-in function to convert an object to a string
 static Value __builtin_obj_to_str(int argc, Value argv[]) {
   if (argc != 0) {
@@ -504,8 +529,8 @@ static Value __builtin_bool_to_str(int argc, Value argv[]) {
   }
 
   runtime_error("Expected a boolean but got %s.", type_name(argv[0]));
-    return exit_with_runtime_error();
-  }
+  return exit_with_runtime_error();
+}
 
 // Built-in function to convert a number to a string
 static Value __builtin_number_to_str(int argc, Value argv[]) {
@@ -527,7 +552,7 @@ static Value __builtin_number_to_str(int argc, Value argv[]) {
     }
 
     ObjString* str_obj = copy_string(buffer, len);
-  return OBJ_VAL(str_obj);
+    return OBJ_VAL(str_obj);
   }
 
   runtime_error("Expected a number but got %s.", type_name(argv[0]));
@@ -624,7 +649,7 @@ static Value __builtin_bound_method_to_str(int argc, Value argv[]) {
     if (bound->method->type == OBJ_CLOSURE) {
       return __builtin_function_to_str(0, &OBJ_VAL(((ObjClosure*)bound->method)->function));
     }
-    
+
     return __builtin_native_to_str(0, &OBJ_VAL((ObjNative*)bound->method));
   }
 
@@ -906,12 +931,7 @@ static Value run() {
     printf(ANSI_CYAN_STR(" Stack "));
     for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
       printf(ANSI_CYAN_STR("["));
-      char* str = value_to_str(*slot);
-      if (str == NULL) {
-        str = _strdup("<???>");
-      }
-      printf("%s", str);
-      free(str);
+      print_value_safe(stdout, *slot);
       printf(ANSI_CYAN_STR("]"));
     }
     printf("\n");
@@ -1202,13 +1222,8 @@ static Value run() {
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
       case OP_PRINT: {
-        char* str = value_to_str(peek(0));
-        if (str == NULL) {
-          INTERNAL_ERROR("Failed to convert value to string");
-          return exit_with_runtime_error();
-        }
-        printf("%s\n", str);
-        free(str);
+        ObjString* str = to_str(peek(0));
+        printf("%s\n", str->chars);
         pop();
         break;
       }
