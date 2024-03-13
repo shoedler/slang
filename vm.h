@@ -9,7 +9,7 @@
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
-#define KEYWORD_CONSTRUCTOR "__ctor"
+#define KEYWORD_CONSTRUCTOR "ctor"
 #define KEYWORD_CONSTRUCTOR_LEN (sizeof(KEYWORD_CONSTRUCTOR) - 1)
 
 #define KEYWORD_NAME "__name"
@@ -100,5 +100,8 @@ void push(Value value);
 
 // Pop a value off the stack.
 Value pop();
+
+// Creates a string representation of a value.
+ObjString* to_str(Value value);
 
 #endif

@@ -210,8 +210,7 @@ void free_objects() {
   free(vm.gray_stack);
 }
 
-// Starts at the roots of the objects in the heap and marks all reachable
-// objects.
+// Starts at the roots of the objects in the heap and marks all reachable objects.
 static void mark_roots() {
   // Most roots are local variables, which are on the stack.
   for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
@@ -221,10 +220,6 @@ static void mark_roots() {
   // Call frames are also roots, because they contain function call state.
   for (int i = 0; i < vm.frame_count; i++) {
     mark_obj((Obj*)vm.frames[i].closure);
-    // Mark the globals hashtable of the frame, if there is one.
-    if (vm.frames[i].globals != NULL) {
-      mark_hashtable(vm.frames[i].globals);
-    }
   }
 
   // Open upvalues are also roots directly accessible by the vm.

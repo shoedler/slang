@@ -213,7 +213,7 @@ print Range.__name
 let foo = "Foo"
 print foo.str()
 print foo.str() + " is of type " + foo.type_name()
-print Range.__ctor
+print Range.ctor
 
 let x = [1,2,3]
 print x
@@ -232,6 +232,10 @@ cls List {
   fn printList {
     print this.list
   }
+
+  fn str {
+    ret "List with " + this.list.len().str() + " elements: " + this.list.str();
+  }
 }
 
 fn make_list -> [1,2,3]
@@ -242,15 +246,24 @@ s.printList()
 
 // print clock()
 // print __builtin.clock() // Also works
-print "Hello"
+print "Hello-----------------"
 // print 123.type_name()
-print s.str()
 print s.list.str()
+
+let omg = [1,2,s].str()
+print omg // Should invoke the 'overridden' str method on the List class
+
 print 312.str()
 print 312.hash()
 print 321.type_name()
 print "Hello".len()
 
 log("Hello", [1,2,3], clock(), nil.type_name(), s.list.len(), s.list.type_name())
+
+log(0.type_name(), "is not the same as", 0.str())
+log(nil.type_name(), "is not the same as", nil.str())
+log(true.type_name(), "is not the same as", true.str())
+log(clock.type_name(), "is not the same as", clock.str())
+log(Range.type_name(), "is not the same as", Range.str())
 
 

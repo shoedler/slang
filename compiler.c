@@ -53,7 +53,14 @@ typedef struct {
   bool is_local;
 } Upvalue;
 
-typedef enum { TYPE_FUNCTION, TYPE_CONSTRUCTOR, TYPE_METHOD, TYPE_TOPLEVEL, TYPE_MODULE } FunctionType;
+typedef enum {
+  TYPE_FUNCTION,
+  TYPE_CONSTRUCTOR,
+  TYPE_METHOD,
+  TYPE_TOPLEVEL,
+  TYPE_ANONYMOUS_FUNCTION,
+  TYPE_MODULE
+} FunctionType;
 
 // A construct holding the compiler's state.
 typedef struct Compiler {
@@ -236,7 +243,7 @@ static void emit_return() {
 }
 
 // Initializes a new compiler.
-static void init_compiler(Compiler* compiler, FunctionType type, ObjString* name) {
+static void init_compiler(Compiler* compiler, FunctionType type) {
   compiler->enclosing = current;
   current             = compiler;
 
@@ -250,7 +257,8 @@ static void init_compiler(Compiler* compiler, FunctionType type, ObjString* name
   switch (type) {
     case TYPE_TOPLEVEL: current->function->name = copy_string("Toplevel", 10); break;
     case TYPE_MODULE: current->function->name = copy_string("Module", 8); break;
-    default: current->function->name = name; break;
+    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("<Anon>", 7); break;
+    default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }
 
   Local* local       = &current->locals[current->local_count++];
@@ -546,9 +554,9 @@ static void base_(bool can_assign) {
 // The declaration has already been consumed. Here, we start at the function's
 // parameters. Therefore is used for all supported functions:
 // named functions, anonymous functions, constructors and methods.
-static void function(bool can_assign, FunctionType type, ObjString* name) {
+static void function(bool can_assign, FunctionType type) {
   Compiler compiler;
-  init_compiler(&compiler, type, name);
+  init_compiler(&compiler, type);
   begin_scope();
 
   // Parameters
@@ -604,7 +612,7 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
 }
 
 static void anonymous_function(bool can_assign) {
-  function(can_assign /* does not matter */, TYPE_FUNCTION, copy_string("<Anon>", 7));
+  function(can_assign /* does not matter */, TYPE_ANONYMOUS_FUNCTION);
 }
 
 // Compiles a class method.
@@ -612,22 +620,17 @@ static void anonymous_function(bool can_assign) {
 static void method() {
   consume(TOKEN_FN, "Expecting method initializer.");
   consume(TOKEN_ID, "Expecting method name.");
-  uint16_t constant      = string_constant(&parser.previous);
-  ObjString* method_name = copy_string(parser.previous.start, parser.previous.length);
+  uint16_t constant = string_constant(&parser.previous);
 
-  function(false /* does not matter */, TYPE_METHOD, method_name);
+  function(false /* does not matter */, TYPE_METHOD);
   emit_two(OP_METHOD, constant);
 }
 
 static void constructor() {
   consume(TOKEN_CTOR, "Expecting constructor.");
-  Token ctor        = synthetic_token(KEYWORD_CONSTRUCTOR);
-  uint16_t constant = string_constant(&ctor);
-  // TODO (optimize): Maybe preload this? A constructor is always called the
-  // the same name - so we could just load it once and then reuse it.
-  ObjString* ctor_name = copy_string(ctor.start, ctor.length);
+  uint16_t constant = string_constant(&parser.previous);
 
-  function(false /* does not matter */, TYPE_CONSTRUCTOR, ctor_name);
+  function(false /* does not matter */, TYPE_CONSTRUCTOR);
   emit_two(OP_METHOD, constant);
 }
 
@@ -791,7 +794,7 @@ static int resolve_local(Compiler* compiler, Token* name) {
 // - If it is found in the enclosing compiler's locals, it is marked as
 // captured and an upvalue is added to the current compiler's upvalues array.
 // - If it is not found in the enclosing compiler's locals, it is recursively
-// resolved in the enclosing compilers.
+// resolved in the outer enclosing compilers.
 //
 // Returns the index of the upvalue in the current compiler's upvalues array, or
 // -1 if it is not found.
@@ -1150,11 +1153,10 @@ static void declaration_let() {
 // The fn keyword has already been consumed at this point.
 // Since functions are first-class, this is similar to a variable declaration.
 static void declaration_function() {
-  uint16_t global    = parse_variable("Expecting variable name.");
-  ObjString* fn_name = copy_string(parser.previous.start, parser.previous.length);
+  uint16_t global = parse_variable("Expecting function name.");
 
   mark_initialized();
-  function(false /* does not matter */, TYPE_FUNCTION, fn_name);
+  function(false /* does not matter */, TYPE_FUNCTION);
   define_variable(global);
 }
 
@@ -1244,7 +1246,7 @@ ObjFunction* compile(const char* source, bool is_module) {
   init_scanner(source);
   Compiler compiler;
 
-  init_compiler(&compiler, is_module ? TYPE_MODULE : TYPE_TOPLEVEL, NULL);
+  init_compiler(&compiler, is_module ? TYPE_MODULE : TYPE_TOPLEVEL);
 
 #ifdef DEBUG_PRINT_CODE
   printf("== Begin compilation ==\n");
