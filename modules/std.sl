@@ -22,3 +22,16 @@ cls Range {
     ret make_iter(this.min);
   }
 }
+
+cls Monad {
+  ctor(value) {
+    this.value = value
+  }
+
+  fn bind(f) {
+    if this.value == nil {
+      ret this;
+    }
+    ret Monad(f(this.value));
+  }
+}

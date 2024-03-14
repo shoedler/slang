@@ -180,7 +180,7 @@ void init_vm() {
 
   // ... and define the object methods
   define_obj(&vm.builtin->fields, "Object", (Obj*)vm.object_class);
-  define_native(&vm.object_class->methods, "str", __builtin_obj_to_str);
+  define_native(&vm.object_class->methods, "to_str", __builtin_obj_to_str);
   define_native(&vm.object_class->methods, "hash", __builint_hash_value);
   define_native(&vm.object_class->methods, "type_name", __builtin_get_typename);
 
@@ -191,28 +191,28 @@ void init_vm() {
   // Create the string class
   vm.string_class = new_class(copy_string(TYPENAME_STRING, sizeof(TYPENAME_STRING) - 1), vm.object_class);
   define_obj(&vm.builtin->fields, TYPENAME_STRING, (Obj*)vm.string_class);
-  define_native(&vm.string_class->methods, "str", __builtin_string_to_str);
+  define_native(&vm.string_class->methods, "to_str", __builtin_string_to_str);
   define_native(&vm.string_class->methods, "len", __builtin_str_len);
 
   // Create the number class
   vm.number_class = new_class(copy_string(TYPENAME_NUMBER, sizeof(TYPENAME_NUMBER) - 1), vm.object_class);
   define_obj(&vm.builtin->fields, TYPENAME_NUMBER, (Obj*)vm.number_class);
-  define_native(&vm.number_class->methods, "str", __builtin_number_to_str);
+  define_native(&vm.number_class->methods, "to_str", __builtin_number_to_str);
 
   // Create the boolean class
   vm.bool_class = new_class(copy_string(TYPENAME_BOOL, sizeof(TYPENAME_BOOL) - 1), vm.object_class);
   define_obj(&vm.builtin->fields, TYPENAME_BOOL, (Obj*)vm.bool_class);
-  define_native(&vm.bool_class->methods, "str", __builtin_bool_to_str);
+  define_native(&vm.bool_class->methods, "to_str", __builtin_bool_to_str);
 
   // Create the nil class
   vm.nil_class = new_class(copy_string(TYPENAME_NIL, sizeof(TYPENAME_NIL) - 1), vm.object_class);
   define_obj(&vm.builtin->fields, TYPENAME_NIL, (Obj*)vm.nil_class);
-  define_native(&vm.nil_class->methods, "str", __builtin_nil_to_str);
+  define_native(&vm.nil_class->methods, "to_str", __builtin_nil_to_str);
 
   // Create the sequence class
   vm.seq_class = new_class(copy_string(TYPENAME_SEQ, sizeof(TYPENAME_SEQ) - 1), vm.object_class);
   define_obj(&vm.builtin->fields, TYPENAME_SEQ, (Obj*)vm.seq_class);
-  define_native(&vm.seq_class->methods, "str", __builtin_seq_to_str);
+  define_native(&vm.seq_class->methods, "to_str", __builtin_seq_to_str);
   define_native(&vm.seq_class->methods, "len", __builtin_seq_len);
 
   vm.pause_gc = 0;
@@ -242,7 +242,7 @@ static Value peek(int distance) {
 
 // Retrieves the class of a value. Everything in Slang is an 'object', so this function will always return
 // a class.
-static ObjClass* value_get_class(Value value) {
+static ObjClass* type_of(Value value) {
   // Handle primitive and internal types which have a corresponding class
   if (!IS_INSTANCE(value)) {
     switch (value.type) {
@@ -261,6 +261,21 @@ static ObjClass* value_get_class(Value value) {
 
   // Instances are easy, just return the class. Most of them are probably managed-code classes.
   return AS_INSTANCE(value)->klass;
+}
+
+// Finds a method in the inheritance chain of a class. This is used to find methods in the class hierarchy.
+// If the method is not found, NIL_VAL is returned.
+static Value find_method_in_inheritance_chain(ObjClass* klass, ObjString* name) {
+  ObjClass* source_klass = klass;
+
+  while (klass != NULL) {
+    Value method;
+    if (hashtable_get(&klass->methods, OBJ_VAL(name), &method)) {
+      return method;
+    }
+    klass = klass->base;
+  }
+  return NIL_VAL;
 }
 
 // Executes a call to a managed-code function or method by creating a new call frame and pushing it onto the
@@ -306,12 +321,18 @@ static CallResult call_value(Value callee, int arg_count) {
       case OBJ_BOUND_METHOD: {
         ObjBoundMethod* bound        = AS_BOUND_METHOD(callee);
         vm.stack_top[-arg_count - 1] = bound->receiver;  // Slot 0, so we can access "this"
-        return call_value(OBJ_VAL(bound->method), arg_count);
+
+        switch (bound->method->type) {
+          case OBJ_CLOSURE: return call_managed((ObjClosure*)bound->method, arg_count);
+          case OBJ_NATIVE:
+            return call_native(((ObjNative*)bound->method)->function, arg_count, true /* has receiver */);
+          default: break;  // Non-callable object type.
+        }
       }
       case OBJ_CLASS: {
         ObjClass* klass = AS_CLASS(callee);
         vm.stack_top[-arg_count - 1] =
-            OBJ_VAL(new_instance(klass));  // This is the actual "this", e.g. new instance
+            OBJ_VAL(new_instance(klass));  // This is the actual "this", e.g. new instance.
         Value ctor;                        // The 'ctor' is actually optional
 
         if (hashtable_get(&klass->methods, vm.reserved_method_names[METHOD_CTOR], &ctor)) {
@@ -335,33 +356,30 @@ static CallResult call_value(Value callee, int arg_count) {
 
 // Invokes a method on a class by looking up the method in the class' method
 // table and calling it. (Combines "get-property" and "call" opcodes)
-// Scans upwards through the class hierarchy to find the method.
 static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
   ObjClass* source_klass = klass;
+  Value method           = find_method_in_inheritance_chain(klass, name);
 
-  while (source_klass != NULL) {
-    Value method;
-    if (hashtable_get(&source_klass->methods, OBJ_VAL(name), &method)) {
-      switch (AS_OBJ(method)->type) {
-        case OBJ_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
-        case OBJ_NATIVE: return call_native(AS_NATIVE(method), arg_count, true /* has receiver */);
-        default: {
-          runtime_error("Cannot invoke method of type '%s' on class", type_name(method));
-          return CALL_FAILED;
-        }
-      }
-    }
-    source_klass = source_klass->base;
+  if (IS_NIL(method)) {
+    runtime_error("Undefined property '%s' in '%s' or any of its parent classes", name->chars,
+                  klass->name->chars);
+    return CALL_FAILED;
   }
-  runtime_error("Undefined property '%s' in '%s' or any of its parent classes", name->chars,
-                klass->name->chars);
-  return CALL_FAILED;
+
+  switch (AS_OBJ(method)->type) {
+    case OBJ_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
+    case OBJ_NATIVE: return call_native(AS_NATIVE(method), arg_count, true /* has receiver */);
+    default: {
+      runtime_error("Cannot invoke method of type '%s' on class", type_name(method));
+      return CALL_FAILED;
+    }
+  }
 }
 
 // Invokes a method on the top of the stack.
 static CallResult invoke(ObjString* name, int arg_count) {
   Value receiver  = peek(arg_count);
-  ObjClass* klass = value_get_class(receiver);
+  ObjClass* klass = type_of(receiver);
 
   // Handle primitive and internal types which have a corresponding class
   if (!IS_INSTANCE(receiver)) {
@@ -421,7 +439,7 @@ static Value exec_fn(Obj* callee, int arg_count) {
 // there's a receiver on the stack before the arguments.
 static Value exec_method(ObjString* name, int arg_count) {
   Value receiver    = peek(arg_count);
-  ObjClass* klass   = value_get_class(receiver);
+  ObjClass* klass   = type_of(receiver);
   CallResult result = invoke_from_class(klass, name, arg_count);
 
   if (result == CALL_RETURNED) {
@@ -457,7 +475,7 @@ static Value __builtin_get_typename(int argc, Value argv[]) {
 }
 
 // Function to convert any value to a string.
-// This is faster than using the "str" method, but it's less flexible.
+// This is faster than using the "to_str" method, but it's less flexible.
 // Should probably test how much faster it is, because I don't like it.
 static ObjString* to_str(Value value) {
   switch (value.type) {
@@ -745,7 +763,7 @@ static Value __builtin_seq_to_str(int argc, Value argv[]) {
     for (int i = 0; i < seq->items.count; i++) {
       // Use the default to-string method of the value to convert the item to a string
       push(seq->items.values[i]);
-      ObjString* item_str = AS_STRING(exec_method(copy_string("str", 3), 0));  // Convert to string
+      ObjString* item_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));  // Convert to string
 
       // Expand chars to fit the separator plus the next item
       size_t new_buf_size = strlen(chars) + strlen(item_str->chars) + sizeof(SEQ_SEPARATOR) +
@@ -804,8 +822,8 @@ static Value __builtin_seq_len(int argc, Value argv[]) {
 // Binds a method to an instance by creating a new bound method object and
 // pushing it onto the stack.
 static bool bind_method(ObjClass* klass, ObjString* name) {
-  Value method;
-  if (!hashtable_get(&klass->methods, OBJ_VAL(name), &method)) {
+  Value method = find_method_in_inheritance_chain(klass, name);
+  if (IS_NIL(method)) {
     return false;
   }
 
@@ -1084,8 +1102,7 @@ static Value run() {
                   push(OBJ_VAL(klass->name));
                   goto done_getting_property;
                 } else if (values_equal(OBJ_VAL(name), vm.reserved_method_names[METHOD_CTOR])) {
-                  pop();  // Pop the class, should be fine since we don't trigger the GC in this
-                          // block
+                  pop();  // Pop the class
                   Value ctor;
                   hashtable_get(&klass->methods, OBJ_VAL(name), &ctor);
                   push(ctor);
@@ -1100,8 +1117,6 @@ static Value run() {
                   pop();  // Instance.
                   push(value);
                   goto done_getting_property;
-                } else if (bind_method(instance->klass, name)) {
-                  goto done_getting_property;
                 }
                 break;
               }
@@ -1110,11 +1125,8 @@ static Value run() {
           }
         }
 
-        // If we get here, check if it is a method on the origin object class
-        Value value;
-        if (hashtable_get(&vm.object_class->methods, OBJ_VAL(name), &value)) {
-          pop();  // Pop the object
-          push(value);
+        ObjClass* klass = type_of(peek(0));
+        if (bind_method(klass, name)) {
           goto done_getting_property;
         }
 

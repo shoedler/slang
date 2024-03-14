@@ -1,6 +1,6 @@
-// // -----------------------------------------
-// // Conditionals
-// // -----------------------------------------
+// print "--------------------------------------------------------------------------------"
+// print "Conditionals"
+// print "--------------------------------------------------------------------------------"
 // let a = 123
 // if a a = 321
 // print a // 321
@@ -12,9 +12,9 @@
 // if a and b print "a and b is Truthy!"
 // if a or b print "a or b is Truthy!"
 
-// // -----------------------------------------
-// // Loops
-// // -----------------------------------------
+// print "--------------------------------------------------------------------------------"
+// print "Loops"
+// print "--------------------------------------------------------------------------------"
 // for let i = 0 ; i < 5 ; i = i + 1 ; {
 //   print i
 // }
@@ -52,9 +52,9 @@
 //   print i
 // }
 
-// -----------------------------------------
-// Functions
-// -----------------------------------------
+// print "--------------------------------------------------------------------------------"
+// print "Functions"
+// print "--------------------------------------------------------------------------------"
 // let a = fn -> "a" // Anonymous Fn
 // let a_args = fn(x,y,z) -> x + y + z // Anonymous Fn
 // fn b -> "b" // Named Fn
@@ -65,9 +65,9 @@
 // print b
 // print b_args
 
-// // -----------------------------------------
-// // Functions can be recursive
-// // -----------------------------------------
+// print "--------------------------------------------------------------------------------"
+// print "Functions can be recursive"
+// print "--------------------------------------------------------------------------------"
 // let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
 
 // // With native functions. Here, timed with clock()
@@ -78,9 +78,9 @@
 
 // print result
 
-// // -----------------------------------------
-// // Functions have / are Closures
-// // -----------------------------------------
+// print "--------------------------------------------------------------------------------"
+// print "Functions have / are Closures"
+// print "--------------------------------------------------------------------------------"
 // fn outer {
 //   let x = "outside"
 //   let inner = fn {
@@ -93,9 +93,9 @@
 // fn closure -> outer()
 // closure()
 
-// // -----------------------------------------
-// // Classes 
-// // -----------------------------------------
+// print "--------------------------------------------------------------------------------"
+// print "Classes"
+// print "--------------------------------------------------------------------------------"
 // cls Scone {
 //   fn topping(first, second) {
 //     print "scone with " + first + " and " + second
@@ -137,9 +137,9 @@
 // maker.brew() 
 // maker.brew() // Error
 
-// // -----------------------------------------
-// // Base Classes
-// // -----------------------------------------
+// print "--------------------------------------------------------------------------------"
+// print "Base Classes"
+// print "--------------------------------------------------------------------------------"
 // cls A {
 //   fn method {
 //     print "A"
@@ -160,9 +160,9 @@
 // let b = B()
 // b.method()
 
-// -----------------------------------------
-// Sequences
-// -----------------------------------------
+// print "--------------------------------------------------------------------------------"
+// print "Sequences"
+// print "--------------------------------------------------------------------------------"
 // let x = [1,2,3]
 // print x
 // print x[0]
@@ -194,76 +194,79 @@
 // print "Hello".len
 // // print "Hello".get(0)
 
-// -----------------------------------------
-// Modules
-// -----------------------------------------
+print "--------------------------------------------------------------------------------"
+print "Modules"
+print "--------------------------------------------------------------------------------"
+
 import std
 let Range = std.Range
+let Monad = std.Monad
 
-// let a = Range.__ctor(0, 10) // Does not work, because __ctor is not bound to Range if you call it like this
-let a = Range(0, 10)
+// let rng = Range.__ctor(0, 10) // Does not work, because __ctor is not bound to Range if you call it like this
+let rng = Range(0, 5)
 
-let iter = a.__iter() // Create a new iterator
+let iter = rng.__iter() // Create a new iterator
 let res
 while res = iter() {
   print res
 }
 
-print Range.__name
-let foo = "Foo"
-print foo.str()
-print foo.str() + " is of type " + foo.type_name()
-print Range.ctor
+let mnd = Monad(10)
+print mnd
+  .bind(fn(x) -> x + 1)
+  .bind(fn(x) -> x * 2)
+  .bind(fn(x) -> x - 1)
+  .value
 
-let x = [1,2,3]
-print x
-print x[0]
+// Bound native functions
+print "Bound native function test: "
+let sample = "Hello"
+let bound_native = sample.to_str
+print bound_native.type_name()
+print "'" + bound_native() + "' should be the same as '" + (sample.to_str)() +  "', and the same as '" + sample.to_str() + "'?"
 
-x[0] = 4
-print x[0]
-x[1] = ["Foo", "Bar"]
-print x
+print "--------------------------------------------------------------------------------"
+print "Overriding stuff"
+print "--------------------------------------------------------------------------------"
 
-cls List {
+cls ListWithoutStrOverride {
   ctor {
-    this.list = [1,2,3]
-  }
-
-  fn printList {
-    print this.list
-  }
-
-  fn str {
-    ret "List with " + this.list.len().str() + " elements: " + this.list.str();
+    this.list = [1,2,[true, nil, "lol"]]
   }
 }
 
-fn make_list -> [1,2,3]
-let s = List()
-s.printList()
-s.list[1] = -2
-s.printList()
+cls List {
+  ctor {
+    this.list = [1,2,[true, nil, "lol"]]
+  }
 
-// print clock()
-// print __builtin.clock() // Also works
-print "Hello-----------------"
-// print 123.type_name()
-print s.list.str()
+  fn to_str {
+    ret "List with " + this.list.len().to_str() + " elements: " + this.list.to_str();
+  }
+}
 
-let omg = [1,2,s].str()
-print omg // Should invoke the 'overridden' str method on the List class
+print ListWithoutStrOverride().to_str()
+print List().to_str()
 
-print 312.str()
+print "--------------------------------------------------------------------------------"
+print "Builtin stuff"
+print "--------------------------------------------------------------------------------"
+
+print Range.__name
+print Range.ctor
+
+print 312.to_str()
 print 312.hash()
 print 321.type_name()
 print "Hello".len()
 
-log("Hello", [1,2,3], clock(), nil.type_name(), s.list.len(), s.list.type_name())
+let l = List()
+log("Hello", [1,2,3], clock(), nil.type_name(), l.list.len(), l.list.type_name())
 
-log(0.type_name(), "is not the same as", 0.str())
-log(nil.type_name(), "is not the same as", nil.str())
-log(true.type_name(), "is not the same as", true.str())
-log(clock.type_name(), "is not the same as", clock.str())
-log(Range.type_name(), "is not the same as", Range.str())
+log(0.type_name(), "is not the same as", 0.to_str())
+log(nil.type_name(), "is not the same as", nil.to_str())
+log(true.type_name(), "is not the same as", true.to_str())
+log(clock.type_name(), "is not the same as", clock.to_str())
+log(Range.type_name(), "is not the same as", Range.to_str())
 
 
