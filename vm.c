@@ -142,11 +142,14 @@ static void make_seq(int count) {
   items.capacity = count;
   items.count    = count;
 
+  // Take the values array while before we start popping the stack, so the items are still seen by the GC as
+  // we allocate the new seq object.
+  ObjSeq* seq = take_seq(&items);
+
   for (int i = count - 1; i >= 0; i--) {
     items.values[i] = pop();
   }
 
-  ObjSeq* seq = take_seq(&items);
   push(OBJ_VAL(seq));
 }
 
