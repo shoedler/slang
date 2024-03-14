@@ -36,9 +36,10 @@ const findTests = async () => {
  * @param {string} config - Build configuration to use
  * @param {AbortSignal} signal - Abort signal to use
  * @param {boolean} updateFiles - Whether to update test files with new expectations
+ * @param {string} testNamePattern - A pattern to filter tests by name. Supports regex
  */
-export const runTests = async (config, signal, updateFiles = false) => {
-  const tests = await findTests();
+export const runTests = async (config, signal, updateFiles = false, testNamePattern = '.*') => {
+  const tests = (await findTests()).filter(test => new RegExp(testNamePattern).test(test));
   const getTestName = filePath => path.parse(filePath).name;
   const failedTests = [];
   let totalAssertions = 0;

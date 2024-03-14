@@ -10,11 +10,48 @@ import { runTests } from './test.js';
 import { abort, buildSlangConfig, info, ok, runSlangFile, separator, warn } from './utils.js';
 import { watch } from './watch.js';
 
+// Process arguments. This is a simple command line interface for running benchmarks and tests
+// process.argv contains
+// - 0: node executable path
+// - 1: script path
+// - 2: command
+// - 3: options
+// - 4: options
+// - ...
 const cmd = process.argv[2];
+let options = process.argv.slice(3);
+
+// Consume (remove) an option from the options array an return it's value. If the option is not found, return the default value
+const consumeOption = (opt, defaultValue) => {
+  const index = options.indexOf(opt);
+  if (index < 0) {
+    return defaultValue;
+  }
+  return options.splice(index, 1)[0];
+};
+
+// Validate that all options have been consumed, otherwise abort with an error
+const validateOptions = () => {
+  if (options.length > 0) {
+    abort('Unknown options', options.join(', '));
+  }
+};
+
+const hint = [
+  'Available commands & options:',
+  '  - bench           Run benchmarks',
+  '  - test            Run tests (.spec.sl files)',
+  '    - update-files  Update test files with new expectations',
+  '    - <pattern>     Run tests that match the regex pattern',
+  '  - watch-sample    Watch sample file',
+  '  - watch-tests     Watch test files',
+];
 
 switch (cmd) {
   case 'bench': {
     const configs = [BUILD_CONFIG_DEBUG, BUILD_CONFIG_RELEASE];
+    validateOptions();
+
     for (const config of configs) {
       await buildSlangConfig(config);
     }
@@ -23,13 +60,19 @@ switch (cmd) {
   }
   case 'test': {
     const config = BUILD_CONFIG_RELEASE;
+    const doUpdateFiles = Boolean(consumeOption('update-files', false));
+    const testNamePattern = options.pop() || '.*';
+    validateOptions();
+
     await buildSlangConfig(config);
-    await runTests(config, undefined, process.argv[3] === 'update-files');
+    await runTests(config, undefined, doUpdateFiles, testNamePattern);
     break;
   }
   case 'watch-sample': {
     const config = BUILD_CONFIG_RELEASE;
     const sampleFilePath = SLANG_SAMPLE_FILE;
+    validateOptions();
+
     watch(
       SLANG_PROJ_DIR,
       { recursive: true },
@@ -58,6 +101,8 @@ switch (cmd) {
   }
   case 'watch-tests': {
     const config = BUILD_CONFIG_RELEASE;
+    validateOptions();
+
     watch(
       SLANG_PROJ_DIR,
       { recursive: true },
@@ -75,15 +120,6 @@ switch (cmd) {
     break;
   }
   default: {
-    const hint = [
-      'Available commands:',
-      '  - bench           Run benchmarks',
-      '  - test            Run tests (.spec.sl files)',
-      '    - update-files  Update test files with new expectations',
-      '  - watch-sample    Watch sample file',
-      '  - watch-tests     Watch test files',
-    ];
-
     abort('Unknown command', hint.join('\n'));
   }
 }
