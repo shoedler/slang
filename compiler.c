@@ -7,6 +7,10 @@
 #include "memory.h"
 #include "scanner.h"
 
+#ifdef DEBUG_PRINT_CODE
+#include "debug.h"
+#endif
+
 // A construct holding the parser's state.
 typedef struct {
   Token current;    // The current token.

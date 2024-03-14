@@ -70,7 +70,7 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 Devise a system to load modules. I want most of the stdlib to be native code to improve performance, but I also want to be able to load modules from disk.
 
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
-- [ ] Add type conversion functions. Proposal: `int()`, `float()`, `str()`, `bool()`
+- [ ] Add type conversion functions. Proposal: `int()`, `float()`, `to_str()`, `bool()`
 - [ ] Add type checking functions. Proposal: `type()` and `Num`, `Str`, `Bool` or `@num`, `@str`, `@bool`
 - [ ] Add sequences
 - [ ] Add objects

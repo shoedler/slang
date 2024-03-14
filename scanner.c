@@ -3,6 +3,10 @@
 #include "common.h"
 #include "scanner.h"
 
+#ifdef DEBUG_PRINT_TOKENS
+#include <stdio.h>
+#endif
+
 typedef struct {
   const char* start;
   const char* current;

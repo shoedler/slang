@@ -159,10 +159,11 @@ int print_value_safe(FILE* f, Value value) {
       }
     }
     case OBJ_SEQ: {
+      ObjSeq* seq = AS_SEQ(value);
       int written = fprintf(f, "[");
-      for (int i = 0; i < AS_SEQ(value)->items.count; i++) {
-        written += print_value_safe(f, AS_SEQ(value)->items.values[i]);
-        if (i < AS_SEQ(value)->items.count - 1) {
+      for (int i = 0; i < seq->items.count; i++) {
+        written += print_value_safe(f, seq->items.values[i]);
+        if (i < seq->items.count - 1) {
           written += fprintf(f, ", ");
         }
       }
