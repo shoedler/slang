@@ -87,13 +87,13 @@ void free_vm();
 
 // Takes a string of source code, compiles it and then runs it.
 // Returns the result of the interpretation as a value.
-// If local_scope is true, the code will be executed in a new scope.
-Value interpret(const char* source, bool local_scope);
+// Accepts an optional name for the module which should result from calling this function.
+Value interpret(const char* source, const char* module_name);
 
-// Reads a file, compiles it and then runs it.
+// Reads a file from path, compiles it and then runs it.
 // Returns the result of the interpretation as a value.
-// If local_scope is true, the code will be executed in a new scope.
-Value run_file(const char* file_name, bool local_scope);
+// Accepts an optional name for the module which should result from calling this function. If NULL is provided, path is used as the name.
+Value run_file(const char* path, const char* module_name);
 
 // Push a value onto the stack.
 void push(Value value);

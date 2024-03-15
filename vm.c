@@ -68,8 +68,23 @@ static void runtime_error(const char* format, ...) {
     CallFrame* frame      = &vm.frames[i];
     ObjFunction* function = frame->closure->function;
     size_t instruction    = frame->ip - function->chunk.code - 1;
+
     fprintf(stderr, "\tat line %d ", function->chunk.lines[instruction]);
-    fprintf(stderr, "in \"%s\"\n", function->name->chars);
+
+    Value module_name;
+    if (!hashtable_get(&function->globals_context->fields, vm.reserved_field_names[FIELD_NAME],
+                       &module_name)) {
+      fprintf("in \"%s\"\n", function->name->chars);
+      break;
+    }
+
+    // If the module_name is the same ref as the current frame's function-name, then we know it's the
+    // toplevel. because that's how we initialize it in the compiler.
+    if (AS_STRING(module_name) == function->name) {
+      fprintf(stderr, "at the toplevel of module \"%s\"\n", AS_CSTRING(module_name));
+    } else {
+      fprintf(stderr, "in \"%s\" in module \"%s\"\n", function->name->chars, AS_CSTRING(module_name));
+    }
   }
 
   reset_stack();
@@ -103,9 +118,17 @@ static void define_native(HashTable* table, const char* name, NativeFn function)
 
 // Defines an object in the given table.
 static void define_obj(HashTable* table, const char* name, Obj* obj) {
-  push(OBJ_VAL(copy_string(name, (int)strlen(name))));
-  push(OBJ_VAL(obj));
-  hashtable_set(table, vm.stack[0], vm.stack[1]);
+  // 🐛 Seemingly out of nowhere the pushed key and value get swapped on the stack...?! I don't know why.
+  // Funnily enough, it only happens when we start a nested module. E.g. we're in "main" and import "std",
+  // when the builtins get attached to the module instances field within the start_module function key and
+  // value are swapped! Same goes for the name (WTF). I've found this out because in the stack trace we now
+  // see the modules name and for nested modules it always printed __name. The current remedy is to just use
+  // variables for "key" and "value" and just use these instead of pushing and peeking.
+  Value key   = OBJ_VAL(copy_string(name, strlen(name)));
+  Value value = OBJ_VAL(obj);
+  push(key);
+  push(value);
+  hashtable_set(table, key, value);
   pop();
   pop();
 }
@@ -1166,7 +1189,7 @@ static Value run() {
 
         int previous_exit_frame = vm.exit_on_frame;
         vm.exit_on_frame        = vm.frame_count;
-        module                  = run_file(tmp, 1 /* new scope */);
+        module                  = run_file(tmp, name->chars);
         vm.exit_on_frame        = previous_exit_frame;
 
         if (!IS_OBJ(module) && !IS_INSTANCE(module) && !AS_INSTANCE(module)->klass == vm.module_class) {
@@ -1347,20 +1370,23 @@ static Value run() {
 #undef BINARY_OP
 }
 
-static void start_module() {
+static void start_module(char* module_name) {
   ObjInstance* module = new_instance(vm.module_class);
   vm.module           = (Obj*)module;
 
   define_obj(&module->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
+  define_obj(&module->fields, KEYWORD_NAME, copy_string(module_name, strlen(module_name)));
 }
 
-Value interpret(const char* source, bool is_module) {
+Value interpret(const char* source, char* module_name) {
   Obj* enclosing_module = vm.module;
+  bool is_module        = module_name != NULL;
+
   if (is_module) {
-    start_module();
+    start_module(module_name);
   }
 
-  ObjFunction* function = compile(source, is_module);
+  ObjFunction* function = compile_module(source);
   if (function == NULL) {
     exit_with_compile_error();
     return NIL_VAL;
@@ -1417,21 +1443,20 @@ static char* read_file(const char* path) {
   return buffer;
 }
 
-Value run_file(const char* path, bool is_module) {
+Value run_file(const char* path, const char* module_name) {
 #ifdef DEBUG_TRACE_EXECUTION
   printf("\n");
-  printf(ANSI_CYAN_STR("Running file: %s, Is module: %s\n"), path,
-         is_module ? VALUE_STR_TRUE : VALUE_STR_FALSE);
+  printf(ANSI_CYAN_STR("Running file: %s\n"), path);
 #endif
-
-  char* source = read_file(path);
+  const char* name = module_name == NULL ? path : module_name;
+  char* source     = read_file(path);
 
   if (source == NULL) {
     free(source);
     return NIL_VAL;
   }
 
-  Value result = interpret(source, is_module);
+  Value result = interpret(source, name);
   free(source);
 
 #ifdef DEBUG_TRACE_EXECUTION

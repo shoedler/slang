@@ -15,7 +15,7 @@ static void repl() {
       break;
     }
 
-    interpret(line, false /* no new local scope */);
+    interpret(line, "stdin");
   }
 }
 
@@ -28,7 +28,7 @@ void usage() {
 
 int main(int argc, char* argv[]) {
   init_vm();
-  run_file("C:\\Projects\\slang\\sample.sl", true);
+  run_file("C:\\Projects\\slang\\sample.sl", "main");
   free_vm();
 
   // Print args
@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
     free_vm();
   } else if (argc == 3 && strcmp(argv[1], "run") == 0) {
     init_vm();
-    run_file(argv[2], true /* is module */);
+    run_file(argv[2], "main");
     free_vm();
   } else {
     usage();

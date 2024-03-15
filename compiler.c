@@ -61,7 +61,6 @@ typedef enum {
   TYPE_FUNCTION,
   TYPE_CONSTRUCTOR,
   TYPE_METHOD,
-  TYPE_TOPLEVEL,
   TYPE_ANONYMOUS_FUNCTION,
   TYPE_MODULE
 } FunctionType;
@@ -259,15 +258,20 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
   compiler->function->globals_context = (ObjInstance*)vm.module;
 
   switch (type) {
-    case TYPE_TOPLEVEL: current->function->name = copy_string("Toplevel", 10); break;
-    case TYPE_MODULE: current->function->name = copy_string("Module", 8); break;
+    case TYPE_MODULE: {
+      // We use the modules name as the functions name (same reference, no copy). Meaning that the modules
+      // toplevel function has the same name as the module. This is useful for debugging and for stacktraces -
+      // it let's us easily determine if a frames function is a toplevel function or not.
+      Value module_name;
+      if (hashtable_get(&((ObjInstance*)vm.module)->fields, vm.reserved_field_names[FIELD_NAME],
+                        &module_name)) {
+        current->function->name = AS_STRING(module_name);
+        break;
+      }
+      INTERNAL_ERROR("Module name not found in module's fields (" KEYWORD_NAME ").");
+    }
     case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("<Anon>", 7); break;
-    case TYPE_CONSTRUCTOR:
-      current->function->name = copy_string(
-          KEYWORD_CONSTRUCTOR,
-          KEYWORD_CONSTRUCTOR_LEN);  // TODO (optimize): We could probably just get that from the
-                                     // vm.reserved_field_names array, *should* be allocated at this point.
-      break;
+    case TYPE_CONSTRUCTOR: current->function->name = AS_STRING(vm.reserved_field_names[FIELD_CTOR]); break;
     default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }
 
@@ -1242,11 +1246,11 @@ static void declaration() {
   }
 }
 
-ObjFunction* compile(const char* source, bool is_module) {
+ObjFunction* compile_module(const char* source) {
   init_scanner(source);
   Compiler compiler;
 
-  init_compiler(&compiler, is_module ? TYPE_MODULE : TYPE_TOPLEVEL);
+  init_compiler(&compiler, TYPE_MODULE);
 
 #ifdef DEBUG_PRINT_CODE
   printf("== Begin compilation ==\n");

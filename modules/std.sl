@@ -35,3 +35,5 @@ cls Monad {
     ret Monad(f(this.value));
   }
 }
+
+import bad
