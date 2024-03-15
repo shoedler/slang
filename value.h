@@ -1,8 +1,8 @@
 #ifndef value_h
 #define value_h
 
-#include "common.h"
 #include <stdio.h>
+#include "common.h"
 
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
@@ -22,6 +22,33 @@ typedef enum {
 #define TYPENAME_BOOL "Bool"
 #define TYPENAME_NIL "Nil"
 #define TYPENAME_SEQ "Seq"
+#define TYPENAME_BOUND_METHOD "BoundMethod"
+#define TYPENAME_CLASS "Class"
+#define TYPENAME_CLOSURE "Closure"
+#define TYPENAME_FUNCTION "Fn"
+#define TYPENAME_INSTANCE "Instance"
+#define TYPENAME_NATIVE "NativeFn"
+#define TYPENAME_UPVALUE "Upvalue"
+
+#define VALUE_STR_TRUE "true"
+#define VALUE_STR_FALSE "false"
+#define VALUE_STR_NIL "nil"
+#define VALUE_STR_EMPTY_INTERNAL "EMPTY_INTERNAL"
+#define VALUE_STR_FLOAT "%f"
+#define VALUE_STR_INT "%d"
+
+#define VALUE_STRFMT_FUNCTION "<Fn %s>"
+#define VALUE_STRFMT_FUNCTION_LEN sizeof(VALUE_STRFMT_FUNCTION) - 2 - 1
+#define VALUE_STRFMT_CLASS "<Class %s>"
+#define VALUE_STRFMT_CLASS_LEN sizeof(VALUE_STRFMT_CLASS) - 2 - 1
+#define VALUE_STRFTM_INSTANCE "<Instance of %s>"
+#define VALUE_STRFTM_INSTANCE_LEN sizeof(VALUE_STRFTM_INSTANCE) - 2 - 1
+#define VALUE_STRFMT_BOUND_METHOD "<BoundMethod %s>"
+#define VALUE_STRFMT_OBJ "<%s at %p>"
+#define VALUE_STR_NATIVE "<Native Fn>"
+#define VALUE_STR_SEQ "<Seq>"
+#define VALUE_STR_UPVALUE "<Upvalue>"
+
 #define INSTANCENAME_BUILTIN "__builtin"
 
 // The single value construct used to represent all values in the language.

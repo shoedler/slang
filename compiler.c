@@ -588,17 +588,9 @@ static void function(bool can_assign, FunctionType type) {
   if (match(TOKEN_OBRACE)) {
     block();
   } else if (match(TOKEN_LAMBDA)) {
-    // TODO (optimize): end_compiler() will also emit OP_NIL and OP_RETURN,
-    // which we don't are unnecessary (Same goes for non-lambda functions which
-    // only have a return) We could optimize this by not emitting those
-    // instructions, but that would require some changes to end_compiler() and
-    // emit_return().
-
-    // TODO (syntax): Only allowing expressions here is kinda sad. Things like
-    // `let f = fn -> print 123` are not possible anymore, because the `print`
-    // is a statement. Obviously, statements do not return a value - maybe we
-    // could relax this restriction, forcing us - however - to answer questions
-    // like "what does a for loop return?"
+    // TODO (optimize): end_compiler() will also emit OP_NIL and OP_RETURN, which are unnecessary (Same goes
+    // for non-lambda functions which only have a return) We could optimize this by not emitting those
+    // instructions, but that would require some changes to end_compiler() and emit_return().
 
     expression();
     emit_one(OP_RETURN);
@@ -638,11 +630,10 @@ static void constructor() {
   emit_two(OP_METHOD, constant);
 }
 
-// Compiles an and expression.
-// And is special in that it acts more lik a control flow construct rather than
-// a binary operator. It short-circuits the evaluation of the rhs if the lhs is
-// false by jumping over the rhs. The lhs bytecode has already been emitted. The
-// rhs starts at the current token. The and operator is in the previous token.
+// Compiles an and expression. And is special in that it acts more lik a control flow construct rather than a
+// binary operator. It short-circuits the evaluation of the rhs if the lhs is false by jumping over the rhs.
+// The lhs bytecode has already been emitted. The rhs starts at the current token. The and operator is in the
+// previous token.
 static void and_(bool can_assign) {
   int end_jump = emit_jump(OP_JUMP_IF_FALSE);
   emit_one(OP_POP);
@@ -657,11 +648,9 @@ static void and_(bool can_assign) {
 // a binary operator. It short-circuits the evaluation of the rhs if the lhs is
 // true by jumping over the rhs. The lhs bytecode has already been emitted. The
 static void or_(bool can_assign) {
-  // TODO (optimize): We could optimize this by inverting the logic
-  // (jumping over the rhs if the lhs is true) which would probably require a
-  // new opcode (OP_JUMP_IF_TRUE) and then we could reuse the and_ function -
-  // well, it would have to be renamed then and accept a new parameter (the type
-  // of jump to emit).
+  // TODO (optimize): We could optimize this by inverting the logic (jumping over the rhs if the lhs is true)
+  // which would probably require a new opcode (OP_JUMP_IF_TRUE) and then we could reuse the and_ function -
+  // well, it would have to be renamed then and accept a new parameter (the type of jump to emit).
   int else_jump = emit_jump(OP_JUMP_IF_FALSE);
   int end_jump  = emit_jump(OP_JUMP);
 
@@ -672,8 +661,8 @@ static void or_(bool can_assign) {
   patch_jump(end_jump);
 }
 
-// Compiles a this expression.
-// The this keyword has already been consumed and is referenced by the previous
+// Compiles a 'this' expression.
+// The 'this' keyword has already been consumed and is referenced by the previous
 // token.
 static void this_(bool can_assign) {
   if (current_class == NULL) {

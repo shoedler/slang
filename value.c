@@ -99,15 +99,15 @@ const char* type_name(Value value) {
     return TYPENAME_NUMBER;
   } else if (value.type == VAL_OBJ) {
     switch (OBJ_TYPE(value)) {
-      case OBJ_BOUND_METHOD: return "BoundMethod";
-      case OBJ_CLASS: return "Class";
-      case OBJ_CLOSURE: return "Closure";
-      case OBJ_FUNCTION: return "Fn";
-      case OBJ_INSTANCE: return "Instance";
-      case OBJ_NATIVE: return "NativeFn";
+      case OBJ_BOUND_METHOD: return TYPENAME_BOUND_METHOD;
+      case OBJ_CLASS: return TYPENAME_CLASS;
+      case OBJ_CLOSURE: return TYPENAME_CLOSURE;
+      case OBJ_FUNCTION: return TYPENAME_FUNCTION;
+      case OBJ_INSTANCE: return TYPENAME_INSTANCE;
+      case OBJ_NATIVE: return TYPENAME_NATIVE;
       case OBJ_STRING: return TYPENAME_STRING;
       case OBJ_SEQ: return TYPENAME_SEQ;
-      case OBJ_UPVALUE: return "Upvalue";
+      case OBJ_UPVALUE: return TYPENAME_UPVALUE;
     }
   }
 
@@ -117,17 +117,17 @@ const char* type_name(Value value) {
 int print_value_safe(FILE* f, Value value) {
   if (!IS_OBJ(value)) {
     switch (value.type) {
-      case VAL_BOOL: return fprintf(f, AS_BOOL(value) ? "true" : "false");
-      case VAL_NIL: return fprintf(f, "nil");
+      case VAL_BOOL: return fprintf(f, AS_BOOL(value) ? VALUE_STR_TRUE : VALUE_STR_FALSE);
+      case VAL_NIL: return fprintf(f, VALUE_STR_NIL);
       case VAL_NUMBER: {
         int integer;
         if (is_int(AS_NUMBER(value), &integer)) {
-          return fprintf(f, "%d", integer);
+          return fprintf(f, VALUE_STR_INT, integer);
         } else {
-          return fprintf(f, "%g", AS_NUMBER(value));
+          return fprintf(f, VALUE_STR_FLOAT, AS_NUMBER(value));
         }
       }
-      case VAL_EMPTY_INTERNAL: return fprintf(f, "EMPTY_INTERNAL");
+      case VAL_EMPTY_INTERNAL: return fprintf(f, VALUE_STR_EMPTY_INTERNAL);
     }
 
     return fprintf(f, "<unknown value type %d>", value.type);
@@ -135,32 +135,32 @@ int print_value_safe(FILE* f, Value value) {
 
   switch (OBJ_TYPE(value)) {
     case OBJ_STRING: return fprintf(f, "\"%s\"", AS_CSTRING(value));
-    case OBJ_FUNCTION: return; fprintf(f, "<fn %s>", AS_FUNCTION(value)->name->chars);
-    case OBJ_CLOSURE: return fprintf(f, "<fn %s>", AS_CLOSURE(value)->function->name->chars);
-    case OBJ_CLASS: return fprintf(f, "<class %s>", AS_CLASS(value)->name->chars);
-    case OBJ_INSTANCE: return fprintf(f, "<instance of %s>", AS_INSTANCE(value)->klass->name->chars);
-    case OBJ_NATIVE: return fprintf(f, "<native fn>");
+    case OBJ_FUNCTION: return; fprintf(f, VALUE_STRFMT_FUNCTION, AS_FUNCTION(value)->name->chars);
+    case OBJ_CLOSURE: return fprintf(f, VALUE_STRFMT_FUNCTION, AS_CLOSURE(value)->function->name->chars);
+    case OBJ_CLASS: return fprintf(f, VALUE_STRFMT_CLASS, AS_CLASS(value)->name->chars);
+    case OBJ_INSTANCE: return fprintf(f, VALUE_STRFTM_INSTANCE, AS_INSTANCE(value)->klass->name->chars);
+    case OBJ_NATIVE: return fprintf(f, VALUE_STR_NATIVE);
     case OBJ_BOUND_METHOD: {
       ObjBoundMethod* bound = AS_BOUND_METHOD(value);
       if (bound->method == NULL) {
-        return fprintf(f, "<(corrupt bound method)>");
+        return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(corrupt)");
       }
 
       if (bound->method->type == OBJ_CLOSURE) {
         if (((ObjClosure*)bound->method)->function->name != NULL) {
-          return fprintf(f, "<bound method %s>", ((ObjClosure*)bound->method)->function->name->chars);
+          return fprintf(f, VALUE_STRFMT_BOUND_METHOD, ((ObjClosure*)bound->method)->function->name->chars);
         } else {
-          return fprintf(f, "<(corrupt bound closure)>");
+          return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(corrupt closure)");
         }
       } else if (bound->method->type == OBJ_NATIVE) {
-        return fprintf(f, "<bound native method>");
+        return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(native)");
       } else {
-        return fprintf(f, "<(unknown bound method )>");
+        return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(unknown)");
       }
     }
     case OBJ_SEQ: {
       ObjSeq* seq = AS_SEQ(value);
-      int written = fprintf(f, "[");
+      int written = fprintf(f, VALUE_STR_SEQ "[");
       for (int i = 0; i < seq->items.count; i++) {
         written += print_value_safe(f, seq->items.values[i]);
         if (i < seq->items.count - 1) {
@@ -170,6 +170,6 @@ int print_value_safe(FILE* f, Value value) {
       written += fprintf(f, "]");
       return written;
     }
-    default: return fprintf(f, "<%s at %p>", type_name(value), (void*)AS_OBJ(value));
+    default: return fprintf(f, VALUE_STRFMT_OBJ, type_name(value), (void*)AS_OBJ(value));
   }
 }

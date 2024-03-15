@@ -35,11 +35,8 @@ static Value __builtin_nil_to_str(int argc, Value argv[]);
 static Value __builtin_number_to_str(int argc, Value argv[]);
 static Value __builtin_class_to_str(int argc, Value argv[]);
 static Value __builtin_function_to_str(int argc, Value argv[]);
-static Value __builtin_closure_to_str(int argc, Value argv[]);
-static Value __builtin_bound_method_to_str(int argc, Value argv[]);
 static Value __builtin_instance_to_str(int argc, Value argv[]);
 static Value __builtin_native_to_str(int argc, Value argv[]);
-static Value __builtin_upvalue_to_str(int argc, Value argv[]);
 static Value __builtin_string_to_str(int argc, Value argv[]);
 static Value __builtin_seq_to_str(int argc, Value argv[]);
 static ObjString* to_str(Value value);
@@ -488,14 +485,16 @@ static ObjString* to_str(Value value) {
     case VAL_OBJ: {
       switch (OBJ_TYPE(value)) {
         case OBJ_CLASS: return AS_STRING(__builtin_class_to_str(0, &value));
-        case OBJ_CLOSURE: return AS_STRING(__builtin_closure_to_str(0, &value));
-        case OBJ_BOUND_METHOD: return AS_STRING(__builtin_bound_method_to_str(0, &value));
         case OBJ_INSTANCE: return AS_STRING(__builtin_instance_to_str(0, &value));
         case OBJ_NATIVE: return AS_STRING(__builtin_native_to_str(0, &value));
         case OBJ_STRING: return AS_STRING(__builtin_string_to_str(0, &value));
         case OBJ_SEQ: return AS_STRING(__builtin_seq_to_str(0, &value));
         case OBJ_FUNCTION: return AS_STRING(__builtin_function_to_str(0, &value));
-        case OBJ_UPVALUE: return AS_STRING(__builtin_upvalue_to_str(0, &value));
+
+        // Just so we got something. Users should never see this.
+        case OBJ_CLOSURE: return copy_string("OBJ_CLOSURE", sizeof("OBJ_CLOSURE") - 1);
+        case OBJ_BOUND_METHOD: return copy_string("OBJ_BOUND_METHOD", sizeof("OBJ_BOUND_METHOD") - 1);
+        case OBJ_UPVALUE: return copy_string("OBJ_UPVALUE", sizeof("OBJ_UPVALUE") - 1);
         default: break;
       }
       break;
@@ -524,11 +523,11 @@ static Value __builtin_nil_to_str(int argc, Value argv[]) {
   }
 
   if (IS_NIL(argv[0])) {
-    ObjString* str_obj = copy_string("nil", 3);
+    ObjString* str_obj = copy_string(VALUE_STR_NIL, sizeof(VALUE_STR_NIL) - 1);
     return OBJ_VAL(str_obj);
   }
 
-  runtime_error("Expected nil but got %s.", type_name(argv[0]));
+  runtime_error("Expected " TYPENAME_NIL " but got %s.", type_name(argv[0]));
   return exit_with_runtime_error();
 }
 
@@ -541,15 +540,15 @@ static Value __builtin_bool_to_str(int argc, Value argv[]) {
 
   if (IS_BOOL(argv[0])) {
     if (AS_BOOL(argv[0])) {
-      ObjString* str_obj = copy_string("true", 4);
+      ObjString* str_obj = copy_string(VALUE_STR_TRUE, sizeof(VALUE_STR_TRUE) - 1);
       return OBJ_VAL(str_obj);
     } else {
-      ObjString* str_obj = copy_string("false", 5);
+      ObjString* str_obj = copy_string(VALUE_STR_FALSE, sizeof(VALUE_STR_FALSE) - 1);
       return OBJ_VAL(str_obj);
     }
   }
 
-  runtime_error("Expected a boolean but got %s.", type_name(argv[0]));
+  runtime_error("Expected a " TYPENAME_BOOL " but got %s.", type_name(argv[0]));
   return exit_with_runtime_error();
 }
 
@@ -567,16 +566,16 @@ static Value __builtin_number_to_str(int argc, Value argv[]) {
     int len = 0;
 
     if (is_int(number, &integer)) {
-      len = snprintf(buffer, sizeof(buffer), "%d", integer);
+      len = snprintf(buffer, sizeof(buffer), VALUE_STR_INT, integer);
     } else {
-      len = snprintf(buffer, sizeof(buffer), "%f", number);
+      len = snprintf(buffer, sizeof(buffer), VALUE_STR_FLOAT, number);
     }
 
     ObjString* str_obj = copy_string(buffer, len);
     return OBJ_VAL(str_obj);
   }
 
-  runtime_error("Expected a number but got %s.", type_name(argv[0]));
+  runtime_error("Expected a " TYPENAME_NUMBER " but got %s.", type_name(argv[0]));
   return exit_with_runtime_error();
 }
 
@@ -595,9 +594,9 @@ static Value __builtin_class_to_str(int argc, Value argv[]) {
     }
     push(OBJ_VAL(name));
 
-    size_t buf_size = sizeof("<Class >") + name->length;
+    size_t buf_size = VALUE_STRFMT_CLASS_LEN + name->length;
     char* chars     = malloc(buf_size);
-    snprintf(chars, buf_size, "<Class %s>", name->chars);
+    snprintf(chars, buf_size, VALUE_STRFMT_CLASS, name->chars);
     // Intuitively, you'd expect to use take_string here, but we don't know where malloc
     // allocates the memory - we don't want this block in our own memory pool.
     ObjString* str_obj = copy_string(chars, buf_size);
@@ -607,7 +606,7 @@ static Value __builtin_class_to_str(int argc, Value argv[]) {
     return OBJ_VAL(str_obj);
   }
 
-  runtime_error("Expected a class but got %s.", type_name(argv[0]));
+  runtime_error("Expected a " TYPENAME_CLASS " but got %s.", type_name(argv[0]));
   return exit_with_runtime_error();
 }
 
@@ -626,9 +625,9 @@ static Value __builtin_function_to_str(int argc, Value argv[]) {
     }
     push(OBJ_VAL(name));
 
-    size_t buf_size = sizeof("<Fn >") + name->length;
+    size_t buf_size = VALUE_STRFMT_FUNCTION_LEN + name->length;
     char* chars     = malloc(buf_size);
-    snprintf(chars, buf_size, "<Fn %s>", name->chars);
+    snprintf(chars, buf_size, VALUE_STRFMT_FUNCTION, name->chars);
     // Intuitively, you'd expect to use take_string here, but we don't know where malloc
     // allocates the memory - we don't want this block in our own memory pool.
     ObjString* str_obj = copy_string(chars, buf_size);
@@ -638,43 +637,7 @@ static Value __builtin_function_to_str(int argc, Value argv[]) {
     return OBJ_VAL(str_obj);
   }
 
-  runtime_error("Expected a function but got %s.", type_name(argv[0]));
-  return exit_with_runtime_error();
-}
-
-// Built-in function to convert a closure to a string
-static Value __builtin_closure_to_str(int argc, Value argv[]) {
-  if (argc != 0) {
-    runtime_error("Expected 0 arguments but got %d.", argc);
-    return exit_with_runtime_error();
-  }
-
-  if (IS_CLOSURE(argv[0])) {
-    ObjFunction* fn = AS_CLOSURE(argv[0])->function;
-    return __builtin_function_to_str(0, &OBJ_VAL(fn));
-  }
-
-  runtime_error("Expected a closure but got %s.", type_name(argv[0]));
-  return exit_with_runtime_error();
-}
-
-// Built-in function to convert a bound method to a string
-static Value __builtin_bound_method_to_str(int argc, Value argv[]) {
-  if (argc != 0) {
-    runtime_error("Expected 0 arguments but got %d.", argc);
-    return exit_with_runtime_error();
-  }
-
-  if (IS_BOUND_METHOD(argv[0])) {
-    ObjBoundMethod* bound = AS_BOUND_METHOD(argv[0]);
-    if (bound->method->type == OBJ_CLOSURE) {
-      return __builtin_function_to_str(0, &OBJ_VAL(((ObjClosure*)bound->method)->function));
-    }
-
-    return __builtin_native_to_str(0, &OBJ_VAL((ObjNative*)bound->method));
-  }
-
-  runtime_error("Expected a bound method but got %s.", type_name(argv[0]));
+  runtime_error("Expected a " TYPENAME_FUNCTION " but got %s.", type_name(argv[0]));
   return exit_with_runtime_error();
 }
 
@@ -691,11 +654,11 @@ static Value __builtin_instance_to_str(int argc, Value argv[]) {
     if (name == NULL || name->chars == NULL) {
       name = copy_string("???", 3);
     }
-    push(OBJ_VAL(name));
 
-    size_t buf_size = sizeof("<Instance >") + name->length;
+    push(OBJ_VAL(name));
+    size_t buf_size = VALUE_STRFTM_INSTANCE_LEN + name->length;
     char* chars     = malloc(buf_size);
-    snprintf(chars, buf_size, "<Instance %s>", name->chars);
+    snprintf(chars, buf_size, VALUE_STRFTM_INSTANCE, name->chars);
     // Intuitively, you'd expect to use take_string here, but we don't know where malloc
     // allocates the memory - we don't want this block in our own memory pool.
     ObjString* str_obj = copy_string(chars, buf_size);
@@ -705,7 +668,7 @@ static Value __builtin_instance_to_str(int argc, Value argv[]) {
     return OBJ_VAL(str_obj);
   }
 
-  runtime_error("Expected an instance but got %s.", type_name(argv[0]));
+  runtime_error("Expected an " TYPENAME_INSTANCE " but got %s.", type_name(argv[0]));
   return exit_with_runtime_error();
 }
 
@@ -717,21 +680,11 @@ static Value __builtin_native_to_str(int argc, Value argv[]) {
   }
 
   if (IS_NATIVE(argv[0])) {
-    return OBJ_VAL(copy_string("<Native Fn>", 11));
+    return OBJ_VAL(copy_string(VALUE_STR_NATIVE, sizeof(VALUE_STR_NATIVE) - 1));
   }
 
-  runtime_error("Expected a native fn but got %s.", type_name(argv[0]));
+  runtime_error("Expected a " TYPENAME_NATIVE " but got %s.", type_name(argv[0]));
   return exit_with_runtime_error();
-}
-
-// Built-in function to convert an upvalue to a string
-static Value __builtin_upvalue_to_str(int argc, Value argv[]) {
-  if (argc != 0) {
-    runtime_error("Expected 0 arguments but got %d.", argc);
-    return exit_with_runtime_error();
-  }
-
-  return OBJ_VAL(copy_string("<Upvalue>", 9));
 }
 
 // Built-in function to convert a string to a string
@@ -745,7 +698,7 @@ static Value __builtin_string_to_str(int argc, Value argv[]) {
     return argv[0];
   }
 
-  runtime_error("Expected a string but got %s.", type_name(argv[0]));
+  runtime_error("Expected a " TYPENAME_STRING " but got %s.", type_name(argv[0]));
   return exit_with_runtime_error();
 }
 
@@ -762,7 +715,7 @@ static Value __builtin_seq_to_str(int argc, Value argv[]) {
     size_t buf_size = 64;  // Start with a reasonable size
     char* chars     = malloc(buf_size);
 
-    strcpy(chars, "[");
+    strcpy(chars, VALUE_STR_SEQ "[");
     for (int i = 0; i < seq->items.count; i++) {
       // Use the default to-string method of the value to convert the item to a string
       push(seq->items.values[i]);
@@ -795,7 +748,7 @@ static Value __builtin_seq_to_str(int argc, Value argv[]) {
     return OBJ_VAL(str_obj);
   }
 
-  runtime_error("Expected a sequence but got %s.", type_name(argv[0]));
+  runtime_error("Expected a " TYPENAME_SEQ " but got %s.", type_name(argv[0]));
   return exit_with_runtime_error();
 #undef SEQ_SEPARATOR
 }
@@ -1425,8 +1378,9 @@ static char* read_file(const char* path) {
 
 Value run_file(const char* path, bool is_module) {
 #ifdef DEBUG_TRACE_EXECUTION
-  printf(ANSI_MAGENTA_STR("===== "));
-  printf(ANSI_CYAN_STR("Running file: %s, Is module: %s\n"), path, is_module ? "true" : "false");
+  printf("\n");
+  printf(ANSI_CYAN_STR("Running file: %s, Is module: %s\n"), path,
+         is_module ? VALUE_STR_TRUE : VALUE_STR_FALSE);
 #endif
 
   char* source = read_file(path);
@@ -1440,8 +1394,8 @@ Value run_file(const char* path, bool is_module) {
   free(source);
 
 #ifdef DEBUG_TRACE_EXECUTION
-  printf(ANSI_MAGENTA_STR("===== "));
   printf(ANSI_CYAN_STR("Done running file: %s\n"), path);
+  printf("\n");
 #endif
 
   return result;
