@@ -104,7 +104,7 @@ typedef struct {
   struct ObjInstance* globals_context;
 } ObjFunction;
 
-typedef Value (*NativeFn)(int argCount, Value* args);
+typedef Value (*NativeFn)(int argc, Value argv[]);
 
 typedef struct {
   Obj obj;

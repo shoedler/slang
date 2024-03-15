@@ -29,38 +29,24 @@ typedef enum {
 static Value exit_with_runtime_error();
 static Value run();
 
+static ObjString* fast_to_str(Value value);
+static ObjClass* type_of(Value value);
+
 static Value __builtin_obj_to_str(int argc, Value argv[]);
 static Value __builtin_bool_to_str(int argc, Value argv[]);
 static Value __builtin_nil_to_str(int argc, Value argv[]);
 static Value __builtin_number_to_str(int argc, Value argv[]);
-static Value __builtin_class_to_str(int argc, Value argv[]);
-static Value __builtin_function_to_str(int argc, Value argv[]);
-static Value __builtin_instance_to_str(int argc, Value argv[]);
-static Value __builtin_native_to_str(int argc, Value argv[]);
 static Value __builtin_string_to_str(int argc, Value argv[]);
 static Value __builtin_seq_to_str(int argc, Value argv[]);
-static ObjString* to_str(Value value);
 
 static Value __builint_hash_value(int argc, Value argv[]);
-static Value __builtin_get_typename(int argc, Value argv[]);
 static Value __builtin_str_len(int argc, Value argv[]);
 static Value __builtin_seq_len(int argc, Value argv[]);
 
-static Value native_clock(int arg_count, Value* args) {
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
-}
-
-static Value native_print(int arg_count, Value* args) {
-  for (int i = 0; i < arg_count; i++) {
-    ObjString* str = to_str(args[i]);
-    printf("%s", str->chars);
-    if (i < arg_count - 1) {
-      printf(" ");
-    }
-  }
-  printf("\n");
-  return NIL_VAL;
-}
+static Value native_clock(int argc, Value argv[]);
+static Value native_print(int argc, Value argv[]);
+static Value native_type_of(int argc, Value argv[]);
+static Value native_type_name(int argc, Value argv[]);
 
 static void reset_stack() {
   vm.pause_gc      = 0;
@@ -165,9 +151,9 @@ void init_vm() {
   init_hashtable(&vm.modules);
 
   // Create the reserved method names
-  memset(vm.reserved_method_names, 0, sizeof(vm.reserved_method_names));
-  vm.reserved_method_names[METHOD_CTOR] = OBJ_VAL(copy_string(KEYWORD_CONSTRUCTOR, KEYWORD_CONSTRUCTOR_LEN));
-  vm.reserved_method_names[METHOD_NAME] = OBJ_VAL(copy_string(KEYWORD_NAME, KEYWORD_NAME_LEN));
+  memset(vm.reserved_field_names, 0, sizeof(vm.reserved_field_names));
+  vm.reserved_field_names[FIELD_CTOR] = OBJ_VAL(copy_string(KEYWORD_CONSTRUCTOR, KEYWORD_CONSTRUCTOR_LEN));
+  vm.reserved_field_names[FIELD_NAME] = OBJ_VAL(copy_string(KEYWORD_NAME, KEYWORD_NAME_LEN));
 
   // Create the object class
   vm.object_class = new_class(copy_string("Object", 6), NULL);
@@ -175,18 +161,17 @@ void init_vm() {
   // Create the builtin obj instance
   vm.builtin = new_instance(vm.object_class);
   define_obj(&vm.builtin->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
+
+  // Create the builtin functions
   define_native(&vm.builtin->fields, "clock", native_clock);
   define_native(&vm.builtin->fields, "log", native_print);
+  define_native(&vm.builtin->fields, "type_of", native_type_of);
+  define_native(&vm.builtin->fields, "type_name", native_type_name);
 
   // ... and define the object methods
   define_obj(&vm.builtin->fields, "Object", (Obj*)vm.object_class);
   define_native(&vm.object_class->methods, "to_str", __builtin_obj_to_str);
   define_native(&vm.object_class->methods, "hash", __builint_hash_value);
-  define_native(&vm.object_class->methods, "type_name", __builtin_get_typename);
-
-  // Create the module class
-  vm.module_class = new_class(copy_string("Module", 6), vm.object_class);
-  define_obj(&vm.builtin->fields, "Module", (Obj*)vm.module_class);
 
   // Create the string class
   vm.string_class = new_class(copy_string(TYPENAME_STRING, sizeof(TYPENAME_STRING) - 1), vm.object_class);
@@ -215,13 +200,18 @@ void init_vm() {
   define_native(&vm.seq_class->methods, "to_str", __builtin_seq_to_str);
   define_native(&vm.seq_class->methods, "len", __builtin_seq_len);
 
+  // Create the module class
+  vm.module_class = new_class(copy_string("Module", 6), vm.object_class);
+  define_obj(&vm.builtin->fields, "Module", (Obj*)vm.module_class);
+
   vm.pause_gc = 0;
   reset_stack();
 }
 
 void free_vm() {
   free_hashtable(&vm.strings);
-  memset(vm.reserved_method_names, 0, sizeof(vm.reserved_method_names));
+  free_hashtable(&vm.modules);
+  memset(vm.reserved_field_names, 0, sizeof(vm.reserved_field_names));
   free_objects();
 }
 
@@ -330,12 +320,16 @@ static CallResult call_value(Value callee, int arg_count) {
         }
       }
       case OBJ_CLASS: {
+        // Construct a new instance of the class
         ObjClass* klass = AS_CLASS(callee);
         vm.stack_top[-arg_count - 1] =
             OBJ_VAL(new_instance(klass));  // This is the actual "this", e.g. new instance.
         Value ctor;                        // The 'ctor' is actually optional
 
-        if (hashtable_get(&klass->methods, vm.reserved_method_names[METHOD_CTOR], &ctor)) {
+        // Check if the class has a constructor. 'ctor' is actually a stupid name, because it doesn't
+        // construct anything. As you can see, the instance already exists. It's actually more like an 'init'
+        // method.
+        if (hashtable_get(&klass->methods, vm.reserved_field_names[FIELD_CTOR], &ctor)) {
           return call_managed(AS_CLOSURE(ctor), arg_count);
         } else if (arg_count != 0) {
           runtime_error("Expected 0 arguments but got %d.", arg_count);
@@ -451,6 +445,44 @@ static Value exec_method(ObjString* name, int arg_count) {
   return NIL_VAL;
 }
 
+static Value native_clock(int argc, Value argv[]) {
+  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
+
+static Value native_print(int argc, Value argv[]) {
+  for (int i = 0; i < argc; i++) {
+    ObjString* str = fast_to_str(argv[i]);
+    printf("%s", str->chars);
+    if (i < argc - 1) {
+      printf(" ");
+    }
+  }
+  printf("\n");
+  return NIL_VAL;
+}
+
+static Value native_type_of(int argc, Value argv[]) {
+  if (argc != 1) {
+    runtime_error("Expected 1 argument but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  ObjClass* klass = type_of(argv[0]);
+  return OBJ_VAL(klass);
+}
+
+static Value native_type_name(int argc, Value argv[]) {
+  if (argc != 1) {
+    runtime_error("Expected 1 argument but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  const char* t_name = type_name(argv[0]);
+  int length         = (int)strlen(t_name);
+  ObjString* str_obj = copy_string(t_name, strlen(t_name));
+  return OBJ_VAL(str_obj);
+}
+
 // Built-in function to retrieve the hash value of a value
 static Value __builint_hash_value(int argc, Value argv[]) {
   if (argc != 0) {
@@ -461,40 +493,18 @@ static Value __builint_hash_value(int argc, Value argv[]) {
   return NUMBER_VAL(hash_value(argv[0]));
 }
 
-// Built-in function to retrieve the type of a value in the form of a string
-static Value __builtin_get_typename(int argc, Value argv[]) {
-  if (argc != 0) {
-    runtime_error("Expected 0 argument but got %d.", argc);
-    return exit_with_runtime_error();
-  }
-
-  const char* TYPENAME_ = type_name(argv[0]);
-  int length            = (int)strlen(TYPENAME_);
-  ObjString* str_obj    = copy_string(TYPENAME_, strlen(TYPENAME_));
-  return OBJ_VAL(str_obj);
-}
-
 // Function to convert any value to a string.
 // This is faster than using the "to_str" method, but it's less flexible.
-// Should probably test how much faster it is, because I don't like it.
-static ObjString* to_str(Value value) {
+// Should probably test how much faster it is, because I don't like it and want to remove it.
+static ObjString* fast_to_str(Value value) {
   switch (value.type) {
     case VAL_BOOL: return AS_STRING(__builtin_bool_to_str(0, &value));
     case VAL_NIL: return AS_STRING(__builtin_nil_to_str(0, &value));
     case VAL_NUMBER: return AS_STRING(__builtin_number_to_str(0, &value));
     case VAL_OBJ: {
       switch (OBJ_TYPE(value)) {
-        case OBJ_CLASS: return AS_STRING(__builtin_class_to_str(0, &value));
-        case OBJ_INSTANCE: return AS_STRING(__builtin_instance_to_str(0, &value));
-        case OBJ_NATIVE: return AS_STRING(__builtin_native_to_str(0, &value));
         case OBJ_STRING: return AS_STRING(__builtin_string_to_str(0, &value));
         case OBJ_SEQ: return AS_STRING(__builtin_seq_to_str(0, &value));
-        case OBJ_FUNCTION: return AS_STRING(__builtin_function_to_str(0, &value));
-
-        // Just so we got something. Users should never see this.
-        case OBJ_CLOSURE: return copy_string("OBJ_CLOSURE", sizeof("OBJ_CLOSURE") - 1);
-        case OBJ_BOUND_METHOD: return copy_string("OBJ_BOUND_METHOD", sizeof("OBJ_BOUND_METHOD") - 1);
-        case OBJ_UPVALUE: return copy_string("OBJ_UPVALUE", sizeof("OBJ_UPVALUE") - 1);
         default: break;
       }
       break;
@@ -502,17 +512,95 @@ static ObjString* to_str(Value value) {
     default: break;
   }
 
-  return copy_string("???", 3);
+  return AS_STRING(__builtin_obj_to_str(0, &value));
 }
 
-// Built-in function to convert an object to a string
+// Built-in function to convert an object to a string. This one is special in that is is the toplevel to_str -
+// there's no abstraction over it. This is why we have some special cases here for our internal types.
 static Value __builtin_obj_to_str(int argc, Value argv[]) {
   if (argc != 0) {
     runtime_error("Expected 0 argument but got %d.", argc);
     return exit_with_runtime_error();
   }
 
-  return OBJ_VAL(copy_string("Object", 6));
+  if (IS_FUNCTION(argv[0])) {
+    ObjFunction* function = AS_FUNCTION(argv[0]);
+    ObjString* name       = function->name;
+    if (name == NULL || name->chars == NULL) {
+      name = copy_string("???", 3);
+    }
+    push(OBJ_VAL(name));
+
+    size_t buf_size = VALUE_STRFMT_FUNCTION_LEN + name->length;
+    char* chars     = malloc(buf_size);
+    snprintf(chars, buf_size, VALUE_STRFMT_FUNCTION, name->chars);
+    // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+    // allocates the memory - we don't want this block in our own memory pool.
+    ObjString* str_obj = copy_string(chars, buf_size);
+
+    free(chars);
+    pop();
+    return OBJ_VAL(str_obj);
+  } else if (IS_CLASS(argv[0])) {
+    ObjClass* klass = AS_CLASS(argv[0]);
+    ObjString* name = klass->name;
+    if (name == NULL || name->chars == NULL) {
+      name = copy_string("???", 3);
+    }
+    push(OBJ_VAL(name));
+
+    size_t buf_size = VALUE_STRFMT_CLASS_LEN + name->length;
+    char* chars     = malloc(buf_size);
+    snprintf(chars, buf_size, VALUE_STRFMT_CLASS, name->chars);
+    // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+    // allocates the memory - we don't want this block in our own memory pool.
+    ObjString* str_obj = copy_string(chars, buf_size);
+
+    free(chars);
+    pop();
+    return OBJ_VAL(str_obj);
+    // } else if (IS_NATIVE(argv[0])) {
+    return OBJ_VAL(copy_string(VALUE_STR_NATIVE, sizeof(VALUE_STR_NATIVE) - 1));
+  } else if (IS_CLOSURE(argv[0])) {
+    return __builtin_obj_to_str(argc, &OBJ_VAL(AS_CLOSURE(argv[0])->function));
+  } else if (IS_BOUND_METHOD(argv[0])) {
+    return __builtin_obj_to_str(argc, &OBJ_VAL(AS_BOUND_METHOD(argv[0])->method));
+  } else if (IS_INSTANCE(argv[0])) {
+    ObjInstance* instance = AS_INSTANCE(argv[0]);
+    ObjString* name       = instance->klass->name;
+    if (name == NULL || name->chars == NULL) {
+      name = copy_string("???", 3);
+    }
+    push(OBJ_VAL(name));
+
+    size_t buf_size = VALUE_STRFTM_INSTANCE_LEN + name->length;
+    char* chars     = malloc(buf_size);
+    snprintf(chars, buf_size, VALUE_STRFTM_INSTANCE, name->chars);
+    // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+    // allocates the memory - we don't want this block in our own memory pool.
+    ObjString* str_obj = copy_string(chars, buf_size);
+
+    free(chars);
+    pop();
+    return OBJ_VAL(str_obj);
+  }
+
+  // This here is the catch-all for all values. We print the type-name and memory address of the value.
+  char* t_name = type_name(argv[0]);
+
+  // Print the memory address of the object using (void*)AS_OBJ(argv[0]).
+  // We need to know the size of the buffer to allocate, so we calculate it first.
+  size_t adr_str_len = snprintf(NULL, 0, "%p", (void*)AS_OBJ(argv[0]));
+
+  size_t buf_size = VALUE_STRFMT_OBJ_LEN + strlen(t_name) + adr_str_len;
+  char* chars     = malloc(buf_size);
+  snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name, (void*)AS_OBJ(argv[0]));
+  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+  // allocates the memory - we don't want this block in our own memory pool.
+  ObjString* str_obj = copy_string(chars, buf_size);
+
+  free(chars);
+  return OBJ_VAL(str_obj);
 }
 
 // Built-in function to convert a nil to a string
@@ -610,37 +698,6 @@ static Value __builtin_class_to_str(int argc, Value argv[]) {
   return exit_with_runtime_error();
 }
 
-// Built-in function to convert a function to a string
-static Value __builtin_function_to_str(int argc, Value argv[]) {
-  if (argc != 0) {
-    runtime_error("Expected 0 arguments but got %d.", argc);
-    return exit_with_runtime_error();
-  }
-
-  if (IS_FUNCTION(argv[0])) {
-    ObjFunction* function = AS_FUNCTION(argv[0]);
-    ObjString* name       = function->name;
-    if (name == NULL || name->chars == NULL) {
-      name = copy_string("???", 3);
-    }
-    push(OBJ_VAL(name));
-
-    size_t buf_size = VALUE_STRFMT_FUNCTION_LEN + name->length;
-    char* chars     = malloc(buf_size);
-    snprintf(chars, buf_size, VALUE_STRFMT_FUNCTION, name->chars);
-    // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-    // allocates the memory - we don't want this block in our own memory pool.
-    ObjString* str_obj = copy_string(chars, buf_size);
-
-    free(chars);
-    pop();
-    return OBJ_VAL(str_obj);
-  }
-
-  runtime_error("Expected a " TYPENAME_FUNCTION " but got %s.", type_name(argv[0]));
-  return exit_with_runtime_error();
-}
-
 // Built-in function to convert an instance to a string
 static Value __builtin_instance_to_str(int argc, Value argv[]) {
   if (argc != 0) {
@@ -672,21 +729,6 @@ static Value __builtin_instance_to_str(int argc, Value argv[]) {
   return exit_with_runtime_error();
 }
 
-// Built-in function to convert a native function to a string
-static Value __builtin_native_to_str(int argc, Value argv[]) {
-  if (argc != 0) {
-    runtime_error("Expected 0 arguments but got %d.", argc);
-    return exit_with_runtime_error();
-  }
-
-  if (IS_NATIVE(argv[0])) {
-    return OBJ_VAL(copy_string(VALUE_STR_NATIVE, sizeof(VALUE_STR_NATIVE) - 1));
-  }
-
-  runtime_error("Expected a " TYPENAME_NATIVE " but got %s.", type_name(argv[0]));
-  return exit_with_runtime_error();
-}
-
 // Built-in function to convert a string to a string
 static Value __builtin_string_to_str(int argc, Value argv[]) {
   if (argc != 0) {
@@ -704,7 +746,6 @@ static Value __builtin_string_to_str(int argc, Value argv[]) {
 
 // Built-in function to convert a sequence to a string
 static Value __builtin_seq_to_str(int argc, Value argv[]) {
-#define SEQ_SEPARATOR ", "
   if (argc != 0) {
     runtime_error("Expected 0 arguments but got %d.", argc);
     return exit_with_runtime_error();
@@ -715,16 +756,17 @@ static Value __builtin_seq_to_str(int argc, Value argv[]) {
     size_t buf_size = 64;  // Start with a reasonable size
     char* chars     = malloc(buf_size);
 
-    strcpy(chars, VALUE_STR_SEQ "[");
+    strcpy(chars, VALUE_STR_SEQ_START);
     for (int i = 0; i < seq->items.count; i++) {
       // Use the default to-string method of the value to convert the item to a string
       push(seq->items.values[i]);
       ObjString* item_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));  // Convert to string
 
       // Expand chars to fit the separator plus the next item
-      size_t new_buf_size = strlen(chars) + strlen(item_str->chars) + sizeof(SEQ_SEPARATOR) +
-                            2;  // +2 so we are able to add the closing bracket if we're done
-                                // after this iteration.
+      size_t new_buf_size =
+          strlen(chars) + strlen(item_str->chars) + (sizeof(VALUE_STR_SEQ_DELIM) - 1) +
+          (sizeof(VALUE_STR_SEQ_END) - 1);  // Consider the closing bracket -  if we're done after this
+                                            // iteration we won't need to expand and can just slap it on there
       if (new_buf_size > buf_size) {
         buf_size = new_buf_size;
         chars    = realloc(chars, buf_size);
@@ -735,11 +777,11 @@ static Value __builtin_seq_to_str(int argc, Value argv[]) {
 
       strcat(chars, item_str->chars);
       if (i < seq->items.count - 1) {
-        strcat(chars, SEQ_SEPARATOR);
+        strcat(chars, VALUE_STR_SEQ_DELIM);
       }
     }
 
-    strcat(chars, "]");
+    strcat(chars, VALUE_STR_SEQ_END);
 
     // Intuitively, you'd expect to use take_string here, but we don't know where malloc
     // allocates the memory - we don't want this block in our own memory pool.
@@ -750,7 +792,6 @@ static Value __builtin_seq_to_str(int argc, Value argv[]) {
 
   runtime_error("Expected a " TYPENAME_SEQ " but got %s.", type_name(argv[0]));
   return exit_with_runtime_error();
-#undef SEQ_SEPARATOR
 }
 
 // Built-in function to retrieve the length of a string
@@ -1053,11 +1094,11 @@ static Value run() {
             switch (OBJ_TYPE(peek(0))) {
               case OBJ_CLASS: {
                 ObjClass* klass = AS_CLASS(peek(0));
-                if (values_equal(OBJ_VAL(name), vm.reserved_method_names[METHOD_NAME])) {
+                if (values_equal(OBJ_VAL(name), vm.reserved_field_names[FIELD_NAME])) {
                   pop();  // Pop the class
                   push(OBJ_VAL(klass->name));
                   goto done_getting_property;
-                } else if (values_equal(OBJ_VAL(name), vm.reserved_method_names[METHOD_CTOR])) {
+                } else if (values_equal(OBJ_VAL(name), vm.reserved_field_names[FIELD_CTOR])) {
                   pop();  // Pop the class
                   Value ctor;
                   hashtable_get(&klass->methods, OBJ_VAL(name), &ctor);
@@ -1190,7 +1231,7 @@ static Value run() {
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
       case OP_PRINT: {
-        ObjString* str = to_str(peek(0));
+        ObjString* str = fast_to_str(peek(0));
         printf("%s\n", str->chars);
         pop();
         break;

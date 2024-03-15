@@ -250,9 +250,9 @@ static void mark_roots() {
   // And the builtin object.
   mark_obj((Obj*)vm.builtin);
 
-  // And the reserved method names.
-  for (int i = 0; i < METHOD_MAX; i++) {
-    mark_value(vm.reserved_method_names[i]);
+  // And the reserved names.
+  for (int i = 0; i < FIELD_MAX; i++) {
+    mark_value(vm.reserved_field_names[i]);
   }
 
   // And the compiler roots. The GC can run while compiling, so we need to mark

@@ -9,7 +9,7 @@
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
-#define KEYWORD_CONSTRUCTOR "ctor"
+#define KEYWORD_CONSTRUCTOR "__ctor"
 #define KEYWORD_CONSTRUCTOR_LEN (sizeof(KEYWORD_CONSTRUCTOR) - 1)
 
 #define KEYWORD_NAME "__name"
@@ -30,11 +30,11 @@ typedef struct {
 } CallFrame;
 
 typedef enum {
-  METHOD_CTOR,
-  METHOD_NAME,
+  FIELD_CTOR,
+  FIELD_NAME,
 
-  METHOD_MAX,
-} ReservedMethodNames;
+  FIELD_MAX,
+} ReservedFieldNames;
 
 // The virtual machine.
 // Contains all the state the Vm requires to execute code.
@@ -62,10 +62,10 @@ typedef struct {
   ObjClass* nil_class;     // The nil class
   ObjClass* seq_class;     // The sequence class
 
-  ObjInstance* builtin;                     // The builtin (builtin things) object instance
-  Value reserved_method_names[METHOD_MAX];  // Reserved method names. They deliberately are not
-                                            // using a values array because they are not dynaminc
-                                            // and not garbage collected (e.g. always marked)
+  ObjInstance* builtin;                   // The builtin (builtin things) object instance
+  Value reserved_field_names[FIELD_MAX];  // Reserved method names. They deliberately are not
+                                          // using a values array because they are not dynaminc
+                                          // and not garbage collected (e.g. always marked)
 
   int pause_gc;
   size_t bytes_allocated;

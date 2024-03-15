@@ -222,7 +222,7 @@ print mnd
 print "Bound native function test: "
 let sample = "Hello"
 let bound_native = sample.to_str
-print bound_native.type_name()
+print type_name(bound_native)
 print "'" + bound_native() + "' should be the same as '" + (sample.to_str)() +  "', and the same as '" + sample.to_str() + "'?"
 
 print "--------------------------------------------------------------------------------"
@@ -248,25 +248,27 @@ cls List {
 print ListWithoutStrOverride().to_str()
 print List().to_str()
 
+let l = List()
+log("Hello", [1,2,3], clock(), type_name(nil), l.list.len(), type_name(l.list))
+
 print "--------------------------------------------------------------------------------"
 print "Builtin stuff"
 print "--------------------------------------------------------------------------------"
 
-print Range.__name
-print Range.ctor
+print List.__name
+print List.__ctor
 
 print 312.to_str()
 print 312.hash()
-print 321.type_name()
+print type_name(321)
+print type_of(312)
 print "Hello".len()
 
-let l = List()
-log("Hello", [1,2,3], clock(), nil.type_name(), l.list.len(), l.list.type_name())
-
-log(0.type_name(), "is not the same as", 0.to_str())
-log(nil.type_name(), "is not the same as", nil.to_str())
-log(true.type_name(), "is not the same as", true.to_str())
-log(clock.type_name(), "is not the same as", clock.to_str())
-log(Range.type_name(), "is not the same as", Range.to_str())
-
+let values = [0, nil, true, [], fn->1, clock, List]
+for let i = 0 ; i < values.len(); i = i + 1 ; {
+  log("---")
+  log("type_name: ", type_name(values[i]))
+  log("type_of:   ", type_of(values[i]))
+  log("to_str:    ", values[i].to_str())
+}
 

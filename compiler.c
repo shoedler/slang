@@ -262,6 +262,12 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
     case TYPE_TOPLEVEL: current->function->name = copy_string("Toplevel", 10); break;
     case TYPE_MODULE: current->function->name = copy_string("Module", 8); break;
     case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("<Anon>", 7); break;
+    case TYPE_CONSTRUCTOR:
+      current->function->name = copy_string(
+          KEYWORD_CONSTRUCTOR,
+          KEYWORD_CONSTRUCTOR_LEN);  // TODO (optimize): We could probably just get that from the
+                                     // vm.reserved_field_names array, *should* be allocated at this point.
+      break;
     default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }
 
@@ -624,7 +630,8 @@ static void method() {
 
 static void constructor() {
   consume(TOKEN_CTOR, "Expecting constructor.");
-  uint16_t constant = string_constant(&parser.previous);
+  Token ctor        = synthetic_token(KEYWORD_CONSTRUCTOR);
+  uint16_t constant = string_constant(&ctor);
 
   function(false /* does not matter */, TYPE_CONSTRUCTOR);
   emit_two(OP_METHOD, constant);
