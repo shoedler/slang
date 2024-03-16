@@ -1,4 +1,4 @@
 fn foo {}
 
 foo.bar = "value" // [ExpectRuntimeError] Closure cannot have fields.
-                  // [ExpectRuntimeError] at line 3 at the toplevel
+                  // [ExpectRuntimeError] at line 3 at the toplevel of module "main"

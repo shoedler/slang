@@ -5,4 +5,4 @@ cls Foo {
 }
 
 print Foo().returnSelf() // [Expect] <Class Foo>
-print Foo().returnSelf()() // [Expect] <Instance Foo>
+print Foo().returnSelf()() // [Expect] <Instance of Foo>

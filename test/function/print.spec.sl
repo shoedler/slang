@@ -1,4 +1,4 @@
 fn foo() {}
-print foo // [Expect] [Fn foo, arity 0]
+print foo // [Expect] <Fn foo>
 
-print clock // [Expect] [Native Fn]
+print clock // [Expect] <Native Fn>
