@@ -859,6 +859,10 @@ static Value __builtin_string_to_str(int argc, Value argv[]) {
 }
 
 static Value __builtin_num_ctor(int argc, Value argv[]) {
+  if (argc == 0) {
+    return NUMBER_VAL(0);
+  }
+
   if (argc != 1) {
     runtime_error("Expected 1 argument but got %d.", argc);
     return exit_with_runtime_error();
@@ -868,6 +872,10 @@ static Value __builtin_num_ctor(int argc, Value argv[]) {
 }
 
 static Value __builtin_bool_ctor(int argc, Value argv[]) {
+  if (argc == 0) {
+    return BOOL_VAL(false);
+  }
+
   if (argc != 1) {
     runtime_error("Expected 1 argument but got %d.", argc);
     return exit_with_runtime_error();
@@ -877,6 +885,10 @@ static Value __builtin_bool_ctor(int argc, Value argv[]) {
 }
 
 static Value __builtin_nil_ctor(int argc, Value argv[]) {
+  if (argc == 0) {
+    return NIL_VAL;
+  }
+
   if (argc != 1) {
     runtime_error("Expected 1 argument but got %d.", argc);
     return exit_with_runtime_error();
@@ -886,6 +898,10 @@ static Value __builtin_nil_ctor(int argc, Value argv[]) {
 }
 
 static Value __builtin_str_ctor(int argc, Value argv[]) {
+  if (argc == 0) {
+    return OBJ_VAL(copy_string("", 0));
+  }
+
   if (argc != 1) {
     runtime_error("Expected 1 argument but got %d.", argc);
     return exit_with_runtime_error();
@@ -898,6 +914,13 @@ static Value __builtin_str_ctor(int argc, Value argv[]) {
 // Built-in seq constructor. Used if the user wants to create a sequence with a specific length. (e.g.
 // Seq(20) ) Won't run if the user creates a seq via literal syntax.
 static Value __builtin_seq_ctor(int argc, Value argv[]) {
+  if (argc == 0) {
+    ValueArray items;
+    init_value_array(&items);
+    ObjSeq* seq = take_seq(&items);
+    return OBJ_VAL(seq);
+  }
+
   if (argc != 1) {
     runtime_error("Expected 1 argument but got %d.", argc);
     return exit_with_runtime_error();
