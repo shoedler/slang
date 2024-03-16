@@ -35,6 +35,35 @@ bool is_int(double number, int* integer) {
   return number == dint;
 }
 
+int is_digit(char c) {
+  return c >= '0' && c <= '9';
+}
+
+double string_to_double(char* str, int length) {
+  double result              = 0.0;
+  double decimal_place_value = 1.0;
+  bool found_decimal_place =
+      false;  // This acts as a boolean flag to track if we've encountered a decimal point
+
+  for (int i = 0; i < length; ++i) {
+    if (is_digit(str[i])) {
+      if (found_decimal_place) {
+        // Process fraction
+        decimal_place_value /= 10.0;
+        result += (str[i] - '0') * decimal_place_value;
+      } else {
+        // Process whole number
+        result = result * 10.0 + (str[i] - '0');
+      }
+    } else if (str[i] == '.' && !found_decimal_place) {
+      found_decimal_place = true;  // Mark that we've found the decimal point
+    }
+    // Ignore all other characters
+  }
+
+  return result;
+}
+
 bool values_equal(Value a, Value b) {
   // TODO (optimize): This is hot, maybe we can do better?
   if (a.type != b.type) {

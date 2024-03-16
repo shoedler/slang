@@ -139,6 +139,12 @@ bool is_int(double number, int* integer);
 // Get the hashcode of a value, based on its type.
 uint32_t hash_value(Value value);
 
+// Converts a string to a double.
+// Result for "[ 1, 2, 3, 4]": 1234.000000
+// Result for "12.34.56": 12.345600
+// Returns 0.0 if the string is not a valid number.
+double string_to_double(char* str, int length);
+
 // Gets the name of a type.
 const char* type_name(Value value);
 

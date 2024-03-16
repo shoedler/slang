@@ -104,6 +104,12 @@ typedef struct {
   struct ObjInstance* globals_context;
 } ObjFunction;
 
+// The type of a native function. Native functions are functions that are
+// implemented in C and are not part of the language itself. Things to note:
+// - argc is the number of arguments the function takes. If you provide argc=1, a signature of native(a) will
+// be expected.
+// - argv is the array of arguments the function takes. argv[0] is ALWAYS the receiver (in case of
+// invocations) or the ObjNative itself. Same as in managed functions.
 typedef Value (*NativeFn)(int argc, Value argv[]);
 
 typedef struct {

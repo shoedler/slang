@@ -223,7 +223,7 @@ print "Bound native function test: "
 let sample = "Hello"
 let bound_native = sample.to_str
 print type_name(bound_native)
-print "'" + bound_native() + "' should be the same as '" + (sample.to_str)() +  "', and the same as '" + sample.to_str() + "'?"
+print "'" + bound_native() + "' should be the same as '" + (sample.to_str)() +  "', and the same as '" + sample.to_str()
 
 print "--------------------------------------------------------------------------------"
 print "Overriding stuff"

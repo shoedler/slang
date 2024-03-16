@@ -20,7 +20,6 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 
 ### Syntax & Language Features
 
-- [ ] Add tests for anonymous functions
 - [ ] Implement `+=`, `-=`, `*=`, `/=`, `%=`
 - [ ] Challenges to implement:
   - [ ] 24 $\to$ 1: Move `ip` into a register. This is a must-have.
@@ -37,8 +36,7 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
   - [ ] 22 $\to$ 3: Add `const`
   - [ ] 15 $\to$ 4: Single-op unaries. Not fully-fledged constant folding, but a good start.
   - [ ] 25 $\to$ 1: Only necessary closures. Evaluate this, maybe it's not worth it.
-  - [ ] 28 $\to$ 1: Cache `ctor` keyword. Low prio.
-  - [ ] 28 $\to$ 3: Differentiate between fields and methods textually. Use an array for lookup. Low prio. Would be nice to allow field-inheritance - this could be a major rewrite though.
+  - [x] 28 $\to$ 1: Cache `ctor` keyword. Low prio.
 - [ ] Implement `break`
 - [x] Implement sequences
 - [ ] Implement hashtable keys for all types: Objs are by reference, primitives and strings by value
@@ -48,8 +46,14 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 
 - [ ] Move exit codes to `common.h` and replace all magic numbers with them
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
-- [ ] Make macros in `value.h` for internal types and their values (e.g. `true` and `false`).
-- [ ] Add a test for `ObjBoundMethod` where it's method is a `NativeFn`, because it was previously only a `ObjClosure`.
+- [ ] Add tests for anonymous functions
+- [x] Make macros in `value.h` for internal types and their values (e.g. `true` and `false`).
+- [x] Add a test for `ObjBoundMethod` where it's method is a `NativeFn`, because it was previously only a `ObjClosure`.
+- [ ] Remove `OP_PRINT` completely in favor of native `print` function
+- [ ] Add type conversion functions. Proposal: `int()`, `float()`, `to_str()`, `bool()`
+- [ ] Add type checking functions. Proposal: `type()` and `Num`, `Str`, `Bool` or `@num`, `@str`, `@bool`
+- [x] Add sequences
+- [ ] Add objects
 
 ### Optimizations
 
@@ -67,13 +71,11 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 - Then, to import a module.
 - There probably needs to be a reference to the owner of the closures globals, so that the gc collects it when the module is no longer used.
 
-Devise a system to load modules. I want most of the stdlib to be native code to improve performance, but I also want to be able to load modules from disk.
+- [x] Devise a system to load modules. I want most of the stdlib to be native code to improve performance, but I also want to be able to load modules from disk.
 
-- [ ] Remove `OP_PRINT` completely in favor of native `print` function
-- [ ] Add type conversion functions. Proposal: `int()`, `float()`, `to_str()`, `bool()`
-- [ ] Add type checking functions. Proposal: `type()` and `Num`, `Str`, `Bool` or `@num`, `@str`, `@bool`
-- [ ] Add sequences
-- [ ] Add objects
+### Backlog / Unsure
+
+- [ ] 28 $\to$ 3: Differentiate between fields and methods textually. Use an array for lookup. Low prio. Would be nice to allow field-inheritance - this could be a major rewrite though.
 
 ## Ideas
 

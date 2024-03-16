@@ -23,6 +23,30 @@ cls Range {
   }
 }
 
+cls List {
+  ctor(count) {
+    this.count = count
+    this.data = Seq(count)
+  }
+
+  fn map(f) {
+    if type_of(f).__name != type_of(fn -> nil).__name {
+      print "Error: map requires a function as an argument"
+      ret nil;
+    }
+
+    let out = List(this.data.len())
+    for let i = 0 ; i < this.data.len() ; i = i + 1 ; {
+      out.data[i] = f(this.data[i], i)
+    }
+    ret out;
+  }
+
+  fn to_str() {
+    ret "List of " + this.data.len().to_str() + " elements. Items: " + this.data.to_str();
+  }
+}
+
 cls Monad {
   ctor(value) {
     this.value = value
@@ -35,5 +59,3 @@ cls Monad {
     ret Monad(f(this.value));
   }
 }
-
-import bad
