@@ -494,5 +494,73 @@
       "value": "60780000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-03-17T13:42:41.201Z",
+    "commit": {
+      "date": "2024-03-17 13:37:19 +0100",
+      "hash": "20763b4f5df1f52b7d1f9608300aed842ddf1b4a",
+      "message": "Renames reserved field names to \"cached words\". I feel alot better now"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "8.056000"
+    }
+  },
+  {
+    "date": "2024-03-17T13:42:41.201Z",
+    "commit": {
+      "date": "2024-03-17 13:37:19 +0100",
+      "hash": "20763b4f5df1f52b7d1f9608300aed842ddf1b4a",
+      "message": "Renames reserved field names to \"cached words\". I feel alot better now"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "1.082000"
+    }
+  },
+  {
+    "date": "2024-03-17T13:42:41.201Z",
+    "commit": {
+      "date": "2024-03-17 13:37:19 +0100",
+      "hash": "20763b4f5df1f52b7d1f9608300aed842ddf1b4a",
+      "message": "Renames reserved field names to \"cached words\". I feel alot better now"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "158",
+      "value": "9480000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-03-17T13:42:41.201Z",
+    "commit": {
+      "date": "2024-03-17 13:37:19 +0100",
+      "hash": "20763b4f5df1f52b7d1f9608300aed842ddf1b4a",
+      "message": "Renames reserved field names to \"cached words\". I feel alot better now"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "1004",
+      "value": "60240000",
+      "durationInSecs": "5"
+    }
   }
 ]

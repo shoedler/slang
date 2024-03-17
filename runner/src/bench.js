@@ -14,40 +14,41 @@ import {
 import http from 'node:http';
 
 /**
- * @typedef {
- *  benchmarkType: "ThroughputBenchmark",
- *  name: string,
- *  throughput: number,
- *  value: any,
- *  durationInSecs: number
- * } ThroughputBenchmark
+ * @typedef {{
+ *   benchmarkType: "ThroughputBenchmark",
+ *   name: string,
+ *   throughput: number,
+ *   value: any,
+ *   durationInSecs: number
+ * }} ThroughputBenchmark
  */
 
 /**
  * @typedef {{
- * benchmarkType: "LatencyBenchmark",
- * name: string,
- * expectedValue: number,
- * value: number,
- * durationInSecs: number
+ *   benchmarkType: "LatencyBenchmark",
+ *   name: string,
+ *   expectedValue: number,
+ *   value: number,
+ *   durationInSecs: number
  * }} LatencyBenchmark
  */
 
 /**
  * @typedef {{
- *  date: Date;
- *  commit: {
- *   date: string;
- *   hash: string;
- *   message: string;
- *  };
- *  processorName: string;
- *  config: string;
- *  benchmark: ThroughputBenchmark | LatencyBenchmark
+ *   date: Date;
+ *   commit: {
+ *    date: string;
+ *    hash: string;
+ *    message: string;
+ *   };
+ *   processorName: string;
+ *   config: "Debug" | "Release";
+ *   benchmark: ThroughputBenchmark | LatencyBenchmark;
  * }} BenchmarkResult
  */
 
 export const serveResults = async () => {
+  const clientCodeFile = path.join(SLANG_BENCH_DIR, 'client.js');
   const indexHtmlFile = path.join(SLANG_BENCH_DIR, 'index.html');
   const benchLogFile = path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE);
 
@@ -56,6 +57,11 @@ export const serveResults = async () => {
       readFile(indexHtmlFile).then(indexHtml => {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(indexHtml);
+      });
+    } else if (req.url === '/client') {
+      readFile(clientCodeFile).then(clientCode => {
+        res.writeHead(200, { 'Content-Type': 'application/javascript' });
+        res.end(clientCode);
       });
     } else if (req.url === '/results') {
       readFile(benchLogFile).then(rawResults => {
