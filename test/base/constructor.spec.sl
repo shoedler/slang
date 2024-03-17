@@ -1,16 +1,16 @@
 cls Base {
   ctor(a, b) {
-    print "Base.init(" + a + ", " + b + ")"
+    print "Base.__ctor(" + a + ", " + b + ")"
   }
 }
 
 cls Derived : Base {
   ctor() {
-    print "Derived.init()"
-    base.ctor("a", "b")
+    print "Derived.__ctor()"
+    base.__ctor("a", "b")
   }
 }
 
 Derived()
-// [Expect] Derived.init()
-// [Expect] Base.init(a, b)
+// [Expect] Derived.__ctor()
+// [Expect] Base.__ctor(a, b)
