@@ -1,4 +1,5 @@
 #include "hashtable.h"
+#include <memory.h>
 #include "memory.h"
 #include "value.h"
 
