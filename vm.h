@@ -15,6 +15,9 @@
 #define KEYWORD_NAME "__name"
 #define KEYWORD_NAME_LEN (sizeof(KEYWORD_NAME) - 1)
 
+#define KEYWORD_MODULE_NAME "__module_name"
+#define KEYWORD_MODULE_NAME_LEN (sizeof(KEYWORD_MODULE_NAME) - 1)
+
 #define KEYWORD_THIS "this"
 #define KEYWORD_THIS_LEN (sizeof(KEYWORD_THIS) - 1)
 
@@ -30,11 +33,12 @@ typedef struct {
 } CallFrame;
 
 typedef enum {
-  FIELD_CTOR,
-  FIELD_NAME,
+  WORD_CTOR,
+  WORD_NAME,
+  WORD_MODULE_NAME,
 
-  FIELD_MAX,
-} ReservedFieldNames;
+  WORD_MAX,
+} CachedWords;
 
 // The virtual machine.
 // Contains all the state the Vm requires to execute code.
@@ -62,10 +66,8 @@ typedef struct {
   ObjClass* nil_class;     // The nil class
   ObjClass* seq_class;     // The sequence class
 
-  ObjInstance* builtin;                   // The builtin (builtin things) object instance
-  Value reserved_field_names[FIELD_MAX];  // Reserved method names. They deliberately are not
-                                          // using a values array because they are not dynaminc
-                                          // and not garbage collected (e.g. always marked)
+  ObjInstance* builtin;          // The builtin (builtin things) object instance
+  Value cached_words[WORD_MAX];  // Cached words for quick access
 
   int pause_gc;
   size_t bytes_allocated;
@@ -92,7 +94,8 @@ Value interpret(const char* source, const char* module_name);
 
 // Reads a file from path, compiles it and then runs it.
 // Returns the result of the interpretation as a value.
-// Accepts an optional name for the module which should result from calling this function. If NULL is provided, path is used as the name.
+// Accepts an optional name for the module which should result from calling this function. If NULL is
+// provided, path is used as the name.
 Value run_file(const char* path, const char* module_name);
 
 // Push a value onto the stack.

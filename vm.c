@@ -80,8 +80,7 @@ static void runtime_error(const char* format, ...) {
     fprintf(stderr, "\tat line %d ", function->chunk.lines[instruction]);
 
     Value module_name;
-    if (!hashtable_get(&function->globals_context->fields, vm.reserved_field_names[FIELD_NAME],
-                       &module_name)) {
+    if (!hashtable_get(&function->globals_context->fields, vm.cached_words[WORD_MODULE_NAME], &module_name)) {
       fprintf(stderr, "in \"%s\"\n", function->name->chars);
       break;
     }
@@ -182,9 +181,10 @@ void init_vm() {
   init_hashtable(&vm.modules);
 
   // Create the reserved method names
-  memset(vm.reserved_field_names, 0, sizeof(vm.reserved_field_names));
-  vm.reserved_field_names[FIELD_CTOR] = OBJ_VAL(copy_string(KEYWORD_CONSTRUCTOR, KEYWORD_CONSTRUCTOR_LEN));
-  vm.reserved_field_names[FIELD_NAME] = OBJ_VAL(copy_string(KEYWORD_NAME, KEYWORD_NAME_LEN));
+  memset(vm.cached_words, 0, sizeof(vm.cached_words));
+  vm.cached_words[WORD_CTOR]        = OBJ_VAL(copy_string(KEYWORD_CONSTRUCTOR, KEYWORD_CONSTRUCTOR_LEN));
+  vm.cached_words[WORD_NAME]        = OBJ_VAL(copy_string(KEYWORD_NAME, KEYWORD_NAME_LEN));
+  vm.cached_words[WORD_MODULE_NAME] = OBJ_VAL(copy_string(KEYWORD_MODULE_NAME, KEYWORD_MODULE_NAME_LEN));
 
   // Create the object class
   vm.object_class = new_class(copy_string("Object", 6), NULL);
@@ -247,7 +247,7 @@ void init_vm() {
 void free_vm() {
   free_hashtable(&vm.strings);
   free_hashtable(&vm.modules);
-  memset(vm.reserved_field_names, 0, sizeof(vm.reserved_field_names));
+  memset(vm.cached_words, 0, sizeof(vm.cached_words));
   free_objects();
 }
 
@@ -373,7 +373,7 @@ static CallResult call_value(Value callable, int arg_count) {
         // method. It's perfectly valid to have no ctor - you'll also end up with a valid instance on the
         // stack.
         Value ctor;
-        if (hashtable_get(&klass->methods, vm.reserved_field_names[FIELD_CTOR], &ctor)) {
+        if (hashtable_get(&klass->methods, vm.cached_words[WORD_CTOR], &ctor)) {
           switch (AS_OBJ(ctor)->type) {
             case OBJ_CLOSURE: return call_managed(AS_CLOSURE(ctor), arg_count);
             case OBJ_NATIVE: return call_native(AS_NATIVE(ctor), arg_count);
@@ -1295,11 +1295,11 @@ static Value run() {
             switch (OBJ_TYPE(peek(0))) {
               case OBJ_CLASS: {
                 ObjClass* klass = AS_CLASS(peek(0));
-                if (values_equal(OBJ_VAL(name), vm.reserved_field_names[FIELD_NAME])) {
+                if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_NAME])) {
                   pop();  // Pop the class
                   push(OBJ_VAL(klass->name));
                   goto done_getting_property;
-                } else if (values_equal(OBJ_VAL(name), vm.reserved_field_names[FIELD_CTOR])) {
+                } else if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_CTOR])) {
                   pop();  // Pop the class
                   Value ctor;
                   hashtable_get(&klass->methods, OBJ_VAL(name), &ctor);
@@ -1343,8 +1343,8 @@ static Value run() {
         ObjInstance* instance = AS_INSTANCE(peek(1));
         ObjString* name       = READ_STRING();
 
-        for (int i = 0; i < FIELD_MAX; i++) {
-          if (values_equal(OBJ_VAL(name), vm.reserved_field_names[i])) {
+        for (int i = 0; i < WORD_MAX; i++) {
+          if (values_equal(OBJ_VAL(name), vm.cached_words[i])) {
             runtime_error("Cannot assign to reserved field '%s'.", name->chars);
             return exit_with_runtime_error();
           }
@@ -1561,7 +1561,8 @@ static void start_module(const char* module_name) {
   vm.module           = (Obj*)module;
 
   define_obj(&module->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
-  define_obj(&module->fields, "module_name", (Obj*)copy_string(module_name, (int)strlen(module_name)));
+  define_obj(&module->fields, KEYWORD_MODULE_NAME,
+             (Obj*)(copy_string(module_name, (int)strlen(module_name))));
 }
 
 Value interpret(const char* source, const char* module_name) {

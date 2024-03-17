@@ -251,8 +251,8 @@ static void mark_roots() {
   mark_obj((Obj*)vm.builtin);
 
   // And the reserved names.
-  for (int i = 0; i < FIELD_MAX; i++) {
-    mark_value(vm.reserved_field_names[i]);
+  for (int i = 0; i < WORD_MAX; i++) {
+    mark_value(vm.cached_words[i]);
   }
 
   // And the compiler roots. The GC can run while compiling, so we need to mark
