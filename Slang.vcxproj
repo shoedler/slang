@@ -134,6 +134,7 @@
     <ClCompile Include="chunk.c" />
     <ClCompile Include="compiler.c" />
     <ClCompile Include="debug.c" />
+    <ClCompile Include="file.c" />
     <ClCompile Include="hashtable.c" />
     <ClCompile Include="memory.c" />
     <ClCompile Include="main.c" />
@@ -147,6 +148,7 @@
     <ClInclude Include="common.h" />
     <ClInclude Include="compiler.h" />
     <ClInclude Include="debug.h" />
+    <ClInclude Include="file.h" />
     <ClInclude Include="hashtable.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="object.h" />

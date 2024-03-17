@@ -164,7 +164,7 @@ int print_value_safe(FILE* f, Value value) {
 
   switch (OBJ_TYPE(value)) {
     case OBJ_STRING: return fprintf(f, "\"%s\"", AS_CSTRING(value));
-    case OBJ_FUNCTION: return; fprintf(f, VALUE_STRFMT_FUNCTION, AS_FUNCTION(value)->name->chars);
+    case OBJ_FUNCTION: return fprintf(f, VALUE_STRFMT_FUNCTION, AS_FUNCTION(value)->name->chars);
     case OBJ_CLOSURE: return fprintf(f, VALUE_STRFMT_FUNCTION, AS_CLOSURE(value)->function->name->chars);
     case OBJ_CLASS: return fprintf(f, VALUE_STRFMT_CLASS, AS_CLASS(value)->name->chars);
     case OBJ_INSTANCE: return fprintf(f, VALUE_STRFTM_INSTANCE, AS_INSTANCE(value)->klass->name->chars);

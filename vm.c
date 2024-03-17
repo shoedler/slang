@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include "compiler.h"
+#include "file.h"
 #include "memory.h"
 #include "object.h"
 #include "vm.h"
@@ -81,7 +82,7 @@ static void runtime_error(const char* format, ...) {
     Value module_name;
     if (!hashtable_get(&function->globals_context->fields, vm.reserved_field_names[FIELD_NAME],
                        &module_name)) {
-      fprintf("in \"%s\"\n", function->name->chars);
+      fprintf(stderr, "in \"%s\"\n", function->name->chars);
       break;
     }
 
@@ -131,7 +132,7 @@ static void define_obj(HashTable* table, const char* name, Obj* obj) {
   // value are swapped! Same goes for the name (WTF). I've found this out because in the stack trace we now
   // see the modules name and for nested modules it always printed __name. The current remedy is to just use
   // variables for "key" and "value" and just use these instead of pushing and peeking.
-  Value key   = OBJ_VAL(copy_string(name, strlen(name)));
+  Value key   = OBJ_VAL(copy_string(name, (int)strlen(name)));
   Value value = OBJ_VAL(obj);
   push(key);
   push(value);
@@ -388,7 +389,6 @@ static CallResult call_value(Value callable, int arg_count) {
         return CALL_RETURNED;
       }
       case OBJ_CLOSURE: return call_managed(AS_CLOSURE(callable), arg_count);
-      case OBJ_FUNCTION: return call_managed(AS_FUNCTION(callable), arg_count);
       case OBJ_NATIVE: return call_native(AS_NATIVE(callable), arg_count);
       default: break;  // Non-callable object type.
     }
@@ -469,7 +469,7 @@ static Value exec_fn(Obj* callable, int arg_count) {
   CallResult result = CALL_FAILED;
   switch (callable->type) {
     case OBJ_CLOSURE: result = call_managed((ObjClosure*)callable, arg_count); break;
-    case OBJ_NATIVE: result = call_native((ObjNative*)callable, arg_count); break;
+    case OBJ_NATIVE: result = call_native(((ObjNative*)callable)->function, arg_count); break;
   }
 
   if (result == CALL_RETURNED) {
@@ -564,7 +564,7 @@ static Value native_type_name(int argc, Value argv[]) {
   }
 
   const char* t_name = type_name(argv[1]);
-  ObjString* str_obj = copy_string(t_name, strlen(t_name));
+  ObjString* str_obj = copy_string(t_name, (int)strlen(t_name));
   return OBJ_VAL(str_obj);
 }
 
@@ -652,7 +652,7 @@ static Value __builtin_obj_to_str(int argc, Value argv[]) {
         snprintf(chars, buf_size, VALUE_STRFMT_CLASS, name->chars);
         // Intuitively, you'd expect to use take_string here, but we don't know where malloc
         // allocates the memory - we don't want this block in our own memory pool.
-        ObjString* str_obj = copy_string(chars, buf_size);
+        ObjString* str_obj = copy_string(chars, (int)buf_size);
 
         free(chars);
         pop();  // Name str
@@ -671,7 +671,7 @@ static Value __builtin_obj_to_str(int argc, Value argv[]) {
         snprintf(chars, buf_size, VALUE_STRFTM_INSTANCE, name->chars);
         // Intuitively, you'd expect to use take_string here, but we don't know where malloc
         // allocates the memory - we don't want this block in our own memory pool.
-        ObjString* str_obj = copy_string(chars, buf_size);
+        ObjString* str_obj = copy_string(chars, (int)buf_size);
 
         free(chars);
         pop();  // Name str
@@ -690,7 +690,7 @@ static Value __builtin_obj_to_str(int argc, Value argv[]) {
         snprintf(chars, buf_size, VALUE_STRFMT_FUNCTION, name->chars);
         // Intuitively, you'd expect to use take_string here, but we don't know where malloc
         // allocates the memory - we don't want this block in our own memory pool.
-        ObjString* str_obj = copy_string(chars, buf_size);
+        ObjString* str_obj = copy_string(chars, (int)buf_size);
 
         free(chars);
         pop();  // Name str
@@ -700,7 +700,7 @@ static Value __builtin_obj_to_str(int argc, Value argv[]) {
   }
 
   // This here is the catch-all for all values. We print the type-name and memory address of the value.
-  char* t_name = type_name(argv[0]);
+  const char* t_name = type_name(argv[0]);
 
   // Print the memory address of the object using (void*)AS_OBJ(argv[0]).
   // We need to know the size of the buffer to allocate, so we calculate it first.
@@ -711,7 +711,7 @@ static Value __builtin_obj_to_str(int argc, Value argv[]) {
   snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name, (void*)AS_OBJ(argv[0]));
   // Intuitively, you'd expect to use take_string here, but we don't know where malloc
   // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(chars, buf_size);
+  ObjString* str_obj = copy_string(chars, (int)buf_size);
 
   free(chars);
   return OBJ_VAL(str_obj);
@@ -801,7 +801,7 @@ static Value __builtin_class_to_str(int argc, Value argv[]) {
     snprintf(chars, buf_size, VALUE_STRFMT_CLASS, name->chars);
     // Intuitively, you'd expect to use take_string here, but we don't know where malloc
     // allocates the memory - we don't want this block in our own memory pool.
-    ObjString* str_obj = copy_string(chars, buf_size);
+    ObjString* str_obj = copy_string(chars, (int)buf_size);
 
     free(chars);
     pop();  // Name str
@@ -832,7 +832,7 @@ static Value __builtin_instance_to_str(int argc, Value argv[]) {
     snprintf(chars, buf_size, VALUE_STRFTM_INSTANCE, name->chars);
     // Intuitively, you'd expect to use take_string here, but we don't know where malloc
     // allocates the memory - we don't want this block in our own memory pool.
-    ObjString* str_obj = copy_string(chars, buf_size);
+    ObjString* str_obj = copy_string(chars, (int)buf_size);
 
     free(chars);
     pop();  // Name str
@@ -936,7 +936,7 @@ static Value __builtin_seq_ctor(int argc, Value argv[]) {
   ObjSeq* seq = take_seq(&items);
   push(OBJ_VAL(seq));  // GC Protection
 
-  int count = AS_NUMBER(argv[1]);
+  int count = (int)AS_NUMBER(argv[1]);
   for (int i = 0; i < count; i++) {
     write_value_array(&seq->items, NIL_VAL);
   }
@@ -986,7 +986,7 @@ static Value __builtin_seq_to_str(int argc, Value argv[]) {
 
     // Intuitively, you'd expect to use take_string here, but we don't know where malloc
     // allocates the memory - we don't want this block in our own memory pool.
-    ObjString* str_obj = copy_string(chars, buf_size);
+    ObjString* str_obj = copy_string(chars, (int)buf_size);
     free(chars);
     return OBJ_VAL(str_obj);
   }
@@ -1378,7 +1378,7 @@ static Value run() {
         module                  = run_file(tmp, name->chars);
         vm.exit_on_frame        = previous_exit_frame;
 
-        if (!IS_OBJ(module) && !IS_INSTANCE(module) && !AS_INSTANCE(module)->klass == vm.module_class) {
+        if (!IS_OBJ(module) && !IS_INSTANCE(module) && !(AS_INSTANCE(module)->klass == vm.module_class)) {
           runtime_error("Could not import module '%s'. Expected module type", name->chars);
           return exit_with_runtime_error();
         }
@@ -1556,15 +1556,15 @@ static Value run() {
 #undef BINARY_OP
 }
 
-static void start_module(char* module_name) {
+static void start_module(const char* module_name) {
   ObjInstance* module = new_instance(vm.module_class);
   vm.module           = (Obj*)module;
 
   define_obj(&module->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
-  define_obj(&module->fields, KEYWORD_NAME, copy_string(module_name, strlen(module_name)));
+  define_obj(&module->fields, "module_name", (Obj*)copy_string(module_name, (int)strlen(module_name)));
 }
 
-Value interpret(const char* source, char* module_name) {
+Value interpret(const char* source, const char* module_name) {
   Obj* enclosing_module = vm.module;
   bool is_module        = module_name != NULL;
 
@@ -1593,40 +1593,6 @@ Value interpret(const char* source, char* module_name) {
   }
 
   return result;
-}
-
-static char* read_file(const char* path) {
-  if (path == NULL) {
-    INTERNAL_ERROR("Cannot open NULL path \"%s\"", path);
-    exit(74);
-  }
-
-  FILE* file = fopen(path, "rb");
-  if (file == NULL) {
-    INTERNAL_ERROR("Could not open file \"%s\"", path);
-    exit(74);
-  }
-
-  fseek(file, 0L, SEEK_END);
-  size_t file_size = ftell(file);
-  rewind(file);
-
-  char* buffer = (char*)malloc(file_size + 1);
-  if (buffer == NULL) {
-    INTERNAL_ERROR("Not enough memory to read \"%s\"\n", path);
-    exit(74);
-  }
-
-  size_t bytes_read = fread(buffer, sizeof(char), file_size, file);
-  if (bytes_read < file_size) {
-    INTERNAL_ERROR("Could not read file \"%s\"\n", path);
-    exit(74);
-  }
-
-  buffer[bytes_read] = '\0';
-
-  fclose(file);
-  return buffer;
 }
 
 Value run_file(const char* path, const char* module_name) {

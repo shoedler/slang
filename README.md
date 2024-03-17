@@ -47,6 +47,11 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 - [ ] Move exit codes to `common.h` and replace all magic numbers with them
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
 - [ ] Add tests for anonymous functions
+- [ ] Add tests for modules
+- [ ] Update tests for native functions
+- [ ] Add tests for sequences
+- [ ] Add test for bound native methods.
+- [ ] Add tests for to_str and overriden to_strs
 - [x] Make macros in `value.h` for internal types and their values (e.g. `true` and `false`).
 - [x] Add a test for `ObjBoundMethod` where it's method is a `NativeFn`, because it was previously only a `ObjClosure`.
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
