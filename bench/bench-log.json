@@ -426,5 +426,73 @@
       "value": "63960000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-03-16T22:10:21.959Z",
+    "commit": {
+      "date": "2024-03-16 22:55:42 +0100",
+      "hash": "47ded2ec8dc7c0692b63610e258b115ffc717a2b",
+      "message": "Adds test for internal constructors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "8.706000"
+    }
+  },
+  {
+    "date": "2024-03-16T22:10:21.959Z",
+    "commit": {
+      "date": "2024-03-16 22:55:42 +0100",
+      "hash": "47ded2ec8dc7c0692b63610e258b115ffc717a2b",
+      "message": "Adds test for internal constructors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "1.030000"
+    }
+  },
+  {
+    "date": "2024-03-16T22:10:21.959Z",
+    "commit": {
+      "date": "2024-03-16 22:55:42 +0100",
+      "hash": "47ded2ec8dc7c0692b63610e258b115ffc717a2b",
+      "message": "Adds test for internal constructors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "164",
+      "value": "9840000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-03-16T22:10:21.959Z",
+    "commit": {
+      "date": "2024-03-16 22:55:42 +0100",
+      "hash": "47ded2ec8dc7c0692b63610e258b115ffc717a2b",
+      "message": "Adds test for internal constructors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "1013",
+      "value": "60780000",
+      "durationInSecs": "5"
+    }
   }
 ]

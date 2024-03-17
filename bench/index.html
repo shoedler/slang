@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Benchmark Log Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div id="charts"></div>
+
+    <script>
+      const colors = [
+        "rgb(255, 99, 132)",
+        "rgb(54, 162, 235)",
+        "rgb(255, 205, 86)",
+        "rgb(75, 192, 192)",
+        "rgb(153, 102, 255)",
+        "rgb(255, 159, 64)",
+      ];
+
+      document.addEventListener("DOMContentLoaded", () => {
+        fetch("http://localhost:8080/results")
+          .then((response) => response.json())
+          .then((data) => {
+            const { benchmarkData, benchmarkDates } = organizeData(data);
+            const datasets = createDatasets(benchmarkData);
+
+            const canvas = document.createElement("canvas");
+            canvas.id = "chart";
+            document.getElementById("charts").appendChild(canvas);
+
+            new Chart(canvas, {
+              type: "line",
+              data: {
+                labels: benchmarkDates,
+                datasets,
+              },
+              options: {
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                  },
+                },
+                plugins: {
+                  tooltip: {
+                    callbacks: {
+                      beforeBody: (context) => {
+                        const point = context[0].raw;
+                        if (point.label) {
+                          return point.label;
+                        }
+                        return "";
+                      },
+                    },
+                  },
+                },
+              },
+            });
+          });
+      });
+
+      /**
+       * Organize the data into a format that is easier to use for chart.js
+       * @param {Array} data
+       * @returns {Object} benchmarkData
+       */
+      const organizeData = (data) => {
+        const benchmarkData = {};
+        const benchmarkDates = [];
+
+        data
+          .filter((entry) => entry.config == "Release")
+          .forEach((entry) => {
+            const type = entry.benchmark.benchmarkType;
+            if (!benchmarkData[type]) {
+              benchmarkData[type] = [];
+            }
+
+            // Depending on the benchmark, decide what value is relevant
+            let value;
+            switch (type) {
+              case "LatencyBenchmark":
+                value = parseFloat(entry.benchmark.durationInSecs);
+                break;
+              case "ThroughputBenchmark":
+                value = parseInt(entry.benchmark.throughput, 10);
+                break;
+              default:
+                console.error("Unknown benchmark type", entry);
+                return;
+            }
+
+            const date = new Date(entry.date);
+            benchmarkDates.push(date);
+            benchmarkData[type].push({
+              y: value,
+              x: date,
+              label: `
+                  Date: ${date.getDate()}.${date.getMonth()}.${date.getFullYear()}
+                  Time: ${date.toLocaleTimeString()}
+                  Commit-Hash: ${entry.commit.hash}
+                  Commit-Message: ${addLinebreaks(
+                    entry.commit.message,
+                    50,
+                    "                            "
+                  )}
+                  Note: ${addLinebreaks(
+                    entry.note || "-",
+                    50,
+                    "                            "
+                  )}
+                  `,
+            });
+          });
+
+        return { benchmarkData, benchmarkDates };
+      };
+
+      /**
+       * Create datasets for the chart
+       * @param {Object} benchmarkData
+       * @returns {Array} datasets
+       */
+      const createDatasets = (benchmarkData) => {
+        return Object.keys(benchmarkData).map((type, index) => {
+          return {
+            label: type,
+            data: benchmarkData[type],
+            borderColor: colors[index % colors.length] || "rgb(255, 99, 132)",
+            tension: 0,
+          };
+        });
+      };
+
+      /**
+       * Add linebreaks to a string
+       * @param {String} text
+       * @param {Number} maxLen
+       * @param {String} padding after each added linebreak
+       * @returns {String} text
+       */
+      const addLinebreaks = (text, maxLen, padding) => {
+        const words = text.split(" ");
+        let line = "";
+        let lines = [];
+        words.forEach((word) => {
+          if (line.length + word.length > maxLen) {
+            lines.push(line);
+            line = "";
+          }
+          line += word + " ";
+        });
+        lines.push(line);
+        return lines.join("\n" + (padding || ""));
+      };
+    </script>
+  </body>
+</html>

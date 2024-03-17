@@ -1,4 +1,4 @@
-import { runBenchmarks } from './bench.js';
+import { runBenchmarks, serveResults } from './bench.js';
 import {
   BUILD_CONFIG_DEBUG,
   BUILD_CONFIG_RELEASE,
@@ -45,6 +45,7 @@ const hint = [
   '    - <pattern>     Run tests that match the regex pattern',
   '  - watch-sample    Watch sample file',
   '  - watch-tests     Watch test files',
+  '  - serve-results   Serve benchmark results',
 ];
 
 switch (cmd) {
@@ -56,6 +57,11 @@ switch (cmd) {
       await buildSlangConfig(config);
     }
     await runBenchmarks(configs);
+    break;
+  }
+  case 'serve-results': {
+    validateOptions();
+    await serveResults();
     break;
   }
   case 'test': {
