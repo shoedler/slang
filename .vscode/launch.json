@@ -5,11 +5,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug (Windows)",
+      "name": "Debug: Run Sample (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/x64/Debug/Slang.exe",
-      "args": [],
+      "program": "${workspaceFolder}\\x64\\Debug\\Slang.exe",
+      "args": ["run", "${workspaceFolder}\\sample.sl"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],
@@ -17,16 +17,28 @@
       "preLaunchTask": "msbuild-build-vcxproj-debug",
     },
     {
-      "name": "Release (Windows)",
+      "name": "Debug: Run REPL (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/x64/Release/Slang.exe",
-      "args": [],
+      "program": "${workspaceFolder}\\x64\\Debug\\Slang.exe",
+      "args": ["repl"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "console": "integratedTerminal",
+      "preLaunchTask": "msbuild-build-vcxproj-debug",
+    },
+    {
+      "name": "Release: Run Sample (Windows)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}\\x64\\Release\\Slang.exe",
+      "args": ["run", "${workspaceFolder}\\sample.sl"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],
       "console": "integratedTerminal",
       "preLaunchTask": "msbuild-build-vcxproj-release",
-    }
+    },
   ]
 }

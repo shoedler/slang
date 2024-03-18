@@ -27,10 +27,6 @@ void usage() {
 }
 
 int main(int argc, char* argv[]) {
-  // init_vm();
-  // run_file("C:\\Projects\\slang\\sample.sl", "main");
-  // free_vm();
-
   // Print args
   if (argc == 2 && strcmp(argv[1], "repl") == 0) {
     init_vm();
