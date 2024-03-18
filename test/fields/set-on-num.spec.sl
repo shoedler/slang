@@ -1,2 +1,2 @@
-123.foo = "value" // [ExpectRuntimeError] Num cannot have fields.
+123.foo = "value" // [ExpectRuntimeError] Cannot set field 'foo' on value of type Num.
                   // [ExpectRuntimeError] at line 1 at the toplevel of module "main"

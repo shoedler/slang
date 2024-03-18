@@ -189,7 +189,7 @@ void init_vm() {
   vm.cached_words[WORD_FILE_PATH]   = OBJ_VAL(copy_string(KEYWORD_FILE_PATH, KEYWORD_FILE_PATH_LEN));
 
   // Create the object class
-  vm.object_class = new_class(copy_string("Object", 6), NULL);
+  vm.object_class = new_class(copy_string("Obj", 3), NULL);
 
   // Create the builtin obj instance
   vm.builtin = new_instance(vm.object_class);
@@ -203,7 +203,7 @@ void init_vm() {
   define_native(&vm.builtin->fields, "cwd", native_cwd);
 
   // ... and define the object methods
-  define_obj(&vm.builtin->fields, "Object", (Obj*)vm.object_class);
+  define_obj(&vm.builtin->fields, "Obj", (Obj*)vm.object_class);
   define_native(&vm.object_class->methods, "to_str", __builtin_obj_to_str);
   define_native(&vm.object_class->methods, "hash", __builint_hash_value);
 
@@ -1403,8 +1403,11 @@ static Value run() {
                 } else if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_CTOR])) {
                   pop();  // Pop the class
                   Value ctor;
-                  hashtable_get(&klass->methods, OBJ_VAL(name), &ctor);
-                  push(ctor);
+                  if (hashtable_get(&klass->methods, OBJ_VAL(name), &ctor)) {
+                    push(ctor);
+                  } else {
+                    push(NIL_VAL);
+                  }
                   goto done_getting_property;
                 }
                 break;
@@ -1436,19 +1439,21 @@ static Value run() {
         break;
       }
       case OP_SET_PROPERTY: {
-        if (!IS_INSTANCE(peek(1))) {
-          runtime_error("%s cannot have fields.", type_name(peek(1)));
+        Value obj       = peek(1);
+        ObjString* name = READ_STRING();
+
+        if (!IS_INSTANCE(obj)) {
+          runtime_error("Cannot set field '%s' on value of type %s.", name->chars, type_name(peek(1)));
           return exit_with_runtime_error();
         }
 
-        ObjInstance* instance = AS_INSTANCE(peek(1));
-        ObjString* name       = READ_STRING();
+        ObjInstance* instance = AS_INSTANCE(obj);
 
         // TODO (robust): Not all cached words are actually **reserved**. We should make an enum for
         // reserved words and check against that instead.
         for (int i = 0; i < WORD_MAX; i++) {
           if (strcmp(name->chars, AS_STRING(vm.cached_words[i])->chars) == 0) {
-            runtime_error("Cannot assign to reserved field '%s'.", name->chars);
+            runtime_error("Cannot set reserved field '%s'.", name->chars);
             return exit_with_runtime_error();
           }
         }

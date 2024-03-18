@@ -24,7 +24,7 @@ typedef enum {
 #define TYPENAME_SEQ "Seq"
 #define TYPENAME_BOUND_METHOD "BoundMethod"
 #define TYPENAME_CLASS "Class"
-#define TYPENAME_CLOSURE "Closure"
+#define TYPENAME_CLOSURE "Fn"
 #define TYPENAME_FUNCTION "Fn"
 #define TYPENAME_INSTANCE "Instance"
 #define TYPENAME_NATIVE "NativeFn"

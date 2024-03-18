@@ -44,7 +44,7 @@ const hint = [
   '    - update-files  Update test files with new expectations',
   '    - <pattern>     Run tests that match the regex pattern',
   '  - watch-sample    Watch sample file',
-  '  - watch-tests     Watch test files',
+  '  - watch-test      Watch test files',
   '    - <pattern>     Watch tests that match the regex pattern',
   '  - serve-results   Serve benchmark results',
 ];
@@ -106,7 +106,7 @@ switch (cmd) {
     );
     break;
   }
-  case 'watch-tests': {
+  case 'watch-test': {
     const config = BUILD_CONFIG_RELEASE;
     const testNamePattern = options.pop() || '.*';
     validateOptions();
@@ -118,10 +118,12 @@ switch (cmd) {
         filename.endsWith('.c') ||
         filename.endsWith('.h') ||
         (filename.endsWith(SLANG_TEST_SUFFIX) && new RegExp(testNamePattern).test(filename)),
-      async signal => {
-        const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
-        if (!didBuild) {
-          return;
+      async (signal, triggerFile) => {
+        if (!triggerFile.endsWith(SLANG_TEST_SUFFIX)) {
+          const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
+          if (!didBuild) {
+            return;
+          }
         }
 
         await runTests(config, signal, false, testNamePattern);

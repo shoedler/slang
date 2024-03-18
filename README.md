@@ -47,10 +47,10 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 - [ ] Move exit codes to `common.h` and replace all magic numbers with them
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
 - [ ] Add tests for anonymous functions
-- [ ] Add tests for modules
-- [ ] Update tests for native functions
+- [x] Add tests for modules
+- [x] Update tests for native functions
 - [ ] Add tests for sequences
-- [ ] Add test for bound native methods.
+- [x] Add test for bound native methods.
 - [ ] Add tests for to_str and overriden to_strs
 - [x] Make macros in `value.h` for internal types and their values (e.g. `true` and `false`).
 - [x] Add a test for `ObjBoundMethod` where it's method is a `NativeFn`, because it was previously only a `ObjClosure`.
@@ -62,10 +62,10 @@ In contrast to the book, this Vm is not focused on space-efficiency, but more on
 
 ### Optimizations
 
-- [ ] ⚠️ Re-add `OP_INVOKE`
+- [x] ⚠️ Re-add `OP_INVOKE`
 - [ ] Improve `hash_value` and `values_equal`. I guess with the switch to allowing all values as keys it went down the drain.
 - [ ] Implement a fast hashtable-get function which uses a shortened version of `find_entry`.
-- [ ] Cache modules in the Vm. It's awfully slow and happens during runtime... I hate that very much.
+- [x] Cache modules in the Vm. It's awfully slow and happens during runtime... I hate that very much.
 - [ ] Cache function / method calls in the Vm
 
 ### Modularity & Standard Library

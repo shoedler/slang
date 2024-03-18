@@ -12,3 +12,5 @@ print "str" == "ing" // [Expect] false
 print nil == false // [Expect] false
 print false == 0 // [Expect] false
 print 0 == "0" // [Expect] false
+
+print [] == [] // [Expect] false
