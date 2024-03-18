@@ -1102,7 +1102,17 @@ static void statement_import() {
   uint16_t name_constant = string_constant(&parser.previous);
   declare_local();
 
-  emit_two(OP_IMPORT, name_constant);
+  if (match(TOKEN_FROM)) {
+    consume(TOKEN_STRING, "Expecting file name.");
+    uint16_t file_constant =
+        make_constant(OBJ_VAL(copy_string(parser.previous.start + 1,
+                                          parser.previous.length - 2)));  // +1 and -2 to strip the quotes
+    emit_two(OP_IMPORT_FROM, name_constant);
+    emit_one(file_constant);
+  } else {
+    emit_two(OP_IMPORT, name_constant);
+  }
+
   define_variable(name_constant);
 }
 

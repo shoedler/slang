@@ -1109,6 +1109,92 @@ static bool is_falsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
+// Imports a module by name and pushes it onto the stack. If the module was already imported, it is loaded
+// from cache. If the module was not imported yet, it is loaded from the file system and then cached.
+// If module_path is NULL, the module is expected to be in the same directory as the
+// importing module.
+static void import_module(ObjString* module_name, ObjString* module_path) {
+  Value module;
+
+  // Check if we have already imported the module
+  if (hashtable_get(&vm.modules, OBJ_VAL(module_name), &module)) {
+    push(module);
+    return;
+  }
+
+  // Not cached, so we need to load it. First, we need to get the current working directory
+  Value cwd = native_cwd(0, NULL);
+  if (IS_NIL(cwd)) {
+    runtime_error(
+        "Could not import module '%s'. Could not get current working directory, because there is no "
+        "active module or it is not a file.",
+        module_name->chars);
+    exit_with_runtime_error();
+    return;
+  }
+
+  char* module_to_load_path;
+
+  // Either we have a module path, or we check the current working directory
+  if (module_path == NULL) {
+    // Just slap the module name + extension onto the cwd
+    char* module_file_name = append_slang_extension(module_name->chars);
+    module_to_load_path    = join_path(AS_STRING(cwd)->chars, module_file_name);
+    free(module_file_name);
+  } else if (module_path->chars[0] == '/' || module_path->chars[0] == '\\') {
+    // It's a realtive path, we add the extension to the provided path and prepend the cwd
+    char* module_path_  = append_slang_extension(module_path->chars);
+    module_to_load_path = join_path(AS_STRING(cwd)->chars, module_path_);
+    free(module_path_);
+  } else {
+    // We assume it is an absolute path, we infer that it has the extension already
+    module_to_load_path = malloc(module_path->length + 1);
+    strcpy(module_to_load_path, module_path->chars);
+
+    if (!file_exists(module_to_load_path)) {
+      // Clearly, it's not an absolute path. We'll try to join it with the cwd
+      free(module_to_load_path);
+      char* module_path_  = append_slang_extension(module_path->chars);
+      module_to_load_path = join_path(AS_STRING(cwd)->chars, module_path_);
+      free(module_path_);
+    }
+  }
+
+  if (module_to_load_path == NULL) {
+    INTERNAL_ERROR(
+        "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
+        "'%s'",
+        module_name->chars, AS_STRING(cwd)->chars, module_path == NULL ? "NULL" : module_path->chars);
+    exit(74);
+  }
+
+  if (!file_exists(module_to_load_path)) {
+    runtime_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars,
+                  module_to_load_path);
+    exit_with_runtime_error();
+    return;
+  }
+
+  // Load the module by running the file
+  int previous_exit_frame = vm.exit_on_frame;
+  vm.exit_on_frame        = vm.frame_count;
+  module                  = run_file(module_to_load_path, module_name->chars);
+  vm.exit_on_frame        = previous_exit_frame;
+
+  // Check if the module is actually a module
+  if (!IS_OBJ(module) && !IS_INSTANCE(module) && !(AS_INSTANCE(module)->klass == vm.module_class)) {
+    free(module_to_load_path);
+    runtime_error("Could not import module '%s'. Expected module type", module_name->chars);
+    exit_with_runtime_error();
+    return;
+  }
+
+  push(module);  // Show ourselves to the GC before we put it in the hashtable
+  hashtable_set(&vm.modules, OBJ_VAL(module_name), module);
+
+  free(module_to_load_path);
+}
+
 // Concatenates two strings on the stack (pops them) into a new string and pushes it onto the stack
 static void concatenate() {
   ObjString* b = AS_STRING(peek(0));  // Peek, so it doesn't get freed by the GC
@@ -1376,34 +1462,15 @@ static Value run() {
         push(value);
         break;
       }
+      case OP_IMPORT_FROM: {
+        ObjString* name = READ_STRING();
+        ObjString* from = READ_STRING();
+        import_module(name, from);
+        break;
+      }
       case OP_IMPORT: {
         ObjString* name = READ_STRING();
-        Value module;
-
-        // Check if we have already imported the module
-        if (hashtable_get(&vm.modules, OBJ_VAL(name), &module)) {
-          push(module);
-          break;
-        }
-
-        // Try to open the module instead
-        char tmp[256];
-        if (sprintf(tmp, "C:\\Projects\\slang\\modules\\%s.sl", name->chars) < 0) {
-          runtime_error("Could not import module '%s.sl'. Could not format string", name->chars);
-          return exit_with_runtime_error();
-        }
-
-        int previous_exit_frame = vm.exit_on_frame;
-        vm.exit_on_frame        = vm.frame_count;
-        module                  = run_file(tmp, name->chars);
-        vm.exit_on_frame        = previous_exit_frame;
-
-        if (!IS_OBJ(module) && !IS_INSTANCE(module) && !(AS_INSTANCE(module)->klass == vm.module_class)) {
-          runtime_error("Could not import module '%s'. Expected module type", name->chars);
-          return exit_with_runtime_error();
-        }
-        push(module);  // Show ourselves to the GC before we put it in the hashtable
-        hashtable_set(&vm.modules, OBJ_VAL(name), module);
+        import_module(name, NULL);
         break;
       }
       case OP_GET_BASE_METHOD: {

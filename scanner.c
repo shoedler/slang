@@ -150,6 +150,7 @@ static TokenType identifier_type() {
           case 'a': return check_keyword(2, 3, "lse", TOKEN_FALSE);
           case 'o': return check_keyword(2, 1, "r", TOKEN_FOR);
           case 'n': return TOKEN_FN;
+          case 'r': return check_keyword(2, 2, "om", TOKEN_FROM);
         }
       }
       break;

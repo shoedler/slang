@@ -77,14 +77,31 @@ static int jump_instruction(const char* name, int sign, Chunk* chunk, int offset
   return offset + 3;
 }
 
-// Prints an instruction with one operand that is an index into the constant
-// table.
+// Prints an instruction with one operand that is an index into the constant table.
 static int constant_instruction(const char* name, Chunk* chunk, int offset) {
   uint16_t constant_index = chunk->code[offset + 1];
   PRINT_OPCODE(name);
   PRINT_NUMBER(constant_index);
   debug_print_value(chunk->constants.values[constant_index]);
   return offset + 2;
+}
+
+// Prints an instruction with two operands that are indices into the constant table.
+static int constant_constant_instruction(const char* name, Chunk* chunk, int offset) {
+  uint16_t constant_index  = chunk->code[offset + 1];
+  uint16_t constant_index2 = chunk->code[offset + 2];
+  PRINT_OPCODE(name);
+  PRINT_NUMBER(constant_index);
+  debug_print_value(chunk->constants.values[constant_index]);
+
+  printf("\n");
+  PRINT_OFFSET(offset);
+  PRINT_SAME_LINE();
+
+  PRINT_OPCODE("");
+  PRINT_NUMBER(constant_index2);
+  debug_print_value(chunk->constants.values[constant_index2]);
+  return offset + 3;
 }
 
 static int closure_instruction(const char* name, Chunk* chunk, int offset) {
@@ -179,6 +196,7 @@ int disassemble_instruction(Chunk* chunk, int offset) {
     case OP_DIVIDE: return simple_instruction("OP_DIVIDE", offset);
     case OP_NOT: return simple_instruction("OP_NOT", offset);
     case OP_IMPORT: return constant_instruction("OP_IMPORT", chunk, offset);
+    case OP_IMPORT_FROM: return constant_constant_instruction("OP_IMPORT_FROM", chunk, offset);
     default: INTERNAL_ERROR("Unhandled opcode: %d\n", instruction); return offset + 1;
   }
 }
