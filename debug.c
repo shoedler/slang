@@ -36,7 +36,7 @@ void debug_print_value(Value value) {
     for (; written < VALUE_STR_LEN; written++) {
       printf(" ");
     }
-  } 
+  }
 }
 
 void disassemble_chunk(Chunk* chunk, const char* name) {

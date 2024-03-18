@@ -255,7 +255,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
   compiler->local_count               = 0;
   compiler->scope_depth               = 0;
   compiler->function                  = new_function();
-  compiler->function->globals_context = (ObjInstance*)vm.module;
+  compiler->function->globals_context = vm.module;
 
   switch (type) {
     case TYPE_MODULE: {
@@ -263,8 +263,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
       // toplevel function has the same name as the module. This is useful for debugging and for stacktraces -
       // it let's us easily determine if a frames function is a toplevel function or not.
       Value module_name;
-      if (hashtable_get(&((ObjInstance*)vm.module)->fields, vm.cached_words[WORD_MODULE_NAME],
-                        &module_name)) {
+      if (hashtable_get(&vm.module->fields, vm.cached_words[WORD_MODULE_NAME], &module_name)) {
         current->function->name = AS_STRING(module_name);
         break;
       }

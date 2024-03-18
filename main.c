@@ -1,3 +1,4 @@
+#include <direct.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +8,17 @@
 static void repl() {
   // TODO (misc): Use linenoise for REPLing
   char line[1024];
+
+  // Acquire the cwd to use as the module name
+  char cwd[1024];
+  if (_getcwd(cwd, sizeof(cwd)) == NULL) {
+    fprintf(stderr, "Failed to get cwd\n");
+    exit(1);
+  }
+
+  // Create a module initially to act as our toplevel module.
+  start_module(cwd, "repl");
+
   for (;;) {
     printf("slang > ");
 
@@ -15,7 +27,7 @@ static void repl() {
       break;
     }
 
-    interpret(line, "stdin");
+    interpret(line, NULL, NULL);
   }
 }
 

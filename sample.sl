@@ -272,3 +272,5 @@ for let i = 0 ; i < values.len(); i = i + 1 ; {
   log("to_str:    ", values[i].to_str())
 }
 
+print cwd()
+print std.__file_path

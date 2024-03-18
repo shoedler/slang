@@ -52,6 +52,7 @@ static Value __builtin_str_ctor(int argc, Value argv[]);
 static Value __builtin_seq_ctor(int argc, Value argv[]);
 
 static Value native_clock(int argc, Value argv[]);
+static Value native_cwd(int argc, Value argv[]);
 static Value native_print(int argc, Value argv[]);
 static Value native_type_of(int argc, Value argv[]);
 static Value native_type_name(int argc, Value argv[]);
@@ -77,7 +78,7 @@ static void runtime_error(const char* format, ...) {
     ObjFunction* function = frame->closure->function;
     size_t instruction    = frame->ip - function->chunk.code - 1;
 
-    fprintf(stderr, "\tat line %d ", function->chunk.lines[instruction]);
+    fprintf(stderr, "  at line %d ", function->chunk.lines[instruction]);
 
     Value module_name;
     if (!hashtable_get(&function->globals_context->fields, vm.cached_words[WORD_MODULE_NAME], &module_name)) {
@@ -180,11 +181,12 @@ void init_vm() {
   init_hashtable(&vm.strings);
   init_hashtable(&vm.modules);
 
-  // Create the reserved method names
+  // Build the reserved words lookup table
   memset(vm.cached_words, 0, sizeof(vm.cached_words));
   vm.cached_words[WORD_CTOR]        = OBJ_VAL(copy_string(KEYWORD_CONSTRUCTOR, KEYWORD_CONSTRUCTOR_LEN));
   vm.cached_words[WORD_NAME]        = OBJ_VAL(copy_string(KEYWORD_NAME, KEYWORD_NAME_LEN));
   vm.cached_words[WORD_MODULE_NAME] = OBJ_VAL(copy_string(KEYWORD_MODULE_NAME, KEYWORD_MODULE_NAME_LEN));
+  vm.cached_words[WORD_FILE_PATH]   = OBJ_VAL(copy_string(KEYWORD_FILE_PATH, KEYWORD_FILE_PATH_LEN));
 
   // Create the object class
   vm.object_class = new_class(copy_string("Object", 6), NULL);
@@ -198,6 +200,7 @@ void init_vm() {
   define_native(&vm.builtin->fields, "log", native_print);
   define_native(&vm.builtin->fields, "type_of", native_type_of);
   define_native(&vm.builtin->fields, "type_name", native_type_name);
+  define_native(&vm.builtin->fields, "cwd", native_cwd);
 
   // ... and define the object methods
   define_obj(&vm.builtin->fields, "Object", (Obj*)vm.object_class);
@@ -528,6 +531,21 @@ static ObjString* fast_to_str(Value value) {
 // Native clock function. Returns the current execution time in miliseconds
 static Value native_clock(int argc, Value argv[]) {
   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+}
+
+// Native cwd function. Returns the current working directory as a string.
+// If no module is active, NIL_VAL is returned.
+static Value native_cwd(int argc, Value argv[]) {
+  if (vm.module == NULL) {
+    return NIL_VAL;
+  }
+
+  Value cwd;
+  if (!hashtable_get(&vm.module->fields, vm.cached_words[WORD_FILE_PATH], &cwd)) {
+    return NIL_VAL;
+  }
+
+  return cwd;
 }
 
 // Native print function. Accepts an arbitrarily long list of values and prints them with a separator
@@ -1343,8 +1361,10 @@ static Value run() {
         ObjInstance* instance = AS_INSTANCE(peek(1));
         ObjString* name       = READ_STRING();
 
+        // TODO (robust): Not all cached words are actually **reserved**. We should make an enum for
+        // reserved words and check against that instead.
         for (int i = 0; i < WORD_MAX; i++) {
-          if (values_equal(OBJ_VAL(name), vm.cached_words[i])) {
+          if (strcmp(name->chars, AS_STRING(vm.cached_words[i])->chars) == 0) {
             runtime_error("Cannot assign to reserved field '%s'.", name->chars);
             return exit_with_runtime_error();
           }
@@ -1556,21 +1576,27 @@ static Value run() {
 #undef BINARY_OP
 }
 
-static void start_module(const char* module_name) {
+void start_module(const char* source_path, const char* module_name) {
   ObjInstance* module = new_instance(vm.module_class);
-  vm.module           = (Obj*)module;
+  vm.module           = module;
+
+  char* base_dir_path = base(source_path);
 
   define_obj(&module->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
   define_obj(&module->fields, KEYWORD_MODULE_NAME,
              (Obj*)(copy_string(module_name, (int)strlen(module_name))));
+  define_obj(&module->fields, KEYWORD_FILE_PATH,
+             (Obj*)(copy_string(base_dir_path, (int)strlen(base_dir_path))));
+
+  free(base_dir_path);
 }
 
-Value interpret(const char* source, const char* module_name) {
-  Obj* enclosing_module = vm.module;
-  bool is_module        = module_name != NULL;
+Value interpret(const char* source, const char* source_path, const char* module_name) {
+  ObjInstance* enclosing_module = vm.module;
+  bool is_module                = module_name != NULL && source_path != NULL;
 
   if (is_module) {
-    start_module(module_name);
+    start_module(source_path, module_name);
   }
 
   ObjFunction* function = compile_module(source);
@@ -1609,7 +1635,7 @@ Value run_file(const char* path, const char* module_name) {
     return NIL_VAL;
   }
 
-  Value result = interpret(source, name);
+  Value result = interpret(source, path, name);
   free(source);
 
 #ifdef DEBUG_TRACE_EXECUTION

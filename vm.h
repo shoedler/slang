@@ -18,6 +18,9 @@
 #define KEYWORD_MODULE_NAME "__module_name"
 #define KEYWORD_MODULE_NAME_LEN (sizeof(KEYWORD_MODULE_NAME) - 1)
 
+#define KEYWORD_FILE_PATH "__file_path"
+#define KEYWORD_FILE_PATH_LEN (sizeof(KEYWORD_FILE_PATH) - 1)
+
 #define KEYWORD_THIS "this"
 #define KEYWORD_THIS_LEN (sizeof(KEYWORD_THIS) - 1)
 
@@ -36,6 +39,7 @@ typedef enum {
   WORD_CTOR,
   WORD_NAME,
   WORD_MODULE_NAME,
+  WORD_FILE_PATH,
 
   WORD_MAX,
 } CachedWords;
@@ -54,8 +58,8 @@ typedef struct {
   ObjUpvalue* open_upvalues;
   Obj* objects;
 
-  HashTable modules;  // Modules
-  Obj* module;        // The current module
+  HashTable modules;    // Modules
+  ObjInstance* module;  // The current module
   int exit_on_frame;
 
   ObjClass* object_class;  // The class of all objects
@@ -87,10 +91,14 @@ void init_vm();
 // Free the virtual machine.
 void free_vm();
 
+// Creates a new module instance and sets it as the current module.
+void start_module(const char* source_path, const char* module_name);
+
 // Takes a string of source code, compiles it and then runs it.
 // Returns the result of the interpretation as a value.
-// Accepts an optional name for the module which should result from calling this function.
-Value interpret(const char* source, const char* module_name);
+// Accepts an optional source path and name for the module which should result from calling this function.
+// Calling without the latter two arguments just runs the code as a script.
+Value interpret(const char* source, const char* source_path, const char* module_name);
 
 // Reads a file from path, compiles it and then runs it.
 // Returns the result of the interpretation as a value.
