@@ -1,23 +1,16 @@
 #include "file.h"
 
-char* append_slang_extension(const char* path) {
+char* ensure_slang_extension(const char* path) {
   if (path == NULL) {
     INTERNAL_ERROR("Cannot append extension to NULL path");
     exit(74);
   }
 
-  // Maybe the path already has the extension, in that case, return the same path
+  // Maybe the path already has the extension. In that case, return the same path
   size_t path_len = strlen(path);
   if (path_len >= SLANG_EXTENSION_LEN &&
       strcmp(path + path_len - SLANG_EXTENSION_LEN, SLANG_EXTENSION) == 0) {
-    char* new_path = (char*)malloc(path_len + 1);
-    if (new_path == NULL) {
-      INTERNAL_ERROR("Not enough memory to append extension to \"%s\"", path);
-      exit(74);
-    }
-
-    strcpy(new_path, path);
-    return new_path;
+    return _strdup(path);
   }
 
   // If not, we need to append the extension

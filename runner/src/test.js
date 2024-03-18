@@ -151,6 +151,12 @@ export const runTests = async (config, signal, updateFiles = false, testNamePatt
   if (allPassed) {
     pass(chalk.green(finishMessage));
   } else {
+    // Don't bother with the summary if there are not many tests
+    if (tests.length <= 20) {
+      fail(chalk.red(finishMessage));
+      return;
+    }
+
     fail(
       `${chalk.red(finishMessage)} ${chalk.red('Failed tests:')}\n${failedTests
         .map(

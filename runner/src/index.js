@@ -45,6 +45,7 @@ const hint = [
   '    - <pattern>     Run tests that match the regex pattern',
   '  - watch-sample    Watch sample file',
   '  - watch-tests     Watch test files',
+  '    - <pattern>     Watch tests that match the regex pattern',
   '  - serve-results   Serve benchmark results',
 ];
 
@@ -107,20 +108,23 @@ switch (cmd) {
   }
   case 'watch-tests': {
     const config = BUILD_CONFIG_RELEASE;
+    const testNamePattern = options.pop() || '.*';
     validateOptions();
 
     watch(
       SLANG_PROJ_DIR,
       { recursive: true },
       filename =>
-        filename.endsWith('.c') || filename.endsWith('.h') || filename.endsWith(SLANG_TEST_SUFFIX),
+        filename.endsWith('.c') ||
+        filename.endsWith('.h') ||
+        (filename.endsWith(SLANG_TEST_SUFFIX) && new RegExp(testNamePattern).test(filename)),
       async signal => {
         const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
         if (!didBuild) {
           return;
         }
 
-        await runTests(config, signal);
+        await runTests(config, signal, false, testNamePattern);
       },
     );
     break;

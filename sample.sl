@@ -199,11 +199,9 @@ print "Modules"
 print "--------------------------------------------------------------------------------"
 
 // import std // Looks for "cwd/std.sl"
-import std from "/modules/std" // Looks for "cwd/modules/std.sl"
-// import std from "C:/Projects/slang/modules/std.sl" // Looks for "C:/Projects/slang/modules/std.sl" first, does not append extension
-//                                                    // If it fails, looks for "cwd/C:/Projects/slang/modules/std.sl"
-// import std from "modules/std"                      // Looks for "modules/std" first, does not append extension
-//                                                    // If it fails, looks for "cwd/modules/std.sl"
+import std from "/modules/std" 
+// import std from "C:/Projects/slang/modules/std.sl"
+// import std from "modules/std"
 
 let Range = std.Range
 let Monad = std.Monad

@@ -1,0 +1,1 @@
+import DifferentName from "/modules/b" // [Expect] Running module b

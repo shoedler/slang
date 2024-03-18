@@ -7,7 +7,7 @@
 #include "common.h"
 
 #define SLANG_EXTENSION ".sl"
-#define SLANG_EXTENSION_LEN sizeof(SLANG_EXTENSION) - 1
+#define SLANG_EXTENSION_LEN (sizeof(SLANG_EXTENSION) - 1)
 
 // Checks if a file exists.
 bool file_exists(const char* path);
@@ -26,6 +26,6 @@ char* base(const char* path);
 
 // Appends the slang file extension to the provided string. If the string already has the extension, it
 // returns a copy of the input string. The caller is responsible for freeing the returned string.
-char* append_slang_extension(const char* path);
+char* ensure_slang_extension(const char* path);
 
 #endif

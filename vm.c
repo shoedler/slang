@@ -1138,25 +1138,22 @@ static void import_module(ObjString* module_name, ObjString* module_path) {
   // Either we have a module path, or we check the current working directory
   if (module_path == NULL) {
     // Just slap the module name + extension onto the cwd
-    char* module_file_name = append_slang_extension(module_name->chars);
+    char* module_file_name = ensure_slang_extension(module_name->chars);
     module_to_load_path    = join_path(AS_STRING(cwd)->chars, module_file_name);
     free(module_file_name);
-  } else if (module_path->chars[0] == '/' || module_path->chars[0] == '\\') {
-    // It's a realtive path, we add the extension to the provided path and prepend the cwd
-    char* module_path_  = append_slang_extension(module_path->chars);
+  } else {
+    // It's a probably realtive path, we add the extension to the provided path and prepend the cwd
+    char* module_path_  = ensure_slang_extension(module_path->chars);
     module_to_load_path = join_path(AS_STRING(cwd)->chars, module_path_);
     free(module_path_);
-  } else {
-    // We assume it is an absolute path, we infer that it has the extension already
-    module_to_load_path = malloc(module_path->length + 1);
-    strcpy(module_to_load_path, module_path->chars);
 
     if (!file_exists(module_to_load_path)) {
-      // Clearly, it's not an absolute path. We'll try to join it with the cwd
+      // Clearly, it's not a relative path.
       free(module_to_load_path);
-      char* module_path_  = append_slang_extension(module_path->chars);
-      module_to_load_path = join_path(AS_STRING(cwd)->chars, module_path_);
-      free(module_path_);
+
+      // We assume it is an absolute path insted, we infer that it has the extension already
+      module_to_load_path = malloc(module_path->length + 1);
+      strcpy(module_to_load_path, module_path->chars);
     }
   }
 
