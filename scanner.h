@@ -35,6 +35,8 @@ typedef enum {
   TOKEN_FALSE,     // 'false'
   TOKEN_NIL,       // 'nil'
   TOKEN_IF,        // 'if'
+  TOKEN_IMPORT,    // 'import'
+  TOKEN_FROM,      // 'from'
   TOKEN_ELSE,      // 'else'
   TOKEN_WHILE,     // 'while'
   TOKEN_FOR,       // 'for'

@@ -1,7 +1,10 @@
 #include "debug.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "object.h"
 #include "value.h"
+#include "vm.h"
 
 #define VALUE_STR_LEN 25
 
@@ -20,74 +23,19 @@
 #define PRINT_NO_NUM() printf(ANSI_RED_STR("       "))
 
 // VALUE_STR_LEN chars wide
-#define PRINT_VALUE_STR(_str) \
-  printf("%-*.*s", VALUE_STR_LEN, VALUE_STR_LEN, _str)
-
-static void debug_print_function(ObjFunction* function) {
-  if (function->name == NULL) {
-    PRINT_VALUE_STR("Toplevel");
-    return;
-  }
-  const char* fn_str[VALUE_STR_LEN];
-  sprintf(fn_str, "Fn %s, arity %d", function->name->chars, function->arity);
-  PRINT_VALUE_STR(fn_str);
-}
-
-static void debug_print_object(Value value) {
-  switch (OBJ_TYPE(value)) {
-    case OBJ_BOUND_METHOD:
-      debug_print_function(AS_BOUND_METHOD(value)->method->function);
-      break;
-    case OBJ_CLASS:
-      const char* class_str[VALUE_STR_LEN];
-      sprintf(class_str, "Cls %s", AS_CLASS(value)->name->chars);
-      PRINT_VALUE_STR(class_str);
-      break;
-    case OBJ_CLOSURE:
-      debug_print_function(AS_CLOSURE(value)->function);
-      break;
-    case OBJ_FUNCTION:
-      debug_print_function(AS_FUNCTION(value));
-      break;
-    case OBJ_INSTANCE:
-      const char* instance_str[VALUE_STR_LEN];
-      sprintf(instance_str, "Instance %s",
-              AS_INSTANCE(value)->klass->name->chars);
-      PRINT_VALUE_STR(instance_str);
-      break;
-    case OBJ_NATIVE:
-      PRINT_VALUE_STR("Native Fn");
-      break;
-    case OBJ_STRING:
-      const char* str_str[VALUE_STR_LEN];
-      sprintf(str_str, "%s", AS_CSTRING(value));
-      PRINT_VALUE_STR(str_str);
-      break;
-    case OBJ_UPVALUE:
-      PRINT_VALUE_STR("Upvalue");
-      break;
-  }
-}
+#define PRINT_VALUE_STR(_str) printf("%-*.*s", VALUE_STR_LEN, VALUE_STR_LEN, _str)
 
 void debug_print_value(Value value) {
-  switch (value.type) {
-    case VAL_BOOL:
-      AS_BOOL(value) ? PRINT_VALUE_STR("true") : PRINT_VALUE_STR("false");
-      break;
-    case VAL_NIL:
-      PRINT_VALUE_STR("nil");
-      break;
-    case VAL_NUMBER: {
-      static char str[VALUE_STR_LEN];
-      sprintf(str, "%g", AS_NUMBER(value));
-      PRINT_VALUE_STR(str);
-      break;
+  int written = print_value_safe(stdout, value);
+
+  if (written < 0)
+    written = 0;
+
+  // Pad or erase to fit VALUE_STR_LEN
+  if (written < VALUE_STR_LEN) {
+    for (; written < VALUE_STR_LEN; written++) {
+      printf(" ");
     }
-    case VAL_OBJ:
-      return debug_print_object(value);
-    default:
-      INTERNAL_ERROR("Unhandled value type: %d", value.type);
-      break;
   }
 }
 
@@ -119,10 +67,7 @@ static int byte_instruction(const char* name, Chunk* chunk, int offset) {
   return offset + 2;
 }
 
-static int jump_instruction(const char* name,
-                            int sign,
-                            Chunk* chunk,
-                            int offset) {
+static int jump_instruction(const char* name, int sign, Chunk* chunk, int offset) {
   uint16_t jump = chunk->code[offset + 1];
   char* jmp_str[13];
   sprintf(jmp_str, "%04d -> %04d", offset, offset + 3 + sign * jump);
@@ -132,14 +77,31 @@ static int jump_instruction(const char* name,
   return offset + 3;
 }
 
-// Prints an instruction with one operand that is an index into the constant
-// table.
+// Prints an instruction with one operand that is an index into the constant table.
 static int constant_instruction(const char* name, Chunk* chunk, int offset) {
   uint16_t constant_index = chunk->code[offset + 1];
   PRINT_OPCODE(name);
   PRINT_NUMBER(constant_index);
   debug_print_value(chunk->constants.values[constant_index]);
   return offset + 2;
+}
+
+// Prints an instruction with two operands that are indices into the constant table.
+static int constant_constant_instruction(const char* name, Chunk* chunk, int offset) {
+  uint16_t constant_index  = chunk->code[offset + 1];
+  uint16_t constant_index2 = chunk->code[offset + 2];
+  PRINT_OPCODE(name);
+  PRINT_NUMBER(constant_index);
+  debug_print_value(chunk->constants.values[constant_index]);
+
+  printf("\n");
+  PRINT_OFFSET(offset);
+  PRINT_SAME_LINE();
+
+  PRINT_OPCODE("");
+  PRINT_NUMBER(constant_index2);
+  debug_print_value(chunk->constants.values[constant_index2]);
+  return offset + 3;
 }
 
 static int closure_instruction(const char* name, Chunk* chunk, int offset) {
@@ -152,7 +114,7 @@ static int closure_instruction(const char* name, Chunk* chunk, int offset) {
   ObjFunction* function = AS_FUNCTION(chunk->constants.values[constant]);
   for (int j = 0; j < function->upvalue_count; j++) {
     int is_local = chunk->code[offset++];
-    int index = chunk->code[offset++];
+    int index    = chunk->code[offset++];
     char* upval_str[VALUE_STR_LEN];
     sprintf(upval_str, "%s %d", is_local ? "local" : "upvalue", index);
 
@@ -168,13 +130,12 @@ static int closure_instruction(const char* name, Chunk* chunk, int offset) {
 }
 
 static int invoke_instruction(const char* name, Chunk* chunk, int offset) {
-  uint16_t constant = chunk->code[offset + 1];
+  uint16_t constant  = chunk->code[offset + 1];
   uint16_t arg_count = chunk->code[offset + 2];
   PRINT_OPCODE(name);
   PRINT_NUMBER(constant);
   const char* method_str[VALUE_STR_LEN];
-  sprintf(method_str, "%s, %d args",
-          AS_STRING(chunk->constants.values[constant])->chars, arg_count);
+  sprintf(method_str, "%s, %d args", AS_STRING(chunk->constants.values[constant])->chars, arg_count);
   PRINT_VALUE_STR(method_str);
 
   return offset + 3;
@@ -191,95 +152,52 @@ int disassemble_instruction(Chunk* chunk, int offset) {
 
   uint16_t instruction = chunk->code[offset];
   switch (instruction) {
-    case OP_CONSTANT:
-      return constant_instruction("OP_CONSTANT", chunk, offset);
-    case OP_NIL:
-      return simple_instruction("OP_NIL", offset);
-    case OP_TRUE:
-      return simple_instruction("OP_TRUE", offset);
-    case OP_FALSE:
-      return simple_instruction("OP_FALSE", offset);
-    case OP_POP:
-      return simple_instruction("OP_POP", offset);
-    case OP_GET_LOCAL:
-      return byte_instruction("OP_GET_LOCAL", chunk, offset);
-    case OP_SET_LOCAL:
-      return byte_instruction("OP_SET_LOCAL", chunk, offset);
-    case OP_GET_GLOBAL:
-      return constant_instruction("OP_GET_GLOBAL", chunk, offset);
-    case OP_DEFINE_GLOBAL:
-      return constant_instruction("OP_DEFINE_GLOBAL", chunk, offset);
-    case OP_SET_GLOBAL:
-      return constant_instruction("OP_SET_GLOBAL", chunk, offset);
-    case OP_GET_UPVALUE:
-      return byte_instruction("OP_GET_UPVALUE", chunk, offset);
-    case OP_SET_UPVALUE:
-      return byte_instruction("OP_SET_UPVALUE", chunk, offset);
-    case OP_GET_INDEX:
-      return simple_instruction("OP_GET_INDEX", offset);
-    case OP_SET_INDEX:
-      return simple_instruction("OP_SET_INDEX", offset);
-    case OP_GET_PROPERTY:
-      return constant_instruction("OP_GET_PROPERTY", chunk, offset);
-    case OP_SET_PROPERTY:
-      return constant_instruction("OP_SET_PROPERTY", chunk, offset);
-    case OP_GET_BASE_METHOD:
-      return constant_instruction("OP_GET_BASE_METHOD", chunk, offset);
-    case OP_EQ:
-      return simple_instruction("OP_EQ", offset);
-    case OP_NEQ:
-      return simple_instruction("OP_NEQ", offset);
-    case OP_GT:
-      return simple_instruction("OP_GT", offset);
-    case OP_LT:
-      return simple_instruction("OP_LT", offset);
-    case OP_GTEQ:
-      return simple_instruction("OP_GTEQ", offset);
-    case OP_LTEQ:
-      return simple_instruction("OP_LTEQ", offset);
-    case OP_NEGATE:
-      return simple_instruction("OP_NEGATE", offset);
-    case OP_PRINT:
-      return simple_instruction("OP_PRINT", offset);
-    case OP_LIST_LITERAL:
-      return byte_instruction("OP_LIST_LITERAL", chunk, offset);
-    case OP_JUMP:
-      return jump_instruction("OP_JUMP", 1, chunk, offset);
-    case OP_JUMP_IF_FALSE:
-      return jump_instruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
-    case OP_LOOP:
-      return jump_instruction("OP_LOOP", -1, chunk, offset);
-    case OP_CALL:
-      return byte_instruction("OP_CALL", chunk, offset);
-    case OP_INVOKE:
-      return invoke_instruction("OP_INVOKE", chunk, offset);
-    case OP_BASE_INVOKE:
-      return invoke_instruction("OP_BASE_INVOKE", chunk, offset);
-    case OP_CLOSURE:
-      return closure_instruction("OP_CLOSURE", chunk, offset);
-    case OP_CLOSE_UPVALUE:
-      return simple_instruction("OP_CLOSE_UPVALUE", offset);
-    case OP_RETURN:
-      return simple_instruction("OP_RETURN", offset);
-    case OP_CLASS:
-      return constant_instruction("OP_CLASS", chunk, offset);
-    case OP_INHERIT:
-      return simple_instruction("OP_INHERIT", offset);
-    case OP_METHOD:
-      return constant_instruction("OP_METHOD", chunk, offset);
-    case OP_ADD:
-      return simple_instruction("OP_ADD", offset);
-    case OP_SUBTRACT:
-      return simple_instruction("OP_SUBTRACT", offset);
-    case OP_MULTIPLY:
-      return simple_instruction("OP_MULTIPLY", offset);
-    case OP_DIVIDE:
-      return simple_instruction("OP_DIVIDE", offset);
-    case OP_NOT:
-      return simple_instruction("OP_NOT", offset);
-    default:
-      INTERNAL_ERROR("Unhandled opcode: %d\n", instruction);
-      return offset + 1;
+    case OP_CONSTANT: return constant_instruction("OP_CONSTANT", chunk, offset);
+    case OP_NIL: return simple_instruction("OP_NIL", offset);
+    case OP_TRUE: return simple_instruction("OP_TRUE", offset);
+    case OP_FALSE: return simple_instruction("OP_FALSE", offset);
+    case OP_POP: return simple_instruction("OP_POP", offset);
+    case OP_GET_LOCAL: return byte_instruction("OP_GET_LOCAL", chunk, offset);
+    case OP_SET_LOCAL: return byte_instruction("OP_SET_LOCAL", chunk, offset);
+    case OP_GET_GLOBAL: return constant_instruction("OP_GET_GLOBAL", chunk, offset);
+    case OP_DEFINE_GLOBAL: return constant_instruction("OP_DEFINE_GLOBAL", chunk, offset);
+    case OP_SET_GLOBAL: return constant_instruction("OP_SET_GLOBAL", chunk, offset);
+    case OP_GET_UPVALUE: return byte_instruction("OP_GET_UPVALUE", chunk, offset);
+    case OP_SET_UPVALUE: return byte_instruction("OP_SET_UPVALUE", chunk, offset);
+    case OP_GET_INDEX: return simple_instruction("OP_GET_INDEX", offset);
+    case OP_SET_INDEX: return simple_instruction("OP_SET_INDEX", offset);
+    case OP_GET_PROPERTY: return constant_instruction("OP_GET_PROPERTY", chunk, offset);
+    case OP_SET_PROPERTY: return constant_instruction("OP_SET_PROPERTY", chunk, offset);
+    case OP_GET_BASE_METHOD: return constant_instruction("OP_GET_BASE_METHOD", chunk, offset);
+    case OP_EQ: return simple_instruction("OP_EQ", offset);
+    case OP_NEQ: return simple_instruction("OP_NEQ", offset);
+    case OP_GT: return simple_instruction("OP_GT", offset);
+    case OP_LT: return simple_instruction("OP_LT", offset);
+    case OP_GTEQ: return simple_instruction("OP_GTEQ", offset);
+    case OP_LTEQ: return simple_instruction("OP_LTEQ", offset);
+    case OP_NEGATE: return simple_instruction("OP_NEGATE", offset);
+    case OP_PRINT: return simple_instruction("OP_PRINT", offset);
+    case OP_LIST_LITERAL: return byte_instruction("OP_LIST_LITERAL", chunk, offset);
+    case OP_JUMP: return jump_instruction("OP_JUMP", 1, chunk, offset);
+    case OP_JUMP_IF_FALSE: return jump_instruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
+    case OP_LOOP: return jump_instruction("OP_LOOP", -1, chunk, offset);
+    case OP_CALL: return byte_instruction("OP_CALL", chunk, offset);
+    case OP_INVOKE: return invoke_instruction("OP_INVOKE", chunk, offset);
+    case OP_BASE_INVOKE: return invoke_instruction("OP_BASE_INVOKE", chunk, offset);
+    case OP_CLOSURE: return closure_instruction("OP_CLOSURE", chunk, offset);
+    case OP_CLOSE_UPVALUE: return simple_instruction("OP_CLOSE_UPVALUE", offset);
+    case OP_RETURN: return simple_instruction("OP_RETURN", offset);
+    case OP_CLASS: return constant_instruction("OP_CLASS", chunk, offset);
+    case OP_INHERIT: return simple_instruction("OP_INHERIT", offset);
+    case OP_METHOD: return constant_instruction("OP_METHOD", chunk, offset);
+    case OP_ADD: return simple_instruction("OP_ADD", offset);
+    case OP_SUBTRACT: return simple_instruction("OP_SUBTRACT", offset);
+    case OP_MULTIPLY: return simple_instruction("OP_MULTIPLY", offset);
+    case OP_DIVIDE: return simple_instruction("OP_DIVIDE", offset);
+    case OP_NOT: return simple_instruction("OP_NOT", offset);
+    case OP_IMPORT: return constant_instruction("OP_IMPORT", chunk, offset);
+    case OP_IMPORT_FROM: return constant_constant_instruction("OP_IMPORT_FROM", chunk, offset);
+    default: INTERNAL_ERROR("Unhandled opcode: %d\n", instruction); return offset + 1;
   }
 }
 

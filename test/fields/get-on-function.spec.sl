@@ -1,4 +1,4 @@
 fn foo() {}
 
-foo.bar // [ExpectRuntimeError] Only instances can have properties.
-        // [ExpectRuntimeError] at line 3 at the toplevel
+foo.bar // [ExpectRuntimeError] Property 'bar' does not exist on type Fn.
+        // [ExpectRuntimeError] at line 3 at the toplevel of module "main"

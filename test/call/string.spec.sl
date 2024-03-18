@@ -1,2 +1,2 @@
-"str"() // [ExpectRuntimeError] Can only call functions and classes.
-        // [ExpectRuntimeError] at line 1 at the toplevel
+"str"() // [ExpectRuntimeError] Attempted to call non-callable value of type Str.
+        // [ExpectRuntimeError] at line 1 at the toplevel of module "main"

@@ -1,5 +1,5 @@
 {
   cls A {}
   cls B : A {}
-  print B // [Expect] B
+  print B // [Expect] <Class B>
 }

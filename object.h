@@ -27,7 +27,7 @@
 #define IS_INSTANCE(value) is_obj_type(value, OBJ_INSTANCE)
 
 // Determines whether a value is of type native function.
-#define IS_NATIVE(value) i_obj_type(value, OBJ_NATIVE)
+#define IS_NATIVE(value) is_obj_type(value, OBJ_NATIVE)
 
 // Determines whether a value is of type string.
 #define IS_STRING(value) is_obj_type(value, OBJ_STRING)
@@ -81,33 +81,6 @@ typedef enum {
   OBJ_BOUND_METHOD,
 } ObjType;
 
-#if (defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_ALLOCATIONS))
-inline static const char* obj_type_to_string(ObjType type) {
-  switch (type) {
-    case OBJ_CLASS:
-      return "OBJ_CLASS";
-    case OBJ_CLOSURE:
-      return "OBJ_CLOSURE";
-    case OBJ_FUNCTION:
-      return "OBJ_FUNCTION";
-    case OBJ_INSTANCE:
-      return "OBJ_INSTANCE";
-    case OBJ_NATIVE:
-      return "OBJ_NATIVE";
-    case OBJ_SEQ:
-      return "OBJ_SEQ";
-    case OBJ_STRING:
-      return "OBJ_STRING";
-    case OBJ_UPVALUE:
-      return "OBJ_UPVALUE";
-    case OBJ_BOUND_METHOD:
-      return "OBJ_BOUND_METHOD";
-    default:
-      return "UKNOWN_OBJECT_TYPE";
-  }
-}
-#endif
-
 // The base object construct.
 struct Obj {
   ObjType type;
@@ -120,15 +93,24 @@ struct ObjSeq {
   ValueArray items;
 };
 
+struct ObjInstance;
+
 typedef struct {
   Obj obj;
   int arity;
   int upvalue_count;
   Chunk chunk;
   ObjString* name;
+  struct ObjInstance* globals_context;
 } ObjFunction;
 
-typedef Value (*NativeFn)(int argCount, Value* args);
+// The type of a native function. Native functions are functions that are
+// implemented in C and are not part of the language itself. Things to note:
+// - argc is the number of arguments the function takes. If you provide argc=1, a signature of native(a) will
+// be expected.
+// - argv is the array of arguments the function takes. argv[0] is ALWAYS the receiver (in case of
+// invocations) or the ObjNative itself. Same as in managed functions.
+typedef Value (*NativeFn)(int argc, Value argv[]);
 
 typedef struct {
   Obj obj;
@@ -156,13 +138,14 @@ typedef struct {
   int upvalue_count;
 } ObjClosure;
 
-typedef struct {
+typedef struct ObjClass {
   Obj obj;
   ObjString* name;
   HashTable methods;
+  struct ObjClass* base;
 } ObjClass;
 
-typedef struct {
+typedef struct ObjInstance {
   Obj obj;
   ObjClass* klass;
   HashTable fields;
@@ -171,12 +154,12 @@ typedef struct {
 typedef struct {
   Obj obj;
   Value receiver;
-  ObjClosure* method;
+  Obj* method;
 } ObjBoundMethod;
 
 // Creates, initializes and allocates a new bound method object. Might trigger
 // garbage collection.
-ObjBoundMethod* new_bound_method(Value receiver, ObjClosure* method);
+ObjBoundMethod* new_bound_method(Value receiver, Obj* method);
 
 // Creates, initializes and allocates a new instance object. Might trigger
 // garbage collection.
@@ -184,7 +167,7 @@ ObjInstance* new_instance(ObjClass* klass);
 
 // Creates, initializes and allocates a new class object. Might trigger garbage
 // collection.
-ObjClass* new_class(ObjString* name);
+ObjClass* new_class(ObjString* name, ObjClass* base);
 
 // Creates, initializes and allocates a new closure object. Might trigger
 // garbage collection.
@@ -203,8 +186,8 @@ ObjNative* new_native(NativeFn function);
 ObjUpvalue* new_upvalue(Value* slot);
 
 // Copies a string literal into a heap-allocated string object.
-// This does not take ownership of the string, but rather - as the name suggests
-// - copies it. Might trigger garbage collection.
+// This does not take ownership of the string, but rather - as the name suggests - copies it. Might
+// trigger garbage collection.
 ObjString* copy_string(const char* chars, int length);
 
 // Creates a string object from a C string.
@@ -216,9 +199,6 @@ ObjString* take_string(char* chars, int length);
 // This takes ownership of the value array. This means that the value array will
 // be freed when the object is freed. Might trigger garbage collection.
 ObjSeq* take_seq(ValueArray* items);
-
-// Prints an object to stdout.
-void print_object(Value value);
 
 static inline bool is_obj_type(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;

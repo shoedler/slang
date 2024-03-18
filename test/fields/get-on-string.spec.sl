@@ -1,2 +1,2 @@
-"str".foo // [ExpectRuntimeError] Only instances can have properties.
-          // [ExpectRuntimeError] at line 1 at the toplevel
+"str".foo // [ExpectRuntimeError] Property 'foo' does not exist on type Str.
+          // [ExpectRuntimeError] at line 1 at the toplevel of module "main"

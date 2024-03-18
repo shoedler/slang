@@ -7,6 +7,10 @@
 #include "memory.h"
 #include "scanner.h"
 
+#ifdef DEBUG_PRINT_CODE
+#include "debug.h"
+#endif
+
 // A construct holding the parser's state.
 typedef struct {
   Token current;    // The current token.
@@ -57,7 +61,8 @@ typedef enum {
   TYPE_FUNCTION,
   TYPE_CONSTRUCTOR,
   TYPE_METHOD,
-  TYPE_TOPLEVEL
+  TYPE_ANONYMOUS_FUNCTION,
+  TYPE_MODULE
 } FunctionType;
 
 // A construct holding the compiler's state.
@@ -78,7 +83,7 @@ typedef struct ClassCompiler {
 } ClassCompiler;
 
 Parser parser;
-Compiler* current = NULL;
+Compiler* current            = NULL;
 ClassCompiler* current_class = NULL;
 Chunk* compiling_chunk;
 
@@ -241,30 +246,43 @@ static void emit_return() {
 }
 
 // Initializes a new compiler.
-static void init_compiler(Compiler* compiler,
-                          FunctionType type,
-                          ObjString* name) {
+static void init_compiler(Compiler* compiler, FunctionType type) {
   compiler->enclosing = current;
-  compiler->function = NULL;
-  compiler->type = type;
-  compiler->local_count = 0;
-  compiler->scope_depth = 0;
-  compiler->function = new_function();
-  current = compiler;
+  current             = compiler;
 
-  if (type != TYPE_TOPLEVEL) {
-    current->function->name = name;
+  compiler->function                  = NULL;
+  compiler->type                      = type;
+  compiler->local_count               = 0;
+  compiler->scope_depth               = 0;
+  compiler->function                  = new_function();
+  compiler->function->globals_context = vm.module;
+
+  switch (type) {
+    case TYPE_MODULE: {
+      // We use the modules name as the functions name (same reference, no copy). Meaning that the modules
+      // toplevel function has the same name as the module. This is useful for debugging and for stacktraces -
+      // it let's us easily determine if a frames function is a toplevel function or not.
+      Value module_name;
+      if (hashtable_get(&vm.module->fields, vm.cached_words[WORD_MODULE_NAME], &module_name)) {
+        current->function->name = AS_STRING(module_name);
+        break;
+      }
+      INTERNAL_ERROR("Module name not found in module's fields (" KEYWORD_MODULE_NAME ").");
+    }
+    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("<Anon>", 7); break;
+    case TYPE_CONSTRUCTOR: current->function->name = AS_STRING(vm.cached_words[WORD_CTOR]); break;
+    default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }
 
-  Local* local = &current->locals[current->local_count++];
-  local->depth = 0;
+  Local* local       = &current->locals[current->local_count++];
+  local->depth       = 0;
   local->is_captured = false;
 
-  if (type != TYPE_FUNCTION) {
-    local->name.start = THIS_KEYWORD;
-    local->name.length = THIS_KEYWORD_LENGTH;
+  if (type == TYPE_CONSTRUCTOR || type == TYPE_METHOD) {
+    local->name.start  = KEYWORD_THIS;
+    local->name.length = KEYWORD_THIS_LEN;
   } else {
-    local->name.start = "";  // Not accessible.
+    local->name.start  = "";  // Not accessible.
     local->name.length = 0;
   }
 }
@@ -277,9 +295,7 @@ static ObjFunction* end_compiler() {
 
 #ifdef DEBUG_PRINT_CODE
   if (!parser.had_error) {
-    disassemble_chunk(current_chunk(), function->name != NULL
-                                           ? function->name->chars
-                                           : "[Toplevel]");
+    disassemble_chunk(current_chunk(), function->name != NULL ? function->name->chars : "[Toplevel]");
 
     if (current->enclosing == NULL) {
       printf("\n== End of compilation ==\n\n");
@@ -300,9 +316,7 @@ static void begin_scope() {
 static void end_scope() {
   current->scope_depth--;
 
-  while (current->local_count > 0 &&
-         current->locals[current->local_count - 1].depth >
-             current->scope_depth) {
+  while (current->local_count > 0 && current->locals[current->local_count - 1].depth > current->scope_depth) {
     // Since we're leaving the scope, we don't need the local variables anymore.
     // The ones who got captured by a closure are still needed, and are
     // going to need to live on the heap.
@@ -385,18 +399,10 @@ static void literal(bool can_assign) {
   TokenType op_type = parser.previous.type;
 
   switch (op_type) {
-    case TOKEN_FALSE:
-      emit_one(OP_FALSE);
-      break;
-    case TOKEN_NIL:
-      emit_one(OP_NIL);
-      break;
-    case TOKEN_TRUE:
-      emit_one(OP_TRUE);
-      break;
-    default:
-      INTERNAL_ERROR("Unhandled literal: %d", op_type);
-      return;
+    case TOKEN_FALSE: emit_one(OP_FALSE); break;
+    case TOKEN_NIL: emit_one(OP_NIL); break;
+    case TOKEN_TRUE: emit_one(OP_TRUE); break;
+    default: INTERNAL_ERROR("Unhandled literal: %d", op_type); return;
   }
 }
 
@@ -423,11 +429,10 @@ static void list_literal(bool can_assign) {
   if (count <= MAX_LIST_ITEMS) {
     emit_two(OP_LIST_LITERAL, (uint16_t)count);
   } else {
-    error_at_current(
-        "Can't have more than MAX_LIST_ITEMS items in a list.");  // TODO
-                                                                  // (enhance):
-                                                                  // Interpolate
-                                                                  // MAX_LIST_ITEMS
+    error_at_current("Can't have more than MAX_LIST_ITEMS items in a list.");  // TODO
+                                                                               // (enhance):
+                                                                               // Interpolate
+                                                                               // MAX_LIST_ITEMS
   }
 }
 
@@ -442,8 +447,8 @@ static void number(bool can_assign) {
 // The string has already been consumed and is referenced by the previous token.
 static void string(bool can_assign) {
   // TODO (enhance): Handle escape sequences here.
-  emit_constant(OBJ_VAL(
-      copy_string(parser.previous.start + 1, parser.previous.length - 2)));
+  emit_constant(OBJ_VAL(copy_string(parser.previous.start + 1,
+                                    parser.previous.length - 2)));  // +1 and -2 to strip the quotes
 }
 
 // Compiles a unary expression and emits the corresponding instruction.
@@ -456,15 +461,9 @@ static void unary(bool can_assign) {
 
   // Emit the operator instruction.
   switch (operator_type) {
-    case TOKEN_NOT:
-      emit_one(OP_NOT);
-      break;
-    case TOKEN_MINUS:
-      emit_one(OP_NEGATE);
-      break;
-    default:
-      INTERNAL_ERROR("Unhandled unary operator type: %d", operator_type);
-      return;
+    case TOKEN_NOT: emit_one(OP_NOT); break;
+    case TOKEN_MINUS: emit_one(OP_NEGATE); break;
+    default: INTERNAL_ERROR("Unhandled unary operator type: %d", operator_type); return;
   }
 }
 
@@ -473,43 +472,21 @@ static void unary(bool can_assign) {
 // token. The operator is in the previous token.
 static void binary(bool can_assign) {
   TokenType op_type = parser.previous.type;
-  ParseRule* rule = get_rule(op_type);
+  ParseRule* rule   = get_rule(op_type);
   parse_precedence((Precedence)(rule->precedence + 1));
 
   switch (op_type) {
-    case TOKEN_NEQ:
-      emit_one(OP_NEQ);
-      break;
-    case TOKEN_EQ:
-      emit_one(OP_EQ);
-      break;
-    case TOKEN_GT:
-      emit_one(OP_GT);
-      break;
-    case TOKEN_GTEQ:
-      emit_one(OP_GTEQ);
-      break;
-    case TOKEN_LT:
-      emit_one(OP_LT);
-      break;
-    case TOKEN_LTEQ:
-      emit_one(OP_LTEQ);
-      break;
-    case TOKEN_PLUS:
-      emit_one(OP_ADD);
-      break;
-    case TOKEN_MINUS:
-      emit_one(OP_SUBTRACT);
-      break;
-    case TOKEN_MULT:
-      emit_one(OP_MULTIPLY);
-      break;
-    case TOKEN_DIV:
-      emit_one(OP_DIVIDE);
-      break;
-    default:
-      INTERNAL_ERROR("Unhandled binary operator type: %d", op_type);
-      break;
+    case TOKEN_NEQ: emit_one(OP_NEQ); break;
+    case TOKEN_EQ: emit_one(OP_EQ); break;
+    case TOKEN_GT: emit_one(OP_GT); break;
+    case TOKEN_GTEQ: emit_one(OP_GTEQ); break;
+    case TOKEN_LT: emit_one(OP_LT); break;
+    case TOKEN_LTEQ: emit_one(OP_LTEQ); break;
+    case TOKEN_PLUS: emit_one(OP_ADD); break;
+    case TOKEN_MINUS: emit_one(OP_SUBTRACT); break;
+    case TOKEN_MULT: emit_one(OP_MULTIPLY); break;
+    case TOKEN_DIV: emit_one(OP_DIVIDE); break;
+    default: INTERNAL_ERROR("Unhandled binary operator type: %d", op_type); break;
   }
 }
 
@@ -525,7 +502,7 @@ static void named_variable(Token name, bool can_assign) {
     get_op = OP_GET_UPVALUE;
     set_op = OP_SET_UPVALUE;
   } else {
-    arg = string_constant(&name);
+    arg    = string_constant(&name);
     get_op = OP_GET_GLOBAL;
     set_op = OP_SET_GLOBAL;
   }
@@ -549,7 +526,7 @@ static void variable(bool can_assign) {
 // Synthetic refers to the fact that the token is not from the source code.
 static Token synthetic_token(const char* text) {
   Token token;
-  token.start = text;
+  token.start  = text;
   token.length = (int)strlen(text);
   return token;
 }
@@ -561,27 +538,27 @@ static Token synthetic_token(const char* text) {
 // The next token to be parsed is the dot operator.
 static void base_(bool can_assign) {
   if (current_class == NULL) {
-    error("Can't use '" BASE_CLASS_KEYWORD "' outside of a class.");
+    error("Can't use '" KEYWORD_BASE "' outside of a class.");
   } else if (!current_class->has_baseclass) {
-    error("Can't use '" BASE_CLASS_KEYWORD "' in a class with no base class.");
+    error("Can't use '" KEYWORD_BASE "' in a class with no base class.");
   }
 
-  consume(TOKEN_DOT, "Expecting '.' after '" BASE_CLASS_KEYWORD "'.");
+  consume(TOKEN_DOT, "Expecting '.' after '" KEYWORD_BASE "'.");
   if (!match(TOKEN_ID)) {
     consume(TOKEN_CTOR, "Expecting base class method name.");
   }
   uint16_t name = string_constant(&parser.previous);
 
-  named_variable(synthetic_token(THIS_KEYWORD), false);
+  named_variable(synthetic_token(KEYWORD_THIS), false);
   if (match(TOKEN_OPAR)) {
     // Shorthand for method calls. This combines two instructions into one:
     // getting a property and calling a method.
     uint16_t arg_count = argument_list();
-    named_variable(synthetic_token(BASE_CLASS_KEYWORD), false);
+    named_variable(synthetic_token(KEYWORD_BASE), false);
     emit_two(OP_BASE_INVOKE, name);
     emit_one(arg_count);
   } else {
-    named_variable(synthetic_token(BASE_CLASS_KEYWORD), false);
+    named_variable(synthetic_token(KEYWORD_BASE), false);
     emit_two(OP_GET_BASE_METHOD, name);
   }
 }
@@ -590,9 +567,9 @@ static void base_(bool can_assign) {
 // The declaration has already been consumed. Here, we start at the function's
 // parameters. Therefore is used for all supported functions:
 // named functions, anonymous functions, constructors and methods.
-static void function(bool can_assign, FunctionType type, ObjString* name) {
+static void function(bool can_assign, FunctionType type) {
   Compiler compiler;
-  init_compiler(&compiler, type, name);
+  init_compiler(&compiler, type);
   begin_scope();
 
   // Parameters
@@ -601,11 +578,10 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
       do {
         current->function->arity++;
         if (current->function->arity > MAX_FN_ARGS) {
-          error_at_current(
-              "Can't have more than MAX_FN_ARGS parameters.");  // TODO
-                                                                // (enhance):
-                                                                // Interpolate
-                                                                // MAX_FN_ARGS
+          error_at_current("Can't have more than MAX_FN_ARGS parameters.");  // TODO
+                                                                             // (enhance):
+                                                                             // Interpolate
+                                                                             // MAX_FN_ARGS
         }
         uint16_t constant = parse_variable("Expecting parameter name.");
         define_variable(constant);
@@ -621,17 +597,9 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
   if (match(TOKEN_OBRACE)) {
     block();
   } else if (match(TOKEN_LAMBDA)) {
-    // TODO (optimize): end_compiler() will also emit OP_NIL and OP_RETURN,
-    // which we don't are unnecessary (Same goes for non-lambda functions which
-    // only have a return) We could optimize this by not emitting those
-    // instructions, but that would require some changes to end_compiler() and
-    // emit_return().
-
-    // TODO (syntax): Only allowing expressions here is kinda sad. Things like
-    // `let f = fn -> print 123` are not possible anymore, because the `print`
-    // is a statement. Obviously, statements do not return a value - maybe we
-    // could relax this restriction, forcing us - however - to answer questions
-    // like "what does a for loop return?"
+    // TODO (optimize): end_compiler() will also emit OP_NIL and OP_RETURN, which are unnecessary (Same goes
+    // for non-lambda functions which only have a return) We could optimize this by not emitting those
+    // instructions, but that would require some changes to end_compiler() and emit_return().
 
     expression();
     emit_one(OP_RETURN);
@@ -639,8 +607,7 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
     error_at_current("Expecting '{' before function body.");
   }
 
-  ObjFunction* function =
-      end_compiler();  // Also handles end of scope. (end_scope())
+  ObjFunction* function = end_compiler();  // Also handles end of scope. (end_scope())
 
   emit_two(OP_CLOSURE, make_constant(OBJ_VAL(function)));
   for (int i = 0; i < function->upvalue_count; i++) {
@@ -650,8 +617,7 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
 }
 
 static void anonymous_function(bool can_assign) {
-  function(can_assign /* does not matter */, TYPE_FUNCTION,
-           copy_string("<Anon>", 7));
+  function(can_assign /* does not matter */, TYPE_ANONYMOUS_FUNCTION);
 }
 
 // Compiles a class method.
@@ -660,30 +626,24 @@ static void method() {
   consume(TOKEN_FN, "Expecting method initializer.");
   consume(TOKEN_ID, "Expecting method name.");
   uint16_t constant = string_constant(&parser.previous);
-  ObjString* method_name =
-      copy_string(parser.previous.start, parser.previous.length);
 
-  function(false /* does not matter */, TYPE_METHOD, method_name);
+  function(false /* does not matter */, TYPE_METHOD);
   emit_two(OP_METHOD, constant);
 }
 
 static void constructor() {
   consume(TOKEN_CTOR, "Expecting constructor.");
-  uint16_t constant = string_constant(&parser.previous);
-  // TODO (optimize): Maybe preload this? A constructor is always called the
-  // the same name - so we could just load it once and then reuse it.
-  ObjString* ctor_name =
-      copy_string(parser.previous.start, parser.previous.length);
+  Token ctor        = synthetic_token(KEYWORD_CONSTRUCTOR);
+  uint16_t constant = string_constant(&ctor);
 
-  function(false /* does not matter */, TYPE_CONSTRUCTOR, ctor_name);
+  function(false /* does not matter */, TYPE_CONSTRUCTOR);
   emit_two(OP_METHOD, constant);
 }
 
-// Compiles an and expression.
-// And is special in that it acts more lik a control flow construct rather than
-// a binary operator. It short-circuits the evaluation of the rhs if the lhs is
-// false by jumping over the rhs. The lhs bytecode has already been emitted. The
-// rhs starts at the current token. The and operator is in the previous token.
+// Compiles an and expression. And is special in that it acts more lik a control flow construct rather than a
+// binary operator. It short-circuits the evaluation of the rhs if the lhs is false by jumping over the rhs.
+// The lhs bytecode has already been emitted. The rhs starts at the current token. The and operator is in the
+// previous token.
 static void and_(bool can_assign) {
   int end_jump = emit_jump(OP_JUMP_IF_FALSE);
   emit_one(OP_POP);
@@ -698,13 +658,11 @@ static void and_(bool can_assign) {
 // a binary operator. It short-circuits the evaluation of the rhs if the lhs is
 // true by jumping over the rhs. The lhs bytecode has already been emitted. The
 static void or_(bool can_assign) {
-  // TODO (optimize): We could optimize this by inverting the logic
-  // (jumping over the rhs if the lhs is true) which would probably require a
-  // new opcode (OP_JUMP_IF_TRUE) and then we could reuse the and_ function -
-  // well, it would have to be renamed then and accept a new parameter (the type
-  // of jump to emit).
+  // TODO (optimize): We could optimize this by inverting the logic (jumping over the rhs if the lhs is true)
+  // which would probably require a new opcode (OP_JUMP_IF_TRUE) and then we could reuse the and_ function -
+  // well, it would have to be renamed then and accept a new parameter (the type of jump to emit).
   int else_jump = emit_jump(OP_JUMP_IF_FALSE);
-  int end_jump = emit_jump(OP_JUMP);
+  int end_jump  = emit_jump(OP_JUMP);
 
   patch_jump(else_jump);
   emit_one(OP_POP);
@@ -713,8 +671,8 @@ static void or_(bool can_assign) {
   patch_jump(end_jump);
 }
 
-// Compiles a this expression.
-// The this keyword has already been consumed and is referenced by the previous
+// Compiles a 'this' expression.
+// The 'this' keyword has already been consumed and is referenced by the previous
 // token.
 static void this_(bool can_assign) {
   if (current_class == NULL) {
@@ -726,50 +684,50 @@ static void this_(bool can_assign) {
 }
 
 ParseRule rules[] = {
-    [TOKEN_OPAR] = {grouping, call, PREC_CALL},
-    [TOKEN_CPAR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_CBRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACK] = {list_literal, indexing, PREC_CALL},
-    [TOKEN_CBRACK] = {NULL, NULL, PREC_NONE},
-    [TOKEN_COMMA] = {NULL, NULL, PREC_NONE},
-    [TOKEN_DOT] = {NULL, dot, PREC_CALL},
-    [TOKEN_MINUS] = {unary, binary, PREC_TERM},
-    [TOKEN_PLUS] = {NULL, binary, PREC_TERM},
-    [TOKEN_DIV] = {NULL, binary, PREC_FACTOR},
-    [TOKEN_MULT] = {NULL, binary, PREC_FACTOR},
-    [TOKEN_NOT] = {unary, NULL, PREC_NONE},
-    [TOKEN_NEQ] = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_ASSIGN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_EQ] = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_GT] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_GTEQ] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LT] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LTEQ] = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_ID] = {variable, NULL, PREC_NONE},
-    [TOKEN_STRING] = {string, NULL, PREC_NONE},
-    [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
-    [TOKEN_AND] = {NULL, and_, PREC_AND},
-    [TOKEN_CLASS] = {NULL, NULL, PREC_NONE},
-    [TOKEN_ELSE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_FALSE] = {literal, NULL, PREC_NONE},
-    [TOKEN_FOR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_FN] = {anonymous_function, NULL, PREC_NONE},
-    [TOKEN_LAMBDA] = {NULL, NULL, PREC_NONE},
-    [TOKEN_IF] = {NULL, NULL, PREC_NONE},
-    [TOKEN_NIL] = {literal, NULL, PREC_NONE},
-    [TOKEN_OR] = {NULL, or_, PREC_OR},
-    [TOKEN_PRINT] = {NULL, NULL, PREC_NONE},
-    [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_BASE] = {base_, NULL, PREC_NONE},
-    [TOKEN_THIS] = {this_, NULL, PREC_NONE},
-    [TOKEN_TRUE] = {literal, NULL, PREC_NONE},
-    [TOKEN_LET] = {NULL, NULL, PREC_NONE},
-    [TOKEN_WHILE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_BREAK] = {NULL, NULL, PREC_NONE},
+    [TOKEN_OPAR]     = {grouping, call, PREC_CALL},
+    [TOKEN_CPAR]     = {NULL, NULL, PREC_NONE},
+    [TOKEN_OBRACE]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_CBRACE]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_OBRACK]   = {list_literal, indexing, PREC_CALL},
+    [TOKEN_CBRACK]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_COMMA]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_DOT]      = {NULL, dot, PREC_CALL},
+    [TOKEN_MINUS]    = {unary, binary, PREC_TERM},
+    [TOKEN_PLUS]     = {NULL, binary, PREC_TERM},
+    [TOKEN_DIV]      = {NULL, binary, PREC_FACTOR},
+    [TOKEN_MULT]     = {NULL, binary, PREC_FACTOR},
+    [TOKEN_NOT]      = {unary, NULL, PREC_NONE},
+    [TOKEN_NEQ]      = {NULL, binary, PREC_EQUALITY},
+    [TOKEN_ASSIGN]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_EQ]       = {NULL, binary, PREC_EQUALITY},
+    [TOKEN_GT]       = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_GTEQ]     = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_LT]       = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_LTEQ]     = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_ID]       = {variable, NULL, PREC_NONE},
+    [TOKEN_STRING]   = {string, NULL, PREC_NONE},
+    [TOKEN_NUMBER]   = {number, NULL, PREC_NONE},
+    [TOKEN_AND]      = {NULL, and_, PREC_AND},
+    [TOKEN_CLASS]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_ELSE]     = {NULL, NULL, PREC_NONE},
+    [TOKEN_FALSE]    = {literal, NULL, PREC_NONE},
+    [TOKEN_FOR]      = {NULL, NULL, PREC_NONE},
+    [TOKEN_FN]       = {anonymous_function, NULL, PREC_NONE},
+    [TOKEN_LAMBDA]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_IF]       = {NULL, NULL, PREC_NONE},
+    [TOKEN_NIL]      = {literal, NULL, PREC_NONE},
+    [TOKEN_OR]       = {NULL, or_, PREC_OR},
+    [TOKEN_PRINT]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_RETURN]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_BASE]     = {base_, NULL, PREC_NONE},
+    [TOKEN_THIS]     = {this_, NULL, PREC_NONE},
+    [TOKEN_TRUE]     = {literal, NULL, PREC_NONE},
+    [TOKEN_LET]      = {NULL, NULL, PREC_NONE},
+    [TOKEN_WHILE]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_BREAK]    = {NULL, NULL, PREC_NONE},
     [TOKEN_CONTINUE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_ERROR] = {NULL, NULL, PREC_NONE},
-    [TOKEN_EOF] = {NULL, NULL, PREC_NONE},
+    [TOKEN_ERROR]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_EOF]      = {NULL, NULL, PREC_NONE},
 };
 
 // Returns the rule for the given token type.
@@ -839,7 +797,7 @@ static int resolve_local(Compiler* compiler, Token* name) {
 // - If it is found in the enclosing compiler's locals, it is marked as
 // captured and an upvalue is added to the current compiler's upvalues array.
 // - If it is not found in the enclosing compiler's locals, it is recursively
-// resolved in the enclosing compilers.
+// resolved in the outer enclosing compilers.
 //
 // Returns the index of the upvalue in the current compiler's upvalues array, or
 // -1 if it is not found.
@@ -871,7 +829,7 @@ static void add_local(Token name) {
   }
 
   Local* local = &current->locals[current->local_count++];
-  local->name = name;
+  local->name  = name;
   local->depth = -1;  // Means it is not initialized, bc it's value (rvalue) is
                       // not yet evaluated.
   local->is_captured = false;
@@ -897,7 +855,7 @@ static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
   }
 
   compiler->upvalues[upvalue_count].is_local = is_local;
-  compiler->upvalues[upvalue_count].index = index;
+  compiler->upvalues[upvalue_count].index    = index;
   return compiler->function->upvalue_count++;
 }
 
@@ -991,8 +949,7 @@ static void synchronize() {
       case TOKEN_IF:
       case TOKEN_WHILE:
       case TOKEN_PRINT:
-      case TOKEN_RETURN:
-        return;
+      case TOKEN_RETURN: return;
 
       default:;  // Do nothing.
     }
@@ -1045,13 +1002,9 @@ static void statement_if() {
 
 // Compiles a return statement.
 // The return keyword has already been consumed at this point.
-// Handles illegal return statements (in toplevel or in a constructor).
+// Handles illegal return statements in a constructor.
 // The return value is an expression or nil.
 static void statement_return() {
-  if (current->type == TYPE_TOPLEVEL) {
-    error("Can't return from top-level code.");
-  }
-
   // TODO (syntax): We don't want semicolons after return statements - but it's
   // almost impossible to get rid of them here Since there could literally come
   // anything after a return statement.
@@ -1118,7 +1071,7 @@ static void statement_for() {
 
   // Loop increment
   if (!match(TOKEN_SCOLON)) {
-    int body_jump = emit_jump(OP_JUMP);
+    int body_jump      = emit_jump(OP_JUMP);
     int incrementStart = current_chunk()->count;
     expression();
     emit_one(OP_POP);  // Discard the result of the increment expression.
@@ -1139,6 +1092,28 @@ static void statement_for() {
   }
 
   end_scope();
+}
+
+// Compiles an import statement.
+// The import keyword has already been consumed at this point.
+static void statement_import() {
+  consume(TOKEN_ID, "Expecting module name.");
+
+  uint16_t name_constant = string_constant(&parser.previous);
+  declare_local();
+
+  if (match(TOKEN_FROM)) {
+    consume(TOKEN_STRING, "Expecting file name.");
+    uint16_t file_constant =
+        make_constant(OBJ_VAL(copy_string(parser.previous.start + 1,
+                                          parser.previous.length - 2)));  // +1 and -2 to strip the quotes
+    emit_two(OP_IMPORT_FROM, name_constant);
+    emit_one(file_constant);
+  } else {
+    emit_two(OP_IMPORT, name_constant);
+  }
+
+  define_variable(name_constant);
 }
 
 // Compiles a block.
@@ -1162,6 +1137,8 @@ static void statement() {
     statement_return();
   } else if (match(TOKEN_FOR)) {
     statement_for();
+  } else if (match(TOKEN_IMPORT)) {
+    statement_import();
   } else if (match(TOKEN_OBRACE)) {
     begin_scope();
     block();
@@ -1189,12 +1166,10 @@ static void declaration_let() {
 // The fn keyword has already been consumed at this point.
 // Since functions are first-class, this is similar to a variable declaration.
 static void declaration_function() {
-  uint16_t global = parse_variable("Expecting variable name.");
-  ObjString* fn_name =
-      copy_string(parser.previous.start, parser.previous.length);
+  uint16_t global = parse_variable("Expecting function name.");
 
   mark_initialized();
-  function(false /* does not matter */, TYPE_FUNCTION, fn_name);
+  function(false /* does not matter */, TYPE_FUNCTION);
   define_variable(global);
 }
 
@@ -1203,7 +1178,7 @@ static void declaration_function() {
 // Also handles inheritance.
 static void declaration_class() {
   consume(TOKEN_ID, "Expecting class name.");
-  Token class_name = parser.previous;
+  Token class_name       = parser.previous;
   uint16_t name_constant = string_constant(&parser.previous);
   declare_local();
 
@@ -1214,8 +1189,8 @@ static void declaration_class() {
 
   ClassCompiler class_compiler;
   class_compiler.has_baseclass = false;
-  class_compiler.enclosing = current_class;
-  current_class = &class_compiler;
+  class_compiler.enclosing     = current_class;
+  current_class                = &class_compiler;
 
   // Inherit from base class
   if (match(TOKEN_COLON)) {
@@ -1227,11 +1202,10 @@ static void declaration_class() {
     }
 
     begin_scope();
-    add_local(synthetic_token(
-        BASE_CLASS_KEYWORD));  // TODO (optimize): Maybe use BASE_CLASS_KEYWORD
-                               // as a lexeme, then synthetic_token is not
-                               // needed.
-    define_variable(0);
+    add_local(synthetic_token(KEYWORD_BASE));  // TODO (optimize): Maybe use
+                                               // KEYWORD_BASE as a lexeme, then
+                                               // synthetic_token is not needed.
+    define_variable(0 /* ignore, we're not in global scope */);
 
     named_variable(class_name, false);
     emit_one(OP_INHERIT);
@@ -1281,16 +1255,17 @@ static void declaration() {
   }
 }
 
-ObjFunction* compile(const char* source) {
+ObjFunction* compile_module(const char* source) {
   init_scanner(source);
   Compiler compiler;
-  init_compiler(&compiler, TYPE_TOPLEVEL, NULL);
+
+  init_compiler(&compiler, TYPE_MODULE);
 
 #ifdef DEBUG_PRINT_CODE
   printf("== Begin compilation ==\n");
 #endif
 
-  parser.had_error = false;
+  parser.had_error  = false;
   parser.panic_mode = false;
 
   advance();

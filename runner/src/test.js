@@ -9,6 +9,7 @@ import {
   info,
   pass,
   runSlangFile,
+  updateCommentMetadata,
 } from './utils.js';
 
 const EXPECT = 'Expect';
@@ -34,9 +35,11 @@ const findTests = async () => {
  * Runs all test
  * @param {string} config - Build configuration to use
  * @param {AbortSignal} signal - Abort signal to use
+ * @param {boolean} updateFiles - Whether to update test files with new expectations
+ * @param {string} testNamePattern - A pattern to filter tests by name. Supports regex
  */
-export const runTests = async (config, signal) => {
-  const tests = await findTests();
+export const runTests = async (config, signal, updateFiles = false, testNamePattern = '.*') => {
+  const tests = (await findTests()).filter(test => new RegExp(testNamePattern).test(test));
   const getTestName = filePath => path.parse(filePath).name;
   const failedTests = [];
   let totalAssertions = 0;
@@ -53,6 +56,8 @@ export const runTests = async (config, signal) => {
 
     const minLen = Math.min(commentMetadata.length, output.length);
     const diffs = [];
+    const metadataWithActual = []; // This is used to update the test file e.g. after changing error messages.
+    // Just makes it easier to update the file
 
     // Check that expectations are met. Only check minLen - excess output or expectations are
     // handled in the evaluation
@@ -67,6 +72,7 @@ export const runTests = async (config, signal) => {
       totalAssertions++;
       if (actual !== expected) {
         diffs.push({ actual, expected, line });
+        metadataWithActual.push({ type, value: actual, line });
       }
     }
 
@@ -120,6 +126,14 @@ export const runTests = async (config, signal) => {
       }
     }
 
+    if (updateFiles) {
+      // If the test only had failed assertions, we update the test file.
+      // This is only temporary and will be removed once the files are updated.
+      if (diffs.length > 0 && diffs.length + 1 === errorMessages.length) {
+        updateCommentMetadata(test, metadataWithActual);
+      }
+    }
+
     // Print test results
     if (errorMessages.length > 0) {
       fail(getTestName(test) + chalk.gray(` Filepath: ${test}`) + `\n${errorMessages.join('\n')}`);
@@ -137,6 +151,12 @@ export const runTests = async (config, signal) => {
   if (allPassed) {
     pass(chalk.green(finishMessage));
   } else {
+    // Don't bother with the summary if there are not many tests
+    if (tests.length <= 20) {
+      fail(chalk.red(finishMessage));
+      return;
+    }
+
     fail(
       `${chalk.red(finishMessage)} ${chalk.red('Failed tests:')}\n${failedTests
         .map(

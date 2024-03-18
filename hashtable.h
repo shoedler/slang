@@ -8,7 +8,7 @@
 
 // A hash table entry.
 typedef struct {
-  ObjString* key;
+  Value key;
   Value value;
 } Entry;
 
@@ -26,23 +26,21 @@ void init_hashtable(HashTable* table);
 void free_hashtable(HashTable* table);
 
 // Gets a value from a hashtable.
-bool hashtable_get(HashTable* table, ObjString* key, Value* value);
+bool hashtable_get(HashTable* table, Value key, Value* value);
 
-// Adds a value to a hashtable.
-bool hashtable_set(HashTable* table, ObjString* key, Value value);
+// Adds a value to a hashtable. Returns true if the value was added, false if
+// it was an update.
+bool hashtable_set(HashTable* table, Value key, Value value);
 
 // Deletes a value from a hashtable.
-bool hashtable_delete(HashTable* table, ObjString* key);
+bool hashtable_delete(HashTable* table, Value key);
 
 // Copies all entries from one hashtable to another.
 void hashtable_add_all(HashTable* from, HashTable* to);
 
 // Finds a string in the hashtable by a c string.
 // Compares strings by value
-ObjString* hashtable_find_string(HashTable* table,
-                                 const char* chars,
-                                 int length,
-                                 uint32_t hash);
+ObjString* hashtable_find_string(HashTable* table, const char* chars, int length, uint32_t hash);
 
 // Removes all white entries from a hashtable.
 // This is intended to be used for the vm's interned strings, as white entries

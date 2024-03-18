@@ -1,5 +1,5 @@
 cls Foo {}
 let foo = Foo()
 
-foo.bar // [ExpectRuntimeError] Undefined property 'bar'.
-        // [ExpectRuntimeError] at line 4 at the toplevel
+foo.bar // [ExpectRuntimeError] Property 'bar' does not exist on type Instance.
+        // [ExpectRuntimeError] at line 4 at the toplevel of module "main"

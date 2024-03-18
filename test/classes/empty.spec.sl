@@ -1,3 +1,3 @@
 cls Foo {}
 
-print Foo // [Expect] Foo
+print Foo // [Expect] <Class Foo>

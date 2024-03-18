@@ -20,20 +20,13 @@
 #define ANSI_MAGENTA_STR(str) ANSI_COLOR_MAGENTA##str##ANSI_COLOR_RESET
 #define ANSI_CYAN_STR(str) ANSI_COLOR_CYAN##str##ANSI_COLOR_RESET
 
-#define PRINT_ERROR_HEADER(type)                                            \
-  fprintf(stderr, ##ANSI_RED_STR(type) " at "##ANSI_YELLOW_STR("%s(%u): "), \
-          __FILE__, __LINE__);
+#define PRINT_ERROR_HEADER(type) \
+  fprintf(stderr, ##ANSI_RED_STR(type) " at "##ANSI_YELLOW_STR("%s(%u): "), __FILE__, __LINE__);
 
 #define INTERNAL_ERROR(format_literal, ...)              \
   do {                                                   \
     ##PRINT_ERROR_HEADER("INTERNAL ERROR");              \
     fprintf(stderr, format_literal "\n", ##__VA_ARGS__); \
-  } while (0)
-
-#define WINTERNAL_ERROR(wformat_literal, ...)               \
-  do {                                                      \
-    ##PRINT_ERROR_HEADER("INTERNAL ERROR");                 \
-    fwprintf(stderr, wformat_literal L"\n", ##__VA_ARGS__); \
   } while (0)
 
 #define NOT_IMPLEMENTED(what)                       \
@@ -46,12 +39,12 @@
 // Debug feature flags
 
 // #define DEBUG_PRINT_TOKENS
-// #define DEBUG_TRACE_EXECUTION
-
 // #define DEBUG_PRINT_CODE
+//  #define DEBUG_TRACE_EXECUTION
 
-// #define DEBUG_STRESS_GC
+#define DEBUG_STRESS_GC
 // #define DEBUG_LOG_GC
+// #define DEBUG_LOG_GC_FREE
 // #define DEBUG_LOG_GC_ALLOCATIONS
 
 #define UINT8_COUNT (UINT8_MAX + 1)

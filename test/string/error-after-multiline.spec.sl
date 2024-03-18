@@ -5,4 +5,4 @@ let a = "1
 "
 
 err // [ExpectRuntimeError] Undefined variable 'err'.
-    // [ExpectRuntimeError] at line 7 at the toplevel
+    // [ExpectRuntimeError] at line 7 at the toplevel of module "main"

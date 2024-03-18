@@ -3,10 +3,10 @@
 #include "vm.h"
 
 void init_chunk(Chunk* chunk) {
-  chunk->count = 0;
+  chunk->count    = 0;
   chunk->capacity = 0;
-  chunk->code = NULL;
-  chunk->lines = NULL;
+  chunk->code     = NULL;
+  chunk->lines    = NULL;
   init_value_array(&chunk->constants);
 }
 
@@ -14,12 +14,11 @@ void write_chunk(Chunk* chunk, uint16_t data, int line) {
   if (chunk->capacity < chunk->count + 1) {
     int oldCapacity = chunk->capacity;
     chunk->capacity = GROW_CAPACITY(oldCapacity);
-    chunk->code =
-        GROW_ARRAY(uint16_t, chunk->code, oldCapacity, chunk->capacity);
-    chunk->lines = GROW_ARRAY(int, chunk->lines, oldCapacity, chunk->capacity);
+    chunk->code     = GROW_ARRAY(uint16_t, chunk->code, oldCapacity, chunk->capacity);
+    chunk->lines    = GROW_ARRAY(int, chunk->lines, oldCapacity, chunk->capacity);
   }
 
-  chunk->code[chunk->count] = data;
+  chunk->code[chunk->count]  = data;
   chunk->lines[chunk->count] = line;
   chunk->count++;
 }

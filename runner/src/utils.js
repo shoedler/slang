@@ -190,6 +190,15 @@ export const createOrAppendJsonFile = async (file, data, append) => {
 };
 
 /**
+ * Read a file and return it
+ * @param {string} file - Absolute path to file to read
+ * @returns {Promise<any>} - Promise that resolves to the file contents
+ */
+export const readFile = async file => {
+  return await fs.readFile(file, 'utf-8');
+};
+
+/**
  * Parses a slang file and returns comment-based metadata.
  * Metadata is contained in a line comment (//) and is surrounded by brackets.
  * Metadata can have a value which is everything to the right of the closing bracket.
@@ -197,7 +206,7 @@ export const createOrAppendJsonFile = async (file, data, append) => {
  * @returns {{type: string, line: number, value: string}[]} - Array containing metadata
  */
 export const extractCommentMetadata = async file => {
-  const fileContents = await fs.readFile(file, 'utf8');
+  const fileContents = await readFile(file);
   const lines = fileContents.split('\n');
   const metadata = [];
   lines.forEach((l, i) => {
@@ -208,6 +217,29 @@ export const extractCommentMetadata = async file => {
     }
   });
   return metadata;
+};
+
+/**
+ * Update comment-based metadata in a slang file. Only handles [Expect]
+ * @param {string} file - Absolute path to a slang file
+ * @param {{type: string, line: number, value: string}[]} metadata - Array containing the new metadata
+ */
+export const updateCommentMetadata = async (file, metadata) => {
+  const fileContents = await readFile(file);
+  const lines = fileContents.split('\n');
+  metadata.forEach(({ type, line, value }) => {
+    const match = lines[line - 1].match(/(.*)\/\/\s*\[(.+?)\](.*)/);
+    if (match) {
+      const [_, prefix, __, ___] = match;
+      lines[line - 1] = `${prefix}// [${type}] ${value}`;
+    } else
+      throw new Error(
+        `Failed to update metadata in ${file}. Line ${line} does not contain metadata: ${
+          lines[line - 1]
+        }`,
+      );
+  });
+  await fs.writeFile(file, lines.join('\n'), 'utf8');
 };
 
 /**

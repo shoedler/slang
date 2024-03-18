@@ -4,15 +4,20 @@
 #include "compiler.h"
 #include "vm.h"
 
-#ifdef DEBUG_LOG_GC
+#if defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_FREE)
 #include <stdio.h>
 #include "debug.h"
+#include "value.h"
+#endif
+
+#ifdef DEBUG_LOG_GC_FREE
+#include "string.h"
 #endif
 
 void* reallocate(void* pointer, size_t old_size, size_t new_size) {
   vm.bytes_allocated += new_size - old_size;
 
-  if (new_size > old_size) {
+  if (vm.pause_gc == 0 && new_size > old_size) {
     // Only collect_garbage if we're not freeing memory
 #ifdef DEBUG_STRESS_GC
     collect_garbage();
@@ -49,18 +54,15 @@ void mark_obj(Obj* object) {
   }
 
 #ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_YELLOW_STR("[MARK] ") "%p, ",
-         (void*)object);
-  print_value(OBJ_VAL(object));
-  printf("\n");
+  printf(ANSI_RED_STR("[GC] ") ANSI_YELLOW_STR("[MARK] ") "at %p, ", (void*)object);
+  printf("%s\n", type_name(OBJ_VAL(object)));
 #endif
 
   object->is_marked = true;
 
   if (vm.gray_capacity < vm.gray_count + 1) {
     vm.gray_capacity = GROW_CAPACITY(vm.gray_capacity);
-    vm.gray_stack =
-        (Obj**)realloc(vm.gray_stack, sizeof(Obj*) * vm.gray_capacity);
+    vm.gray_stack    = (Obj**)realloc(vm.gray_stack, sizeof(Obj*) * vm.gray_capacity);
 
     // TODO (recovery): Handle out of memory
     if (vm.gray_stack == NULL) {
@@ -90,10 +92,8 @@ void mark_array(ValueArray* array) {
 // been marked as well.
 static void blacken_object(Obj* object) {
 #ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_BLUE_STR("[BLACKEN] ") "%p, ",
-         (void*)object);
-  print_value(OBJ_VAL(object));
-  printf("\n");
+  printf(ANSI_RED_STR("[GC] ") ANSI_BLUE_STR("[BLACKEN] ") "at %p, ", (void*)object);
+  printf("%s\n", type_name(OBJ_VAL(object)));
 #endif
 
   switch (object->type) {
@@ -106,6 +106,7 @@ static void blacken_object(Obj* object) {
     case OBJ_CLASS: {
       ObjClass* klass = (ObjClass*)object;
       mark_obj((Obj*)klass->name);
+      mark_obj((Obj*)klass->base);
       mark_hashtable(&klass->methods);
       break;
     }
@@ -120,6 +121,7 @@ static void blacken_object(Obj* object) {
     case OBJ_FUNCTION: {
       ObjFunction* function = (ObjFunction*)object;
       mark_obj((Obj*)function->name);
+      mark_obj((Obj*)function->globals_context);
       mark_array(&function->chunk.constants);
       break;
     }
@@ -129,17 +131,14 @@ static void blacken_object(Obj* object) {
       mark_hashtable(&instance->fields);
       break;
     }
-    case OBJ_UPVALUE:
-      mark_value(((ObjUpvalue*)object)->closed);
-      break;
+    case OBJ_UPVALUE: mark_value(((ObjUpvalue*)object)->closed); break;
     case OBJ_SEQ: {
       ObjSeq* seq = (ObjSeq*)object;
       mark_array(&seq->items);
       break;
     }
     case OBJ_NATIVE:
-    case OBJ_STRING:
-      break;
+    case OBJ_STRING: break;
     default:
       break;  // TODO (recovery): What do we do here? Throw? Probably yes, bc we
               // need to mark all objects
@@ -149,15 +148,15 @@ static void blacken_object(Obj* object) {
 // Frees an object from our heap.
 // How we free an object depends on its type.
 static void free_object(Obj* object) {
-#ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "%p, type %s\n",
-         (void*)object, obj_type_to_string(object->type));
+#ifdef DEBUG_LOG_GC_FREE
+  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "at %p, type: %s, value: ", (void*)object,
+         type_name(OBJ_VAL(object)));
+  print_value_safe(stdout, OBJ_VAL(object));
+  printf("\n");
 #endif
 
   switch (object->type) {
-    case OBJ_BOUND_METHOD:
-      FREE(ObjBoundMethod, object);
-      break;
+    case OBJ_BOUND_METHOD: FREE(ObjBoundMethod, object); break;
     case OBJ_CLASS: {
       ObjClass* klass = (ObjClass*)object;
       free_hashtable(&klass->methods);
@@ -182,9 +181,7 @@ static void free_object(Obj* object) {
       FREE(ObjInstance, object);
       break;
     }
-    case OBJ_NATIVE:
-      FREE(ObjNative, object);
-      break;
+    case OBJ_NATIVE: FREE(ObjNative, object); break;
     case OBJ_STRING: {
       ObjString* string = (ObjString*)object;
       FREE_ARRAY(char, string->chars, string->length + 1);
@@ -216,8 +213,7 @@ void free_objects() {
   free(vm.gray_stack);
 }
 
-// Starts at the roots of the objects in the heap and marks all reachable
-// objects.
+// Starts at the roots of the objects in the heap and marks all reachable objects.
 static void mark_roots() {
   // Most roots are local variables, which are on the stack.
   for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
@@ -230,20 +226,38 @@ static void mark_roots() {
   }
 
   // Open upvalues are also roots directly accessible by the vm.
-  for (ObjUpvalue* upvalue = vm.open_upvalues; upvalue != NULL;
-       upvalue = upvalue->next) {
+  for (ObjUpvalue* upvalue = vm.open_upvalues; upvalue != NULL; upvalue = upvalue->next) {
     mark_obj((Obj*)upvalue);
   }
 
-  // Also mark the globals hashtable.
-  mark_hashtable(&vm.globals);
+  // Also mark the module, if there is one.
+  if (vm.module != NULL) {
+    mark_obj((Obj*)vm.module);
+  }
+
+  // And the modules hashtable.
+  mark_hashtable(&vm.modules);
+
+  // And the base classes
+  mark_obj((Obj*)vm.object_class);
+  mark_obj((Obj*)vm.module_class);
+  mark_obj((Obj*)vm.string_class);
+  mark_obj((Obj*)vm.number_class);
+  mark_obj((Obj*)vm.bool_class);
+  mark_obj((Obj*)vm.nil_class);
+  mark_obj((Obj*)vm.seq_class);
+
+  // And the builtin object.
+  mark_obj((Obj*)vm.builtin);
+
+  // And the reserved names.
+  for (int i = 0; i < WORD_MAX; i++) {
+    mark_value(vm.cached_words[i]);
+  }
 
   // And the compiler roots. The GC can run while compiling, so we need to mark
   // the compiler's internal state as well.
   mark_compiler_roots();
-
-  // And the init string.
-  mark_obj((Obj*)vm.init_string);
 }
 
 // Traces all references from the gray stack and marks them black e.g. marking
@@ -262,13 +276,13 @@ static void trace_references() {
 // mark phase and are therefore unreachable.
 static void sweep() {
   Obj* previous = NULL;
-  Obj* object = vm.objects;
+  Obj* object   = vm.objects;
 
   while (object != NULL) {
     if (object->is_marked) {
       object->is_marked = false;  // Unmark for next gc cycle
-      previous = object;
-      object = object->next;
+      previous          = object;
+      object            = object->next;
     } else {
       Obj* unreached = object;
 
@@ -301,13 +315,18 @@ void collect_garbage() {
   hashtable_remove_white(&vm.strings);
   sweep();
 
-  vm.next_gc = vm.bytes_allocated * GC_HEAP_GROW_FACTOR;
+  // If we reach the threshold, we grow the heap by adding a fixed amount of
+  // bytes. This ties next_gc down to earth, so it
+  // doesn't grow into the abyss of the space-time continuum.
+  if (vm.bytes_allocated < GC_HEAP_GROW_THRESHOLD) {
+    vm.next_gc = vm.bytes_allocated * GC_HEAP_GROW_FACTOR;
+  } else {
+    vm.next_gc = vm.bytes_allocated + GC_HEAP_GROW_THRESHOLD;
+  }
 
 #ifdef DEBUG_LOG_GC
-  printf(
-      ANSI_RED_STR(
-          "[GC] ") "Done. collected %zu bytes (from %zu to %zu) next at %zu\n",
-      before - vm.bytes_allocated, before, vm.bytes_allocated, vm.next_gc);
+  printf(ANSI_RED_STR("[GC] ") "Done. collected %zu bytes (from %zu to %zu) next at %zu\n",
+         before - vm.bytes_allocated, before, vm.bytes_allocated, vm.next_gc);
   printf("== Gc end collect ==\n");
 #endif
 }

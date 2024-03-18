@@ -6,9 +6,77 @@ import {
   extractCommentMetadata,
   findFiles,
   info,
+  readFile,
   runProcess,
   runSlangFile,
 } from './utils.js';
+
+import http from 'node:http';
+
+/**
+ * @typedef {{
+ *   benchmarkType: "ThroughputBenchmark",
+ *   name: string,
+ *   throughput: number,
+ *   value: any,
+ *   durationInSecs: number
+ * }} ThroughputBenchmark
+ */
+
+/**
+ * @typedef {{
+ *   benchmarkType: "LatencyBenchmark",
+ *   name: string,
+ *   expectedValue: number,
+ *   value: number,
+ *   durationInSecs: number
+ * }} LatencyBenchmark
+ */
+
+/**
+ * @typedef {{
+ *   date: Date;
+ *   commit: {
+ *    date: string;
+ *    hash: string;
+ *    message: string;
+ *   };
+ *   processorName: string;
+ *   config: "Debug" | "Release";
+ *   benchmark: ThroughputBenchmark | LatencyBenchmark;
+ * }} BenchmarkResult
+ */
+
+export const serveResults = async () => {
+  const clientCodeFile = path.join(SLANG_BENCH_DIR, 'client.js');
+  const indexHtmlFile = path.join(SLANG_BENCH_DIR, 'index.html');
+  const benchLogFile = path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE);
+
+  const server = http.createServer((req, res) => {
+    if (req.url === '/') {
+      readFile(indexHtmlFile).then(indexHtml => {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(indexHtml);
+      });
+    } else if (req.url === '/client') {
+      readFile(clientCodeFile).then(clientCode => {
+        res.writeHead(200, { 'Content-Type': 'application/javascript' });
+        res.end(clientCode);
+      });
+    } else if (req.url === '/results') {
+      readFile(benchLogFile).then(rawResults => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(JSON.parse(rawResults), null, 2));
+      });
+    } else {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not found');
+    }
+  });
+
+  server.listen(8080);
+  info('Server running at http://localhost:8080/');
+};
 
 /**
  * Finds all benchmarks in the slang bench directory
@@ -53,7 +121,7 @@ const getProcessorName = async () => {
 /**
  * Get a benchmark result factory function for a given benchmark metadata
  * @param {ReturnType<extractCommentMetadata>} metadata - Metadata extracted from benchmark file
- * @returns {(output: string[]) => object} - Benchmark result factory function
+ * @returns {(output: string[]) => LatencyBenchmark | ThroughputBenchmark } - Benchmark result factory function
  */
 const getBenchmarkFactory = metadata => {
   if (metadata[0].type === 'LatencyBenchmark') {
@@ -164,6 +232,7 @@ export const runBenchmarks = async configs => {
       }
 
       const benchmarkResult = benchmark.benchmarkFactory(output);
+
       results.push({
         date,
         commit,

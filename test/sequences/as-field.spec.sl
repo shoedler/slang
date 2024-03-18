@@ -4,4 +4,4 @@ cls X {
   }
 }
 
-print X().list // [Expect] {Seq 1 [Foo]}
+print X().list // [Expect] [Foo]

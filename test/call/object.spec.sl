@@ -1,5 +1,5 @@
 cls Foo {}
 
 let foo = Foo()
-foo() // [ExpectRuntimeError] Can only call functions and classes.
-      // [ExpectRuntimeError] at line 4 at the toplevel
+foo() // [ExpectRuntimeError] Attempted to call non-callable value of type Instance.
+      // [ExpectRuntimeError] at line 4 at the toplevel of module "main"

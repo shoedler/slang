@@ -2,57 +2,56 @@
 
 # slang
 
-A stack-based bytecode Vm written in C, based on the book [Crafting Interpreters](https://craftinginterpreters.com/).
-In contrast to the book, this Vm is not focused on space-efficiency, but more on ease of implementation and speed.
+A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), garbage-collected and object-oriented programming language with a syntax that is inspired by C, JavaScript and Python.
 
 ## Roadmap
 
-### Initial
-
-- [x] Base implementation of the VM
-- [x] Fix GC Bug in current sample script
-- [x] Align fn syntax
-- [x] Add tests according to the original repository of bob nystrom
-- [x] `cls B < A {}` crashes the VM
-- [x] Re-read the book & comment the code accordingly (Continue in chapter 27)
-- [x] Merge "function" and "functions" tests directories
-- [x] Rename "super" test cases to "base"
-
 ### Syntax & Language Features
 
-- [ ] Add tests for anonymous functions
 - [ ] Implement `+=`, `-=`, `*=`, `/=`, `%=`
-- [ ] Challenges to implement:
-  - [ ] 24 $\to$ 1: Move `ip` into a register. This is a must-have.
-  - [x] 14 $\to$ 2: Allow more than 256 constants per chunk ~~by adding `OP_CONSTANT_LONG`~~. This is a must-have. (Just bumped the stack-width to 16 bits - lol)
-  - [x] 22 $\to$ 4: Allow more than 256 locals per scope. This is a must-have. (Just bumped the stack-width to 16 bits - lol)
-  - [ ] 17 $\to$ 3: Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `a ? b else c`. This is a must-have.
-  - [ ] 16 $\to$ 1: String interpolation. C#-style `$"Hello {name}"`
-  - [ ] 21 $\to$ 2: Constant time global variable lookup.
-  - [ ] 23 $\to$ 2: `continue` Statement
-  - [ ] 23 $\to$ 1: `switch` Statement. Starting point for the `match` statement.
-  - [ ] 20 $\to$ 1: Index a hashtable with any primitive. This is a good introduction to the goal of being able to index with reference types.
-  - [ ] 19 $\to$ 1: Store strings as flexible array members
-  - [ ] 25 $\to$ 2: Closing over the loop variable.
-  - [ ] 22 $\to$ 3: Add `const`
-  - [ ] 15 $\to$ 4: Single-op unaries. Not fully-fledged constant folding, but a good start.
-  - [ ] 25 $\to$ 1: Only necessary closures. Evaluate this, maybe it's not worth it.
-  - [ ] 28 $\to$ 1: Cache `ctor` keyword. Low prio.
-  - [ ] 28 $\to$ 3: Differentiate between fields and methods textually. Use an array for lookup. Low prio. Would be nice to allow field-inheritance - this could be a major rewrite though.
+- [ ] Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `a then b else c`. This is a must-have. (**_See Challenge 17.3_**)
+- [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
+- [ ] `continue` Statement (**_See Challenge 23.2_**)
+- [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
+- [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
+- [ ] Add `const` (**_See Challenge 22.3_**)
+- [ ] `switch` Statement. Starting point for the `match` statement. (**_See Challenge 23.1_**)
 - [ ] Implement `break`
-- [x] Implement sequences
-- [ ] Implement hashtable keys for all types: Objs are by reference, primitives and strings by value
+
+## Improvements
+
+- [ ] Move exit codes to `common.h` and replace all magic numbers with them
+- [ ] Align error messages. Some use `'` around names, or type names, some don't.
+- [ ] Add tests for to_str and overriden to_strs
 - [ ] Allow return stats without suffixed `;`
-
-### Modularity & Standard Library
-
-Devise a system to load modules. I want most of the stdlib to be native code to improve performance, but I also want to be able to load modules from disk.
-
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
-- [ ] Add type conversion functions. Proposal: `int()`, `float()`, `str()`, `bool()`
-- [ ] Add type checking functions. Proposal: `type()` and `Num`, `Str`, `Bool` or `@num`, `@str`, `@bool`
-- [ ] Add sequences
-- [ ] Add objects
+- [x] Add tests for anonymous functions
+- [x] Add tests for sequences
+- [x] Allow more than 256 constants per chunk ~~by adding `OP_CONSTANT_LONG`~~. This is a must-have. (Just bumped the stack-width to 16 bits - lol) (**_See Challenge 14.2_**)
+- [x] Allow more than 256 locals per scope. This is a must-have. (Just bumped the stack-width to 16 bits - lol) (**_See Challenge 22.4_**)
+- [x] Add tests for modules
+- [x] Update tests for native functions
+- [x] Add test for bound native methods.
+- [x] Make macros in `value.h` for internal types and their values (e.g. `true` and `false`).
+- [x] Add a test for `ObjBoundMethod` where it's method is a `NativeFn`, because it was previously only a `ObjClosure`.
+- [x] Add type conversion functions. Proposal: `int()`, `float()`, `to_str()`, `bool()`
+- [x] Add type checking functions. Proposal: `type()` and `Num`, `Str`, `Bool` or `@num`, `@str`, `@bool`
+- [x] Add sequences
+- [x] Index a hashtable with any primitive. ~~This is a good introduction to the goal of being able to index with reference types.~~ $\to$ Done. Added indexing by reference aswell. (**_See Challenge 20.1_**)
+
+### Optimizations
+
+- [ ] Implement a fast hashtable-get function which uses a shortened version of `find_entry`.
+- [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
+- [ ] Improve `hash_value` and `values_equal`. I guess with the switch to allowing all values as keys it went down the drain.
+- [ ] Constant time global variable lookup. (**_See Challenge 21.2_**)
+- [ ] Cache function / method calls in the Vm
+- [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
+- [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
+- [ ] (Unsure) Differentiate between fields and methods textually. Use an array for lookup. Low prio. Would be nice to allow field-inheritance - this could be a major rewrite though. (**_See Challenge 28.3_**)
+- [x] ⚠️ Re-add `OP_INVOKE`
+- [x] Cache modules in the Vm. It's awfully slow and happens during runtime... I hate that very much.
+- [x] Cache `ctor` keyword. Low prio. (**_See Challenge 28.1_**)
 
 ## Ideas
 
@@ -63,5 +62,7 @@ Devise a system to load modules. I want most of the stdlib to be native code to 
 
 ## References
 
+- Based on the book [Crafting Interpreters](https://craftinginterpreters.com/). In contrast to the book, this Vm is not focused on space-efficiency, but more on ease of implementation and speed.
+- https://github.com/kuroko-lang/kuroko
 - https://github.com/Janko-dev/yabil/
 - https://luajit.org/luajit.html

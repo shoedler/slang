@@ -1,1 +1,2 @@
-ret "wat"; // [ExpectCompileError] Compile error at line 1 at 'ret': Can't return from top-level code.
+ret "wat"; // That's allowed now that we have modules. Let's see if we keep it that way.
+
