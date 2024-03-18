@@ -13,15 +13,38 @@ void init_value_array(ValueArray* array) {
   array->count    = 0;
 }
 
-void write_value_array(ValueArray* array, Value value) {
-  if (array->capacity < array->count + 1) {
+// Updates the capacity of the value array based on the provided count offset. It grows or shrinks the array's
+// capacity only if the new count surpasses growth thresholds or falls below shrinkage criteria.
+static void ensure_value_array_capacity(ValueArray* array, int count_offset) {
+  int new_count = array->count + count_offset;
+  if (SHOULD_GROW(new_count, array->capacity)) {
+    // Grow
     int old_capacity = array->capacity;
     array->capacity  = GROW_CAPACITY(old_capacity);
-    array->values    = GROW_ARRAY(Value, array->values, old_capacity, array->capacity);
+    array->values    = RESIZE_ARRAY(Value, array->values, old_capacity, array->capacity);
+  } else if (SHOULD_SHRINK(new_count, array->capacity)) {
+    // Shrink
+    int old_capacity = array->capacity;
+    array->capacity  = SHRINK_CAPACITY(old_capacity);
+    array->values    = RESIZE_ARRAY(Value, array->values, old_capacity, array->capacity);
   }
+}
+
+void write_value_array(ValueArray* array, Value value) {
+  ensure_value_array_capacity(array, +1);
 
   array->values[array->count] = value;
   array->count++;
+}
+
+Value pop_value_array(ValueArray* array) {
+  if (array->count == 0) {
+    return NIL_VAL;
+  }
+  array->count--;
+  Value value = array->values[array->count];
+  ensure_value_array_capacity(array, -1);
+  return value;
 }
 
 void free_value_array(ValueArray* array) {

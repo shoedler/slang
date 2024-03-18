@@ -129,6 +129,10 @@ void init_value_array(ValueArray* array);
 // Write a value to a value array.
 void write_value_array(ValueArray* array, Value value);
 
+// Pop a value from a value array.
+// Returns NIL_VAL if the array is empty.
+Value pop_value_array(ValueArray* array);
+
 // Free a value array.
 void free_value_array(ValueArray* array);
 

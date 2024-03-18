@@ -44,6 +44,8 @@ static Value __builtin_seq_to_str(int argc, Value argv[]);
 static Value __builint_hash_value(int argc, Value argv[]);
 static Value __builtin_str_len(int argc, Value argv[]);
 static Value __builtin_seq_len(int argc, Value argv[]);
+static Value __builtin_seq_push(int argc, Value argv[]);
+static Value __builtin_seq_pop(int argc, Value argv[]);
 
 static Value __builtin_num_ctor(int argc, Value argv[]);
 static Value __builtin_bool_ctor(int argc, Value argv[]);
@@ -152,7 +154,7 @@ static void make_seq(int count) {
   ValueArray items;
   init_value_array(&items);
 
-  items.values   = GROW_ARRAY(Value, items.values, 0, count);
+  items.values   = RESIZE_ARRAY(Value, items.values, 0, count);
   items.capacity = count;
   items.count    = count;
 
@@ -238,6 +240,8 @@ void init_vm() {
   define_native(&vm.seq_class->methods, KEYWORD_CONSTRUCTOR, __builtin_seq_ctor);
   define_native(&vm.seq_class->methods, "to_str", __builtin_seq_to_str);
   define_native(&vm.seq_class->methods, "len", __builtin_seq_len);
+  define_native(&vm.seq_class->methods, "push", __builtin_seq_push);
+  define_native(&vm.seq_class->methods, "pop", __builtin_seq_pop);
 
   // Create the module class
   vm.module_class = new_class(copy_string("Module", 6), vm.object_class);
@@ -1033,6 +1037,45 @@ static Value __builtin_seq_len(int argc, Value argv[]) {
 
   int length = AS_SEQ(argv[0])->items.count;
   return NUMBER_VAL(length);
+}
+
+// Built-in function to push an arbitrary amount of values onto a sequence
+static Value __builtin_seq_push(int argc, Value argv[]) {
+  if (argc < 1) {
+    runtime_error("Expected at least 1 argument but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (!IS_SEQ(argv[0])) {
+    runtime_error("Expected a " TYPENAME_SEQ " but got %s.", type_name(argv[0]));
+    return exit_with_runtime_error();
+  }
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+  for (int i = 1; i <= argc; i++) {
+    write_value_array(&seq->items, argv[i]);
+  }
+  return NIL_VAL;
+}
+
+// Built-in function to pop a value from a sequence
+static Value __builtin_seq_pop(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (!IS_SEQ(argv[0])) {
+    runtime_error("Expected a " TYPENAME_SEQ " but got %s.", type_name(argv[0]));
+    return exit_with_runtime_error();
+  }
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+  if (seq->items.count == 0) {
+    return NIL_VAL;
+  }
+
+  return pop_value_array(&seq->items);
 }
 
 // Binds a method to an instance by creating a new bound method object and

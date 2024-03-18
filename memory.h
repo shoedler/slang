@@ -14,15 +14,31 @@
 // Free memory of an array by resizing it to 0. Might trigger gc.
 #define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
 
-// Grow the capacity of a dynamic array.
-// Factor 2 is used, which is common for dynamic arrays.
+// Factor 2 is used, which is common for dynamic arrays. This value should be
 // First-timers:
 // https://en.wikipedia.org/wiki/Dynamic_array#Geometric_expansion_and_amortized_cost
+#define ARRAY_GROWTH_FACTOR 2
+
+// Initial capacity of a dynamic array, when first writing to it.
+#define INITIAL_ARRAY_CAPACITY 8
+
+// Grow the capacity of a dynamic array.
 // We start by setting the capacity to 8, to avoid reallocating too often.
-#define GROW_CAPACITY(capacity) ((capacity) < 8 ? 8 : (capacity) * 2)
+#define GROW_CAPACITY(capacity) \
+  ((capacity) < INITIAL_ARRAY_CAPACITY ? INITIAL_ARRAY_CAPACITY : (capacity) * ARRAY_GROWTH_FACTOR)
+
+// Shrink the capacity of a dynamic array.
+#define SHRINK_CAPACITY(capacity) ((capacity) / ARRAY_GROWTH_FACTOR)
+
+// Tests whether the dynamic array should be grown.
+#define SHOULD_GROW(target_count, current_capacity) (target_count > current_capacity)
+
+// Tests whether the dynamic array should be shrunk.
+#define SHOULD_SHRINK(target_count, current_capacity) \
+  (target_count < current_capacity / 4 && current_capacity > INITIAL_ARRAY_CAPACITY)
 
 // Grow a dynamic array.
-#define GROW_ARRAY(type, pointer, old_count, new_count) \
+#define RESIZE_ARRAY(type, pointer, old_count, new_count) \
   (type*)reallocate(pointer, sizeof(type) * (old_count), sizeof(type) * (new_count))
 
 // Free a dynamic array.

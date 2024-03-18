@@ -562,5 +562,73 @@
       "value": "60240000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-03-18T21:01:11.442Z",
+    "commit": {
+      "date": "2024-03-18 16:54:00 +0100",
+      "hash": "c2fca28ffd81fd0b47b648cca6a86d21520578c1",
+      "message": "Merge pull request #1 from shoedler/feat/modules"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "7.898000"
+    }
+  },
+  {
+    "date": "2024-03-18T21:01:11.442Z",
+    "commit": {
+      "date": "2024-03-18 16:54:00 +0100",
+      "hash": "c2fca28ffd81fd0b47b648cca6a86d21520578c1",
+      "message": "Merge pull request #1 from shoedler/feat/modules"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "1.029000"
+    }
+  },
+  {
+    "date": "2024-03-18T21:01:11.442Z",
+    "commit": {
+      "date": "2024-03-18 16:54:00 +0100",
+      "hash": "c2fca28ffd81fd0b47b648cca6a86d21520578c1",
+      "message": "Merge pull request #1 from shoedler/feat/modules"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "168",
+      "value": "10080000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-03-18T21:01:11.442Z",
+    "commit": {
+      "date": "2024-03-18 16:54:00 +0100",
+      "hash": "c2fca28ffd81fd0b47b648cca6a86d21520578c1",
+      "message": "Merge pull request #1 from shoedler/feat/modules"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "1054",
+      "value": "63240000",
+      "durationInSecs": "5"
+    }
   }
 ]
