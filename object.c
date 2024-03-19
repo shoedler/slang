@@ -125,6 +125,12 @@ ObjSeq* take_seq(ValueArray items) {
   return list;
 }
 
+ObjMap* take_map(HashTable entries) {
+  ObjMap* map  = ALLOCATE_OBJ(ObjMap, OBJ_MAP);
+  map->entries = entries;
+  return map;
+}
+
 ObjString* take_string(char* chars, int length) {
   uint32_t hash       = hash_string(chars, length);
   ObjString* interned = hashtable_find_string(&vm.strings, chars, length, hash);

@@ -7,6 +7,7 @@
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
 typedef struct ObjSeq ObjSeq;
+typedef struct ObjMap ObjMap;
 
 // The type of a value.
 typedef enum {
@@ -22,6 +23,7 @@ typedef enum {
 #define TYPENAME_BOOL "Bool"
 #define TYPENAME_NIL "Nil"
 #define TYPENAME_SEQ "Seq"
+#define TYPENAME_MAP "Map"
 #define TYPENAME_BOUND_METHOD "BoundMethod"
 #define TYPENAME_CLASS "Class"
 #define TYPENAME_CLOSURE "Fn"
@@ -51,6 +53,10 @@ typedef enum {
 #define VALUE_STR_SEQ_START "["
 #define VALUE_STR_SEQ_DELIM ", "
 #define VALUE_STR_SEQ_END "]"
+#define VALUE_STR_MAP_START "{"
+#define VALUE_STR_MAP_END "}"
+#define VALUE_STR_MAP_SEPARATOR ": "
+#define VALUE_STR_MAP_DELIM ", "
 #define VALUE_STR_UPVALUE "<Upvalue>"
 
 #define INSTANCENAME_BUILTIN "__builtin"

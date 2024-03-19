@@ -280,11 +280,10 @@
 // print std.__file_path
 
 
-let g = []
-for let i = 0; i < 100; i=i+1; {
-  g.push(i)
-}
-print g.len()
-for let i = 100; i > 0; i=i-1; {
-  print g.pop()
-}
+let g = { 1:2, "a": "b", false: true }
+
+print g
+// print g.entries()
+// print g.keys()
+// print g.values()
+// print g.len()

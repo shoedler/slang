@@ -222,6 +222,23 @@ int print_value_safe(FILE* f, Value value) {
       written += fprintf(f, VALUE_STR_SEQ_END);
       return written;
     }
+    case OBJ_MAP: {
+      ObjMap* map = AS_MAP(value);
+      int written = fprintf(f, VALUE_STR_MAP_START);
+      for (int i = 0; i < map->entries.count; i++) {
+        Entry* entry = &map->entries.entries[i];
+        if (!IS_NIL(entry->key)) {
+          written += print_value_safe(f, entry->key);
+          written += fprintf(f, VALUE_STR_MAP_SEPARATOR);
+          written += print_value_safe(f, entry->value);
+          if (i < map->entries.capacity - 1) {
+            written += fprintf(f, VALUE_STR_MAP_DELIM);
+          }
+        }
+      }
+      written += fprintf(f, VALUE_STR_MAP_END);
+      return written;
+    }
     default: return fprintf(f, VALUE_STRFMT_OBJ, type_name(value), (void*)AS_OBJ(value));
   }
 }

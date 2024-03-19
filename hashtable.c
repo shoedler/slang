@@ -9,6 +9,19 @@ void init_hashtable(HashTable* table) {
   table->entries  = NULL;
 }
 
+void init_hashtable_with_capacity(HashTable* table, int capacity) {
+  int target_capacity =
+      (capacity * TABLE_MAX_LOAD_INV) + 1;  // Add 1 to ensure that the capacity is at least 1.
+
+  table->count    = 0;
+  table->capacity = target_capacity;
+  table->entries  = ALLOCATE(Entry, target_capacity);
+  for (int i = 0; i < target_capacity; i++) {
+    table->entries[i].key   = EMPTY_INTERNAL_VAL;
+    table->entries[i].value = NIL_VAL;
+  }
+}
+
 void free_hashtable(HashTable* table) {
   FREE_ARRAY(Entry, table->entries, table->capacity);
   init_hashtable(table);

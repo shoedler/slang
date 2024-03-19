@@ -137,6 +137,11 @@ static void blacken_object(Obj* object) {
       mark_array(&seq->items);
       break;
     }
+    case OBJ_MAP: {
+      ObjMap* map = (ObjMap*)object;
+      mark_hashtable(&map->entries);
+      break;
+    }
     case OBJ_NATIVE:
     case OBJ_STRING: break;
     default:
@@ -192,6 +197,12 @@ static void free_object(Obj* object) {
       ObjSeq* seq = (ObjSeq*)object;
       free_value_array(&seq->items);
       FREE(ObjSeq, object);
+      break;
+    }
+    case OBJ_MAP: {
+      ObjMap* map = (ObjMap*)object;
+      free_hashtable(&map->entries);
+      FREE(ObjMap, object);
       break;
     }
     case OBJ_UPVALUE:

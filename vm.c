@@ -40,18 +40,27 @@ static Value __builtin_nil_to_str(int argc, Value argv[]);
 static Value __builtin_number_to_str(int argc, Value argv[]);
 static Value __builtin_string_to_str(int argc, Value argv[]);
 static Value __builtin_seq_to_str(int argc, Value argv[]);
+static Value __builtin_map_to_str(int argc, Value argv[]);
 
 static Value __builint_hash_value(int argc, Value argv[]);
+
 static Value __builtin_str_len(int argc, Value argv[]);
+
 static Value __builtin_seq_len(int argc, Value argv[]);
 static Value __builtin_seq_push(int argc, Value argv[]);
 static Value __builtin_seq_pop(int argc, Value argv[]);
+
+static Value __builtin_map_len(int argc, Value argv[]);
+static Value __builtin_map_entries(int argc, Value argv[]);
+static Value __builtin_map_keys(int argc, Value argv[]);
+static Value __builtin_map_values(int argc, Value argv[]);
 
 static Value __builtin_num_ctor(int argc, Value argv[]);
 static Value __builtin_bool_ctor(int argc, Value argv[]);
 static Value __builtin_nil_ctor(int argc, Value argv[]);
 static Value __builtin_str_ctor(int argc, Value argv[]);
 static Value __builtin_seq_ctor(int argc, Value argv[]);
+static Value __builtin_map_ctor(int argc, Value argv[]);
 
 static Value native_clock(int argc, Value argv[]);
 static Value native_cwd(int argc, Value argv[]);
@@ -169,6 +178,34 @@ static void make_seq(int count) {
   push(OBJ_VAL(seq));
 }
 
+// Creates a map from the top "count" * 2 values on the stack.
+// The resulting map is pushed onto the stack.
+static void make_map(int count) {
+  // Since we know the count, we can preallocate the hashtable for the map. This allows
+  // using hashtable_set within the loop. We don't have to worry about it wanting to resize the hashtable,
+  // which can trigger a GC and free items in the middle of the loop, because it already has enough capacity.
+  // Also, it lets us pop the map items on the stack, instead of peeking and then having to pop them later
+  // (Requiring us to loop over the keys and values twice)
+  HashTable entries;
+  init_hashtable_with_capacity(&entries, count);
+
+  for (int i = 0; i < count * 2; i += 2) {
+    Value value = pop();
+    Value key   = pop();
+    if (IS_NIL(key)) {
+      runtime_error("Map keys cannot be nil.");
+      exit_with_runtime_error();
+      push(NIL_VAL);
+      return;
+    }
+    hashtable_set(&entries, key, value);
+  }
+
+  ObjMap* map = take_map(&entries);
+
+  push(OBJ_VAL(map));
+}
+
 void init_vm() {
   reset_stack();
   vm.objects         = NULL;
@@ -243,6 +280,16 @@ void init_vm() {
   define_native(&vm.seq_class->methods, "push", __builtin_seq_push);
   define_native(&vm.seq_class->methods, "pop", __builtin_seq_pop);
 
+  // Create the map class
+  vm.map_class = new_class(copy_string(TYPENAME_MAP, sizeof(TYPENAME_MAP) - 1), vm.object_class);
+  define_obj(&vm.builtin->fields, TYPENAME_MAP, (Obj*)vm.map_class);
+  define_native(&vm.map_class->methods, KEYWORD_CONSTRUCTOR, __builtin_map_ctor);
+  define_native(&vm.map_class->methods, "to_str", __builtin_map_to_str);
+  define_native(&vm.map_class->methods, "len", __builtin_map_len);
+  define_native(&vm.map_class->methods, "entries", __builtin_map_entries);
+  define_native(&vm.map_class->methods, "keys", __builtin_map_keys);
+  define_native(&vm.map_class->methods, "values", __builtin_map_values);
+
   // Create the module class
   vm.module_class = new_class(copy_string("Module", 6), vm.object_class);
   define_obj(&vm.builtin->fields, "Module", (Obj*)vm.module_class);
@@ -286,6 +333,7 @@ static ObjClass* type_of(Value value) {
         switch (OBJ_TYPE(value)) {
           case OBJ_STRING: return vm.string_class;
           case OBJ_SEQ: return vm.seq_class;
+          case OBJ_MAP: return vm.map_class;
         }
       }
     }
@@ -519,6 +567,7 @@ static ObjString* fast_to_str(Value value) {
       switch (OBJ_TYPE(value)) {
         case OBJ_STRING: return AS_STRING(__builtin_string_to_str(0, &value));
         case OBJ_SEQ: return AS_STRING(__builtin_seq_to_str(0, &value));
+        case OBJ_MAP: return AS_STRING(__builtin_map_to_str(0, &value));
         default: break;
       }
       break;
@@ -933,8 +982,6 @@ static Value __builtin_str_ctor(int argc, Value argv[]) {
   return exec_method(copy_string("to_str", 6), 0);  // Convert to string
 }
 
-// Built-in seq constructor. Used if the user wants to create a sequence with a specific length. (e.g.
-// Seq(20) ) Won't run if the user creates a seq via literal syntax.
 static Value __builtin_seq_ctor(int argc, Value argv[]) {
   if (argc == 0) {
     ValueArray items;
@@ -965,6 +1012,18 @@ static Value __builtin_seq_ctor(int argc, Value argv[]) {
 
   pop();  // The seq
   return OBJ_VAL(seq);
+}
+
+static Value __builtin_map_ctor(int argc, Value argv[]) {
+  if (argc == 0) {
+    HashTable entries;
+    init_hashtable(&entries);
+    ObjMap* map = take_map(&entries);
+    return OBJ_VAL(map);
+  }
+
+  runtime_error("Expected 0 arguments but got %d.", argc);
+  return exit_with_runtime_error();
 }
 
 // Built-in function to convert a sequence to a string
@@ -1017,6 +1076,63 @@ static Value __builtin_seq_to_str(int argc, Value argv[]) {
   return exit_with_runtime_error();
 }
 
+// Built-in function to convert a map to a string
+static Value __builtin_map_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (IS_MAP(argv[0])) {
+    ObjMap* map     = AS_MAP(argv[0]);
+    size_t buf_size = 64;  // Start with a reasonable size
+    char* chars     = malloc(buf_size);
+
+    strcpy(chars, VALUE_STR_MAP_START);
+    for (int i = 0; i < map->entries.count; i++) {
+      // Use the default to-string method of the value to convert the item to a string
+      push(map->entries.entries[i].key);  // Push the receiver (key at i) for to_str
+      ObjString* key_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));  // Convert to string
+
+      push(map->entries.entries[i].value);  // Push the receiver (value at i) for to_str
+      ObjString* value_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));  // Convert to string
+
+      // Expand chars to fit the separator, delimiter plus the next key and value
+      size_t new_buf_size = strlen(chars) + strlen(key_str->chars) + strlen(value_str->chars) +
+                            (sizeof(VALUE_STR_MAP_SEPARATOR) - 1) + (sizeof(VALUE_STR_MAP_DELIM) - 1) +
+                            (sizeof(VALUE_STR_MAP_END) - 1);  // Consider the closing bracket -
+                                                              // if we're done after this
+                                                              // iteration we won't need to
+                                                              // expand and can just slap it on there
+      if (new_buf_size > buf_size) {
+        buf_size = new_buf_size;
+        chars    = realloc(chars, buf_size);
+        if (chars == NULL) {
+          return OBJ_VAL(copy_string("{???}", 5));
+        }
+      }
+
+      strcat(chars, key_str->chars);
+      strcat(chars, VALUE_STR_MAP_SEPARATOR);
+      strcat(chars, value_str->chars);
+      if (i < map->entries.count - 1) {
+        strcat(chars, VALUE_STR_MAP_DELIM);
+      }
+    }
+
+    strcat(chars, VALUE_STR_MAP_END);
+
+    // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+    // allocates the memory - we don't want this block in our own memory pool.
+    ObjString* str_obj = copy_string(chars, (int)buf_size);
+    free(chars);
+    return OBJ_VAL(str_obj);
+  }
+
+  runtime_error("Expected a " TYPENAME_MAP " but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+}
+
 // Built-in function to retrieve the length of a string
 static Value __builtin_str_len(int argc, Value argv[]) {
   if (argc != 0) {
@@ -1036,6 +1152,17 @@ static Value __builtin_seq_len(int argc, Value argv[]) {
   }
 
   int length = AS_SEQ(argv[0])->items.count;
+  return NUMBER_VAL(length);
+}
+
+// Built-in function to retrieve the length of a map
+static Value __builtin_map_len(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  int length = AS_MAP(argv[0])->entries.count;
   return NUMBER_VAL(length);
 }
 
@@ -1076,6 +1203,16 @@ static Value __builtin_seq_pop(int argc, Value argv[]) {
   }
 
   return pop_value_array(&seq->items);
+}
+
+static Value __builtin_map_entries(int argc, Value argv[]) {
+  return NIL_VAL;
+}
+static Value __builtin_map_keys(int argc, Value argv[]) {
+  return NIL_VAL;
+}
+static Value __builtin_map_values(int argc, Value argv[]) {
+  return NIL_VAL;
 }
 
 // Binds a method to an instance by creating a new bound method object and
@@ -1580,6 +1717,11 @@ static Value run() {
       case OP_LIST_LITERAL: {
         int count = READ_ONE();
         make_seq(count);
+        break;
+      }
+      case OP_MAP_LITERAL: {
+        int count = READ_ONE();
+        make_map(count);
         break;
       }
       case OP_JUMP: {

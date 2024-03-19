@@ -436,6 +436,29 @@ static void list_literal(bool can_assign) {
   }
 }
 
+// Compiles a map literal.
+// The opening brace has already been consumed (previous token)
+static void map_literal(bool can_assign) {
+  int count = 0;
+
+  if (!check(TOKEN_CBRACE)) {
+    do {
+      expression();
+      consume(TOKEN_COLON, "Expecting ':' after key.");
+      expression();
+      count++;
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_CBRACE, "Expecting '}' after map literal.");
+
+  if (count <= MAX_MAP_ITEMS) {
+    emit_two(OP_MAP_LITERAL, (uint16_t)count);
+  } else {
+    error_at_current("Can't have more than MAX_MAP_ITEMS items in a map.");  // TODO (enhance): Interpolate
+                                                                             // MAX_MAP_ITEMS
+  }
+}
+
 // Compiles a number literal and emits it as a number value.
 // The number has already been consumed and is referenced by the previous token.
 static void number(bool can_assign) {
@@ -686,7 +709,7 @@ static void this_(bool can_assign) {
 ParseRule rules[] = {
     [TOKEN_OPAR]     = {grouping, call, PREC_CALL},
     [TOKEN_CPAR]     = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACE]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_OBRACE]   = {map_literal, NULL, PREC_NONE},
     [TOKEN_CBRACE]   = {NULL, NULL, PREC_NONE},
     [TOKEN_OBRACK]   = {list_literal, indexing, PREC_CALL},
     [TOKEN_CBRACK]   = {NULL, NULL, PREC_NONE},
