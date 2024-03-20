@@ -2,7 +2,7 @@
 
 # slang
 
-A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), garbage-collected and object-oriented programming language with a syntax that is inspired by C, JavaScript and Python.
+A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), garbage-collected and object-oriented programming language with a syntax that is inspired by C#, JavaScript and Python.
 
 ## Roadmap
 
@@ -17,6 +17,23 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] `switch` Statement. Starting point for the `match` statement. (**_See Challenge 23.1_**)
 - [ ] Implement `break`
+- [ ] Implement iterators
+- [ ] Implement a way to add a doc string to functions and classes.
+- [ ] Implement a way to add a synopsis to functions and classes. Kinda like a interface. E.g. for a seq ctor `Seq(arg_a: Num) -> Seq // Of length arg_a`, `Seq(arg_a: Str) -> Seq // Containing each char of arg_a`. This should also work for native functions
+- [ ] Implement a ctor for `Seq(Str)`
+- [ ] Implement `Seq.sort()` as a builtin
+- [ ] Implement `Seq.filter()` as a builtin
+- [ ] Implement `Seq.map()` as a builtin
+- [ ] Implement `Seq.reduce()` as a builtin
+- [ ] Implement `Seq.find()` as a builtin
+- [ ] Implement `Seq.contains()` as a builtin
+- [ ] Implement `Seq.join()` as a builtin
+- [ ] Implement `Seq.slice()` as a builtin
+- [ ] Implement `Seq.reverse()` as a builtin
+- [ ] Implement `Seq[1..]` as a builtin
+- [ ] Implement `Seq[..-1]` as a builtin
+- [ ] Implement `Seq[1..-1]` as a builtin
+- [ ] Implement `Seq[-1]` as a builtin
 
 ## Improvements
 
@@ -25,19 +42,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add tests for to_str and overriden to_strs
 - [ ] Allow return stats without suffixed `;`
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
-- [x] Add tests for anonymous functions
-- [x] Add tests for sequences
-- [x] Allow more than 256 constants per chunk ~~by adding `OP_CONSTANT_LONG`~~. This is a must-have. (Just bumped the stack-width to 16 bits - lol) (**_See Challenge 14.2_**)
-- [x] Allow more than 256 locals per scope. This is a must-have. (Just bumped the stack-width to 16 bits - lol) (**_See Challenge 22.4_**)
-- [x] Add tests for modules
-- [x] Update tests for native functions
-- [x] Add test for bound native methods.
-- [x] Make macros in `value.h` for internal types and their values (e.g. `true` and `false`).
-- [x] Add a test for `ObjBoundMethod` where it's method is a `NativeFn`, because it was previously only a `ObjClosure`.
-- [x] Add type conversion functions. Proposal: `int()`, `float()`, `to_str()`, `bool()`
-- [x] Add type checking functions. Proposal: `type()` and `Num`, `Str`, `Bool` or `@num`, `@str`, `@bool`
-- [x] Add sequences
-- [x] Index a hashtable with any primitive. ~~This is a good introduction to the goal of being able to index with reference types.~~ $\to$ Done. Added indexing by reference aswell. (**_See Challenge 20.1_**)
 
 ### Optimizations
 
@@ -49,9 +53,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
 - [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
 - [ ] (Unsure) Differentiate between fields and methods textually. Use an array for lookup. Low prio. Would be nice to allow field-inheritance - this could be a major rewrite though. (**_See Challenge 28.3_**)
-- [x] ⚠️ Re-add `OP_INVOKE`
-- [x] Cache modules in the Vm. It's awfully slow and happens during runtime... I hate that very much.
-- [x] Cache `ctor` keyword. Low prio. (**_See Challenge 28.1_**)
 
 ## Ideas
 

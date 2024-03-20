@@ -1,1 +1,1 @@
-let a = [1,2,3 // [ExpectCompileError] Compile error at line 1 at end: Expecting ']' after list literal.
+let a = [1,2,3 // [ExpectCompileError] Compile error at line 1 at end: Expecting ']' after Seq literal. Or maybe you are missing a ','?

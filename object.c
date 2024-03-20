@@ -120,9 +120,15 @@ static uint32_t hash_string(const char* key, int length) {
 }
 
 ObjSeq* take_seq(ValueArray items) {
-  ObjSeq* list = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
-  list->items  = items;
-  return list;
+  ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
+  seq->items  = items;
+  return seq;
+}
+
+ObjMap* take_map(HashTable entries) {
+  ObjMap* map  = ALLOCATE_OBJ(ObjMap, OBJ_MAP);
+  map->entries = entries;
+  return map;
 }
 
 ObjString* take_string(char* chars, int length) {

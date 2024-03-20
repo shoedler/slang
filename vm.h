@@ -69,6 +69,7 @@ typedef struct {
   ObjClass* bool_class;    // The bool class
   ObjClass* nil_class;     // The nil class
   ObjClass* seq_class;     // The sequence class
+  ObjClass* map_class;     // The map class
 
   ObjInstance* builtin;          // The builtin (builtin things) object instance
   Value cached_words[WORD_MAX];  // Cached words for quick access

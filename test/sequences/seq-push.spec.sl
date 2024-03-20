@@ -1,5 +1,5 @@
 let s = []
-s.push(1)
+print s.push(1) // [Expect] nil
 print s // [Expect] [1]
 
 s.push("hello", nil, fn -> 1, true)

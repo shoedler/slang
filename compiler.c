@@ -413,9 +413,9 @@ static void grouping(bool can_assign) {
   consume(TOKEN_CPAR, "Expecting ')' after expression.");
 }
 
-// Compiles a list literal.
+// Compiles a seq literal.
 // The opening brace has already been consumed (previous token)
-static void list_literal(bool can_assign) {
+static void seq_literal(bool can_assign) {
   int count = 0;
 
   if (!check(TOKEN_CBRACK)) {
@@ -424,15 +424,39 @@ static void list_literal(bool can_assign) {
       count++;
     } while (match(TOKEN_COMMA));
   }
-  consume(TOKEN_CBRACK, "Expecting ']' after list literal.");
+  consume(TOKEN_CBRACK, "Expecting ']' after " TYPENAME_SEQ " literal. Or maybe you are missing a ','?");
 
-  if (count <= MAX_LIST_ITEMS) {
-    emit_two(OP_LIST_LITERAL, (uint16_t)count);
+  if (count <= MAX_SEQ_ITEMS) {
+    emit_two(OP_SEQ_LITERAL, (uint16_t)count);
   } else {
-    error_at_current("Can't have more than MAX_LIST_ITEMS items in a list.");  // TODO
-                                                                               // (enhance):
-                                                                               // Interpolate
-                                                                               // MAX_LIST_ITEMS
+    error_at_current("Can't have more than MAX_SEQ_ITEMS items in a " TYPENAME_SEQ ".");  // TODO
+                                                                                          // (enhance):
+                                                                                          // Interpolate
+                                                                                          // MAX_SEQ_ITEMS
+  }
+}
+
+// Compiles a map literal.
+// The opening brace has already been consumed (previous token)
+static void map_literal(bool can_assign) {
+  int count = 0;
+
+  if (!check(TOKEN_CBRACE)) {
+    do {
+      expression();
+      consume(TOKEN_COLON, "Expecting ':' after key.");
+      expression();
+      count++;
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_CBRACE, "Expecting '}' after " TYPENAME_MAP " literal. Or maybe you are missing a ','?");
+
+  if (count <= MAX_MAP_ITEMS) {
+    emit_two(OP_MAP_LITERAL, (uint16_t)count);
+  } else {
+    error_at_current("Can't have more than MAX_MAP_ITEMS items in a " TYPENAME_MAP
+                     ".");  // TODO (enhance): Interpolate
+                            // MAX_MAP_ITEMS
   }
 }
 
@@ -686,9 +710,9 @@ static void this_(bool can_assign) {
 ParseRule rules[] = {
     [TOKEN_OPAR]     = {grouping, call, PREC_CALL},
     [TOKEN_CPAR]     = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACE]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_OBRACE]   = {map_literal, NULL, PREC_NONE},
     [TOKEN_CBRACE]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACK]   = {list_literal, indexing, PREC_CALL},
+    [TOKEN_OBRACK]   = {seq_literal, indexing, PREC_CALL},
     [TOKEN_CBRACK]   = {NULL, NULL, PREC_NONE},
     [TOKEN_COMMA]    = {NULL, NULL, PREC_NONE},
     [TOKEN_DOT]      = {NULL, dot, PREC_CALL},

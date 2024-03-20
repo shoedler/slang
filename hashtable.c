@@ -51,8 +51,9 @@ static void adjust_capacity(HashTable* table, int capacity) {
   table->count = 0;
   for (int i = 0; i < table->capacity; i++) {
     Entry* entry = &table->entries[i];
-    if (IS_EMPTY_INTERNAL(entry->key))
+    if (IS_EMPTY_INTERNAL(entry->key)) {
       continue;
+    }
 
     Entry* dest = find_entry(entries, capacity, entry->key);
     dest->key   = entry->key;
@@ -66,18 +67,33 @@ static void adjust_capacity(HashTable* table, int capacity) {
 }
 
 bool hashtable_get(HashTable* table, Value key, Value* value) {
-  if (table->count == 0)
+  if (table->count == 0) {
     return false;
+  }
 
   Entry* entry = find_entry(table->entries, table->capacity, key);
-  if (IS_EMPTY_INTERNAL(entry->key))
+  if (IS_EMPTY_INTERNAL(entry->key)) {
     return false;
+  }
 
   *value = entry->value;
   return true;
 }
 
+void hashtable_preallocate(HashTable* table, int target_count) {
+  // Grow the capacity using the default growth formula, starting at 0 until we have enough capacity to hold
+  // count considering the max load factor. This ensures that hashtable_set will not need to resize the table
+  // - at least until count is reached.
+  int capacity = GROW_CAPACITY(0);
+  while (target_count + 1 > capacity * TABLE_MAX_LOAD) {
+    capacity = GROW_CAPACITY(capacity);
+  }
+
+  adjust_capacity(table, capacity);
+}
+
 bool hashtable_set(HashTable* table, Value key, Value value) {
+  // This check/strategy needs to be in sync with init_hashtable_with_count.
   if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
     int capacity = GROW_CAPACITY(table->capacity);
     adjust_capacity(table, capacity);
@@ -85,8 +101,9 @@ bool hashtable_set(HashTable* table, Value key, Value value) {
 
   Entry* entry    = find_entry(table->entries, table->capacity, key);
   bool is_new_key = IS_EMPTY_INTERNAL(entry->key);
-  if (is_new_key && IS_NIL(entry->value))
+  if (is_new_key && IS_NIL(entry->value)) {
     table->count++;
+  }
 
   entry->key   = key;
   entry->value = value;
@@ -94,13 +111,15 @@ bool hashtable_set(HashTable* table, Value key, Value value) {
 }
 
 bool hashtable_delete(HashTable* table, Value key) {
-  if (table->count == 0)
+  if (table->count == 0) {
     return false;
+  }
 
   // Find the entry.
   Entry* entry = find_entry(table->entries, table->capacity, key);
-  if (IS_EMPTY_INTERNAL(entry->key))
+  if (IS_EMPTY_INTERNAL(entry->key)) {
     return false;
+  }
 
   // Place a tombstone in the entry.
   entry->key   = EMPTY_INTERNAL_VAL;

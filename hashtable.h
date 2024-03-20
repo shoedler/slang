@@ -22,6 +22,11 @@ typedef struct {
 // Initializes a hashtable.
 void init_hashtable(HashTable* table);
 
+// Expands and allocates a hashtables capacity / entries to be able to hold at least target_count items
+// without resizing. Inferrs the capacity from the count using the default growth formula. Use this when you
+// know the number of entries you will be adding to the table with hashtable_set.
+void hashtable_preallocate(HashTable* table, int target_count);
+
 // Frees a hashtable.
 void free_hashtable(HashTable* table);
 

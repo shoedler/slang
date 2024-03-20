@@ -20,6 +20,9 @@
 // Determines whether a value is of type sequence.
 #define IS_SEQ(value) is_obj_type(value, OBJ_SEQ)
 
+// Determines whether a value is of type map.
+#define IS_MAP(value) is_obj_type(value, OBJ_MAP)
+
 // Determines whether a value is of type function.
 #define IS_FUNCTION(value) is_obj_type(value, OBJ_FUNCTION)
 
@@ -47,6 +50,10 @@
 // Converts a value into a sequence.
 // Value must be of type sequence.
 #define AS_SEQ(value) ((ObjSeq*)AS_OBJ(value))
+
+// Converts a value into a map.
+// Value must be of type map.
+#define AS_MAP(value) ((ObjMap*)AS_OBJ(value))
 
 // Converts a value into a function.
 // Value must be of type function.
@@ -76,6 +83,7 @@ typedef enum {
   OBJ_INSTANCE,
   OBJ_NATIVE,
   OBJ_SEQ,
+  OBJ_MAP,
   OBJ_STRING,
   OBJ_UPVALUE,
   OBJ_BOUND_METHOD,
@@ -91,6 +99,11 @@ struct Obj {
 struct ObjSeq {
   Obj obj;
   ValueArray items;
+};
+
+struct ObjMap {
+  Obj obj;
+  HashTable entries;
 };
 
 struct ObjInstance;
@@ -199,6 +212,11 @@ ObjString* take_string(char* chars, int length);
 // This takes ownership of the value array. This means that the value array will
 // be freed when the object is freed. Might trigger garbage collection.
 ObjSeq* take_seq(ValueArray* items);
+
+// Creates a new map object from a hashtable.
+// This takes ownership of the hashtable. This means that the hashtable will be
+// freed when the object is freed. Might trigger garbage collection.
+ObjMap* take_map(HashTable* entries);
 
 static inline bool is_obj_type(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;

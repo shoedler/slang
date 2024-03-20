@@ -29,6 +29,7 @@ typedef enum {
 
 static Value exit_with_runtime_error();
 static Value run();
+static Value peek(int distance);
 
 static ObjString* fast_to_str(Value value);
 static ObjClass* type_of(Value value);
@@ -40,18 +41,27 @@ static Value __builtin_nil_to_str(int argc, Value argv[]);
 static Value __builtin_number_to_str(int argc, Value argv[]);
 static Value __builtin_string_to_str(int argc, Value argv[]);
 static Value __builtin_seq_to_str(int argc, Value argv[]);
+static Value __builtin_map_to_str(int argc, Value argv[]);
 
 static Value __builint_hash_value(int argc, Value argv[]);
+
 static Value __builtin_str_len(int argc, Value argv[]);
+
 static Value __builtin_seq_len(int argc, Value argv[]);
 static Value __builtin_seq_push(int argc, Value argv[]);
 static Value __builtin_seq_pop(int argc, Value argv[]);
+
+static Value __builtin_map_len(int argc, Value argv[]);
+static Value __builtin_map_entries(int argc, Value argv[]);
+static Value __builtin_map_keys(int argc, Value argv[]);
+static Value __builtin_map_values(int argc, Value argv[]);
 
 static Value __builtin_num_ctor(int argc, Value argv[]);
 static Value __builtin_bool_ctor(int argc, Value argv[]);
 static Value __builtin_nil_ctor(int argc, Value argv[]);
 static Value __builtin_str_ctor(int argc, Value argv[]);
 static Value __builtin_seq_ctor(int argc, Value argv[]);
+static Value __builtin_map_ctor(int argc, Value argv[]);
 
 static Value native_clock(int argc, Value argv[]);
 static Value native_cwd(int argc, Value argv[]);
@@ -169,6 +179,33 @@ static void make_seq(int count) {
   push(OBJ_VAL(seq));
 }
 
+// Creates a map from the top "count" * 2 values on the stack.
+// The resulting map is pushed onto the stack.
+static void make_map(int count) {
+  // Since we know the count, we can preallocate the hashtable for the map. This allows
+  // using hashtable_set within the loop. We don't have to worry about it wanting to resize the hashtable,
+  // which can trigger a GC and free items in the middle of the loop, because it already has enough capacity.
+  // Also, it lets us pop the map items on the stack, instead of peeking and then having to pop them later
+  // (Requiring us to loop over the keys and values twice)
+  HashTable entries;
+  init_hashtable(&entries);
+  hashtable_preallocate(&entries, count);
+
+  // Take the hashtable while before we start popping the stack, so the entries are still seen by the GC as
+  // we allocate the new map object.
+  ObjMap* map = take_map(&entries);
+
+  // Use pop
+  for (int i = 0; i < count; i++) {
+    Value value = pop();
+    Value key   = pop();
+
+    hashtable_set(&map->entries, key, value);
+  }
+
+  push(OBJ_VAL(map));
+}
+
 void init_vm() {
   reset_stack();
   vm.objects         = NULL;
@@ -243,6 +280,16 @@ void init_vm() {
   define_native(&vm.seq_class->methods, "push", __builtin_seq_push);
   define_native(&vm.seq_class->methods, "pop", __builtin_seq_pop);
 
+  // Create the map class
+  vm.map_class = new_class(copy_string(TYPENAME_MAP, sizeof(TYPENAME_MAP) - 1), vm.object_class);
+  define_obj(&vm.builtin->fields, TYPENAME_MAP, (Obj*)vm.map_class);
+  define_native(&vm.map_class->methods, KEYWORD_CONSTRUCTOR, __builtin_map_ctor);
+  define_native(&vm.map_class->methods, "to_str", __builtin_map_to_str);
+  define_native(&vm.map_class->methods, "len", __builtin_map_len);
+  define_native(&vm.map_class->methods, "entries", __builtin_map_entries);
+  define_native(&vm.map_class->methods, "keys", __builtin_map_keys);
+  define_native(&vm.map_class->methods, "values", __builtin_map_values);
+
   // Create the module class
   vm.module_class = new_class(copy_string("Module", 6), vm.object_class);
   define_obj(&vm.builtin->fields, "Module", (Obj*)vm.module_class);
@@ -286,6 +333,7 @@ static ObjClass* type_of(Value value) {
         switch (OBJ_TYPE(value)) {
           case OBJ_STRING: return vm.string_class;
           case OBJ_SEQ: return vm.seq_class;
+          case OBJ_MAP: return vm.map_class;
         }
       }
     }
@@ -519,6 +567,7 @@ static ObjString* fast_to_str(Value value) {
       switch (OBJ_TYPE(value)) {
         case OBJ_STRING: return AS_STRING(__builtin_string_to_str(0, &value));
         case OBJ_SEQ: return AS_STRING(__builtin_seq_to_str(0, &value));
+        case OBJ_MAP: return AS_STRING(__builtin_map_to_str(0, &value));
         default: break;
       }
       break;
@@ -933,8 +982,6 @@ static Value __builtin_str_ctor(int argc, Value argv[]) {
   return exec_method(copy_string("to_str", 6), 0);  // Convert to string
 }
 
-// Built-in seq constructor. Used if the user wants to create a sequence with a specific length. (e.g.
-// Seq(20) ) Won't run if the user creates a seq via literal syntax.
 static Value __builtin_seq_ctor(int argc, Value argv[]) {
   if (argc == 0) {
     ValueArray items;
@@ -967,6 +1014,18 @@ static Value __builtin_seq_ctor(int argc, Value argv[]) {
   return OBJ_VAL(seq);
 }
 
+static Value __builtin_map_ctor(int argc, Value argv[]) {
+  if (argc == 0) {
+    HashTable entries;
+    init_hashtable(&entries);
+    ObjMap* map = take_map(&entries);
+    return OBJ_VAL(map);
+  }
+
+  runtime_error("Expected 0 arguments but got %d.", argc);
+  return exit_with_runtime_error();
+}
+
 // Built-in function to convert a sequence to a string
 static Value __builtin_seq_to_str(int argc, Value argv[]) {
   if (argc != 0) {
@@ -983,13 +1042,14 @@ static Value __builtin_seq_to_str(int argc, Value argv[]) {
     for (int i = 0; i < seq->items.count; i++) {
       // Use the default to-string method of the value to convert the item to a string
       push(seq->items.values[i]);  // Push the receiver (item at i) for to_str
-      ObjString* item_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));  // Convert to string
+      ObjString* item_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
 
       // Expand chars to fit the separator plus the next item
       size_t new_buf_size =
           strlen(chars) + strlen(item_str->chars) + (sizeof(VALUE_STR_SEQ_DELIM) - 1) +
           (sizeof(VALUE_STR_SEQ_END) - 1);  // Consider the closing bracket -  if we're done after this
                                             // iteration we won't need to expand and can just slap it on there
+      // Expand if necessary
       if (new_buf_size > buf_size) {
         buf_size = new_buf_size;
         chars    = realloc(chars, buf_size);
@@ -998,6 +1058,7 @@ static Value __builtin_seq_to_str(int argc, Value argv[]) {
         }
       }
 
+      // Append the string
       strcat(chars, item_str->chars);
       if (i < seq->items.count - 1) {
         strcat(chars, VALUE_STR_SEQ_DELIM);
@@ -1014,6 +1075,73 @@ static Value __builtin_seq_to_str(int argc, Value argv[]) {
   }
 
   runtime_error("Expected a " TYPENAME_SEQ " but got %s.", type_name(argv[0]));
+  return exit_with_runtime_error();
+}
+
+// Built-in function to convert a map to a string
+static Value __builtin_map_to_str(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (IS_MAP(argv[0])) {
+    ObjMap* map     = AS_MAP(argv[0]);
+    size_t buf_size = 64;  // Start with a reasonable size
+    char* chars     = malloc(buf_size);
+    int processed = 0;  // Keep track of how many non-EMPTY entries we've processed to know when skip the last
+                        // delimiter
+
+    strcpy(chars, VALUE_STR_MAP_START);
+    for (int i = 0; i < map->entries.capacity; i++) {
+      if (IS_EMPTY_INTERNAL(map->entries.entries[i].key)) {
+        continue;
+      }
+
+      // Use the default to-string methods for key and value
+      push(map->entries.entries[i].key);  // Push the receiver (key at i) for to_str
+      ObjString* key_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+      push(OBJ_VAL(key_str));               // GC Protection
+      push(map->entries.entries[i].value);  // Push the receiver (value at i) for to_str
+      ObjString* value_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+      pop();  // Key str
+
+      // Expand chars to fit the separator, delimiter plus the next key and value
+      size_t new_buf_size = strlen(chars) + strlen(key_str->chars) + strlen(value_str->chars) +
+                            (sizeof(VALUE_STR_MAP_SEPARATOR) - 1) + (sizeof(VALUE_STR_MAP_DELIM) - 1) +
+                            (sizeof(VALUE_STR_MAP_END) - 1);  // Consider the closing bracket -
+                                                              // if we're done after this
+                                                              // iteration we won't need to
+                                                              // expand and can just slap it on there
+      // Expand if necessary
+      if (new_buf_size > buf_size) {
+        buf_size = new_buf_size;
+        chars    = realloc(chars, buf_size);
+        if (chars == NULL) {
+          return OBJ_VAL(copy_string("{???}", 5));
+        }
+      }
+
+      // Append the strings
+      strcat(chars, key_str->chars);
+      strcat(chars, VALUE_STR_MAP_SEPARATOR);
+      strcat(chars, value_str->chars);
+      if (processed < map->entries.count - 1) {
+        strcat(chars, VALUE_STR_MAP_DELIM);
+      }
+      processed++;
+    }
+
+    strcat(chars, VALUE_STR_MAP_END);
+
+    // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+    // allocates the memory - we don't want this block in our own memory pool.
+    ObjString* str_obj = copy_string(chars, (int)buf_size);
+    free(chars);
+    return OBJ_VAL(str_obj);
+  }
+
+  runtime_error("Expected a " TYPENAME_MAP " but got %s.", type_name(argv[0]));
   return exit_with_runtime_error();
 }
 
@@ -1036,6 +1164,17 @@ static Value __builtin_seq_len(int argc, Value argv[]) {
   }
 
   int length = AS_SEQ(argv[0])->items.count;
+  return NUMBER_VAL(length);
+}
+
+// Built-in function to retrieve the length of a map
+static Value __builtin_map_len(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  int length = AS_MAP(argv[0])->entries.count;
   return NUMBER_VAL(length);
 }
 
@@ -1076,6 +1215,92 @@ static Value __builtin_seq_pop(int argc, Value argv[]) {
   }
 
   return pop_value_array(&seq->items);
+}
+
+static Value __builtin_map_entries(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (!IS_MAP(argv[0])) {
+    runtime_error("Expected a " TYPENAME_MAP " but got %s.", type_name(argv[0]));
+    return exit_with_runtime_error();
+  }
+
+  ObjMap* map = AS_MAP(argv[0]);
+
+  int processed = 0;
+  for (int i = 0; i < map->entries.capacity; i++) {
+    Entry* entry = &map->entries.entries[i];
+    if (!IS_EMPTY_INTERNAL(entry->key)) {
+      push(entry->key);
+      push(entry->value);
+      make_seq(2);  // Leaves a seq with the two values on the stack
+      processed++;
+    }
+  }
+
+  make_seq(processed);
+  Value seq = pop();  // The seq made by make_seq
+
+  return seq;
+}
+
+static Value __builtin_map_keys(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (!IS_MAP(argv[0])) {
+    runtime_error("Expected a " TYPENAME_MAP " but got %s.", type_name(argv[0]));
+    return exit_with_runtime_error();
+  }
+
+  ObjMap* map = AS_MAP(argv[0]);
+
+  int processed = 0;
+  for (int i = 0; i < map->entries.capacity; i++) {
+    Entry* entry = &map->entries.entries[i];
+    if (!IS_EMPTY_INTERNAL(entry->key)) {
+      push(entry->key);
+      processed++;
+    }
+  }
+
+  make_seq(processed);
+  Value seq = pop();  // The seq made by make_seq
+
+  return seq;
+}
+
+static Value __builtin_map_values(int argc, Value argv[]) {
+  if (argc != 0) {
+    runtime_error("Expected 0 arguments but got %d.", argc);
+    return exit_with_runtime_error();
+  }
+
+  if (!IS_MAP(argv[0])) {
+    runtime_error("Expected a " TYPENAME_MAP " but got %s.", type_name(argv[0]));
+    return exit_with_runtime_error();
+  }
+
+  ObjMap* map = AS_MAP(argv[0]);
+
+  int processed = 0;
+  for (int i = 0; i < map->entries.capacity; i++) {
+    Entry* entry = &map->entries.entries[i];
+    if (!IS_EMPTY_INTERNAL(entry->key)) {
+      push(entry->value);
+      processed++;
+    }
+  }
+
+  make_seq(processed);
+  Value seq = pop();  // The seq made by make_seq
+
+  return seq;
 }
 
 // Binds a method to an instance by creating a new bound method object and
@@ -1357,75 +1582,113 @@ static Value run() {
         break;
       }
       case OP_GET_INDEX: {
-        Value index    = pop();
-        Value assignee = pop();
+        // We don't trigger the GC in this block, so we can just pop the stuff
+        Value index   = pop();
+        Value indexee = pop();
 
-        if (!IS_NUMBER(index)) {
-          push(NIL_VAL);
-          break;
-        }
+        if (IS_STRING(indexee)) {
+          if (!IS_NUMBER(index)) {
+            runtime_error(TYPENAME_STRING " indices must be " TYPENAME_NUMBER "s, but got %s.",
+                          type_name(index));
+            return exit_with_runtime_error();
+          }
 
-        double i_raw = AS_NUMBER(index);
-        int i;
-        if (!is_int(i_raw, &i)) {
-          push(NIL_VAL);
-          break;
-        }
+          double i_raw = AS_NUMBER(index);
+          int i;
+          if (!is_int(i_raw, &i)) {
+            push(NIL_VAL);
+            break;
+          }
 
-        if (IS_STRING(assignee)) {
-          ObjString* string = AS_STRING(assignee);
+          ObjString* string = AS_STRING(indexee);
           if (i < 0 || i >= string->length) {
             runtime_error("Index out of bounds.");
             return exit_with_runtime_error();
           }
 
-          ObjString* char_str = copy_string(AS_CSTRING(assignee) + i, 1);
+          ObjString* char_str = copy_string(AS_CSTRING(indexee) + i, 1);
           push(OBJ_VAL(char_str));
           break;
-        } else if (IS_SEQ(assignee)) {
-          ObjSeq* seq = AS_SEQ(assignee);
+        } else if (IS_SEQ(indexee)) {
+          if (!IS_NUMBER(index)) {
+            runtime_error(TYPENAME_SEQ " indices must be " TYPENAME_NUMBER "s, but got %s.",
+                          type_name(index));
+            return exit_with_runtime_error();
+          }
+
+          double i_raw = AS_NUMBER(index);
+          int i;
+          if (!is_int(i_raw, &i)) {
+            push(NIL_VAL);
+            break;
+          }
+
+          ObjSeq* seq = AS_SEQ(indexee);
           if (i < 0 || i >= seq->items.count) {
-            runtime_error("Index out of bounds.");
+            runtime_error("Index out of bounds. Was %d, but this " TYPENAME_SEQ " has length %d.", i,
+                          seq->items.count);
             return exit_with_runtime_error();
           }
 
           push(seq->items.values[i]);
+        } else if (IS_MAP(indexee)) {
+          ObjMap* map = AS_MAP(indexee);
+          Value value;
+          if (hashtable_get(&map->entries, index, &value)) {
+            push(value);
+          } else {
+            push(NIL_VAL);
+          }
         } else {
-          runtime_error("%s cannot be get-indexed.", type_name(assignee));
+          runtime_error("%s cannot be get-indexed.", type_name(indexee));
           return exit_with_runtime_error();
         }
         break;
       }
       case OP_SET_INDEX: {
-        Value value = pop();  // We should peek, because assignment is an expression! But,
-                              // the order is wrong so we push it back on the stack later.
-                              // We are being careful not to trigger a GC in this block,
-                              // because value might get collected if we do.
-        Value index    = pop();
-        Value assignee = pop();
-
-        if (!IS_NUMBER(index)) {
-          push(NIL_VAL);
-          break;
-        }
-
-        double i_raw = AS_NUMBER(index);
-        int i;
-        if (!is_int(i_raw, &i)) {
-          push(NIL_VAL);
-          break;
-        }
+        // Some of the code in this block might trigger the GC, so we need to peek
+        Value assignee = peek(2);  // Peek(0) is the value, Peek(1) is the index, Peek(2) is the assignee
 
         if (IS_SEQ(assignee)) {
+          // We can pop, bc we don't trigger the GC in this block
+          Value value = pop();  // value
+          Value index = pop();  // index
+          pop();                // assignee
+
+          if (!IS_NUMBER(index)) {
+            runtime_error(TYPENAME_SEQ " indices must be " TYPENAME_NUMBER "s, but got %s.",
+                          type_name(index));
+            return exit_with_runtime_error();
+          }
+
+          double i_raw = AS_NUMBER(index);
+          int i;
+          if (!is_int(i_raw, &i)) {
+            push(NIL_VAL);
+            break;
+          }
+
           ObjSeq* seq = AS_SEQ(assignee);
 
           if (i < 0 || i >= seq->items.count) {
-            runtime_error("Index out of bounds.");
+            runtime_error("Index out of bounds. Was %d, but this " TYPENAME_SEQ " has length %d.", i,
+                          seq->items.count);
             return exit_with_runtime_error();
           }
 
           seq->items.values[i] = value;
           push(value);
+        } else if (IS_MAP(assignee)) {
+          // We peek, because we might trigger the GC
+          Value value = peek(0);  // value
+          Value index = peek(1);  // index
+
+          ObjMap* map = AS_MAP(assignee);
+          hashtable_set(&map->entries, index, value);
+          pop();        // value
+          pop();        // index
+          pop();        // assignee
+          push(value);  // Push back onto the stack, because assignment is an expression
         } else {
           runtime_error("%s cannot be set-indexed.", type_name(assignee));
           return exit_with_runtime_error();
@@ -1577,9 +1840,14 @@ static Value run() {
         pop();
         break;
       }
-      case OP_LIST_LITERAL: {
+      case OP_SEQ_LITERAL: {
         int count = READ_ONE();
         make_seq(count);
+        break;
+      }
+      case OP_MAP_LITERAL: {
+        int count = READ_ONE();
+        make_map(count);
         break;
       }
       case OP_JUMP: {

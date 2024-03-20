@@ -112,7 +112,7 @@ bool values_equal(Value a, Value b) {
 }
 
 // Hashes a double. Borrowed from Lua.
-static uint32_t hash_doube(double value) {
+static uint32_t hash_double(double value) {
   union BitCast {
     double source;
     uint32_t target[2];
@@ -128,7 +128,7 @@ uint32_t hash_value(Value value) {
   switch (value.type) {
     case VAL_BOOL: return AS_BOOL(value) ? 4 : 3;
     case VAL_NIL: return 2;
-    case VAL_NUMBER: return hash_doube(AS_NUMBER(value));
+    case VAL_NUMBER: return hash_double(AS_NUMBER(value));
     case VAL_OBJ: {
       if (IS_STRING(value)) {
         ObjString* string = AS_STRING(value);
@@ -220,6 +220,28 @@ int print_value_safe(FILE* f, Value value) {
         }
       }
       written += fprintf(f, VALUE_STR_SEQ_END);
+      return written;
+    }
+    case OBJ_MAP: {
+      ObjMap* map   = AS_MAP(value);
+      int written   = fprintf(f, VALUE_STR_MAP_START);
+      int processed = 0;
+      for (int i = 0; i < map->entries.capacity; i++) {
+        if (IS_EMPTY_INTERNAL(map->entries.entries[i].key)) {
+          continue;
+        }
+        Entry* entry = &map->entries.entries[i];
+
+        written += print_value_safe(f, entry->key);
+        written += fprintf(f, VALUE_STR_MAP_SEPARATOR);
+        written += print_value_safe(f, entry->value);
+
+        if (processed < map->entries.count - 1) {
+          written += fprintf(f, VALUE_STR_MAP_DELIM);
+        }
+        processed++;
+      }
+      written += fprintf(f, VALUE_STR_MAP_END);
       return written;
     }
     default: return fprintf(f, VALUE_STRFMT_OBJ, type_name(value), (void*)AS_OBJ(value));

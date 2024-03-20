@@ -279,12 +279,33 @@
 // print cwd()
 // print std.__file_path
 
+print "--------------------------------------------------------------------------------"
+print "Maps"
+print "--------------------------------------------------------------------------------"
 
-let g = []
-for let i = 0; i < 100; i=i+1; {
-  g.push(i)
+let f = fn -> 10
+let s = [1,2,3]
+
+let a = {
+    1: 2, 
+    true: false,
+    nil: nil, 
+    "hello": "world",
+    fn -> 1: fn -> 2, // Unreachable, because we have no reference to this function
+    f: fn -> 2,       // Reachable
+    [1,2,3]: [4,5,6], // Unreachable, because we have no reference to this array
+    s: [4,5,6]        // Reachable
 }
-print g.len()
-for let i = 100; i > 0; i=i-1; {
-  print g.pop()
-}
+
+print a[fn -> 1] // Should print: nil
+print a[[1,2,3]] // Should print: nil
+print a[f] // Should print: <Fn <Anon>>
+print a[s] // Should print: [4, 5, 6]
+print a["hello"] // Should print: "world"
+print "-------"
+print a.keys()
+print a.values()
+print a.entries()
+print "-------"
+// Order is not guaranteed, since the underlying data structure is a hash table
+print a // Should print: {[1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn <Anon>>: <Fn <Anon>>, <Fn <Anon>>: <Fn <Anon>>, nil: nil, true: false, 1: 2, hello: world}
