@@ -112,7 +112,7 @@ bool values_equal(Value a, Value b) {
 }
 
 // Hashes a double. Borrowed from Lua.
-static uint32_t hash_doube(double value) {
+static uint32_t hash_double(double value) {
   union BitCast {
     double source;
     uint32_t target[2];
@@ -128,7 +128,7 @@ uint32_t hash_value(Value value) {
   switch (value.type) {
     case VAL_BOOL: return AS_BOOL(value) ? 4 : 3;
     case VAL_NIL: return 2;
-    case VAL_NUMBER: return hash_doube(AS_NUMBER(value));
+    case VAL_NUMBER: return hash_double(AS_NUMBER(value));
     case VAL_OBJ: {
       if (IS_STRING(value)) {
         ObjString* string = AS_STRING(value);

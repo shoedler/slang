@@ -128,6 +128,7 @@ static TokenType identifier_type() {
           case 'r': return check_keyword(2, 3, "eak", TOKEN_BREAK);
         }
       }
+      break;
     }
     case 'c': {
       if (scanner.current - scanner.start > 1) {
@@ -137,6 +138,7 @@ static TokenType identifier_type() {
           case 't': return check_keyword(2, 2, "or", TOKEN_CTOR);
         }
       }
+      break;
     }
     case 'e':
       if (scanner.current - scanner.start > 1) {
@@ -144,6 +146,7 @@ static TokenType identifier_type() {
           case 'l': return check_keyword(2, 2, "se", TOKEN_ELSE);
         }
       }
+      break;
     case 'f':
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
