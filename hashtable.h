@@ -5,7 +5,6 @@
 #include "value.h"
 
 #define TABLE_MAX_LOAD 0.75
-#define TABLE_MAX_LOAD_INV 1.25
 
 // A hash table entry.
 typedef struct {
@@ -23,9 +22,10 @@ typedef struct {
 // Initializes a hashtable.
 void init_hashtable(HashTable* table);
 
-// Initializes a hashtable with a given capacity.
-// Allows for setting entries (up to capacity) without resizing.
-void init_hashtable_with_capacity(HashTable* table, int capacity);
+// Expands and allocates a hashtables capacity / entries to be able to hold at least target_count items
+// without resizing. Inferrs the capacity from the count using the default growth formula. Use this when you
+// know the number of entries you will be adding to the table with hashtable_set.
+void hashtable_preallocate(HashTable* table, int target_count);
 
 // Frees a hashtable.
 void free_hashtable(HashTable* table);
