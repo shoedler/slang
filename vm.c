@@ -1714,7 +1714,7 @@ static Value run() {
         pop();
         break;
       }
-      case OP_LIST_LITERAL: {
+      case OP_SEQ_LITERAL: {
         int count = READ_ONE();
         make_seq(count);
         break;
