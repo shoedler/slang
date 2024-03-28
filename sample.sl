@@ -300,6 +300,7 @@ let a = {
 print a[fn -> 1] // Should print: nil
 print a[[1,2,3]] // Should print: nil
 print a[f] // Should print: <Fn <Anon>>
+print a[f]() // Should print: 2
 print a[s] // Should print: [4, 5, 6]
 print a["hello"] // Should print: "world"
 print "-------"
@@ -309,3 +310,15 @@ print a.entries()
 print "-------"
 // Order is not guaranteed, since the underlying data structure is a hash table
 print a // Should print: {[1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn <Anon>>: <Fn <Anon>>, <Fn <Anon>>: <Fn <Anon>>, nil: nil, true: false, 1: 2, hello: world}
+print Nil.__ctor.doc
+print Bool.__ctor.doc
+print Num.__ctor.doc
+print Str.__ctor.doc
+print Seq.__ctor.doc
+print Map.__ctor.doc
+
+print clock.doc
+print type_name.doc
+print type_of.doc
+print cwd.doc
+print log.doc

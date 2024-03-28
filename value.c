@@ -144,22 +144,22 @@ uint32_t hash_value(Value value) {
 
 const char* type_name(Value value) {
   if (value.type == VAL_BOOL) {
-    return TYPENAME_BOOL;
+    return STR(TYPENAME_BOOL);
   } else if (value.type == VAL_NIL) {
-    return TYPENAME_NIL;
+    return STR(TYPENAME_NIL);
   } else if (value.type == VAL_NUMBER) {
-    return TYPENAME_NUMBER;
+    return STR(TYPENAME_NUMBER);
   } else if (value.type == VAL_OBJ) {
     switch (OBJ_TYPE(value)) {
-      case OBJ_BOUND_METHOD: return TYPENAME_BOUND_METHOD;
-      case OBJ_CLASS: return TYPENAME_CLASS;
-      case OBJ_CLOSURE: return TYPENAME_CLOSURE;
-      case OBJ_FUNCTION: return TYPENAME_FUNCTION;
-      case OBJ_INSTANCE: return TYPENAME_INSTANCE;
-      case OBJ_NATIVE: return TYPENAME_NATIVE;
-      case OBJ_STRING: return TYPENAME_STRING;
-      case OBJ_SEQ: return TYPENAME_SEQ;
-      case OBJ_UPVALUE: return TYPENAME_UPVALUE;
+      case OBJ_BOUND_METHOD: return STR(TYPENAME_BOUND_METHOD);
+      case OBJ_CLASS: return STR(TYPENAME_CLASS);
+      case OBJ_CLOSURE: return STR(TYPENAME_CLOSURE);
+      case OBJ_FUNCTION: return STR(TYPENAME_FUNCTION);
+      case OBJ_INSTANCE: return STR(TYPENAME_INSTANCE);
+      case OBJ_NATIVE: return STR(TYPENAME_NATIVE);
+      case OBJ_STRING: return STR(TYPENAME_STRING);
+      case OBJ_SEQ: return STR(TYPENAME_SEQ);
+      case OBJ_UPVALUE: return STR(TYPENAME_UPVALUE);
     }
   }
 

@@ -30,10 +30,12 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `Seq.join()` as a builtin
 - [ ] Implement `Seq.slice()` as a builtin
 - [ ] Implement `Seq.reverse()` as a builtin
-- [ ] Implement `Seq[1..]` as a builtin
-- [ ] Implement `Seq[..-1]` as a builtin
-- [ ] Implement `Seq[1..-1]` as a builtin
+- [ ] Implement `Seq[1..]` as a builtin (slice)
+- [ ] Implement `Seq[..-1]` as a builtin (slice)
+- [ ] Implement `Seq[1..-1]` as a builtin (slice)
 - [ ] Implement `Seq[-1]` as a builtin
+- [ ] Implement Map destructuring `let { a } = { a: 1 } // a == 1`
+- [ ] Implement Seq destructuring `let [ a ] = [ 1 ] // a == 1`
 
 ## Improvements
 

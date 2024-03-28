@@ -424,15 +424,12 @@ static void seq_literal(bool can_assign) {
       count++;
     } while (match(TOKEN_COMMA));
   }
-  consume(TOKEN_CBRACK, "Expecting ']' after " TYPENAME_SEQ " literal. Or maybe you are missing a ','?");
+  consume(TOKEN_CBRACK, "Expecting ']' after " STR(TYPENAME_SEQ) " literal. Or maybe you are missing a ','?");
 
   if (count <= MAX_SEQ_ITEMS) {
     emit_two(OP_SEQ_LITERAL, (uint16_t)count);
   } else {
-    error_at_current("Can't have more than MAX_SEQ_ITEMS items in a " TYPENAME_SEQ ".");  // TODO
-                                                                                          // (enhance):
-                                                                                          // Interpolate
-                                                                                          // MAX_SEQ_ITEMS
+    error_at_current("Can't have more than " STR(MAX_SEQ_ITEMS) " items in a " STR(TYPENAME_SEQ) ".");
   }
 }
 
@@ -449,14 +446,12 @@ static void map_literal(bool can_assign) {
       count++;
     } while (match(TOKEN_COMMA));
   }
-  consume(TOKEN_CBRACE, "Expecting '}' after " TYPENAME_MAP " literal. Or maybe you are missing a ','?");
+  consume(TOKEN_CBRACE, "Expecting '}' after " STR(TYPENAME_MAP) " literal. Or maybe you are missing a ','?");
 
   if (count <= MAX_MAP_ITEMS) {
     emit_two(OP_MAP_LITERAL, (uint16_t)count);
   } else {
-    error_at_current("Can't have more than MAX_MAP_ITEMS items in a " TYPENAME_MAP
-                     ".");  // TODO (enhance): Interpolate
-                            // MAX_MAP_ITEMS
+    error_at_current("Can't have more than " STR(MAX_MAP_ITEMS) " items in a " STR(TYPENAME_MAP) ".");
   }
 }
 
@@ -602,10 +597,7 @@ static void function(bool can_assign, FunctionType type) {
       do {
         current->function->arity++;
         if (current->function->arity > MAX_FN_ARGS) {
-          error_at_current("Can't have more than MAX_FN_ARGS parameters.");  // TODO
-                                                                             // (enhance):
-                                                                             // Interpolate
-                                                                             // MAX_FN_ARGS
+          error_at_current("Can't have more than " STR(MAX_FN_ARGS) " parameters.");
         }
         uint16_t constant = parse_variable("Expecting parameter name.");
         define_variable(constant);

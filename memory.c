@@ -142,7 +142,11 @@ static void blacken_object(Obj* object) {
       mark_hashtable(&map->entries);
       break;
     }
-    case OBJ_NATIVE:
+    case OBJ_NATIVE: {
+      ObjNative* native = (ObjNative*)object;
+      mark_obj((Obj*)native->doc);
+      break;
+    }
     case OBJ_STRING: break;
     default:
       break;  // TODO (recovery): What do we do here? Throw? Probably yes, bc we
@@ -249,14 +253,17 @@ static void mark_roots() {
   // And the modules hashtable.
   mark_hashtable(&vm.modules);
 
-  // And the base classes
-  mark_obj((Obj*)vm.object_class);
-  mark_obj((Obj*)vm.module_class);
-  mark_obj((Obj*)vm.string_class);
-  mark_obj((Obj*)vm.number_class);
-  mark_obj((Obj*)vm.bool_class);
-  mark_obj((Obj*)vm.nil_class);
-  mark_obj((Obj*)vm.seq_class);
+// And the base classes
+#define BUILTIN_MARK_CLASS(name) mark_obj((Obj*)vm.BUILTIN_CLASS(name))
+  BUILTIN_MARK_CLASS(TYPENAME_OBJ);
+  BUILTIN_MARK_CLASS(TYPENAME_NIL);
+  BUILTIN_MARK_CLASS(TYPENAME_BOOL);
+  BUILTIN_MARK_CLASS(TYPENAME_NUMBER);
+  BUILTIN_MARK_CLASS(TYPENAME_STRING);
+  BUILTIN_MARK_CLASS(TYPENAME_SEQ);
+  BUILTIN_MARK_CLASS(TYPENAME_MAP);
+  BUILTIN_MARK_CLASS(TYPENAME_MODULE);
+#undef BUILTIN_MARK_CLASS
 
   // And the builtin object.
   mark_obj((Obj*)vm.builtin);

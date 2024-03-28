@@ -36,6 +36,14 @@
     exit(1);                                        \
   } while (0)
 
+// Stringification Macro - don't use directly, use STR
+#define ___STRINGIFY(x) #x
+// Stringification Macro, wraps the argument in quotes
+#define STR(x) ___STRINGIFY(x)
+
+// Suppress unused parameter macro
+#define UNUSED(x) (void)(x)
+
 // Debug feature flags
 
 // #define DEBUG_PRINT_TOKENS

@@ -103,9 +103,10 @@ ObjFunction* new_function() {
   return function;
 }
 
-ObjNative* new_native(NativeFn function) {
+ObjNative* new_native(NativeFn function, ObjString* doc) {
   ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
   native->function  = function;
+  native->doc       = doc;
   return native;
 }
 
