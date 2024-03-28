@@ -630,5 +630,73 @@
       "value": "63240000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-03-28T22:11:55.903Z",
+    "commit": {
+      "date": "2024-03-28 07:18:23 +0100",
+      "hash": "d073981571b77474b71a81c463bda2464e619ba9",
+      "message": "Adds doc strings for builtin methods and builtin functions. Currently, does not work for managed code."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "8.377000"
+    }
+  },
+  {
+    "date": "2024-03-28T22:11:55.903Z",
+    "commit": {
+      "date": "2024-03-28 07:18:23 +0100",
+      "hash": "d073981571b77474b71a81c463bda2464e619ba9",
+      "message": "Adds doc strings for builtin methods and builtin functions. Currently, does not work for managed code."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "1.046000"
+    }
+  },
+  {
+    "date": "2024-03-28T22:11:55.903Z",
+    "commit": {
+      "date": "2024-03-28 07:18:23 +0100",
+      "hash": "d073981571b77474b71a81c463bda2464e619ba9",
+      "message": "Adds doc strings for builtin methods and builtin functions. Currently, does not work for managed code."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "160",
+      "value": "9600000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-03-28T22:11:55.903Z",
+    "commit": {
+      "date": "2024-03-28 07:18:23 +0100",
+      "hash": "d073981571b77474b71a81c463bda2464e619ba9",
+      "message": "Adds doc strings for builtin methods and builtin functions. Currently, does not work for managed code."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "1039",
+      "value": "62340000",
+      "durationInSecs": "5"
+    }
   }
 ]

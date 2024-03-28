@@ -233,6 +233,7 @@ void init_vm() {
   vm.cached_words[WORD_NAME]        = OBJ_VAL(copy_string(KEYWORD_NAME, KEYWORD_NAME_LEN));
   vm.cached_words[WORD_MODULE_NAME] = OBJ_VAL(copy_string(KEYWORD_MODULE_NAME, KEYWORD_MODULE_NAME_LEN));
   vm.cached_words[WORD_FILE_PATH]   = OBJ_VAL(copy_string(KEYWORD_FILE_PATH, KEYWORD_FILE_PATH_LEN));
+  vm.cached_words[WORD_DOC]         = OBJ_VAL(copy_string(KEYWORD_DOC, KEYWORD_DOC_LEN));
 
   // Create the object class
   vm.__builtin_Obj_class = new_class(copy_string(STR(TYPENAME_OBJ), sizeof(STR(TYPENAME_OBJ)) - 1), NULL);
@@ -556,6 +557,8 @@ static Value exec_method(ObjString* name, int arg_count) {
 // Should probably test how much faster it is, because I don't like it and want to remove it.
 // I'd like to just call a values to_str method - but there's still a bug in there somewhere, we'll leave it
 // for now.
+//
+// TODO (robust): Remove this, if it's not significantly faster.
 static ObjString* fast_to_str(Value value) {
   switch (value.type) {
     case VAL_BOOL: return AS_STRING(BUILTIN_METHOD(TYPENAME_BOOL, to_str)(0, &value));
@@ -711,7 +714,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, to_str) {
         snprintf(chars, buf_size, VALUE_STRFMT_CLASS, name->chars);
         // Intuitively, you'd expect to use take_string here, but we don't know where malloc
         // allocates the memory - we don't want this block in our own memory pool.
-        ObjString* str_obj = copy_string(chars, (int)buf_size);
+        ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
 
         free(chars);
         pop();  // Name str
@@ -730,7 +733,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, to_str) {
         snprintf(chars, buf_size, VALUE_STRFTM_INSTANCE, name->chars);
         // Intuitively, you'd expect to use take_string here, but we don't know where malloc
         // allocates the memory - we don't want this block in our own memory pool.
-        ObjString* str_obj = copy_string(chars, (int)buf_size);
+        ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
 
         free(chars);
         pop();  // Name str
@@ -747,9 +750,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, to_str) {
         size_t buf_size = VALUE_STRFMT_FUNCTION_LEN + name->length;
         char* chars     = malloc(buf_size);
         snprintf(chars, buf_size, VALUE_STRFMT_FUNCTION, name->chars);
+
         // Intuitively, you'd expect to use take_string here, but we don't know where malloc
         // allocates the memory - we don't want this block in our own memory pool.
-        ObjString* str_obj = copy_string(chars, (int)buf_size);
+        ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
 
         free(chars);
         pop();  // Name str
@@ -770,7 +774,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, to_str) {
   snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name, (void*)AS_OBJ(argv[0]));
   // Intuitively, you'd expect to use take_string here, but we don't know where malloc
   // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(chars, (int)buf_size);
+  ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
 
   free(chars);
   return OBJ_VAL(str_obj);
@@ -1016,7 +1020,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
 
     // Expand chars to fit the separator plus the next item
     size_t new_buf_size =
-        strlen(chars) + strlen(item_str->chars) + (sizeof(VALUE_STR_SEQ_DELIM) - 1) +
+        strlen(chars) + item_str->length + (sizeof(VALUE_STR_SEQ_DELIM) - 1) +
         (sizeof(VALUE_STR_SEQ_END) - 1);  // Consider the closing bracket -  if we're done after this
                                           // iteration we won't need to expand and can just slap it on there
     // Expand if necessary
@@ -1039,7 +1043,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
 
   // Intuitively, you'd expect to use take_string here, but we don't know where malloc
   // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(chars, (int)buf_size);
+  ObjString* str_obj = copy_string(
+      chars,
+      (int)strlen(chars));  // TODO (optimize): Use buf_size here, but
+                            // we need to make sure that the string is
+                            // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
   free(chars);
   return OBJ_VAL(str_obj);
 }
@@ -1105,7 +1113,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_MAP, to_str) {
 
   // Intuitively, you'd expect to use take_string here, but we don't know where malloc
   // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(chars, (int)buf_size);
+  ObjString* str_obj = copy_string(
+      chars,
+      (int)strlen(chars));  // TODO (optimize): Use buf_size here, but
+                            // we need to make sure that the string is
+                            // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
   free(chars);
   return OBJ_VAL(str_obj);
 }
@@ -1434,6 +1446,7 @@ static void import_module(ObjString* module_name, ObjString* module_path) {
 }
 
 // Concatenates two strings on the stack (pops them) into a new string and pushes it onto the stack
+// `Stack: ...[a][b]` → `Stack: ...[a+b]`
 static void concatenate() {
   ObjString* b = AS_STRING(peek(0));  // Peek, so it doesn't get freed by the GC
   ObjString* a = AS_STRING(peek(1));  // Peek, so it doesn't get freed by the GC
@@ -1445,9 +1458,37 @@ static void concatenate() {
   chars[length] = '\0';
 
   ObjString* result = take_string(chars, length);
-  pop();  // Pop, because we only peeked
-  pop();  // Pop, because we only peeked
+  pop();  // b
+  pop();  // a
   push(OBJ_VAL(result));
+}
+
+// Returns the documentation of a value, if available. If not, it returns a default message.
+static Value doc(Value value) {
+  ObjString* doc_str = NULL;
+
+  switch (value.type) {
+    case VAL_OBJ: {
+      switch (AS_OBJ(value)->type) {
+        case OBJ_NATIVE: doc_str = ((ObjNative*)AS_OBJ(value))->doc; break;
+        case OBJ_FUNCTION: doc_str = AS_FUNCTION(value)->doc; break;
+        case OBJ_CLOSURE: doc_str = AS_CLOSURE(value)->function->doc; break;
+        case OBJ_BOUND_METHOD: return doc(OBJ_VAL(AS_BOUND_METHOD(value)->method));
+        default: break;
+      }
+    }
+  }
+
+  if (doc_str != NULL) {
+    return OBJ_VAL(doc_str);
+  }
+
+  // Create a default docstring as a fallback
+  push(OBJ_VAL(fast_to_str(value)));
+  push(OBJ_VAL(copy_string(":\nNo documentation available.\n", 30)));
+  concatenate();
+
+  return pop();
 }
 
 // This function represents the main loop of the virtual machine.
@@ -1673,15 +1714,6 @@ static Value run() {
         switch (peek(0).type) {
           case VAL_OBJ: {
             switch (OBJ_TYPE(peek(0))) {
-              case OBJ_NATIVE: {
-                ObjNative* native = ((ObjNative*)AS_OBJ(peek(0)));
-                if (values_equal(OBJ_VAL(name), OBJ_VAL(copy_string("doc", 3)))) {
-                  pop();  // Pop the native
-                  push(OBJ_VAL(native->doc));
-                  goto done_getting_property;
-                }
-                break;
-              }
               case OBJ_CLASS: {
                 ObjClass* klass = AS_CLASS(peek(0));
                 if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_NAME])) {
@@ -1717,6 +1749,13 @@ static Value run() {
 
         ObjClass* klass = type_of(peek(0));
         if (bind_method(klass, name)) {
+          goto done_getting_property;
+        }
+
+        if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_DOC])) {
+          Value doc_str = doc(peek(0));
+          pop();  // Pop the object
+          push(doc_str);
           goto done_getting_property;
         }
 

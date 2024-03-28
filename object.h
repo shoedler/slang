@@ -114,6 +114,7 @@ typedef struct {
   int upvalue_count;
   Chunk chunk;
   ObjString* name;
+  ObjString* doc;
   struct ObjInstance* globals_context;
 } ObjFunction;
 

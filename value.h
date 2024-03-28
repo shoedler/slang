@@ -51,7 +51,7 @@ typedef enum {
 #define VALUE_STRFMT_BOUND_METHOD "<BoundMethod %s>"
 #define VALUE_STRFMT_BOUND_METHOD_LEN (sizeof(VALUE_STRFMT_BOUND_METHOD) - 2)
 #define VALUE_STRFMT_OBJ "<%s at %p>"
-#define VALUE_STRFMT_OBJ_LEN (sizeof(VALUE_STRFMT_OBJ) - 3)
+#define VALUE_STRFMT_OBJ_LEN (sizeof(VALUE_STRFMT_OBJ) - 4)
 #define VALUE_STR_NATIVE "<Native Fn>"
 #define VALUE_STR_SEQ_START "["
 #define VALUE_STR_SEQ_DELIM ", "

@@ -35,16 +35,11 @@ cls NewFnSyntax {
   fn method {
     // Anon / Lambda Fns
     // No args decl
-    let a = fn() -> { }
+    let a = fn -> { }
     // Args decl
     let a = fn(a,b,c) -> { }
   }
 }
-
-// TODO: Add support for pure objs
-// TODO: Add support for sequences
-// TODO: Add support for match
-// TODO: Add support for tuples
 
 // Seq
 [] + "Strtoseq" = ["S", "t", "r", "t", "o", "s", "e", "q"]
@@ -71,7 +66,3 @@ let i = match [1,2,3] {
   some(@str) -> "Some element is a string",
   _ -> "Default case"
 }
-
-// Tuples
-let t = (1,2,3) // <- Tuple
-fn x -> q = ret (q, q+1) // <- Tuple

@@ -66,7 +66,7 @@
 // Define a built-in function's documentation string.
 #define BUILTIN_FN_DOC(name, args, return_type, description) \
   static const char* BUILTIN_FN_DOC_STR(name) =              \
-      ___BUILTIN_DOC_SIG_START(name) args ___BUILTIN_DOC_SIG_END(return_type, description)
+      "fn " ___BUILTIN_DOC_SIG_START(name) args ___BUILTIN_DOC_SIG_END(return_type, description)
 
 // Define a built-in function.
 #define BUILTIN_FN_IMPL(name) static Value BUILTIN_FN(name)(int argc, Value argv[])

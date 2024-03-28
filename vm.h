@@ -22,6 +22,9 @@
 #define KEYWORD_FILE_PATH "__file_path"
 #define KEYWORD_FILE_PATH_LEN (sizeof(KEYWORD_FILE_PATH) - 1)
 
+#define KEYWORD_DOC "__doc"
+#define KEYWORD_DOC_LEN (sizeof(KEYWORD_DOC) - 1)
+
 #define KEYWORD_THIS "this"
 #define KEYWORD_THIS_LEN (sizeof(KEYWORD_THIS) - 1)
 
@@ -41,6 +44,7 @@ typedef enum {
   WORD_NAME,
   WORD_MODULE_NAME,
   WORD_FILE_PATH,
+  WORD_DOC,
 
   WORD_MAX,
 } CachedWords;

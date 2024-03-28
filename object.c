@@ -98,6 +98,7 @@ ObjFunction* new_function() {
   function->arity           = 0;
   function->upvalue_count   = 0;
   function->name            = NULL;
+  function->doc             = NULL;
   function->globals_context = NULL;
   init_chunk(&function->chunk);
   return function;

@@ -257,6 +257,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
   compiler->function                  = new_function();
   compiler->function->globals_context = vm.module;
 
+  // Determine the name of the function via its type.
   switch (type) {
     case TYPE_MODULE: {
       // We use the modules name as the functions name (same reference, no copy). Meaning that the modules
@@ -269,7 +270,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
       }
       INTERNAL_ERROR("Module name not found in module's fields (" KEYWORD_MODULE_NAME ").");
     }
-    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("<Anon>", 7); break;
+    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("__anon", 6); break;
     case TYPE_CONSTRUCTOR: current->function->name = AS_STRING(vm.cached_words[WORD_CTOR]); break;
     default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }
@@ -278,6 +279,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
   local->depth       = 0;
   local->is_captured = false;
 
+  // Sometimes we need to "inject" the 'this' keyword, depending on the type of function we're compiling.
   if (type == TYPE_CONSTRUCTOR || type == TYPE_METHOD) {
     local->name.start  = KEYWORD_THIS;
     local->name.length = KEYWORD_THIS_LEN;
