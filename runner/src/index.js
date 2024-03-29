@@ -85,10 +85,13 @@ switch (cmd) {
       { recursive: true },
       filename =>
         filename.endsWith('.c') || filename.endsWith('.h') || sampleFilePath.endsWith(filename),
-      async signal => {
-        const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
-        if (!didBuild) {
-          return;
+      async (signal, triggerFile, isFirstRun) => {
+        // Only build if the trigger file is not the sample file, or if it is the first run
+        if (isFirstRun || !sampleFilePath.endsWith(triggerFile)) {
+          const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
+          if (!didBuild) {
+            return;
+          }
         }
 
         info('Running slang file', sampleFilePath);
@@ -118,8 +121,9 @@ switch (cmd) {
         filename.endsWith('.c') ||
         filename.endsWith('.h') ||
         (filename.endsWith(SLANG_TEST_SUFFIX) && new RegExp(testNamePattern).test(filename)),
-      async (signal, triggerFile) => {
-        if (!triggerFile.endsWith(SLANG_TEST_SUFFIX)) {
+      async (signal, triggerFile, isFirstRun) => {
+        // Only build if the trigger file is not a test file, or if it is the first run
+        if (isFirstRun || !triggerFile.endsWith(SLANG_TEST_SUFFIX)) {
           const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
           if (!didBuild) {
             return;
