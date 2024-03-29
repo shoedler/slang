@@ -18,19 +18,22 @@ typedef enum {
   VAL_EMPTY_INTERNAL,
 } ValueType;
 
-#define TYPENAME_NUMBER "Num"
-#define TYPENAME_STRING "Str"
-#define TYPENAME_BOOL "Bool"
-#define TYPENAME_NIL "Nil"
-#define TYPENAME_SEQ "Seq"
-#define TYPENAME_MAP "Map"
-#define TYPENAME_BOUND_METHOD "BoundMethod"
-#define TYPENAME_CLASS "Class"
-#define TYPENAME_CLOSURE "Fn"
-#define TYPENAME_FUNCTION "Fn"
-#define TYPENAME_INSTANCE "Instance"
-#define TYPENAME_NATIVE "NativeFn"
-#define TYPENAME_UPVALUE "Upvalue"
+#define TYPENAME_OBJ Obj
+#define TYPENAME_NUMBER Num
+#define TYPENAME_STRING Str
+#define TYPENAME_BOOL Bool
+#define TYPENAME_NIL Nil
+#define TYPENAME_SEQ Seq
+#define TYPENAME_MAP Map
+#define TYPENAME_BOUND_METHOD BoundMethod
+#define TYPENAME_CLASS Class
+#define TYPENAME_CLOSURE Fn
+#define TYPENAME_FUNCTION Fn
+#define TYPENAME_INSTANCE Instance
+#define TYPENAME_NATIVE NativeFn
+#define TYPENAME_UPVALUE Upvalue
+
+#define TYPENAME_MODULE Module
 
 #define VALUE_STR_TRUE "true"
 #define VALUE_STR_FALSE "false"
@@ -48,7 +51,7 @@ typedef enum {
 #define VALUE_STRFMT_BOUND_METHOD "<BoundMethod %s>"
 #define VALUE_STRFMT_BOUND_METHOD_LEN (sizeof(VALUE_STRFMT_BOUND_METHOD) - 2)
 #define VALUE_STRFMT_OBJ "<%s at %p>"
-#define VALUE_STRFMT_OBJ_LEN (sizeof(VALUE_STRFMT_OBJ) - 3)
+#define VALUE_STRFMT_OBJ_LEN (sizeof(VALUE_STRFMT_OBJ) - 4)
 #define VALUE_STR_NATIVE "<Native Fn>"
 #define VALUE_STR_SEQ_START "["
 #define VALUE_STR_SEQ_DELIM ", "

@@ -14,7 +14,7 @@ let a = {
 
 print a[fn -> 1] // [Expect] nil
 print a[[1,2,3]] // [Expect] nil
-print a[f] // [Expect] <Fn <Anon>>
+print a[f] // [Expect] <Fn __anon>
 print a[s] // [Expect] [4, 5, 6]
 print a["hello"] // [Expect] world
-print a // [Expect] {[1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn <Anon>>: <Fn <Anon>>, <Fn <Anon>>: <Fn <Anon>>, nil: nil, true: false, 1: 2, hello: world}
+print a // [Expect] {[1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn __anon>: <Fn __anon>, <Fn __anon>: <Fn __anon>, nil: nil, true: false, 1: 2, hello: world}

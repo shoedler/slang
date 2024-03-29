@@ -255,5 +255,5 @@ cls Foo {
     a252,
     a253,
     a254,
-    a255, a) {} // [ExpectCompileError] Compile error at line 258 at 'a': Can't have more than MAX_FN_ARGS parameters.
+    a255, a) {} // [ExpectCompileError] Compile error at line 258 at 'a': Can't have more than 255 parameters.
 }

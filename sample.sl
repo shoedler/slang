@@ -255,57 +255,80 @@
 // let l = List()
 // log("Hello", [1,2,3], clock(), type_name(nil), l.list.len(), type_name(l.list))
 
-// print "--------------------------------------------------------------------------------"
-// print "Builtin stuff"
-// print "--------------------------------------------------------------------------------"
-
-// print List.__name
-// print List.__ctor
-
-// print 312.to_str()
-// print 312.hash()
-// print type_name(321)
-// print type_of(312)
-// print "Hello".len()
-
-// let values = [0, nil, true, [], fn->1, clock, List]
-// for let i = 0 ; i < values.len(); i = i + 1 ; {
-//   log("---")
-//   log("type_name: ", type_name(values[i]))
-//   log("type_of:   ", type_of(values[i]))
-//   log("to_str:    ", values[i].to_str())
-// }
-
-// print cwd()
-// print std.__file_path
-
 print "--------------------------------------------------------------------------------"
-print "Maps"
+print "Builtin stuff"
 print "--------------------------------------------------------------------------------"
 
-let f = fn -> 10
-let s = [1,2,3]
+import std from "/modules/std"
+cls Sample { ctor { this.value = 10 } }
+fn sample_fn { ret 10; }
 
-let a = {
-    1: 2, 
-    true: false,
-    nil: nil, 
-    "hello": "world",
-    fn -> 1: fn -> 2, // Unreachable, because we have no reference to this function
-    f: fn -> 2,       // Reachable
-    [1,2,3]: [4,5,6], // Unreachable, because we have no reference to this array
-    s: [4,5,6]        // Reachable
+print Sample.__name
+print Sample.__ctor
+
+let values = [0, nil, true, [], fn->1, clock, Sample]
+for let i = 0 ; i < values.len(); i = i + 1 ; {
+  log("---")
+  log("type_name: ", type_name(values[i]))
+  log("type_of:   ", type_of(values[i]))
+  log("to_str:    ", values[i].to_str())
+  log("hash:      ", values[i].hash())
 }
 
-print a[fn -> 1] // Should print: nil
-print a[[1,2,3]] // Should print: nil
-print a[f] // Should print: <Fn <Anon>>
-print a[s] // Should print: [4, 5, 6]
-print a["hello"] // Should print: "world"
-print "-------"
-print a.keys()
-print a.values()
-print a.entries()
-print "-------"
-// Order is not guaranteed, since the underlying data structure is a hash table
-print a // Should print: {[1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn <Anon>>: <Fn <Anon>>, <Fn <Anon>>: <Fn <Anon>>, nil: nil, true: false, 1: 2, hello: world}
+print cwd()
+print std.__file_path
+
+print Nil.__ctor.__doc
+print Bool.__ctor.__doc
+print Num.__ctor.__doc
+print Str.__ctor.__doc
+print Seq.__ctor.__doc
+print Map.__ctor.__doc
+
+// These have no docstrings:
+print "".to_str.__doc
+print "".len.__doc
+print (fn->1).__doc
+print sample_fn.__doc
+print [1,23].__doc
+print Sample.__doc
+print Sample().__doc
+
+print clock.__doc
+print type_name.__doc
+print type_of.__doc
+print cwd.__doc
+print log.__doc
+
+// print "--------------------------------------------------------------------------------"
+// print "Maps"
+// print "--------------------------------------------------------------------------------"
+
+// let f = fn -> 10
+// let s = [1,2,3]
+
+// let a = {
+//     1: 2, 
+//     true: false,
+//     nil: nil, 
+//     "hello": "world",
+//     fn -> 1: fn -> 2, // Unreachable, because we have no reference to this function
+//     f: fn -> 2,       // Reachable
+//     [1,2,3]: [4,5,6], // Unreachable, because we have no reference to this array
+//     s: [4,5,6]        // Reachable
+// }
+
+// print a[fn -> 1] // Should print: nil
+// print a[[1,2,3]] // Should print: nil
+// print a[f] // Should print: <Fn __anon>
+// print a[f]() // Should print: 2
+// print a[s] // Should print: [4, 5, 6]
+// print a["hello"] // Should print: "world"
+// print "-------"
+// print a.keys()
+// print a.values()
+// print a.entries()
+// print "-------"
+
+// // Order is not guaranteed, since the underlying data structure is a hash table
+// print a // Should print: {[1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn __anon>: <Fn __anon>, <Fn __anon>: <Fn __anon>, nil: nil, true: false, 1: 2, hello: world}

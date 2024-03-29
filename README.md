@@ -17,23 +17,38 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] `switch` Statement. Starting point for the `match` statement. (**_See Challenge 23.1_**)
 - [ ] Implement `break`
+- [ ] Implement a way to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing. Maybe attributes? (e.g. `@doc "This is a doc string"`)
+- [ ] Implement `Str.split(Str?) -> Seq` as a builtin
+- [ ] Implement `Str.trim() -> Str` as a builtin
+- [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
+- [ ] Implement `Seq.filter(predFn) -> Seq` as a builtin
+- [ ] Implement `Seq.map(mapFn) -> Seq` as a builtin
+- [ ] Implement `Seq.each(fn) -> Nil` as a builtin
+- [ ] Implement `Seq.reduce(reduceFn) -> Seq` as a builtin
+- [ ] Implement `Seq.contains(predFn) -> Bool` as a builtin
+- [ ] Implement `Seq.count(predFn) -> Num` as a builtin
+- [ ] Implement `Seq.some(predFn) -> Bool` as a builtin
+- [ ] Implement `Seq.every(predFn) -> Bool` as a builtin
+- [ ] Implement `Seq.join(Str?) -> Str` as a builtin
+- [ ] Implement `Seq.slice(Num?, Num?) -> Seq` as a builtin
+- [ ] Implement `Seq.reverse() -> Seq` as a builtin
+- [ ] Implement `Seq.concat(Seq) -> Seq` as a builtin
+- [ ] Implement `Seq.first(predFn?) -> Obj` as a builtin
+- [ ] Implement `Seq.last(predFn?) -> Obj` as a builtin
+- [ ] Implement `Seq[1..] -> Seq` as a builtin (slice)
+- [ ] Implement `Seq[..-1] -> Seq` as a builtin (slice)
+- [ ] Implement `Seq[1..-1] -> Seq` as a builtin (slice)
+- [ ] Implement `Seq[-1] -> Seq` as a builtin
+- [ ] Implement `File` class
+- [ ] Implement `File.read(Str, Str?) -> Str` (path, encoding) as a builtin
+- [ ] Implement `File.write(Str, Str, Str?) -> Nil` (path, content, encoding) as a builtin
+- [ ] Implement `File.append(Str, Str, Str?) -> Nil` (path, content, encoding) as a builtin
+- [ ] Implement `File.exists(Str) -> Bool` (path) as a builtin
+- [ ] Implement `File.join(Str, Str, ...) -> Str` (path, path, ...) as a builtin
+- [ ] Implement Map destructuring `let { a } = { a: 1 } // a == 1`
+- [ ] Implement Seq destructuring `let [ a ] = [ 1 ] // a == 1`
+- [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
 - [ ] Implement iterators
-- [ ] Implement a way to add a doc string to functions and classes.
-- [ ] Implement a way to add a synopsis to functions and classes. Kinda like a interface. E.g. for a seq ctor `Seq(arg_a: Num) -> Seq // Of length arg_a`, `Seq(arg_a: Str) -> Seq // Containing each char of arg_a`. This should also work for native functions
-- [ ] Implement a ctor for `Seq(Str)`
-- [ ] Implement `Seq.sort()` as a builtin
-- [ ] Implement `Seq.filter()` as a builtin
-- [ ] Implement `Seq.map()` as a builtin
-- [ ] Implement `Seq.reduce()` as a builtin
-- [ ] Implement `Seq.find()` as a builtin
-- [ ] Implement `Seq.contains()` as a builtin
-- [ ] Implement `Seq.join()` as a builtin
-- [ ] Implement `Seq.slice()` as a builtin
-- [ ] Implement `Seq.reverse()` as a builtin
-- [ ] Implement `Seq[1..]` as a builtin
-- [ ] Implement `Seq[..-1]` as a builtin
-- [ ] Implement `Seq[1..-1]` as a builtin
-- [ ] Implement `Seq[-1]` as a builtin
 
 ## Improvements
 

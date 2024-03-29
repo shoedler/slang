@@ -1,6 +1,7 @@
 #ifndef vm_h
 #define vm_h
 
+#include "builtin.h"
 #include "chunk.h"
 #include "hashtable.h"
 #include "object.h"
@@ -21,6 +22,9 @@
 #define KEYWORD_FILE_PATH "__file_path"
 #define KEYWORD_FILE_PATH_LEN (sizeof(KEYWORD_FILE_PATH) - 1)
 
+#define KEYWORD_DOC "__doc"
+#define KEYWORD_DOC_LEN (sizeof(KEYWORD_DOC) - 1)
+
 #define KEYWORD_THIS "this"
 #define KEYWORD_THIS_LEN (sizeof(KEYWORD_THIS) - 1)
 
@@ -40,6 +44,7 @@ typedef enum {
   WORD_NAME,
   WORD_MODULE_NAME,
   WORD_FILE_PATH,
+  WORD_DOC,
 
   WORD_MAX,
 } CachedWords;
@@ -62,14 +67,14 @@ typedef struct {
   ObjInstance* module;  // The current module
   int exit_on_frame;
 
-  ObjClass* object_class;  // The class of all objects
-  ObjClass* module_class;  // The module class
-  ObjClass* string_class;  // The string class
-  ObjClass* number_class;  // The number class
-  ObjClass* bool_class;    // The bool class
-  ObjClass* nil_class;     // The nil class
-  ObjClass* seq_class;     // The sequence class
-  ObjClass* map_class;     // The map class
+  ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);     // The class of all objects
+  ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);  // The module class
+  ObjClass* BUILTIN_CLASS(TYPENAME_STRING);  // The string class
+  ObjClass* BUILTIN_CLASS(TYPENAME_NUMBER);  // The number class
+  ObjClass* BUILTIN_CLASS(TYPENAME_BOOL);    // The bool class
+  ObjClass* BUILTIN_CLASS(TYPENAME_NIL);     // The nil class
+  ObjClass* BUILTIN_CLASS(TYPENAME_SEQ);     // The sequence class
+  ObjClass* BUILTIN_CLASS(TYPENAME_MAP);     // The map class
 
   ObjInstance* builtin;          // The builtin (builtin things) object instance
   Value cached_words[WORD_MAX];  // Cached words for quick access

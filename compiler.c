@@ -257,6 +257,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
   compiler->function                  = new_function();
   compiler->function->globals_context = vm.module;
 
+  // Determine the name of the function via its type.
   switch (type) {
     case TYPE_MODULE: {
       // We use the modules name as the functions name (same reference, no copy). Meaning that the modules
@@ -269,7 +270,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
       }
       INTERNAL_ERROR("Module name not found in module's fields (" KEYWORD_MODULE_NAME ").");
     }
-    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("<Anon>", 7); break;
+    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("__anon", 6); break;
     case TYPE_CONSTRUCTOR: current->function->name = AS_STRING(vm.cached_words[WORD_CTOR]); break;
     default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }
@@ -278,6 +279,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
   local->depth       = 0;
   local->is_captured = false;
 
+  // Sometimes we need to "inject" the 'this' keyword, depending on the type of function we're compiling.
   if (type == TYPE_CONSTRUCTOR || type == TYPE_METHOD) {
     local->name.start  = KEYWORD_THIS;
     local->name.length = KEYWORD_THIS_LEN;
@@ -424,15 +426,12 @@ static void seq_literal(bool can_assign) {
       count++;
     } while (match(TOKEN_COMMA));
   }
-  consume(TOKEN_CBRACK, "Expecting ']' after " TYPENAME_SEQ " literal. Or maybe you are missing a ','?");
+  consume(TOKEN_CBRACK, "Expecting ']' after " STR(TYPENAME_SEQ) " literal. Or maybe you are missing a ','?");
 
   if (count <= MAX_SEQ_ITEMS) {
     emit_two(OP_SEQ_LITERAL, (uint16_t)count);
   } else {
-    error_at_current("Can't have more than MAX_SEQ_ITEMS items in a " TYPENAME_SEQ ".");  // TODO
-                                                                                          // (enhance):
-                                                                                          // Interpolate
-                                                                                          // MAX_SEQ_ITEMS
+    error_at_current("Can't have more than " STR(MAX_SEQ_ITEMS) " items in a " STR(TYPENAME_SEQ) ".");
   }
 }
 
@@ -449,14 +448,12 @@ static void map_literal(bool can_assign) {
       count++;
     } while (match(TOKEN_COMMA));
   }
-  consume(TOKEN_CBRACE, "Expecting '}' after " TYPENAME_MAP " literal. Or maybe you are missing a ','?");
+  consume(TOKEN_CBRACE, "Expecting '}' after " STR(TYPENAME_MAP) " literal. Or maybe you are missing a ','?");
 
   if (count <= MAX_MAP_ITEMS) {
     emit_two(OP_MAP_LITERAL, (uint16_t)count);
   } else {
-    error_at_current("Can't have more than MAX_MAP_ITEMS items in a " TYPENAME_MAP
-                     ".");  // TODO (enhance): Interpolate
-                            // MAX_MAP_ITEMS
+    error_at_current("Can't have more than " STR(MAX_MAP_ITEMS) " items in a " STR(TYPENAME_MAP) ".");
   }
 }
 
@@ -602,10 +599,7 @@ static void function(bool can_assign, FunctionType type) {
       do {
         current->function->arity++;
         if (current->function->arity > MAX_FN_ARGS) {
-          error_at_current("Can't have more than MAX_FN_ARGS parameters.");  // TODO
-                                                                             // (enhance):
-                                                                             // Interpolate
-                                                                             // MAX_FN_ARGS
+          error_at_current("Can't have more than " STR(MAX_FN_ARGS) " parameters.");
         }
         uint16_t constant = parse_variable("Expecting parameter name.");
         define_variable(constant);
