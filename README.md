@@ -17,9 +17,8 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] `switch` Statement. Starting point for the `match` statement. (**_See Challenge 23.1_**)
 - [ ] Implement `break`
-- [ ] Implement a way to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing. Maybe attributes? (e.g. `@doc "This is a doc string"`)
-- [ ] Implement `Str.split(Str?) -> Seq` as a builtin
-- [ ] Implement `Str.trim() -> Str` as a builtin
+- [x] Implement `Str.split(Str?) -> Seq` as a builtin
+- [x] Implement `Str.trim() -> Str` as a builtin
 - [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
 - [ ] Implement `Seq.filter(predFn) -> Seq` as a builtin
 - [ ] Implement `Seq.map(mapFn) -> Seq` as a builtin
@@ -48,6 +47,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement Map destructuring `let { a } = { a: 1 } // a == 1`
 - [ ] Implement Seq destructuring `let [ a ] = [ 1 ] // a == 1`
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
+- [ ] Implement a way to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing. Maybe attributes? (e.g. `@doc "This is a doc string"`)
 - [ ] Implement iterators
 
 ## Improvements

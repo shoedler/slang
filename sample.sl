@@ -255,50 +255,50 @@
 // let l = List()
 // log("Hello", [1,2,3], clock(), type_name(nil), l.list.len(), type_name(l.list))
 
-print "--------------------------------------------------------------------------------"
-print "Builtin stuff"
-print "--------------------------------------------------------------------------------"
+// print "--------------------------------------------------------------------------------"
+// print "Builtin stuff"
+// print "--------------------------------------------------------------------------------"
 
-import std from "/modules/std"
-cls Sample { ctor { this.value = 10 } }
-fn sample_fn { ret 10; }
+// import std from "/modules/std"
+// cls Sample { ctor { this.value = 10 } }
+// fn sample_fn { ret 10; }
 
-print Sample.__name
-print Sample.__ctor
+// print Sample.__name
+// print Sample.__ctor
 
-let values = [0, nil, true, [], fn->1, clock, Sample]
-for let i = 0 ; i < values.len(); i = i + 1 ; {
-  log("---")
-  log("type_name: ", type_name(values[i]))
-  log("type_of:   ", type_of(values[i]))
-  log("to_str:    ", values[i].to_str())
-  log("hash:      ", values[i].hash())
-}
+// let values = [0, nil, true, [], fn->1, clock, Sample]
+// for let i = 0 ; i < values.len(); i = i + 1 ; {
+//   log("---")
+//   log("type_name: ", type_name(values[i]))
+//   log("type_of:   ", type_of(values[i]))
+//   log("to_str:    ", values[i].to_str())
+//   log("hash:      ", values[i].hash())
+// }
 
-print cwd()
-print std.__file_path
+// print cwd()
+// print std.__file_path
 
-print Nil.__ctor.__doc
-print Bool.__ctor.__doc
-print Num.__ctor.__doc
-print Str.__ctor.__doc
-print Seq.__ctor.__doc
-print Map.__ctor.__doc
+// print Nil.__ctor.__doc
+// print Bool.__ctor.__doc
+// print Num.__ctor.__doc
+// print Str.__ctor.__doc
+// print Seq.__ctor.__doc
+// print Map.__ctor.__doc
 
-// These have no docstrings:
-print "".to_str.__doc
-print "".len.__doc
-print (fn->1).__doc
-print sample_fn.__doc
-print [1,23].__doc
-print Sample.__doc
-print Sample().__doc
+// // These have no docstrings:
+// print "".to_str.__doc
+// print "".len.__doc
+// print (fn->1).__doc
+// print sample_fn.__doc
+// print [1,23].__doc
+// print Sample.__doc
+// print Sample().__doc
 
-print clock.__doc
-print type_name.__doc
-print type_of.__doc
-print cwd.__doc
-print log.__doc
+// print clock.__doc
+// print type_name.__doc
+// print type_of.__doc
+// print cwd.__doc
+// print log.__doc
 
 // print "--------------------------------------------------------------------------------"
 // print "Maps"
@@ -332,3 +332,9 @@ print log.__doc
 
 // // Order is not guaranteed, since the underlying data structure is a hash table
 // print a // Should print: {[1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn __anon>: <Fn __anon>, <Fn __anon>: <Fn __anon>, nil: nil, true: false, 1: 2, hello: world}
+
+// print "1234\n".split()
+// print "1234\n4321".split("4")
+// print "123".split("")
+
+print " h ".trim() + "ello"

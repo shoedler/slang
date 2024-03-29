@@ -104,6 +104,20 @@ ObjFunction* new_function() {
   return function;
 }
 
+ObjSeq* prealloc_seq(int count) {
+  ValueArray items;
+  init_value_array(&items);
+  int capacity   = GROW_CAPACITY(count);
+  items.values   = RESIZE_ARRAY(Value, items.values, 0, capacity);
+  items.capacity = capacity;
+  items.count    = count;
+
+  ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
+  seq->items  = items;
+
+  return seq;
+}
+
 ObjNative* new_native(NativeFn function, ObjString* doc) {
   ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
   native->function  = function;

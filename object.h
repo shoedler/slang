@@ -192,6 +192,11 @@ ObjClosure* new_closure(ObjFunction* function);
 // garbage collection.
 ObjFunction* new_function();
 
+// Creates, initializes and allocates a new seq object. Initializes the
+// value array to add 'count' values without resizing. It's intended to add items directly to
+// items.values[idx], do not use write_value_array. Might trigger garbage collection.
+ObjSeq* prealloc_seq(int count);
+
 // Creates, initializes and allocates a new native function object. Might
 // trigger garbage collection.
 ObjNative* new_native(NativeFn function, ObjString* doc);
