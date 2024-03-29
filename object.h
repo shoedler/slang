@@ -192,10 +192,9 @@ ObjClosure* new_closure(ObjFunction* function);
 // garbage collection.
 ObjFunction* new_function();
 
-// Creates, initializes and allocates a new seq object. Initializes the
-// value array to add 'count' values without resizing. It's intended to add items directly to
-// items.values[idx], do not use write_value_array. Might trigger garbage collection.
-ObjSeq* prealloc_seq(int count);
+// Creates, initializes and allocates a new seq object. Might trigger garbage
+// collection.
+ObjSeq* new_seq();
 
 // Creates, initializes and allocates a new native function object. Might
 // trigger garbage collection.
@@ -209,6 +208,11 @@ ObjUpvalue* new_upvalue(Value* slot);
 // This does not take ownership of the string, but rather - as the name suggests - copies it. Might
 // trigger garbage collection.
 ObjString* copy_string(const char* chars, int length);
+
+// Creates, initializes and allocates a new seq object. Initializes the
+// value array to add 'count' values without resizing. It's intended to add items directly to
+// items.values[idx], do not use write_value_array. Might trigger garbage collection.
+ObjSeq* prealloc_seq(int count);
 
 // Creates a string object from a C string.
 // This takes ownership of the string. This means that the string will be freed

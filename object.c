@@ -104,18 +104,10 @@ ObjFunction* new_function() {
   return function;
 }
 
-ObjSeq* prealloc_seq(int count) {
+ObjSeq* new_seq() {
   ValueArray items;
   init_value_array(&items);
-  int capacity   = GROW_CAPACITY(count);
-  items.values   = RESIZE_ARRAY(Value, items.values, 0, capacity);
-  items.capacity = capacity;
-  items.count    = count;
-
-  ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
-  seq->items  = items;
-
-  return seq;
+  return take_seq(&items);
 }
 
 ObjNative* new_native(NativeFn function, ObjString* doc) {
@@ -135,9 +127,23 @@ static uint32_t hash_string(const char* key, int length) {
   return hash;
 }
 
-ObjSeq* take_seq(ValueArray items) {
+ObjSeq* prealloc_seq(int count) {
+  ValueArray items;
+  init_value_array(&items);
+  int capacity   = GROW_CAPACITY(count);
+  items.values   = RESIZE_ARRAY(Value, items.values, 0, capacity);
+  items.capacity = capacity;
+  items.count    = count;
+
   ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
   seq->items  = items;
+
+  return seq;
+}
+
+ObjSeq* take_seq(ValueArray* items) {
+  ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
+  seq->items  = *items;
   return seq;
 }
 

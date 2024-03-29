@@ -164,25 +164,20 @@ static void define_obj(HashTable* table, const char* name, Obj* obj) {
 
 // Creates a sequence of length "count" from the top "count" values on the stack.
 // The resulting sequence is pushed onto the stack.
+// This is obviously O(n), so use it with caution.
+//
+// TODO (optimize): This is mainly used for OP_SEQ_LITERAL, where all items are on the stack, maybe we could
+// batch-copy them into the value_array?
 static void make_seq(int count) {
   // Since we know the count, we can preallocate the value array for the list. This avoids
   // using write_value_array within the loop, which can trigger a GC due to growing the array
   // and free items in the middle of the loop. Also, it lets us pop the list items on the
   // stack, instead of peeking and then having to pop them later (Requiring us to loop over
   // the array twice)
-  ValueArray items;
-  init_value_array(&items);
-
-  items.values   = RESIZE_ARRAY(Value, items.values, 0, count);
-  items.capacity = count;
-  items.count    = count;
-
-  // Take the values array before we start popping the stack, so the items are still seen by the GC as
-  // we allocate the new seq object.
-  ObjSeq* seq = take_seq(&items);
+  ObjSeq* seq = prealloc_seq(count);
 
   for (int i = count - 1; i >= 0; i--) {
-    items.values[i] = pop();
+    seq->items.values[i] = pop();
   }
 
   push(OBJ_VAL(seq));
@@ -1180,9 +1175,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
     goto split_by_char;
   }
 
-  ValueArray items;
-  init_value_array(&items);
-  ObjSeq* seq = take_seq(&items);
+  ObjSeq* seq = new_seq();
   push(OBJ_VAL(seq));  // GC Protection
 
   // Split the string by looking for the separator at each character
@@ -1319,6 +1312,8 @@ BUILTIN_METHOD_IMPL(TYPENAME_MAP, entries) {
   BUILTIN_CHECK_RECEIVER(MAP)
 
   ObjMap* map = AS_MAP(argv[0]);
+  ObjSeq* seq = prealloc_seq(map->entries.count);
+  push(OBJ_VAL(seq));  // GC Protection
 
   int processed = 0;
   for (int i = 0; i < map->entries.capacity; i++) {
@@ -1326,15 +1321,12 @@ BUILTIN_METHOD_IMPL(TYPENAME_MAP, entries) {
     if (!IS_EMPTY_INTERNAL(entry->key)) {
       push(entry->key);
       push(entry->value);
-      make_seq(2);  // Leaves a seq with the two values on the stack
-      processed++;
+      make_seq(2);                             // Leaves a seq with the key-value on the stack
+      seq->items.values[processed++] = pop();  // The seq
     }
   }
 
-  make_seq(processed);
-  Value seq = pop();  // The seq made by make_seq
-
-  return seq;
+  return pop();  // The seq
 }
 
 BUILTIN_METHOD_DOC(
@@ -1348,20 +1340,18 @@ BUILTIN_METHOD_IMPL(TYPENAME_MAP, keys) {
   BUILTIN_CHECK_RECEIVER(MAP)
 
   ObjMap* map = AS_MAP(argv[0]);
+  ObjSeq* seq = prealloc_seq(map->entries.count);
+  push(OBJ_VAL(seq));  // GC Protection
 
   int processed = 0;
   for (int i = 0; i < map->entries.capacity; i++) {
     Entry* entry = &map->entries.entries[i];
     if (!IS_EMPTY_INTERNAL(entry->key)) {
-      push(entry->key);
-      processed++;
+      seq->items.values[processed++] = entry->key;
     }
   }
 
-  make_seq(processed);
-  Value seq = pop();  // The seq made by make_seq
-
-  return seq;
+  return pop();  // The seq
 }
 
 BUILTIN_METHOD_DOC(
@@ -1375,20 +1365,18 @@ BUILTIN_METHOD_IMPL(TYPENAME_MAP, values) {
   BUILTIN_CHECK_RECEIVER(MAP)
 
   ObjMap* map = AS_MAP(argv[0]);
+  ObjSeq* seq = prealloc_seq(map->entries.count);
+  push(OBJ_VAL(seq));  // GC Protection
 
   int processed = 0;
   for (int i = 0; i < map->entries.capacity; i++) {
     Entry* entry = &map->entries.entries[i];
     if (!IS_EMPTY_INTERNAL(entry->key)) {
-      push(entry->value);
-      processed++;
+      seq->items.values[processed++] = entry->value;
     }
   }
 
-  make_seq(processed);
-  Value seq = pop();  // The seq made by make_seq
-
-  return seq;
+  return pop();  // The seq
 }
 
 // Binds a method to an instance by creating a new bound method object and
