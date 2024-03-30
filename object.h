@@ -35,6 +35,9 @@
 // Determines whether a value is of type string.
 #define IS_STRING(value) is_obj_type(value, OBJ_STRING)
 
+// Determines whether a value is callable.
+#define IS_CALLABLE(value) is_callable(value)
+
 // Converts a value into a bound method.
 // Value must be of type bound method.
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
@@ -231,6 +234,19 @@ ObjMap* take_map(HashTable* entries);
 
 static inline bool is_obj_type(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;
+}
+
+// Determines if a value is callable. This is used to check if a value can be called as a function.
+static inline bool is_callable(Value value) {
+  if (IS_OBJ(value)) {
+    switch (OBJ_TYPE(value)) {
+      case OBJ_CLOSURE:
+      case OBJ_BOUND_METHOD:
+      case OBJ_NATIVE: return true;
+      default: break;
+    }
+  }
+  return false;
 }
 
 #endif

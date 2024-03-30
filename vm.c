@@ -66,6 +66,8 @@ BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, len)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, push)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, pop)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, has)
+BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, first)
+BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, last)
 
 BUILTIN_DECLARE_METHOD(TYPENAME_MAP, __ctor)
 BUILTIN_DECLARE_METHOD(TYPENAME_MAP, to_str)
@@ -184,19 +186,6 @@ static void make_seq(int count) {
   push(OBJ_VAL(seq));
 }
 
-// Determines if a value is callable. This is used to check if a value can be called as a function.
-static bool is_callable(Value value) {
-  if (IS_OBJ(value)) {
-    switch (OBJ_TYPE(value)) {
-      case OBJ_CLOSURE:
-      case OBJ_BOUND_METHOD:
-      case OBJ_NATIVE: return true;
-      default: break;
-    }
-  }
-  return false;
-}
-
 // Creates a map from the top "count" * 2 values on the stack.
 // The resulting map is pushed onto the stack.
 static void make_map(int count) {
@@ -297,6 +286,8 @@ void init_vm() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, push)
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, pop)
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, has)
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, first)
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, last)
 
   // Create the map class
   BUILTIN_REGISTER_CLASS(TYPENAME_MAP, TYPENAME_OBJ)
@@ -1326,7 +1317,7 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
     /* Return Type */ TYPENAME_BOOL,
     /* Description */
-    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_SEQ) " contains an item which equals 'value'")
+    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_SEQ) " contains an item which equals 'value'.")
 BUILTIN_METHOD_DOC_OVERLOAD(
     /* Receiver    */ TYPENAME_SEQ,
     /* Name        */ has,
@@ -1340,8 +1331,12 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, has) {
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
+  if (seq->items.count == 0) {
+    return BOOL_VAL(false);
+  }
 
-  if (is_callable(argv[1])) {
+  if (IS_CALLABLE(argv[1])) {
+    // Function predicate
     for (int i = 0; i < seq->items.count; i++) {
       push(argv[1]);               // Push the function
       push(seq->items.values[i]);  // Push the item
@@ -1352,6 +1347,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, has) {
       }
     }
   } else {
+    // Value equality
     for (int i = 0; i < seq->items.count; i++) {
       if (values_equal(argv[1], seq->items.values[i])) {
         return BOOL_VAL(true);
@@ -1360,6 +1356,82 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, has) {
   }
 
   return BOOL_VAL(false);
+}
+
+BUILTIN_METHOD_DOC(
+  /* Receiver    */ TYPENAME_SEQ,
+  /* Name        */ first, 
+  /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL), 
+  /* Return Type */ TYPENAME_OBJ, 
+  /* Description */ 
+  "Returns the first item of a " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE 
+  ". If no 'pred' is provided, returns the first item. Returns " STR(TYPENAME_NIL) " if the " 
+  STR(TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, first) {
+  BUILTIN_CHECK_RECEIVER(SEQ)
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+  if (seq->items.count == 0) {
+    return NIL_VAL;
+  }
+
+  // No arguments, return the first item
+  if (argc == 0) {
+    return seq->items.values[0];
+  }
+
+  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
+
+  // Function predicate
+  for (int i = 0; i < seq->items.count; i++) {
+    push(argv[1]);               // Push the function
+    push(seq->items.values[i]);  // Push the item
+    Value result = exec_fn(AS_OBJ(argv[1]), 1);
+    // We could also check for truthiness here,
+    if (IS_BOOL(result) && AS_BOOL(result)) {
+      return seq->items.values[i];
+    }
+  }
+
+  return NIL_VAL;
+}
+
+BUILTIN_METHOD_DOC(  
+  /* Receiver    */ TYPENAME_SEQ,
+  /* Name        */ last, 
+  /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL), 
+  /* Return Type */ TYPENAME_OBJ, 
+  /* Description */ 
+  "Returns the last item of a " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE 
+  ". If no 'pred' is provided, returns the last item. Returns " STR(TYPENAME_NIL) " if the " 
+  STR(TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, last) {
+  BUILTIN_CHECK_RECEIVER(SEQ)
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+  if (seq->items.count == 0) {
+    return NIL_VAL;
+  }
+
+  // No arguments, return the last item
+  if (argc == 0) {
+    return seq->items.values[seq->items.count - 1];
+  }
+
+  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
+
+  // Function predicate
+  for (int i = seq->items.count - 1; i >= 0; i--) {
+    push(argv[1]);               // Push the function
+    push(seq->items.values[i]);  // Push the item
+    Value result = exec_fn(AS_OBJ(argv[1]), 1);
+    // We could also check for truthiness here,
+    if (IS_BOOL(result) && AS_BOOL(result)) {
+      return seq->items.values[i];
+    }
+  }
+
+  return NIL_VAL;
 }
 
 BUILTIN_METHOD_DOC(
