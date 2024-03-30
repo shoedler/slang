@@ -59,6 +59,11 @@
       STR(class_name) "." ___BUILTIN_DOC_SIG_START(method_name)                     \
           args ___BUILTIN_DOC_SIG_END(return_type, description)
 
+// Define a built-in method's documentation overload.
+#define BUILTIN_METHOD_DOC_OVERLOAD(class_name, method_name, args, return_type, description)              \
+  "\n" STR(class_name) "." ___BUILTIN_DOC_SIG_START(method_name) args ___BUILTIN_DOC_SIG_END(return_type, \
+                                                                                             description)
+
 // Define a built-in method.
 #define BUILTIN_METHOD_IMPL(class_name, method_name) \
   static Value BUILTIN_METHOD(class_name, method_name)##(int argc, Value argv[])

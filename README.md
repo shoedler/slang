@@ -24,7 +24,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `Seq.map(mapFn) -> Seq` as a builtin
 - [ ] Implement `Seq.each(fn) -> Nil` as a builtin
 - [ ] Implement `Seq.reduce(reduceFn) -> Seq` as a builtin
-- [ ] Implement `Seq.contains(predFn) -> Bool` as a builtin
+- [x] Implement `Seq.has(predFn) -> Bool` as a builtin
 - [ ] Implement `Seq.count(predFn) -> Num` as a builtin
 - [ ] Implement `Seq.some(predFn) -> Bool` as a builtin
 - [ ] Implement `Seq.every(predFn) -> Bool` as a builtin

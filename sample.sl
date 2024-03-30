@@ -194,6 +194,26 @@
 // print "Hello".len
 // // print "Hello".get(0)
 
+// fn is_num(x) {
+//   ret type_of(x) == Num;
+// }
+
+// cls Validators { 
+//   ctor { this.num = 3 }
+//   fn is_num_3(x) { ret x == this.num; }
+// }
+
+// let validators = Validators()
+
+// print [1,3,4].has(2)
+// print [1,3,4].has(3)
+// print [1,3,4].has(is_num)
+// print [1,3,4].has(validators.is_num_3)
+// validators.num = 2
+// print [1,3,4].has(validators.is_num_3)
+
+// print [].has.__doc
+
 // print "--------------------------------------------------------------------------------"
 // print "Modules"
 // print "--------------------------------------------------------------------------------"
@@ -336,5 +356,3 @@
 // print "1234\n".split()
 // print "1234\n4321".split("4")
 // print "123".split("")
-
-print " h ".trim() + "ello"

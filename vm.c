@@ -65,6 +65,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, to_str)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, len)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, push)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, pop)
+BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, has)
 
 BUILTIN_DECLARE_METHOD(TYPENAME_MAP, __ctor)
 BUILTIN_DECLARE_METHOD(TYPENAME_MAP, to_str)
@@ -183,6 +184,19 @@ static void make_seq(int count) {
   push(OBJ_VAL(seq));
 }
 
+// Determines if a value is callable. This is used to check if a value can be called as a function.
+static bool is_callable(Value value) {
+  if (IS_OBJ(value)) {
+    switch (OBJ_TYPE(value)) {
+      case OBJ_CLOSURE:
+      case OBJ_BOUND_METHOD:
+      case OBJ_NATIVE: return true;
+      default: break;
+    }
+  }
+  return false;
+}
+
 // Creates a map from the top "count" * 2 values on the stack.
 // The resulting map is pushed onto the stack.
 static void make_map(int count) {
@@ -282,6 +296,7 @@ void init_vm() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, len)
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, push)
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, pop)
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, has)
 
   // Create the map class
   BUILTIN_REGISTER_CLASS(TYPENAME_MAP, TYPENAME_OBJ)
@@ -406,7 +421,6 @@ static CallResult call_value(Value callable, int arg_count) {
         // Load the receiver onto the stack, just before the arguments, overriding the bound method on the
         // stack.
         vm.stack_top[-arg_count - 1] = bound->receiver;
-
         switch (bound->method->type) {
           case OBJ_CLOSURE: return call_managed((ObjClosure*)bound->method, arg_count);
           case OBJ_NATIVE: return call_native(((ObjNative*)bound->method)->function, arg_count);
@@ -523,6 +537,13 @@ static Value exec_fn(Obj* callable, int arg_count) {
   switch (callable->type) {
     case OBJ_CLOSURE: result = call_managed((ObjClosure*)callable, arg_count); break;
     case OBJ_NATIVE: result = call_native(((ObjNative*)callable)->function, arg_count); break;
+    case OBJ_BOUND_METHOD: {
+      // For bound methods, we need to load the receiver onto the stack just before the arguments, overriding
+      // the bound method on the stack.
+      ObjBoundMethod* bound        = (ObjBoundMethod*)callable;
+      vm.stack_top[-arg_count - 1] = bound->receiver;
+      return exec_fn(bound->method, arg_count);
+    }
   }
 
   if (result == CALL_RETURNED) {
@@ -1297,6 +1318,48 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
   }
 
   return pop_value_array(&seq->items);
+}
+
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ has,
+    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
+    /* Return Type */ TYPENAME_BOOL,
+    /* Description */
+    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_SEQ) " contains an item which equals 'value'")
+BUILTIN_METHOD_DOC_OVERLOAD(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ has,
+    /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
+    /* Return Type */ TYPENAME_BOOL,
+    /* Description */
+    "Returns " VALUE_STR_TRUE
+    " if the " STR(TYPENAME_SEQ) " contains an item for which 'pred' evaulates to " VALUE_STR_TRUE ".");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, has) {
+  BUILTIN_CHECK_ARGC_ONE()
+  BUILTIN_CHECK_RECEIVER(SEQ)
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+
+  if (is_callable(argv[1])) {
+    for (int i = 0; i < seq->items.count; i++) {
+      push(argv[1]);               // Push the function
+      push(seq->items.values[i]);  // Push the item
+      Value result = exec_fn(AS_OBJ(argv[1]), 1);
+      // We could also check for truthiness here,
+      if (IS_BOOL(result) && AS_BOOL(result)) {
+        return BOOL_VAL(true);
+      }
+    }
+  } else {
+    for (int i = 0; i < seq->items.count; i++) {
+      if (values_equal(argv[1], seq->items.values[i])) {
+        return BOOL_VAL(true);
+      }
+    }
+  }
+
+  return BOOL_VAL(false);
 }
 
 BUILTIN_METHOD_DOC(
