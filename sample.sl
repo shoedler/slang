@@ -15,7 +15,7 @@
 // print "--------------------------------------------------------------------------------"
 // print "Loops"
 // print "--------------------------------------------------------------------------------"
-// for let i = 0 ; i < 5 ; i = i + 1 ; {
+// for let i = 0 ; i < 5 ; i++ ; {
 //   print i
 // }
 
@@ -32,7 +32,7 @@
 //   print c
 // }
 
-// for let i = 0 ; i < 100 ; i = i + 1 ; {
+// for let i = 0 ; i < 100 ; i++ ; {
 //   let outer = fn {
 //     let x = "outside"
 //     let inner = fn {
@@ -324,7 +324,7 @@
 // print Sample.__ctor
 
 // let values = [0, nil, true, [], fn->1, clock, Sample]
-// for let i = 0 ; i < values.len(); i = i + 1 ; {
+// for let i = 0 ; i < values.len(); i++ ; {
 //   log("---")
 //   log("type_name: ", type_name(values[i]))
 //   log("type_of:   ", type_of(values[i]))
