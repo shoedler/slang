@@ -188,12 +188,9 @@
 // s.list[1] = -2
 // s.printList()
 
-// // print sys.clock()
-// print "Hello"
-// print 123.type
-// print "Hello".len
-// // print "Hello".get(0)
-
+//
+// Seq.has
+//
 // fn is_num(x) {
 //   ret type_of(x) == Num;
 // }
@@ -214,13 +211,30 @@
 
 // print [].has.__doc
 
-print [].first() // nil
-print [1,2,3].first() // 1
-print [1,2,3].first(fn (x) -> x/2 == 1) // 2
+// 
+// Seq.first
+//
+// print [].first() // nil
+// print [1,2,3].first() // 1
+// print [1,2,3].first(fn (x) -> x/2 == 1) // 2
 
-print [].last() // nil
-print [1,2,3].last() // 3
-print [1,2,3].last(fn (x) -> type_of(x) == Num) // 3
+//
+// Seq.last
+//
+// print [].last() // nil
+// print [1,2,3].last() // 3
+// print [1,2,3].last(fn (x) -> type_of(x) == Num) // 3
+
+//
+// Seq.each
+//
+print [1,2,3].each(fn (x) -> log(x)) // 1, 2, 3
+print [1,2,3].each(fn (x, i) -> log(x + i)) // 1, 3, 5
+let a = [1,2,3]
+a.each(fn (x, i) {
+  a.push(x + 1)
+})
+print a // 1, 2, 3, 2, 3, 4
 
 // print "--------------------------------------------------------------------------------"
 // print "Modules"

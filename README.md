@@ -9,22 +9,18 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 ### Syntax & Language Features
 
 - [ ] Implement `+=`, `-=`, `*=`, `/=`, `%=`
-- [ ] Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `a then b else c`. This is a must-have. (**_See Challenge 17.3_**)
+- [ ] Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `when a then b else c`. This is a must-have. (**_See Challenge 17.3_**)
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] `continue` Statement (**_See Challenge 23.2_**)
-- [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] `switch` Statement. Starting point for the `match` statement. (**_See Challenge 23.1_**)
 - [ ] Implement `break`
-- [x] Implement `Str.split(Str?) -> Seq` as a builtin
-- [x] Implement `Str.trim() -> Str` as a builtin
+- [ ] Implement error value
 - [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
 - [ ] Implement `Seq.filter(predFn) -> Seq` as a builtin
 - [ ] Implement `Seq.map(mapFn) -> Seq` as a builtin
-- [ ] Implement `Seq.each(fn) -> Nil` as a builtin
 - [ ] Implement `Seq.reduce(reduceFn) -> Seq` as a builtin
-- [x] Implement `Seq.has(predFn) -> Bool` as a builtin
 - [ ] Implement `Seq.count(predFn) -> Num` as a builtin
 - [ ] Implement `Seq.some(predFn) -> Bool` as a builtin
 - [ ] Implement `Seq.every(predFn) -> Bool` as a builtin
@@ -32,8 +28,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `Seq.slice(Num?, Num?) -> Seq` as a builtin
 - [ ] Implement `Seq.reverse() -> Seq` as a builtin
 - [ ] Implement `Seq.concat(Seq) -> Seq` as a builtin
-- [ ] Implement `Seq.first(predFn?) -> Obj` as a builtin
-- [ ] Implement `Seq.last(predFn?) -> Obj` as a builtin
 - [ ] Implement `Seq[1..] -> Seq` as a builtin (slice)
 - [ ] Implement `Seq[..-1] -> Seq` as a builtin (slice)
 - [ ] Implement `Seq[1..-1] -> Seq` as a builtin (slice)
@@ -46,6 +40,12 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `File.join(Str, Str, ...) -> Str` (path, path, ...) as a builtin
 - [ ] Implement Map destructuring `let { a } = { a: 1 } // a == 1`
 - [ ] Implement Seq destructuring `let [ a ] = [ 1 ] // a == 1`
+- [x] Implement `Seq.each(fn) -> Nil` as a builtin
+- [x] Implement `Seq.has(predFn) -> Bool` as a builtin
+- [x] Implement `Str.split(Str?) -> Seq` as a builtin
+- [x] Implement `Str.trim() -> Str` as a builtin
+- [x] Implement `Seq.first(predFn?) -> Obj` as a builtin
+- [x] Implement `Seq.last(predFn?) -> Obj` as a builtin
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
 - [ ] Implement a way to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing. Maybe attributes? (e.g. `@doc "This is a doc string"`)
 - [ ] Implement iterators
@@ -62,6 +62,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 - [ ] Implement a fast hashtable-get function which uses a shortened version of `find_entry`.
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
+- [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
 - [ ] Improve `hash_value` and `values_equal`. I guess with the switch to allowing all values as keys it went down the drain.
 - [ ] Constant time global variable lookup. (**_See Challenge 21.2_**)
 - [ ] Cache function / method calls in the Vm

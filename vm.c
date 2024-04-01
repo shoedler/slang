@@ -422,7 +422,7 @@ static Value run_frame() {
 
 Value exec_fn(Obj* callable, int arg_count) {
   if (check_args(callable, arg_count) == false) {
-    runtime_error("Expected callable to accept %d arguments, but it only takes %d.", arg_count,
+    runtime_error("Expected callable to accept %d arguments, but it takes %d.", arg_count,
                   get_arity((Obj*)callable));
     return exit_with_runtime_error();
   }

@@ -14,6 +14,7 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, has, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, first, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, last, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, each, 1);
 }
 
 // Built-in seq constructor
@@ -173,9 +174,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, has) {
     return BOOL_VAL(false);
   }
 
+  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+
   if (IS_CALLABLE(argv[1])) {
     // Function predicate
-    for (int i = 0; i < seq->items.count; i++) {
+    for (int i = 0; i < count; i++) {
       push(argv[1]);               // Push the function
       push(seq->items.values[i]);  // Push the item
       Value result = exec_fn(AS_OBJ(argv[1]), 1);
@@ -186,7 +189,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, has) {
     }
   } else {
     // Value equality
-    for (int i = 0; i < seq->items.count; i++) {
+    for (int i = 0; i < count; i++) {
       if (values_equal(argv[1], seq->items.values[i])) {
         return BOOL_VAL(true);
       }
@@ -198,11 +201,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, has) {
 
 // Built-in method to retrieve the first item of a sequence
 BUILTIN_METHOD_DOC(
-  /* Receiver    */ TYPENAME_SEQ,
-  /* Name        */ first, 
-  /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL), 
-  /* Return Type */ TYPENAME_OBJ, 
-  /* Description */ 
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ first,
+    /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
+    /* Return Type */ TYPENAME_OBJ,
+    /* Description */
     "Returns the first item of a " STR(
         TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE
                       ". Returns " STR(TYPENAME_NIL) " if the " STR(
@@ -217,8 +220,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, first) {
     return NIL_VAL;
   }
 
+  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+
   // Function predicate
-  for (int i = 0; i < seq->items.count; i++) {
+  for (int i = 0; i < count; i++) {
     push(argv[1]);               // Push the function
     push(seq->items.values[i]);  // Push the item
     Value result = exec_fn(AS_OBJ(argv[1]), 1);
@@ -232,12 +237,12 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, first) {
 }
 
 // Built-in method to retrieve the last item of a sequence
-BUILTIN_METHOD_DOC(  
-  /* Receiver    */ TYPENAME_SEQ,
-  /* Name        */ last, 
-  /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL), 
-  /* Return Type */ TYPENAME_OBJ, 
-  /* Description */ 
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ last,
+    /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
+    /* Return Type */ TYPENAME_OBJ,
+    /* Description */
     "Returns the last item of a " STR(
         TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE
                       ". Returns " STR(TYPENAME_NIL) " if the " STR(
@@ -252,14 +257,59 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, last) {
     return NIL_VAL;
   }
 
+  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+
   // Function predicate
-  for (int i = seq->items.count - 1; i >= 0; i--) {
+  for (int i = count - 1; i >= 0; i--) {
     push(argv[1]);               // Push the function
     push(seq->items.values[i]);  // Push the item
     Value result = exec_fn(AS_OBJ(argv[1]), 1);
     // We could also check for truthiness here,
     if (IS_BOOL(result) && AS_BOOL(result)) {
       return seq->items.values[i];
+    }
+  }
+
+  return NIL_VAL;
+}
+
+// Built-in method to loop over a sequence
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ each,
+    /* Arguments   */ DOC_ARG("fn", TYPENAME_FUNCTION->TYPENAME_NIL),
+    /* Return Type */ TYPENAME_OBJ,
+    /* Description */
+    "Executes 'fn' for each item in the " STR(
+        TYPENAME_SEQ) ". 'fn' should take one or two arguments: the item and the index of the item."
+        " The latter is optional.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
+  UNUSED(argc);
+  BUILTIN_CHECK_RECEIVER(SEQ)
+  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+  if (seq->items.count == 0) {
+    return NIL_VAL;
+  }
+
+  int fn_arity = get_arity(AS_OBJ(argv[1]));
+  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+
+  // Loops are duplicated to avoid the overhead of checking the arity on each iteration
+  if (fn_arity > 1) {
+    for (int i = 0; i < count; i++) {
+      push(argv[1]);                // Push the function
+      push(seq->items.values[i]);   // arg0 (1): Push the item
+      push(NUMBER_VAL(i));          // arg1 (2): Push the index
+      exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the arity of the fn
+                                    // would result in a wrong error message.
+    }
+  } else {
+    for (int i = 0; i < count; i++) {
+      push(argv[1]);               // Push the function
+      push(seq->items.values[i]);  // arg0: Push the item
+      exec_fn(AS_OBJ(argv[1]), 1);
     }
   }
 
