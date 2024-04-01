@@ -1,3 +1,6 @@
+// No items
+print [].first(fn(x) -> x) // [Expect] nil
+
 // Passing an anonymous function
 print [1,3,4].first(fn(x) -> x == 3) // [Expect] 3
 print [1,3,4].first(fn(x) -> x/2 == 2) // [Expect] 4

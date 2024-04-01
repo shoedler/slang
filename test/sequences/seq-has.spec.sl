@@ -1,3 +1,6 @@
+// No items
+print [].has(1) // [Expect] false
+
 // Passing a non-callable value
 print [1,3,4].has(2) // [Expect] false
 print [1,3,4].has(3) // [Expect] true

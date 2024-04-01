@@ -15,6 +15,8 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, first, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, last, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, each, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, map, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, filter, 1);
 }
 
 // Built-in seq constructor
@@ -277,8 +279,8 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, last) {
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_SEQ,
     /* Name        */ each,
-    /* Arguments   */ DOC_ARG("fn", TYPENAME_FUNCTION->TYPENAME_NIL),
-    /* Return Type */ TYPENAME_OBJ,
+    /* Arguments   */ DOC_ARG("fn", TYPENAME_FUNCTION),
+    /* Return Type */ TYPENAME_NIL,
     /* Description */
     "Executes 'fn' for each item in the " STR(
         TYPENAME_SEQ) ". 'fn' should take one or two arguments: the item and the index of the item."
@@ -288,11 +290,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
-  ObjSeq* seq = AS_SEQ(argv[0]);
-  if (seq->items.count == 0) {
-    return NIL_VAL;
-  }
-
+  ObjSeq* seq  = AS_SEQ(argv[0]);
   int fn_arity = get_arity(AS_OBJ(argv[1]));
   int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
@@ -314,4 +312,98 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
   }
 
   return NIL_VAL;
+}
+
+// Built-in method to map a sequence to a new sequence
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ map,
+    /* Arguments   */ DOC_ARG("fn", TYPENAME_FUNCTION->TYPENAME_OBJ),
+    /* Return Type */ TYPENAME_SEQ,
+    /* Description */
+    "Maps each item in the " STR(TYPENAME_SEQ) " to a new value by executing 'fn' on it. Returns a new "
+    STR(TYPENAME_SEQ) " with the mapped values. 'fn' should take one or two arguments: the item and the index of the "
+    "item. The latter is optional.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, map) {
+  UNUSED(argc);
+  BUILTIN_CHECK_RECEIVER(SEQ)
+  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
+
+  ObjSeq* seq  = AS_SEQ(argv[0]);
+  int fn_arity = get_arity(AS_OBJ(argv[1]));
+  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+  ObjSeq* mapped_seq = prealloc_seq(count);
+
+  push(OBJ_VAL(mapped_seq));  // GC Protection
+
+  // Loops are duplicated to avoid the overhead of checking the arity on each iteration
+  if (fn_arity > 1) {
+    for (int i = 0; i < count; i++) {
+      push(argv[1]);                               // Push the function
+      push(seq->items.values[i]);                  // arg0 (1): Push the item
+      push(NUMBER_VAL(i));                         // arg1 (2): Push the index
+      Value mapped = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
+                                                   // arity of the fn would result in a wrong error message.
+      mapped_seq->items.values[i] = mapped;
+    }
+  } else {
+    for (int i = 0; i < count; i++) {
+      push(argv[1]);               // Push the function
+      push(seq->items.values[i]);  // arg0 (1): Push the item
+      Value mapped                = exec_fn(AS_OBJ(argv[1]), 1);
+      mapped_seq->items.values[i] = mapped;
+    }
+  }
+
+  return pop();  // The seq
+}
+
+// Built-in method to filter a sequence
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ filter,
+    /* Arguments   */ DOC_ARG("fn", TYPENAME_FUNCTION->TYPENAME_BOOL),
+    /* Return Type */ TYPENAME_SEQ,
+    /* Description */
+    "Filters the items of a " STR(TYPENAME_SEQ) " by executing 'fn' on each item. Returns a new " STR(
+        TYPENAME_SEQ) " with the items for which 'fn' evaluates to " VALUE_STR_TRUE
+                      ". 'fn' should take one or two arguments: the item and the index of the item. The "
+                      "latter is "
+                      "optional.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
+  UNUSED(argc);
+  BUILTIN_CHECK_RECEIVER(SEQ)
+  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
+
+  ObjSeq* seq  = AS_SEQ(argv[0]);
+  int fn_arity = get_arity(AS_OBJ(argv[1]));
+  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+  ObjSeq* filtered_seq = new_seq();
+
+  push(OBJ_VAL(filtered_seq));  // GC Protection
+
+  // Loops are duplicated to avoid the overhead of checking the arity on each iteration
+  if (fn_arity > 1) {
+    for (int i = 0; i < count; i++) {
+      push(argv[1]);                               // Push the function
+      push(seq->items.values[i]);                  // arg0 (1): Push the item
+      push(NUMBER_VAL(i));                         // arg1 (2): Push the index
+      Value result = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
+                                                   // arity of the fn would result in a wrong error message.
+      if (IS_BOOL(result) && AS_BOOL(result)) {
+        write_value_array(&filtered_seq->items, seq->items.values[i]);
+      }
+    }
+  } else {
+    for (int i = 0; i < count; i++) {
+      push(argv[1]);               // Push the function
+      push(seq->items.values[i]);  // arg0 (1): Push the item
+      Value result = exec_fn(AS_OBJ(argv[1]), 1);
+      if (IS_BOOL(result) && AS_BOOL(result)) {
+        write_value_array(&filtered_seq->items, seq->items.values[i]);
+      }
+    }
+  }
+
+  return pop();  // The seq
 }

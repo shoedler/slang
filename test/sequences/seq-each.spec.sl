@@ -1,3 +1,6 @@
+// No items
+print [].each(fn(x) -> log(x)) // [Expect] nil
+
 // Passing an anonymous function
 print [1,3,4].each(fn(x) -> log(x)) 
 // [Expect] 1
