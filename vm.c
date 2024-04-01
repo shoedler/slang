@@ -722,6 +722,7 @@ static Value run() {
       case OP_TRUE: push(BOOL_VAL(true)); break;
       case OP_FALSE: push(BOOL_VAL(false)); break;
       case OP_POP: pop(); break;
+      case OP_DUPE: push(peek(READ_ONE())); break;
       case OP_GET_LOCAL: {
         uint16_t slot = READ_ONE();
         push(frame->slots[slot]);
@@ -885,12 +886,14 @@ static Value run() {
         break;
       }
       case OP_GET_PROPERTY: {
+        Value obj       = peek(0);
         ObjString* name = READ_STRING();
-        switch (peek(0).type) {
+
+        switch (obj.type) {
           case VAL_OBJ: {
-            switch (OBJ_TYPE(peek(0))) {
+            switch (OBJ_TYPE(obj)) {
               case OBJ_CLASS: {
-                ObjClass* klass = AS_CLASS(peek(0));
+                ObjClass* klass = AS_CLASS(obj);
                 if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_NAME])) {
                   pop();  // Pop the class
                   push(OBJ_VAL(klass->name));
@@ -908,10 +911,20 @@ static Value run() {
                 break;
               }
               case OBJ_INSTANCE: {
-                ObjInstance* instance = AS_INSTANCE(peek(0));
+                ObjInstance* instance = AS_INSTANCE(obj);
                 Value value;
                 if (hashtable_get(&instance->fields, OBJ_VAL(name), &value)) {
                   pop();  // Instance.
+                  push(value);
+                  goto done_getting_property;
+                }
+                break;
+              }
+              case OBJ_MAP: {
+                ObjMap* map = AS_MAP(obj);
+                Value value;
+                if (hashtable_get(&map->entries, OBJ_VAL(name), &value)) {
+                  pop();  // Pop the map
                   push(value);
                   goto done_getting_property;
                 }
@@ -922,19 +935,19 @@ static Value run() {
           }
         }
 
-        ObjClass* klass = type_of(peek(0));
+        ObjClass* klass = type_of(obj);
         if (bind_method(klass, name)) {
           goto done_getting_property;
         }
 
         if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_DOC])) {
-          Value doc_str = doc(peek(0));
+          Value doc_str = doc(obj);
           pop();  // Pop the object
           push(doc_str);
           goto done_getting_property;
         }
 
-        runtime_error("Property '%s' does not exist on type %s.", name->chars, type_name(peek(0)));
+        runtime_error("Property '%s' does not exist on type %s.", name->chars, type_name(obj));
         return exit_with_runtime_error();
 
       done_getting_property:
@@ -944,26 +957,44 @@ static Value run() {
         Value obj       = peek(1);
         ObjString* name = READ_STRING();
 
-        if (!IS_INSTANCE(obj)) {
-          runtime_error("Cannot set field '%s' on value of type %s.", name->chars, type_name(peek(1)));
-          return exit_with_runtime_error();
-        }
+        switch (obj.type) {
+          case VAL_OBJ: {
+            switch (OBJ_TYPE(obj)) {
+              case OBJ_INSTANCE: {
+                ObjInstance* instance = AS_INSTANCE(obj);
 
-        ObjInstance* instance = AS_INSTANCE(obj);
+                // TODO (robust): Not all cached words are actually **reserved**. We should make an enum for
+                // reserved words and check against that instead.
+                for (int i = 0; i < WORD_MAX; i++) {
+                  if (strcmp(name->chars, AS_STRING(vm.cached_words[i])->chars) == 0) {
+                    runtime_error("Cannot set reserved field '%s'.", name->chars);
+                    return exit_with_runtime_error();
+                  }
+                }
 
-        // TODO (robust): Not all cached words are actually **reserved**. We should make an enum for
-        // reserved words and check against that instead.
-        for (int i = 0; i < WORD_MAX; i++) {
-          if (strcmp(name->chars, AS_STRING(vm.cached_words[i])->chars) == 0) {
-            runtime_error("Cannot set reserved field '%s'.", name->chars);
-            return exit_with_runtime_error();
+                hashtable_set(&instance->fields, OBJ_VAL(name), peek(0));  // Create or update
+                Value value = pop();
+                pop();
+                push(value);
+                goto done_setting_property;
+              }
+              case OBJ_MAP: {
+                ObjMap* map = AS_MAP(obj);
+                hashtable_set(&map->entries, OBJ_VAL(name), peek(0));
+                Value value = pop();
+                pop();
+                push(value);
+                goto done_setting_property;
+              }
+            }
+            break;
           }
         }
 
-        hashtable_set(&instance->fields, OBJ_VAL(name), peek(0));  // Create or update
-        Value value = pop();
-        pop();
-        push(value);
+        runtime_error("Cannot set field '%s' on value of type %s.", name->chars, type_name(obj));
+        return exit_with_runtime_error();
+
+      done_setting_property:
         break;
       }
       case OP_IMPORT_FROM: {

@@ -347,6 +347,47 @@ static uint16_t parse_variable(const char* error_message);
 static void define_variable(uint16_t global);
 void declaration_let();
 
+// Checks if the current token is a compound assigment token.
+static bool match_compound_assignment() {
+  return match(TOKEN_PLUS_ASSIGN) || match(TOKEN_MINUS_ASSIGN) || match(TOKEN_MULT_ASSIGN) ||
+         match(TOKEN_DIV_ASSIGN) || match(TOKEN_MOD_ASSIGN);
+}
+
+// Checks if the current token is an inc/dec token.
+static bool match_inc_dec() {
+  return match(TOKEN_PLUS_PLUS) || match(TOKEN_MINUS_MINUS);
+}
+
+// Compiles a compound assignment expression. The lhs bytecode has already been
+// emitted. The rhs starts at the current token. The compound assignment
+// operator is in the previous token.
+static void compound_assignment() {
+  TokenType op_type = parser.previous.type;
+  expression();
+
+  switch (op_type) {
+    case TOKEN_PLUS_ASSIGN: emit_one(OP_ADD); break;
+    case TOKEN_MINUS_ASSIGN: emit_one(OP_SUBTRACT); break;
+    case TOKEN_MULT_ASSIGN: emit_one(OP_MULTIPLY); break;
+    case TOKEN_DIV_ASSIGN: emit_one(OP_DIVIDE); break;
+    case TOKEN_MOD_ASSIGN: emit_one(OP_MODULO); break;
+    default: INTERNAL_ERROR("Unhandled compound assignment operator type: %d", op_type); break;
+  }
+}
+
+// Compiles an inc/dec expression. The lhs bytecode has already been emitted.
+// The inc/dec operator is in the previous token.
+static void inc_dec() {
+  TokenType op_type = parser.previous.type;
+  emit_constant(NUMBER_VAL(1));
+
+  switch (op_type) {
+    case TOKEN_PLUS_PLUS: emit_one(OP_ADD); break;
+    case TOKEN_MINUS_MINUS: emit_one(OP_SUBTRACT); break;
+    default: INTERNAL_ERROR("Unhandled inc/dec operator type: %d", op_type); break;
+  }
+}
+
 // Compiles a function call expression.
 // The opening parenthesis has already been consumed and is referenced by the
 // previous token.
@@ -368,6 +409,16 @@ static void dot(bool can_assign) {
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();
     emit_two(OP_SET_PROPERTY, name);
+  } else if (can_assign && match_inc_dec()) {
+    emit_two(OP_DUPE, 0);  // Duplicate the object.
+    emit_two(OP_GET_PROPERTY, name);
+    inc_dec();
+    emit_two(OP_SET_PROPERTY, name);
+  } else if (can_assign && match_compound_assignment()) {
+    emit_two(OP_DUPE, 0);  // Duplicate the object.
+    emit_two(OP_GET_PROPERTY, name);
+    compound_assignment();
+    emit_two(OP_SET_PROPERTY, name);
   } else if (match(TOKEN_OPAR)) {
     // Shorthand for method calls. This combines two instructions into one:
     // getting a property and calling a method.
@@ -388,6 +439,18 @@ static void indexing(bool can_assign) {
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();  // The new value.
+    emit_one(OP_SET_INDEX);
+  } else if (can_assign && match_inc_dec()) {
+    emit_two(OP_DUPE, 1);  // Duplicate the object.
+    emit_two(OP_DUPE, 1);  // Duplicate the index.
+    emit_one(OP_GET_INDEX);
+    inc_dec();
+    emit_one(OP_SET_INDEX);
+  } else if (can_assign && match_compound_assignment()) {
+    emit_two(OP_DUPE, 1);  // Duplicate the object.
+    emit_two(OP_DUPE, 1);  // Duplicate the index.
+    emit_one(OP_GET_INDEX);
+    compound_assignment();
     emit_one(OP_SET_INDEX);
   } else {
     emit_one(OP_GET_INDEX);
@@ -531,6 +594,14 @@ static void named_variable(Token name, bool can_assign) {
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();
+    emit_two(set_op, (uint16_t)arg);
+  } else if (can_assign && match_inc_dec()) {
+    emit_two(get_op, (uint16_t)arg);
+    inc_dec();
+    emit_two(set_op, (uint16_t)arg);
+  } else if (can_assign && match_compound_assignment()) {
+    emit_two(get_op, (uint16_t)arg);
+    compound_assignment();
     emit_two(set_op, (uint16_t)arg);
   } else {
     emit_two(get_op, (uint16_t)arg);
@@ -777,6 +848,10 @@ static void parse_precedence(Precedence precedence) {
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     error("Invalid assignment target.");
+  } else if (can_assign && match_inc_dec()) {
+    error("Invalid inc/dec target.");
+  } else if (can_assign && match_compound_assignment()) {
+    error("Invalid compound assignment target.");
   }
 }
 

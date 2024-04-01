@@ -263,12 +263,17 @@ Token scan_token() {
     case ':': return make_token(TOKEN_COLON);
     case ';': return make_token(TOKEN_SCOLON);
     case ',': return make_token(TOKEN_COMMA);
-    case '+': return make_token(TOKEN_PLUS);
-    case '/': return make_token(TOKEN_DIV);
-    case '*': return make_token(TOKEN_MULT);
-    case '%': return make_token(TOKEN_MOD);
 
-    case '-': return make_token(match('>') ? TOKEN_LAMBDA : TOKEN_MINUS);
+    case '+': return make_token(match('=') ? TOKEN_PLUS_ASSIGN : match('+') ? TOKEN_PLUS_PLUS : TOKEN_PLUS);
+    case '-':
+      return make_token(match('>')   ? TOKEN_LAMBDA
+                        : match('-') ? TOKEN_MINUS_MINUS
+                        : match('=') ? TOKEN_MINUS_ASSIGN
+                                     : TOKEN_MINUS);
+    case '/': return make_token(match('=') ? TOKEN_DIV_ASSIGN : TOKEN_DIV);
+    case '*': return make_token(match('=') ? TOKEN_MULT_ASSIGN : TOKEN_MULT);
+    case '%': return make_token(match('=') ? TOKEN_MOD_ASSIGN : TOKEN_MOD);
+
     case '=': return make_token(match('=') ? TOKEN_EQ : TOKEN_ASSIGN);
     case '!': return make_token(match('=') ? TOKEN_NEQ : TOKEN_NOT);
     case '<': return make_token(match('=') ? TOKEN_LTEQ : TOKEN_LT);

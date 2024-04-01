@@ -8,7 +8,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ### Syntax & Language Features
 
-- [ ] Implement `+=`, `-=`, `*=`, `/=`, `%=`
 - [ ] Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `when a then b else c`. This is a must-have. (**_See Challenge 17.3_**)
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] `continue` Statement (**_See Challenge 23.2_**)
@@ -41,6 +40,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
 - [ ] Implement a way to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing. Maybe attributes? (e.g. `@doc "This is a doc string"`)
 - [ ] Implement iterators
+- [x] Implement `+=`, `-=`, `*=`, `/=`, `%=`
 - [x] Implement `Seq.each(fn) -> Nil` as a builtin
 - [x] Implement `Seq.has(predFn) -> Bool` as a builtin
 - [x] Implement `Str.split(Str?) -> Seq` as a builtin

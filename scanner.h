@@ -17,6 +17,9 @@ typedef enum {
   TOKEN_MOD,    // '%'
   TOKEN_NOT,    // '!'
 
+  TOKEN_PLUS_PLUS,    // '++'
+  TOKEN_MINUS_MINUS,  // '--'
+
   TOKEN_DOT,     // '.'
   TOKEN_COMMA,   // ','
   TOKEN_COLON,   // ':'
@@ -28,6 +31,12 @@ typedef enum {
   TOKEN_CBRACE,  // '}'
   TOKEN_OBRACK,  // '['
   TOKEN_CBRACK,  // ']'
+
+  TOKEN_PLUS_ASSIGN,   // '+='
+  TOKEN_MINUS_ASSIGN,  // '-='
+  TOKEN_MULT_ASSIGN,   // '*='
+  TOKEN_DIV_ASSIGN,    // '/='
+  TOKEN_MOD_ASSIGN,    // '%='
 
   TOKEN_LAMBDA,  // '->'
 

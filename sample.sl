@@ -244,12 +244,12 @@
 // print [1,2,3].map(fn (x) -> log(x)) // [nil, nil, nil]
 // print ["a","b","c"].map(fn (x, i) -> ({i: x})) // [{0: "a"}, {1: "b"}, {2: "c"}]
 
-//
-// Seq.filter
-//
-print [].filter(fn (x) -> x > 0) // []
-print [1,2,3].filter(fn (x) -> x > 1) // [2, 3]
-print [1,2,3].filter(fn (x) {}) // []
+// //
+// // Seq.filter
+// //
+// print [].filter(fn (x) -> x > 0) // []
+// print [1,2,3].filter(fn (x) -> x > 1) // [2, 3]
+// print [1,2,3].filter(fn (x) {}) // []
 
 // print "--------------------------------------------------------------------------------"
 // print "Modules"

@@ -159,6 +159,7 @@ const char* type_name(Value value) {
       case OBJ_NATIVE: return STR(TYPENAME_NATIVE);
       case OBJ_STRING: return STR(TYPENAME_STRING);
       case OBJ_SEQ: return STR(TYPENAME_SEQ);
+      case OBJ_MAP: return STR(TYPENAME_MAP);
       case OBJ_UPVALUE: return STR(TYPENAME_UPVALUE);
     }
   }
