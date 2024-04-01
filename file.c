@@ -35,7 +35,7 @@ char* base(const char* path) {
 
   size_t len = strlen(path);
   if (len == 0) {
-    return path;
+    return _strdup(path);
   }
 
   char* base = (char*)malloc(len + 1);
