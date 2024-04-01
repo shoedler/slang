@@ -139,6 +139,14 @@
     <ClCompile Include="memory.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="object.c" />
+    <ClCompile Include="builtin_functions.c" />
+    <ClCompile Include="builtin_obj.c" />
+    <ClCompile Include="builtin_nil.c" />
+    <ClCompile Include="builtin_num.c" />
+    <ClCompile Include="builtin_bool.c" />
+    <ClCompile Include="builtin_str.c" />
+    <ClCompile Include="builtin_seq.c" />
+    <ClCompile Include="builtin_map.c" />
     <ClCompile Include="scanner.c" />
     <ClCompile Include="value.c" />
     <ClCompile Include="vm.c" />
@@ -154,6 +162,8 @@
     <ClInclude Include="object.h" />
     <ClInclude Include="scanner.h" />
     <ClInclude Include="value.h" />
+    <ClInclude Include="builtin.h" />
+    <ClInclude Include="builtin_util.h" />
     <ClInclude Include="vm.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

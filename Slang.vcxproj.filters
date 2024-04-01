@@ -42,6 +42,30 @@
     <ClCompile Include="object.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="builtin_functions.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="builtin_obj.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="builtin_nil.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="builtin_num.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="builtin_bool.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="builtin_str.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="builtin_seq.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="builtin_map.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="hashtable.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -63,6 +87,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="value.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="builtin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="builtin_util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="vm.h">
