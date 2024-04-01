@@ -507,6 +507,7 @@ static void binary(bool can_assign) {
     case TOKEN_MINUS: emit_one(OP_SUBTRACT); break;
     case TOKEN_MULT: emit_one(OP_MULTIPLY); break;
     case TOKEN_DIV: emit_one(OP_DIVIDE); break;
+    case TOKEN_MOD: emit_one(OP_MODULO); break;
     default: INTERNAL_ERROR("Unhandled binary operator type: %d", op_type); break;
   }
 }
@@ -714,6 +715,7 @@ ParseRule rules[] = {
     [TOKEN_PLUS]     = {NULL, binary, PREC_TERM},
     [TOKEN_DIV]      = {NULL, binary, PREC_FACTOR},
     [TOKEN_MULT]     = {NULL, binary, PREC_FACTOR},
+    [TOKEN_MOD]      = {NULL, binary, PREC_FACTOR},
     [TOKEN_NOT]      = {unary, NULL, PREC_NONE},
     [TOKEN_NEQ]      = {NULL, binary, PREC_EQUALITY},
     [TOKEN_ASSIGN]   = {NULL, NULL, PREC_NONE},

@@ -188,9 +188,9 @@
 // s.list[1] = -2
 // s.printList()
 
-//
-// Seq.has
-//
+// //
+// // Seq.has
+// //
 // fn is_num(x) {
 //   ret type_of(x) == Num;
 // }
@@ -211,30 +211,45 @@
 
 // print [].has.__doc
 
-// 
-// Seq.first
-//
+// // 
+// // Seq.first
+// //
 // print [].first() // nil
 // print [1,2,3].first() // 1
 // print [1,2,3].first(fn (x) -> x/2 == 1) // 2
 
-//
-// Seq.last
-//
+// //
+// // Seq.last
+// //
 // print [].last() // nil
 // print [1,2,3].last() // 3
 // print [1,2,3].last(fn (x) -> type_of(x) == Num) // 3
 
+// //
+// // Seq.each
+// //
+// print [1,2,3].each(fn (x) -> log(x)) // [1, 2, 3]
+// print [1,2,3].each(fn (x, i) -> log(x + i)) // [1, 3, 5]
+// let a = [1,2,3]
+// a.each(fn (x, i) {
+//   a.push(x + 1)
+// })
+// print a // [1, 2, 3, 2, 3, 4]
+
+// //
+// // Seq.map
+// //
+// print [].map(fn (x) -> x * 2) // []
+// print [1,2,3].map(fn (x) -> x * 2) // [2, 4, 6]
+// print [1,2,3].map(fn (x) -> log(x)) // [nil, nil, nil]
+// print ["a","b","c"].map(fn (x, i) -> ({i: x})) // [{0: "a"}, {1: "b"}, {2: "c"}]
+
 //
-// Seq.each
+// Seq.filter
 //
-print [1,2,3].each(fn (x) -> log(x)) // 1, 2, 3
-print [1,2,3].each(fn (x, i) -> log(x + i)) // 1, 3, 5
-let a = [1,2,3]
-a.each(fn (x, i) {
-  a.push(x + 1)
-})
-print a // 1, 2, 3, 2, 3, 4
+print [].filter(fn (x) -> x > 0) // []
+print [1,2,3].filter(fn (x) -> x > 1) // [2, 3]
+print [1,2,3].filter(fn (x) {}) // []
 
 // print "--------------------------------------------------------------------------------"
 // print "Modules"

@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -684,7 +685,7 @@ static Value run() {
 // Perform a binary operation on the top two values on the stack.
 // This consumes two pieces of data from the stack, and pushes the result
 // value_type is the type of the result value, op is the operator to use
-#define BINARY_OP(value_type, op)                                                               \
+#define BINARY_OP(value_type, a_b_op)                                                           \
   do {                                                                                          \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                                           \
       runtime_error("Operands must be numbers. Left was %s, right was %s.", type_name(peek(1)), \
@@ -693,7 +694,7 @@ static Value run() {
     }                                                                                           \
     double b = AS_NUMBER(pop());                                                                \
     double a = AS_NUMBER(pop());                                                                \
-    push(value_type(a op b));                                                                   \
+    push(value_type(a_b_op));                                                                   \
   } while (false)
 
   for (;;) {
@@ -998,10 +999,10 @@ static Value run() {
         push(BOOL_VAL(!values_equal(a, b)));
         break;
       }
-      case OP_GT: BINARY_OP(BOOL_VAL, >); break;
-      case OP_LT: BINARY_OP(BOOL_VAL, <); break;
-      case OP_GTEQ: BINARY_OP(BOOL_VAL, >=); break;
-      case OP_LTEQ: BINARY_OP(BOOL_VAL, <=); break;
+      case OP_GT: BINARY_OP(BOOL_VAL, a > b); break;
+      case OP_LT: BINARY_OP(BOOL_VAL, a < b); break;
+      case OP_GTEQ: BINARY_OP(BOOL_VAL, a >= b); break;
+      case OP_LTEQ: BINARY_OP(BOOL_VAL, a <= b); break;
       case OP_ADD: {
         if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
           concatenate();
@@ -1018,9 +1019,10 @@ static Value run() {
         }
         break;
       }
-      case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
-      case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
-      case OP_DIVIDE: BINARY_OP(NUMBER_VAL, /); break;
+      case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, a - b); break;
+      case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, a * b); break;
+      case OP_DIVIDE: BINARY_OP(NUMBER_VAL, a / b); break;
+      case OP_MODULO: BINARY_OP(NUMBER_VAL, fmod(a, b)); break;
       case OP_NOT: push(BOOL_VAL(is_falsey(pop()))); break;
       case OP_NEGATE:
         if (!IS_NUMBER(peek(0))) {
