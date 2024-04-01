@@ -1,9 +1,4 @@
-// No separator
-print "123".split()    // [Expect] [1, 2, 3]
-print "\n\r\t".split() // [Expect] [\, n, \, r, \, t]
-
 // Edge cases
-print "".split()       // [Expect] []
 print "".split("")     // [Expect] []
 
 // With separator

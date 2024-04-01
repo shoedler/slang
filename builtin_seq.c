@@ -6,34 +6,25 @@
 
 void register_builtin_seq_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_SEQ, TYPENAME_OBJ);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, __ctor);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, to_str);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, len);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, push);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, pop);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, has);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, first);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, last);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, __ctor, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, to_str, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, len, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, push, -1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, pop, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, has, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, first, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, last, 1);
 }
 
 // Built-in seq constructor
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_SEQ,
     /* Name        */ __ctor,
-    /* Arguments   */ DOC_ARG_OPT("len", TYPENAME_NUMBER),
+    /* Arguments   */ DOC_ARG("len", TYPENAME_NUMBER),
     /* Return Type */ TYPENAME_SEQ,
     /* Description */
-    "Creates a new " STR(TYPENAME_NIL) "-initialized " STR(
-        TYPENAME_SEQ) " of length 'len', if provided. Otherwise, creates a new empty " STR(TYPENAME_SEQ) ".");
+    "Creates a new " STR(TYPENAME_NIL) "-initialized " STR(TYPENAME_SEQ) " of length 'len'.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, __ctor) {
-  if (argc == 0) {
-    ValueArray items;
-    init_value_array(&items);
-    ObjSeq* seq = take_seq(&items);
-    return OBJ_VAL(seq);
-  }
-
-  BUILTIN_CHECK_ARGC_ONE()
   BUILTIN_CHECK_ARG_AT(1, NUMBER)
 
   ValueArray items;
@@ -58,7 +49,6 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_SEQ,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_SEQ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq     = AS_SEQ(argv[0]);
@@ -113,7 +103,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */ "Returns the length of a " STR(TYPENAME_SEQ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, len) {
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   int length = AS_SEQ(argv[0])->items.count;
@@ -128,7 +118,6 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NIL,
     /* Description */ "Pushes one or many values to a " STR(TYPENAME_SEQ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, push) {
-  BUILTIN_CHECK_ARGC_AT_LEAST(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
@@ -148,7 +137,7 @@ BUILTIN_METHOD_DOC(
     "Pops and returns the last item of a " STR(TYPENAME_SEQ) ". Returns " STR(
         TYPENAME_NIL) " if it is empty.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
@@ -176,7 +165,7 @@ BUILTIN_METHOD_DOC_OVERLOAD(
     "Returns " VALUE_STR_TRUE
     " if the " STR(TYPENAME_SEQ) " contains an item for which 'pred' evaulates to " VALUE_STR_TRUE ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, has) {
-  BUILTIN_CHECK_ARGC_ONE()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
@@ -214,23 +203,19 @@ BUILTIN_METHOD_DOC(
   /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL), 
   /* Return Type */ TYPENAME_OBJ, 
   /* Description */ 
-  "Returns the first item of a " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE 
-  ". If no 'pred' is provided, returns the first item. Returns " STR(TYPENAME_NIL) " if the " 
-  STR(TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
+    "Returns the first item of a " STR(
+        TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE
+                      ". Returns " STR(TYPENAME_NIL) " if the " STR(
+                          TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, first) {
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)
+  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
   if (seq->items.count == 0) {
     return NIL_VAL;
   }
-
-  // No arguments, return the first item
-  if (argc == 0) {
-    return seq->items.values[0];
-  }
-
-  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   // Function predicate
   for (int i = 0; i < seq->items.count; i++) {
@@ -253,23 +238,19 @@ BUILTIN_METHOD_DOC(
   /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL), 
   /* Return Type */ TYPENAME_OBJ, 
   /* Description */ 
-  "Returns the last item of a " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE 
-  ". If no 'pred' is provided, returns the last item. Returns " STR(TYPENAME_NIL) " if the " 
-  STR(TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
+    "Returns the last item of a " STR(
+        TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE
+                      ". Returns " STR(TYPENAME_NIL) " if the " STR(
+                          TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, last) {
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)
+  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
   if (seq->items.count == 0) {
     return NIL_VAL;
   }
-
-  // No arguments, return the last item
-  if (argc == 0) {
-    return seq->items.values[seq->items.count - 1];
-  }
-
-  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   // Function predicate
   for (int i = seq->items.count - 1; i >= 0; i--) {

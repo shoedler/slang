@@ -6,12 +6,12 @@
 
 void register_builtin_map_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_MAP, TYPENAME_OBJ);
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, __ctor);
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, to_str);
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, len);
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, entries);
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, values);
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, keys);
+  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, __ctor, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, to_str, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, len, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, entries, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, values, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, keys, 0);
 }
 
 // Built-in map constructor
@@ -23,7 +23,7 @@ BUILTIN_METHOD_DOC(
     /* Description */ "Returns a new empty " STR(TYPENAME_MAP) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_MAP, __ctor) {
   UNUSED(argv);
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
 
   HashTable entries;
   init_hashtable(&entries);
@@ -39,7 +39,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_MAP,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_MAP) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_MAP, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(MAP)
 
   ObjMap* map     = AS_MAP(argv[0]);
@@ -109,7 +109,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */ "Returns the length of a " STR(TYPENAME_MAP) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_MAP, len) {
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(MAP)
 
   int length = AS_MAP(argv[0])->entries.count;
@@ -126,7 +126,7 @@ BUILTIN_METHOD_DOC(
     "Returns a " STR(TYPENAME_SEQ) " of key-value pairs (which are " STR(
         TYPENAME_SEQ) "s of length 2 ) of a " STR(TYPENAME_MAP) ", containing all entries.");
 BUILTIN_METHOD_IMPL(TYPENAME_MAP, entries) {
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(MAP)
 
   ObjMap* map = AS_MAP(argv[0]);
@@ -155,7 +155,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_SEQ,
     /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all keys of a " STR(TYPENAME_MAP) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_MAP, keys) {
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(MAP)
 
   ObjMap* map = AS_MAP(argv[0]);
@@ -181,7 +181,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_SEQ,
     /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all values of a " STR(TYPENAME_MAP) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_MAP, values) {
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(MAP)
 
   ObjMap* map = AS_MAP(argv[0]);

@@ -141,7 +141,7 @@ Value exec_method(ObjString* name, int arg_count);
 Value exec_fn(Obj* callable, int arg_count);
 
 // Defines a native function in the given table.
-void define_native(HashTable* table, const char* name, NativeFn function, const char* doc);
+void define_native(HashTable* table, const char* name, NativeFn function, const char* doc, int arity);
 
 // Defines an object in the given table.
 void define_obj(HashTable* table, const char* name, Obj* obj);

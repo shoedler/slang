@@ -5,11 +5,11 @@
 #include "vm.h"
 
 void register_builtin_functions() {
-  BUILTIN_REGISTER_FN(clock);
-  BUILTIN_REGISTER_FN(log);
-  BUILTIN_REGISTER_FN(type_of);
-  BUILTIN_REGISTER_FN(type_name);
-  BUILTIN_REGISTER_FN(cwd);
+  BUILTIN_REGISTER_FN(clock, 0);
+  BUILTIN_REGISTER_FN(log, -1);
+  BUILTIN_REGISTER_FN(type_of, 1);
+  BUILTIN_REGISTER_FN(type_name, 1);
+  BUILTIN_REGISTER_FN(cwd, 0);
 }
 
 // Native clock function.
@@ -76,7 +76,7 @@ BUILTIN_FN_DOC(
     /* Return Type */ TYPENAME_CLASS,
     /* Description */ "Returns the class of the value.");
 BUILTIN_FN_IMPL(type_of) {
-  BUILTIN_CHECK_ARGC_ONE()
+  UNUSED(argc);
 
   ObjClass* klass = type_of(argv[1]);
   return OBJ_VAL(klass);
@@ -89,7 +89,7 @@ BUILTIN_FN_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns the name of the value's type.");
 BUILTIN_FN_IMPL(type_name) {
-  BUILTIN_CHECK_ARGC_ONE()
+  UNUSED(argc);
 
   const char* t_name = type_name(argv[1]);
   ObjString* str_obj = copy_string(t_name, (int)strlen(t_name));

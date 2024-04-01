@@ -15,8 +15,8 @@ void register_builtin_obj_class() {
   // TODO: Remove this comment. Builtin functions were registered here.
   define_obj(&vm.builtin->fields, STR(TYPENAME_OBJ), (Obj*)vm.__builtin_Obj_class);
 
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, to_str)
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, hash)
+  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, to_str, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, hash, 0);
 }
 
 // Built-in method to return the hash of an object.
@@ -27,8 +27,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */ "Returns the hash of the " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
-  BUILTIN_CHECK_ARGC_ZERO()
-
+  UNUSED(argc);
   return NUMBER_VAL(hash_value(argv[0]));
 }
 
@@ -41,8 +40,6 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of the " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
-
   if (IS_OBJ(argv[0])) {
     switch (AS_OBJ(argv[0])->type) {
       case OBJ_NATIVE: return OBJ_VAL(copy_string(VALUE_STR_NATIVE, sizeof(VALUE_STR_NATIVE) - 1));

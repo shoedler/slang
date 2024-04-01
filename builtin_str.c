@@ -5,29 +5,23 @@
 
 void register_builtin_str_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_STRING, TYPENAME_OBJ);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, __ctor);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, to_str);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, len);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, __ctor, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, to_str, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, len, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
 }
 
 // Built-in string constructor
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_STRING,
     /* Name        */ __ctor,
-    /* Arguments   */ DOC_ARG_OPT("value", TYPENAME_OBJ),
+    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
     /* Return Type */ TYPENAME_STRING,
     /* Description */
-    "Converts the first argument to a " STR(
-        TYPENAME_STRING) ", if provided. Otherwise, returns a default " STR(TYPENAME_STRING) ".");
+    "Converts the first argument to a " STR(TYPENAME_STRING) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, __ctor) {
-  if (argc == 0) {
-    return OBJ_VAL(copy_string("", 0));
-  }
-
-  BUILTIN_CHECK_ARGC_ONE()
-
+  UNUSED(argc);
   push(argv[1]);  // Push the receiver for to_str, which is the ctors' argument
   return exec_method(copy_string("to_str", 6), 0);  // Convert to string
 }
@@ -40,7 +34,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_STRING) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
 
   return argv[0];
@@ -54,7 +48,6 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */ "Returns the length of a " STR(TYPENAME_STRING) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, len) {
-  BUILTIN_CHECK_ARGC_ZERO()
   BUILTIN_CHECK_RECEIVER(STRING)
 
   int length = AS_STRING(argv[0])->length;
@@ -64,20 +57,21 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, len) {
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_STRING,
     /* Name        */ split,
-    /* Arguments   */ DOC_ARG_OPT("sep", TYPENAME_STRING),
+    /* Arguments   */ DOC_ARG("sep", TYPENAME_STRING),
     /* Return Type */ TYPENAME_SEQ,
-    /* Description */  
- "Splits a " STR(TYPENAME_STRING) " into a " STR(TYPENAME_SEQ) 
- " of substrings, using 'sep' as the delimiter. If 'sep' is not provided, the " STR(TYPENAME_STRING) 
- " is split into individual characters.");
+    /* Description */
+    "Splits a " STR(TYPENAME_STRING) " into a " STR(
+        TYPENAME_SEQ) " of substrings, using 'sep' as the delimiter.");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
+  BUILTIN_CHECK_ARG_AT(1, STRING)
 
-  // Split into individual characters if no separator is provided
-  if (argc == 0) {
-  split_by_char:
-    ObjString* str = AS_STRING(argv[0]);
+  ObjString* str = AS_STRING(argv[0]);
+  ObjString* sep = AS_STRING(argv[1]);
 
+  // If the separator is empty, split by character
+  if (sep->length == 0) {
     ObjSeq* seq = prealloc_seq(str->length);
     push(OBJ_VAL(seq));  // GC Protection
     for (int i = 0; i < str->length; i++) {
@@ -86,18 +80,6 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
     pop();  // The seq
 
     return OBJ_VAL(seq);
-  }
-
-  // Split by separator
-  BUILTIN_CHECK_ARGC_ONE()
-  BUILTIN_CHECK_ARG_AT(1, STRING)
-
-  ObjString* str = AS_STRING(argv[0]);
-  ObjString* sep = AS_STRING(argv[1]);
-
-  // If the separator is empty, split by character
-  if (sep->length == 0) {
-    goto split_by_char;
   }
 
   ObjSeq* seq = new_seq();
@@ -133,7 +115,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a new " STR(TYPENAME_STRING) " with leading and trailing whitespace removed.");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, trim) {
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
 
   ObjString* str = AS_STRING(argv[0]);

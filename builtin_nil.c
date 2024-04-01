@@ -4,28 +4,21 @@
 
 void register_builtin_nil_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_NIL, TYPENAME_OBJ);
-  BUILTIN_REGISTER_METHOD(TYPENAME_NIL, __ctor);
-  BUILTIN_REGISTER_METHOD(TYPENAME_NIL, to_str);
+  BUILTIN_REGISTER_METHOD(TYPENAME_NIL, __ctor, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_NIL, to_str, 0);
 }
 
 // Built-in nil constructor
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_NIL,
     /* Name        */ __ctor,
-    /* Arguments   */ DOC_ARG_OPT("value", TYPENAME_OBJ),
+    /* Arguments   */ "",
     /* Return Type */ TYPENAME_NIL,
     /* Description */
-    "Converts the first argument to a " STR(TYPENAME_NIL) ", if provided. Otherwise, returns a default " STR(
-        TYPENAME_NIL) ".");
+    "Returns " STR(TYPENAME_NIL) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_NIL, __ctor) {
+  UNUSED(argc);
   UNUSED(argv);
-
-  if (argc == 0) {
-    return NIL_VAL;
-  }
-
-  BUILTIN_CHECK_ARGC_ONE()
-
   return NIL_VAL;
 }
 
@@ -37,7 +30,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of " STR(TYPENAME_NIL) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_NIL, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(NIL)
 
   ObjString* str_obj = copy_string(VALUE_STR_NIL, sizeof(VALUE_STR_NIL) - 1);

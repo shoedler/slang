@@ -4,25 +4,20 @@
 
 void register_builtin_num_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_NUMBER, TYPENAME_OBJ);
-  BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, __ctor);
-  BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, to_str);
+  BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, __ctor, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, to_str, 0);
 }
 
 // Built-in number constructor
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_NUMBER,
     /* Name        */ __ctor,
-    /* Arguments   */ DOC_ARG_OPT("value", TYPENAME_OBJ),
+    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */
-    "Converts the first argument to a " STR(
-        TYPENAME_NUMBER) ", if provided. Otherwise, returns a default " STR(TYPENAME_NUMBER) ".");
+    "Converts the first argument to a " STR(TYPENAME_NUMBER) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, __ctor) {
-  if (argc == 0) {
-    return NUMBER_VAL(0);
-  }
-
-  BUILTIN_CHECK_ARGC_ONE()
+  UNUSED(argc);
 
   switch (argv[1].type) {
     case VAL_NUMBER: return argv[1];
@@ -49,7 +44,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_NUMBER) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(NUMBER)
 
   double number = AS_NUMBER(argv[0]);

@@ -68,7 +68,7 @@
 
 // Converts a value into a native function.
 // Value must be of type native function.
-#define AS_NATIVE(value) (((ObjNative*)AS_OBJ(value))->function)
+#define AS_NATIVE(value) (((ObjNative*)AS_OBJ(value)))
 
 // Converts a value into a string.
 // Value must be of type string.
@@ -133,6 +133,7 @@ typedef struct {
   Obj obj;
   NativeFn function;
   ObjString* doc;
+  int arity;
 } ObjNative;
 
 struct ObjString {
@@ -201,7 +202,7 @@ ObjSeq* new_seq();
 
 // Creates, initializes and allocates a new native function object. Might
 // trigger garbage collection.
-ObjNative* new_native(NativeFn function, ObjString* doc);
+ObjNative* new_native(NativeFn function, ObjString* doc, int arity);
 
 // Creates, initializes and allocates a new upvalue object. Might trigger
 // garbage collection.
@@ -247,6 +248,23 @@ static inline bool is_callable(Value value) {
     }
   }
   return false;
+}
+
+// Determines the arity of a callable obj. This is used to check how many arguments a function expects.
+static inline int get_arity(Obj* callable) {
+again:
+  switch (callable->type) {
+    case OBJ_CLOSURE: return ((ObjClosure*)callable)->function->arity;
+    case OBJ_NATIVE: return ((ObjNative*)callable)->arity;
+    case OBJ_BOUND_METHOD: {
+      callable = ((ObjBoundMethod*)callable)->method;
+      goto again;
+    };
+    default: break;
+  }
+
+  INTERNAL_ERROR("Value is not callable.");
+  return -999;
 }
 
 #endif

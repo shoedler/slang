@@ -85,10 +85,10 @@ static void exit_with_compile_error() {
   exit(65);
 }
 
-void define_native(HashTable* table, const char* name, NativeFn function, const char* doc) {
+void define_native(HashTable* table, const char* name, NativeFn function, const char* doc, int arity) {
   Value key          = OBJ_VAL(copy_string(name, (int)strlen(name)));
   ObjString* doc_str = copy_string(doc, (int)strlen(doc));
-  Value value        = OBJ_VAL(new_native(function, doc_str));
+  Value value        = OBJ_VAL(new_native(function, doc_str, arity));
   push(key);
   push(value);
   push(OBJ_VAL(doc_str));
@@ -243,6 +243,14 @@ ObjClass* type_of(Value value) {
   return AS_INSTANCE(value)->klass;
 }
 
+// Checks if the provided callable accepts the expected number of arguments.
+// Returns true if the number of arguments is correct, or if the callable accepts a variable number of
+// arguments.
+static bool check_args(Obj* callable, int expected) {
+  int given = get_arity(callable);
+  return given == expected || given == -1;
+}
+
 // Finds a method in the inheritance chain of a class. This is used to find methods in the class hierarchy.
 // If the method is not found, NIL_VAL is returned.
 static Value find_method_in_inheritance_chain(ObjClass* klass, ObjString* name) {
@@ -282,9 +290,14 @@ static CallResult call_managed(ObjClosure* closure, int arg_count) {
 
 // Calls a native function with the given number of arguments (on the stack).
 // `Stack: ...[native|receiver][arg0][arg1]...[argN]`
-static CallResult call_native(NativeFn native, int arg_count) {
+static CallResult call_native(ObjNative* native, int arg_count) {
+  if (check_args((Obj*)native, arg_count) == false) {
+    runtime_error("Expected %d arguments but got %d.", native->arity, arg_count);
+    return CALL_FAILED;
+  }
+
   Value* args  = vm.stack_top - arg_count - 1;
-  Value result = native(arg_count, args);
+  Value result = native->function(arg_count, args);
   vm.stack_top -= arg_count + 1;  // Remove args + fn or receiver
   push(result);
 
@@ -306,7 +319,7 @@ static CallResult call_value(Value callable, int arg_count) {
         vm.stack_top[-arg_count - 1] = bound->receiver;
         switch (bound->method->type) {
           case OBJ_CLOSURE: return call_managed((ObjClosure*)bound->method, arg_count);
-          case OBJ_NATIVE: return call_native(((ObjNative*)bound->method)->function, arg_count);
+          case OBJ_NATIVE: return call_native((ObjNative*)bound->method, arg_count);
           default: break;  // Non-callable object type.
         }
       }
@@ -408,10 +421,16 @@ static Value run_frame() {
 }
 
 Value exec_fn(Obj* callable, int arg_count) {
+  if (check_args(callable, arg_count) == false) {
+    runtime_error("Expected callable to accept %d arguments, but it only takes %d.", arg_count,
+                  get_arity((Obj*)callable));
+    return exit_with_runtime_error();
+  }
+
   CallResult result = CALL_FAILED;
   switch (callable->type) {
     case OBJ_CLOSURE: result = call_managed((ObjClosure*)callable, arg_count); break;
-    case OBJ_NATIVE: result = call_native(((ObjNative*)callable)->function, arg_count); break;
+    case OBJ_NATIVE: result = call_native(((ObjNative*)callable), arg_count); break;
     case OBJ_BOUND_METHOD: {
       // For bound methods, we need to load the receiver onto the stack just before the arguments, overriding
       // the bound method on the stack.
