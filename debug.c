@@ -157,6 +157,7 @@ int disassemble_instruction(Chunk* chunk, int offset) {
     case OP_TRUE: return simple_instruction("OP_TRUE", offset);
     case OP_FALSE: return simple_instruction("OP_FALSE", offset);
     case OP_POP: return simple_instruction("OP_POP", offset);
+    case OP_DUPE: return byte_instruction("OP_DUPE", chunk, offset);
     case OP_GET_LOCAL: return byte_instruction("OP_GET_LOCAL", chunk, offset);
     case OP_SET_LOCAL: return byte_instruction("OP_SET_LOCAL", chunk, offset);
     case OP_GET_GLOBAL: return constant_instruction("OP_GET_GLOBAL", chunk, offset);
@@ -195,6 +196,7 @@ int disassemble_instruction(Chunk* chunk, int offset) {
     case OP_SUBTRACT: return simple_instruction("OP_SUBTRACT", offset);
     case OP_MULTIPLY: return simple_instruction("OP_MULTIPLY", offset);
     case OP_DIVIDE: return simple_instruction("OP_DIVIDE", offset);
+    case OP_MODULO: return simple_instruction("OP_MODULO", offset);
     case OP_NOT: return simple_instruction("OP_NOT", offset);
     case OP_IMPORT: return constant_instruction("OP_IMPORT", chunk, offset);
     case OP_IMPORT_FROM: return constant_constant_instruction("OP_IMPORT_FROM", chunk, offset);

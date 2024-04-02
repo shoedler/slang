@@ -12,10 +12,10 @@ void init_chunk(Chunk* chunk) {
 
 void write_chunk(Chunk* chunk, uint16_t data, int line) {
   if (SHOULD_GROW(chunk->count + 1, chunk->capacity)) {
-    int oldCapacity = chunk->capacity;
-    chunk->capacity = GROW_CAPACITY(oldCapacity);
-    chunk->code     = RESIZE_ARRAY(uint16_t, chunk->code, oldCapacity, chunk->capacity);
-    chunk->lines    = RESIZE_ARRAY(int, chunk->lines, oldCapacity, chunk->capacity);
+    int old_capacity = chunk->capacity;
+    chunk->capacity  = GROW_CAPACITY(old_capacity);
+    chunk->code      = RESIZE_ARRAY(uint16_t, chunk->code, old_capacity, chunk->capacity);
+    chunk->lines     = RESIZE_ARRAY(int, chunk->lines, old_capacity, chunk->capacity);
   }
 
   chunk->code[chunk->count]  = data;

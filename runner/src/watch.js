@@ -8,11 +8,12 @@ import { abort, debug, info, warn } from './utils.js';
  * @param {string} path - Path to watch, can be a file or directory
  * @param {fs.watchOptions} watchOptions - Options to pass to fs.watch
  * @param {(filename: string) => boolean} trigger - Function that determines if the action should be triggered, based on a file that changed
- * @param {(signal: AbortSignal, triggerFile: string) => Promise<void>} action - Action to perform when a file changes. Must return a promise that resolves when the action is complete.
+ * @param {(signal: AbortSignal, triggerFile: string, isFirstRun: boolean) => Promise<void>} action - Action to perform when a file changes. Must return a promise that resolves when the action is complete.
  */
 export const watch = (path, watchOptions, trigger, action) => {
   let controller = undefined;
   let timeout = undefined;
+  let isFirstRun = true;
 
   info(
     'Watching for changes',
@@ -43,7 +44,8 @@ export const watch = (path, watchOptions, trigger, action) => {
         try {
           const now = new Date();
           info('Change detected', filename);
-          await action(controller.signal, filename);
+          await action(controller.signal, filename, isFirstRun);
+          isFirstRun = false;
           debug(
             `Last run was on ${
               now.toLocaleDateString(LOCALE) + ' at ' + now.toLocaleTimeString(LOCALE)

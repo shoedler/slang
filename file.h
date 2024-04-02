@@ -16,6 +16,15 @@ bool file_exists(const char* path);
 // The caller is responsible for freeing the returned string.
 char* read_file(const char* path);
 
+// Function to read a file. Same as read_file, but returns NULL if the file does not exist.
+// The caller is responsible for freeing the returned string.
+char* read_file_safe(const char* path);
+
+// Write a file. If the file already exists, it will be overwritten.
+// If it does not exist, it will be created.
+// Returns true on success, false on failure.
+bool write_file(const char* path, const char* content);
+
 // Joins two paths together.
 // The caller is responsible for freeing the returned string.
 char* join_path(const char* path_a, const char* path_b);

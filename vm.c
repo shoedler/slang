@@ -1,8 +1,8 @@
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #include "builtin.h"
 #include "compiler.h"
@@ -28,48 +28,8 @@ typedef enum {
   CALL_RUNNING,   // The call is running and we need to execute the new frame
 } CallResult;
 
-static Value exit_with_runtime_error();
 static Value run();
 static Value peek(int distance);
-
-static ObjString* fast_to_str(Value value);
-static ObjClass* type_of(Value value);
-static bool is_falsey(Value value);
-
-BUILTIN_DECLARE_FN(clock);
-BUILTIN_DECLARE_FN(log);
-BUILTIN_DECLARE_FN(type_of);
-BUILTIN_DECLARE_FN(type_name);
-BUILTIN_DECLARE_FN(cwd);
-
-BUILTIN_DECLARE_METHOD(TYPENAME_OBJ, to_str)
-BUILTIN_DECLARE_METHOD(TYPENAME_OBJ, hash)
-
-BUILTIN_DECLARE_METHOD(TYPENAME_BOOL, __ctor)
-BUILTIN_DECLARE_METHOD(TYPENAME_BOOL, to_str)
-
-BUILTIN_DECLARE_METHOD(TYPENAME_NIL, __ctor)
-BUILTIN_DECLARE_METHOD(TYPENAME_NIL, to_str)
-
-BUILTIN_DECLARE_METHOD(TYPENAME_NUMBER, __ctor)
-BUILTIN_DECLARE_METHOD(TYPENAME_NUMBER, to_str)
-
-BUILTIN_DECLARE_METHOD(TYPENAME_STRING, __ctor)
-BUILTIN_DECLARE_METHOD(TYPENAME_STRING, to_str)
-BUILTIN_DECLARE_METHOD(TYPENAME_STRING, len)
-
-BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, __ctor)
-BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, to_str)
-BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, len)
-BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, push)
-BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, pop)
-
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, __ctor)
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, to_str)
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, len)
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, entries)
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, values)
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, keys)
 
 static void reset_stack() {
   vm.pause_gc      = 0;
@@ -78,8 +38,7 @@ static void reset_stack() {
   vm.open_upvalues = NULL;
 }
 
-// Prints a runtime error message including the stacktrace
-static void runtime_error(const char* format, ...) {
+void runtime_error(const char* format, ...) {
   va_list args;
   va_start(args, format);
   vfprintf(stderr, format, args);
@@ -112,9 +71,7 @@ static void runtime_error(const char* format, ...) {
   reset_stack();
 }
 
-// This is just a placeholder to find where we actually throw rt errors.
-// I want another way to do this, but I don't know how yet.
-static Value exit_with_runtime_error() {
+Value exit_with_runtime_error() {
   free_vm();
   // TODO (recovery): Find a way to progpagate errors */
   exit(70);
@@ -129,11 +86,10 @@ static void exit_with_compile_error() {
   exit(65);
 }
 
-// Defines a native function in the given table.
-static void define_native(HashTable* table, const char* name, NativeFn function, const char* doc) {
+void define_native(HashTable* table, const char* name, NativeFn function, const char* doc, int arity) {
   Value key          = OBJ_VAL(copy_string(name, (int)strlen(name)));
   ObjString* doc_str = copy_string(doc, (int)strlen(doc));
-  Value value        = OBJ_VAL(new_native(function, doc_str));
+  Value value        = OBJ_VAL(new_native(function, doc_str, arity));
   push(key);
   push(value);
   push(OBJ_VAL(doc_str));
@@ -143,8 +99,7 @@ static void define_native(HashTable* table, const char* name, NativeFn function,
   pop();
 }
 
-// Defines an object in the given table.
-static void define_obj(HashTable* table, const char* name, Obj* obj) {
+void define_obj(HashTable* table, const char* name, Obj* obj) {
   // 🐛 Seemingly out of nowhere the pushed key and value get swapped on the stack...?! I don't know why.
   // Funnily enough, it only happens when we start a nested module. E.g. we're in "main" and import "std",
   // when the builtins get attached to the module instances field within the start_module function key and
@@ -160,27 +115,16 @@ static void define_obj(HashTable* table, const char* name, Obj* obj) {
   pop();
 }
 
-// Creates a sequence of length "count" from the top "count" values on the stack.
-// The resulting sequence is pushed onto the stack.
-static void make_seq(int count) {
+void make_seq(int count) {
   // Since we know the count, we can preallocate the value array for the list. This avoids
   // using write_value_array within the loop, which can trigger a GC due to growing the array
   // and free items in the middle of the loop. Also, it lets us pop the list items on the
   // stack, instead of peeking and then having to pop them later (Requiring us to loop over
   // the array twice)
-  ValueArray items;
-  init_value_array(&items);
-
-  items.values   = RESIZE_ARRAY(Value, items.values, 0, count);
-  items.capacity = count;
-  items.count    = count;
-
-  // Take the values array while before we start popping the stack, so the items are still seen by the GC as
-  // we allocate the new seq object.
-  ObjSeq* seq = take_seq(&items);
+  ObjSeq* seq = prealloc_seq(count);
 
   for (int i = count - 1; i >= 0; i--) {
-    items.values[i] = pop();
+    seq->items.values[i] = pop();
   }
 
   push(OBJ_VAL(seq));
@@ -235,66 +179,26 @@ void init_vm() {
   vm.cached_words[WORD_FILE_PATH]   = OBJ_VAL(copy_string(KEYWORD_FILE_PATH, KEYWORD_FILE_PATH_LEN));
   vm.cached_words[WORD_DOC]         = OBJ_VAL(copy_string(KEYWORD_DOC, KEYWORD_DOC_LEN));
 
-  // Create the object class
-  vm.__builtin_Obj_class = new_class(copy_string(STR(TYPENAME_OBJ), sizeof(STR(TYPENAME_OBJ)) - 1), NULL);
+  // Register the built-in classes, starting with the obj class, which is the base class for all objects.
+  register_builtin_obj_class();
 
-  // Create the builtin obj instance
-  vm.builtin = new_instance(vm.__builtin_Obj_class);
-  define_obj(&vm.builtin->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
+  // Register the built-in functions
+  register_builtin_functions();
 
-  // Create the builtin functions
-  BUILTIN_REGISTER_FN(clock);
-  BUILTIN_REGISTER_FN(log);
-  BUILTIN_REGISTER_FN(type_of);
-  BUILTIN_REGISTER_FN(type_name);
-  BUILTIN_REGISTER_FN(cwd);
-
-  define_obj(&vm.builtin->fields, STR(TYPENAME_OBJ), (Obj*)vm.__builtin_Obj_class);
-
-  // ... and define the object methods
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, to_str)
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, hash)
-
-  // Create the string class
-  BUILTIN_REGISTER_CLASS(TYPENAME_STRING, TYPENAME_OBJ)
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, __ctor)
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, to_str)
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, len)
-
-  // Create the boolean class
-  BUILTIN_REGISTER_CLASS(TYPENAME_BOOL, TYPENAME_OBJ)
-  BUILTIN_REGISTER_METHOD(TYPENAME_BOOL, __ctor)
-  BUILTIN_REGISTER_METHOD(TYPENAME_BOOL, to_str)
-
-  // Create the nil class
-  BUILTIN_REGISTER_CLASS(TYPENAME_NIL, TYPENAME_OBJ)
-  BUILTIN_REGISTER_METHOD(TYPENAME_NIL, __ctor)
-  BUILTIN_REGISTER_METHOD(TYPENAME_NIL, to_str)
-
-  // Create the number class
-  BUILTIN_REGISTER_CLASS(TYPENAME_NUMBER, TYPENAME_OBJ)
-  BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, __ctor)
-  BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, to_str)
-
-  // Create the sequence class
-  BUILTIN_REGISTER_CLASS(TYPENAME_SEQ, TYPENAME_OBJ)
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, __ctor)
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, to_str)
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, len)
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, push)
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, pop)
-
-  // Create the map class
-  BUILTIN_REGISTER_CLASS(TYPENAME_MAP, TYPENAME_OBJ)
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, __ctor)
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, to_str)
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, len)
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, entries)
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, values)
-  BUILTIN_REGISTER_METHOD(TYPENAME_MAP, keys)
+  // Register the built-in classes
+  register_builtin_nil_class();
+  register_builtin_bool_class();
+  register_builtin_num_class();
+  register_builtin_seq_class();
+  register_builtin_str_class();
+  register_builtin_map_class();
 
   // Create the module class
   BUILTIN_REGISTER_CLASS(TYPENAME_MODULE, TYPENAME_OBJ)
+
+  // Register built-in modules
+  register_builtin_file_module();
+  register_builtin_perf_module();
 
   vm.pause_gc = 0;
   reset_stack();
@@ -322,9 +226,7 @@ static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
 }
 
-// Retrieves the class of a value. Everything in Slang is an 'object', so this function will always return
-// a class.
-static ObjClass* type_of(Value value) {
+ObjClass* type_of(Value value) {
   // Handle primitive and internal types which have a corresponding class
   if (!IS_INSTANCE(value)) {
     switch (value.type) {
@@ -344,6 +246,14 @@ static ObjClass* type_of(Value value) {
 
   // Instances are easy, just return the class. Most of them are probably managed-code classes.
   return AS_INSTANCE(value)->klass;
+}
+
+// Checks if the provided callable accepts the expected number of arguments.
+// Returns true if the number of arguments is correct, or if the callable accepts a variable number of
+// arguments.
+static bool check_args(Obj* callable, int expected) {
+  int given = get_arity(callable);
+  return given == expected || given == -1;
 }
 
 // Finds a method in the inheritance chain of a class. This is used to find methods in the class hierarchy.
@@ -385,9 +295,14 @@ static CallResult call_managed(ObjClosure* closure, int arg_count) {
 
 // Calls a native function with the given number of arguments (on the stack).
 // `Stack: ...[native|receiver][arg0][arg1]...[argN]`
-static CallResult call_native(NativeFn native, int arg_count) {
+static CallResult call_native(ObjNative* native, int arg_count) {
+  if (check_args((Obj*)native, arg_count) == false) {
+    runtime_error("Expected %d arguments but got %d.", native->arity, arg_count);
+    return CALL_FAILED;
+  }
+
   Value* args  = vm.stack_top - arg_count - 1;
-  Value result = native(arg_count, args);
+  Value result = native->function(arg_count, args);
   vm.stack_top -= arg_count + 1;  // Remove args + fn or receiver
   push(result);
 
@@ -407,10 +322,9 @@ static CallResult call_value(Value callable, int arg_count) {
         // Load the receiver onto the stack, just before the arguments, overriding the bound method on the
         // stack.
         vm.stack_top[-arg_count - 1] = bound->receiver;
-
         switch (bound->method->type) {
           case OBJ_CLOSURE: return call_managed((ObjClosure*)bound->method, arg_count);
-          case OBJ_NATIVE: return call_native(((ObjNative*)bound->method)->function, arg_count);
+          case OBJ_NATIVE: return call_native((ObjNative*)bound->method, arg_count);
           default: break;  // Non-callable object type.
         }
       }
@@ -481,7 +395,7 @@ static CallResult invoke(ObjString* name, int arg_count) {
   Value receiver  = peek(arg_count);
   ObjClass* klass = type_of(receiver);
 
-  // Handle primitive and internal types which have a corresponding class
+  // Handle primitive and internal types which have a corresponding class.
   // Everything which is not an instance qualifies as such.
   if (!IS_INSTANCE(receiver)) {
     return invoke_from_class(klass, name, arg_count);
@@ -497,6 +411,7 @@ static CallResult invoke(ObjString* name, int arg_count) {
     return call_value(function, arg_count);
   }
 
+  // Otherwise, it's just a class method
   return invoke_from_class(klass, name, arg_count);
 }
 
@@ -511,19 +426,24 @@ static Value run_frame() {
   return result;
 }
 
-// Internal function to execute a call to a managed-code OR native function.
-// Arguments are expected to be on the stack, with the function preceding them.
-// Returns the value returned by the function, or NIL_VAL if the call failed.
-//
-// This is pretty similar to call_value, but it's intended to also EXECUTE the function. For native functions,
-// the result will be available "immediately", but for managed_code we have to execute the new call frame
-// (provided by call_managed) to get to the result. That's why we have this function - so we can execute any
-// callable value internally
-static Value exec_fn(Obj* callable, int arg_count) {
+Value exec_fn(Obj* callable, int arg_count) {
+  if (check_args(callable, arg_count) == false) {
+    runtime_error("Expected callable to accept %d arguments, but it takes %d.", arg_count,
+                  get_arity((Obj*)callable));
+    return exit_with_runtime_error();
+  }
+
   CallResult result = CALL_FAILED;
   switch (callable->type) {
     case OBJ_CLOSURE: result = call_managed((ObjClosure*)callable, arg_count); break;
-    case OBJ_NATIVE: result = call_native(((ObjNative*)callable)->function, arg_count); break;
+    case OBJ_NATIVE: result = call_native(((ObjNative*)callable), arg_count); break;
+    case OBJ_BOUND_METHOD: {
+      // For bound methods, we need to load the receiver onto the stack just before the arguments, overriding
+      // the bound method on the stack.
+      ObjBoundMethod* bound        = (ObjBoundMethod*)callable;
+      vm.stack_top[-arg_count - 1] = bound->receiver;
+      return exec_fn(bound->method, arg_count);
+    }
   }
 
   if (result == CALL_RETURNED) {
@@ -535,10 +455,7 @@ static Value exec_fn(Obj* callable, int arg_count) {
   return NIL_VAL;
 }
 
-// Internal function to execute a method on a value. This is similar to exec_fn, but it's expected that
-// there's a receiver on the stack before the arguments.
-// `Stack: ...[receiver][arg0][arg1]...[argN]`
-static Value exec_method(ObjString* name, int arg_count) {
+Value exec_method(ObjString* name, int arg_count) {
   Value receiver    = peek(arg_count);
   ObjClass* klass   = type_of(receiver);
   CallResult result = invoke_from_class(klass, name, arg_count);
@@ -550,742 +467,6 @@ static Value exec_method(ObjString* name, int arg_count) {
   }
 
   return NIL_VAL;
-}
-
-// Function to convert any value to a string.
-// This is faster than using the "to_str" method, but it's less flexible.
-// Should probably test how much faster it is, because I don't like it and want to remove it.
-// I'd like to just call a values to_str method - but there's still a bug in there somewhere, we'll leave it
-// for now.
-//
-// TODO (robust): Remove this, if it's not significantly faster.
-static ObjString* fast_to_str(Value value) {
-  switch (value.type) {
-    case VAL_BOOL: return AS_STRING(BUILTIN_METHOD(TYPENAME_BOOL, to_str)(0, &value));
-    case VAL_NIL: return AS_STRING(BUILTIN_METHOD(TYPENAME_NIL, to_str)(0, &value));
-    case VAL_NUMBER: return AS_STRING(BUILTIN_METHOD(TYPENAME_NUMBER, to_str)(0, &value));
-    case VAL_OBJ: {
-      switch (OBJ_TYPE(value)) {
-        case OBJ_STRING: return AS_STRING(BUILTIN_METHOD(TYPENAME_STRING, to_str)(0, &value));
-        case OBJ_SEQ: return AS_STRING(BUILTIN_METHOD(TYPENAME_SEQ, to_str)(0, &value));
-        case OBJ_MAP: return AS_STRING(BUILTIN_METHOD(TYPENAME_MAP, to_str)(0, &value));
-        default: break;
-      }
-      break;
-    }
-    default: break;
-  }
-
-  return AS_STRING(BUILTIN_METHOD(TYPENAME_OBJ, to_str)(0, &value));
-}
-
-//
-// Native functions. These are functions that are implemented in C and are available to user code.
-// Natives do not do anything with argv[0] - that's reserved for the receiver (or the function itself).
-//
-
-// Native clock function.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ clock,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the current execution time in miliseconds.");
-BUILTIN_FN_IMPL(clock) {
-  UNUSED(argc);
-  UNUSED(argv);
-
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
-}
-
-// Native cwd function.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ cwd,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */
-    "Returns the current working directory or " STR(TYPENAME_NIL) " if no module is active.");
-BUILTIN_FN_IMPL(cwd) {
-  UNUSED(argc);
-  UNUSED(argv);
-
-  if (vm.module == NULL) {
-    return NIL_VAL;
-  }
-
-  Value cwd;
-  if (!hashtable_get(&vm.module->fields, vm.cached_words[WORD_FILE_PATH], &cwd)) {
-    return NIL_VAL;
-  }
-
-  return cwd;
-}
-
-// Native print function.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ log,
-    /* Arguments   */ DOC_ARG("arg1", TYPENAME_OBJ) DOC_ARG_SEP DOC_ARG_REST,
-    /* Return Type */ TYPENAME_NIL,
-    /* Description */ "Prints the arguments to the console.");
-BUILTIN_FN_IMPL(log) {
-  // Since argv[0] contains the receiver or function, we start at 1 and run that, even if we have only one
-  // arg. Basically, arguments are 1 indexed for native function
-  for (int i = 1; i <= argc; i++) {
-    ObjString* str = fast_to_str(argv[i]);
-    printf("%s", str->chars);
-    if (i <= argc - 1) {
-      printf(" ");
-    }
-  }
-  printf("\n");
-  return NIL_VAL;
-}
-
-// Native type of.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ type_of,
-    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_CLASS,
-    /* Description */ "Returns the class of the value.");
-BUILTIN_FN_IMPL(type_of) {
-  BUILTIN_CHECK_ARGC_ONE()
-
-  ObjClass* klass = type_of(argv[1]);
-  return OBJ_VAL(klass);
-}
-
-// Native type name.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ type_name,
-    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns the name of the value's type.");
-BUILTIN_FN_IMPL(type_name) {
-  BUILTIN_CHECK_ARGC_ONE()
-
-  const char* t_name = type_name(argv[1]);
-  ObjString* str_obj = copy_string(t_name, (int)strlen(t_name));
-  return OBJ_VAL(str_obj);
-}
-
-//
-// Built-in methods of built-in classes
-//
-
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ hash,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the hash of the " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
-  BUILTIN_CHECK_ARGC_ZERO()
-
-  return NUMBER_VAL(hash_value(argv[0]));
-}
-
-// Built-in function to convert an object to a string. This one is special in that is is the toplevel to_str -
-// there's no abstraction over it. This is why we have some special cases here for our internal types.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ to_str,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of the " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
-
-  if (IS_OBJ(argv[0])) {
-    switch (AS_OBJ(argv[0])->type) {
-      case OBJ_NATIVE: return OBJ_VAL(copy_string(VALUE_STR_NATIVE, sizeof(VALUE_STR_NATIVE) - 1));
-      case OBJ_CLOSURE:
-        return BUILTIN_METHOD(TYPENAME_OBJ, to_str)(argc, &OBJ_VAL(AS_CLOSURE(argv[0])->function));
-      case OBJ_BOUND_METHOD:
-        return BUILTIN_METHOD(TYPENAME_OBJ, to_str)(argc, &OBJ_VAL(AS_BOUND_METHOD(argv[0])->method));
-      case OBJ_CLASS: {
-        ObjClass* klass = AS_CLASS(argv[0]);
-        ObjString* name = klass->name;
-        if (name == NULL || name->chars == NULL) {
-          name = copy_string("???", 3);
-        }
-        push(OBJ_VAL(name));
-
-        size_t buf_size = VALUE_STRFMT_CLASS_LEN + name->length;
-        char* chars     = malloc(buf_size);
-        snprintf(chars, buf_size, VALUE_STRFMT_CLASS, name->chars);
-        // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-        // allocates the memory - we don't want this block in our own memory pool.
-        ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
-
-        free(chars);
-        pop();  // Name str
-        return OBJ_VAL(str_obj);
-      }
-      case OBJ_INSTANCE: {
-        ObjInstance* instance = AS_INSTANCE(argv[0]);
-        ObjString* name       = instance->klass->name;
-        if (name == NULL || name->chars == NULL) {
-          name = copy_string("???", 3);
-        }
-        push(OBJ_VAL(name));
-
-        size_t buf_size = VALUE_STRFTM_INSTANCE_LEN + name->length;
-        char* chars     = malloc(buf_size);
-        snprintf(chars, buf_size, VALUE_STRFTM_INSTANCE, name->chars);
-        // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-        // allocates the memory - we don't want this block in our own memory pool.
-        ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
-
-        free(chars);
-        pop();  // Name str
-        return OBJ_VAL(str_obj);
-      }
-      case OBJ_FUNCTION: {
-        ObjFunction* function = AS_FUNCTION(argv[0]);
-        ObjString* name       = function->name;
-        if (name == NULL || name->chars == NULL) {
-          name = copy_string("???", 3);
-        }
-        push(OBJ_VAL(name));  // GC Protection
-
-        size_t buf_size = VALUE_STRFMT_FUNCTION_LEN + name->length;
-        char* chars     = malloc(buf_size);
-        snprintf(chars, buf_size, VALUE_STRFMT_FUNCTION, name->chars);
-
-        // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-        // allocates the memory - we don't want this block in our own memory pool.
-        ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
-
-        free(chars);
-        pop();  // Name str
-        return OBJ_VAL(str_obj);
-      }
-    }
-  }
-
-  // This here is the catch-all for all values. We print the type-name and memory address of the value.
-  const char* t_name = type_name(argv[0]);
-
-  // Print the memory address of the object using (void*)AS_OBJ(argv[0]).
-  // We need to know the size of the buffer to allocate, so we calculate it first.
-  size_t adr_str_len = snprintf(NULL, 0, "%p", (void*)AS_OBJ(argv[0]));
-
-  size_t buf_size = VALUE_STRFMT_OBJ_LEN + strlen(t_name) + adr_str_len;
-  char* chars     = malloc(buf_size);
-  snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name, (void*)AS_OBJ(argv[0]));
-  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-  // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
-
-  free(chars);
-  return OBJ_VAL(str_obj);
-}
-
-// Built-in function to convert a nil to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_NIL,
-    /* Name        */ to_str,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of " STR(TYPENAME_NIL) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_NIL, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
-  BUILTIN_CHECK_RECEIVER(NIL)
-
-  ObjString* str_obj = copy_string(VALUE_STR_NIL, sizeof(VALUE_STR_NIL) - 1);
-  return OBJ_VAL(str_obj);
-}
-
-// Built-in function to convert a value to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_BOOL,
-    /* Name        */ to_str,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of a " STR(TYPENAME_BOOL) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_BOOL, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
-  BUILTIN_CHECK_RECEIVER(BOOL)
-
-  if (AS_BOOL(argv[0])) {
-    ObjString* str_obj = copy_string(VALUE_STR_TRUE, sizeof(VALUE_STR_TRUE) - 1);
-    return OBJ_VAL(str_obj);
-  } else {
-    ObjString* str_obj = copy_string(VALUE_STR_FALSE, sizeof(VALUE_STR_FALSE) - 1);
-    return OBJ_VAL(str_obj);
-  }
-}
-
-// Built-in function to convert a number to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_NUMBER,
-    /* Name        */ to_str,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of a " STR(TYPENAME_NUMBER) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
-  BUILTIN_CHECK_RECEIVER(NUMBER)
-
-  double number = AS_NUMBER(argv[0]);
-  char buffer[64];
-  int integer;
-  int len = 0;
-
-  if (is_int(number, &integer)) {
-    len = snprintf(buffer, sizeof(buffer), VALUE_STR_INT, integer);
-  } else {
-    len = snprintf(buffer, sizeof(buffer), VALUE_STR_FLOAT, number);
-  }
-
-  ObjString* str_obj = copy_string(buffer, len);
-  return OBJ_VAL(str_obj);
-}
-
-// Built-in function to convert a string to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ to_str,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of a " STR(TYPENAME_STRING) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
-  BUILTIN_CHECK_RECEIVER(STRING)
-
-  return argv[0];
-}
-
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_NUMBER,
-    /* Name        */ __ctor,
-    /* Arguments   */ DOC_ARG_OPT("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */
-    "Converts the first argument to a " STR(
-        TYPENAME_NUMBER) ", if provided. Otherwise, returns a default " STR(TYPENAME_NUMBER) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, __ctor) {
-  if (argc == 0) {
-    return NUMBER_VAL(0);
-  }
-
-  BUILTIN_CHECK_ARGC_ONE()
-
-  switch (argv[1].type) {
-    case VAL_NUMBER: return argv[1];
-    case VAL_BOOL: return AS_BOOL(argv[1]) ? NUMBER_VAL(1) : NUMBER_VAL(0);
-    case VAL_NIL: return NUMBER_VAL(0);
-    case VAL_OBJ: {
-      switch (AS_OBJ(argv[1])->type) {
-        case OBJ_STRING: {
-          ObjString* str = AS_STRING(argv[1]);
-          return NUMBER_VAL(string_to_double(str->chars, str->length));
-        }
-      }
-    }
-  }
-
-  return NUMBER_VAL(0);
-}
-
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_BOOL,
-    /* Name        */ __ctor,
-    /* Arguments   */ DOC_ARG_OPT("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_BOOL,
-    /* Description */
-    "Converts the first argument to a " STR(TYPENAME_BOOL) ", if provided. Otherwise, returns a default " STR(
-        TYPENAME_BOOL) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_BOOL, __ctor) {
-  if (argc == 0) {
-    return BOOL_VAL(false);
-  }
-
-  BUILTIN_CHECK_ARGC_ONE()
-
-  if (is_falsey(argv[1])) {
-    return BOOL_VAL(false);
-  }
-
-  return BOOL_VAL(true);
-}
-
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_NIL,
-    /* Name        */ __ctor,
-    /* Arguments   */ DOC_ARG_OPT("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_NIL,
-    /* Description */
-    "Converts the first argument to a " STR(TYPENAME_NIL) ", if provided. Otherwise, returns a default " STR(
-        TYPENAME_NIL) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_NIL, __ctor) {
-  UNUSED(argv);
-
-  if (argc == 0) {
-    return NIL_VAL;
-  }
-
-  BUILTIN_CHECK_ARGC_ONE()
-
-  return NIL_VAL;
-}
-
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ __ctor,
-    /* Arguments   */ DOC_ARG_OPT("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */
-    "Converts the first argument to a " STR(
-        TYPENAME_STRING) ", if provided. Otherwise, returns a default " STR(TYPENAME_STRING) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, __ctor) {
-  if (argc == 0) {
-    return OBJ_VAL(copy_string("", 0));
-  }
-
-  BUILTIN_CHECK_ARGC_ONE()
-
-  push(argv[1]);  // Push the receiver for to_str, which is the ctors' argument
-  return exec_method(copy_string("to_str", 6), 0);  // Convert to string
-}
-
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ __ctor,
-    /* Arguments   */ DOC_ARG_OPT("len", TYPENAME_NUMBER),
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */
-    "Creates a new " STR(TYPENAME_NIL) "-initialized " STR(
-        TYPENAME_SEQ) " of length 'len', if provided. Otherwise, creates a new empty " STR(TYPENAME_SEQ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, __ctor) {
-  if (argc == 0) {
-    ValueArray items;
-    init_value_array(&items);
-    ObjSeq* seq = take_seq(&items);
-    return OBJ_VAL(seq);
-  }
-
-  BUILTIN_CHECK_ARGC_ONE()
-  BUILTIN_CHECK_ARG_AT(1, NUMBER)
-
-  ValueArray items;
-  init_value_array(&items);
-  ObjSeq* seq = take_seq(&items);
-  push(OBJ_VAL(seq));  // GC Protection
-
-  int count = (int)AS_NUMBER(argv[1]);
-  for (int i = 0; i < count; i++) {
-    write_value_array(&seq->items, NIL_VAL);
-  }
-
-  pop();  // The seq
-  return OBJ_VAL(seq);
-}
-
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_MAP,
-    /* Name        */ __ctor,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_MAP,
-    /* Description */ "Returns a new empty " STR(TYPENAME_MAP) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_MAP, __ctor) {
-  UNUSED(argv);
-  BUILTIN_CHECK_ARGC_ZERO()
-
-  HashTable entries;
-  init_hashtable(&entries);
-  ObjMap* map = take_map(&entries);
-  return OBJ_VAL(map);
-}
-
-// Built-in function to convert a sequence to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ to_str,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */ "Returns a string representation of a " STR(TYPENAME_SEQ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
-  BUILTIN_CHECK_RECEIVER(SEQ)
-
-  ObjSeq* seq     = AS_SEQ(argv[0]);
-  size_t buf_size = 64;  // Start with a reasonable size
-  char* chars     = malloc(buf_size);
-
-  strcpy(chars, VALUE_STR_SEQ_START);
-  for (int i = 0; i < seq->items.count; i++) {
-    // Use the default to-string method of the value to convert the item to a string
-    push(seq->items.values[i]);  // Push the receiver (item at i) for to_str
-    ObjString* item_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
-
-    // Expand chars to fit the separator plus the next item
-    size_t new_buf_size =
-        strlen(chars) + item_str->length + (sizeof(VALUE_STR_SEQ_DELIM) - 1) +
-        (sizeof(VALUE_STR_SEQ_END) - 1);  // Consider the closing bracket -  if we're done after this
-                                          // iteration we won't need to expand and can just slap it on there
-    // Expand if necessary
-    if (new_buf_size > buf_size) {
-      buf_size = new_buf_size;
-      chars    = realloc(chars, buf_size);
-      if (chars == NULL) {
-        return OBJ_VAL(copy_string("[???]", 5));
-      }
-    }
-
-    // Append the string
-    strcat(chars, item_str->chars);
-    if (i < seq->items.count - 1) {
-      strcat(chars, VALUE_STR_SEQ_DELIM);
-    }
-  }
-
-  strcat(chars, VALUE_STR_SEQ_END);
-
-  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-  // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(
-      chars,
-      (int)strlen(chars));  // TODO (optimize): Use buf_size here, but
-                            // we need to make sure that the string is
-                            // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
-  free(chars);
-  return OBJ_VAL(str_obj);
-}
-
-// Built-in function to convert a map to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_MAP,
-    /* Name        */ to_str,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_MAP,
-    /* Description */ "Returns a string representation of a " STR(TYPENAME_MAP) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_MAP, to_str) {
-  BUILTIN_CHECK_ARGC_ZERO()
-  BUILTIN_CHECK_RECEIVER(MAP)
-
-  ObjMap* map     = AS_MAP(argv[0]);
-  size_t buf_size = 64;  // Start with a reasonable size
-  char* chars     = malloc(buf_size);
-  int processed   = 0;  // Keep track of how many non-EMPTY entries we've processed to know when skip the last
-                        // delimiter
-
-  strcpy(chars, VALUE_STR_MAP_START);
-  for (int i = 0; i < map->entries.capacity; i++) {
-    if (IS_EMPTY_INTERNAL(map->entries.entries[i].key)) {
-      continue;
-    }
-
-    // Use the default to-string methods for key and value
-    push(map->entries.entries[i].key);  // Push the receiver (key at i) for to_str
-    ObjString* key_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
-    push(OBJ_VAL(key_str));               // GC Protection
-    push(map->entries.entries[i].value);  // Push the receiver (value at i) for to_str
-    ObjString* value_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
-    pop();  // Key str
-
-    // Expand chars to fit the separator, delimiter plus the next key and value
-    size_t new_buf_size = strlen(chars) + strlen(key_str->chars) + strlen(value_str->chars) +
-                          (sizeof(VALUE_STR_MAP_SEPARATOR) - 1) + (sizeof(VALUE_STR_MAP_DELIM) - 1) +
-                          (sizeof(VALUE_STR_MAP_END) - 1);  // Consider the closing bracket -
-                                                            // if we're done after this
-                                                            // iteration we won't need to
-                                                            // expand and can just slap it on there
-    // Expand if necessary
-    if (new_buf_size > buf_size) {
-      buf_size = new_buf_size;
-      chars    = realloc(chars, buf_size);
-      if (chars == NULL) {
-        return OBJ_VAL(copy_string("{???}", 5));
-      }
-    }
-
-    // Append the strings
-    strcat(chars, key_str->chars);
-    strcat(chars, VALUE_STR_MAP_SEPARATOR);
-    strcat(chars, value_str->chars);
-    if (processed < map->entries.count - 1) {
-      strcat(chars, VALUE_STR_MAP_DELIM);
-    }
-    processed++;
-  }
-
-  strcat(chars, VALUE_STR_MAP_END);
-
-  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-  // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(
-      chars,
-      (int)strlen(chars));  // TODO (optimize): Use buf_size here, but
-                            // we need to make sure that the string is
-                            // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
-  free(chars);
-  return OBJ_VAL(str_obj);
-}
-
-// Built-in function to retrieve the length of a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ len,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the length of a " STR(TYPENAME_STRING) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, len) {
-  BUILTIN_CHECK_ARGC_ZERO()
-
-  int length = AS_STRING(argv[0])->length;
-  return NUMBER_VAL(length);
-}
-
-// Built-in function to retrieve the length of a sequence
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ len,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the length of a " STR(TYPENAME_SEQ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, len) {
-  BUILTIN_CHECK_ARGC_ZERO()
-
-  int length = AS_SEQ(argv[0])->items.count;
-  return NUMBER_VAL(length);
-}
-
-// Built-in function to retrieve the length of a map
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_MAP,
-    /* Name        */ len,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the length of a " STR(TYPENAME_MAP) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_MAP, len) {
-  BUILTIN_CHECK_ARGC_ZERO()
-
-  int length = AS_MAP(argv[0])->entries.count;
-  return NUMBER_VAL(length);
-}
-
-// Built-in function to push an arbitrary amount of values onto a sequence
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ push,
-    /* Arguments   */ DOC_ARG("arg1", TYPENAME_OBJ) DOC_ARG_SEP DOC_ARG_REST,
-    /* Return Type */ TYPENAME_NIL,
-    /* Description */ "Pushes one or many values to a " STR(TYPENAME_SEQ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, push) {
-  BUILTIN_CHECK_ARGC_AT_LEAST(1)
-  BUILTIN_CHECK_RECEIVER(SEQ)
-
-  ObjSeq* seq = AS_SEQ(argv[0]);
-  for (int i = 1; i <= argc; i++) {
-    write_value_array(&seq->items, argv[i]);
-  }
-  return NIL_VAL;
-}
-
-// Built-in function to pop a value from a sequence
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ pop,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_OBJ,
-    /* Description */
-    "Pops and returns the last item of a " STR(TYPENAME_SEQ) ". Returns " STR(
-        TYPENAME_NIL) " if it is empty.");
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
-  BUILTIN_CHECK_ARGC_ZERO()
-  BUILTIN_CHECK_RECEIVER(SEQ)
-
-  ObjSeq* seq = AS_SEQ(argv[0]);
-  if (seq->items.count == 0) {
-    return NIL_VAL;
-  }
-
-  return pop_value_array(&seq->items);
-}
-
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_MAP,
-    /* Name        */ entries,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */
-    "Returns a " STR(TYPENAME_SEQ) " of key-value pairs (which are " STR(
-        TYPENAME_SEQ) "s of length 2 ) of a " STR(TYPENAME_MAP) ", containing all entries.");
-BUILTIN_METHOD_IMPL(TYPENAME_MAP, entries) {
-  BUILTIN_CHECK_ARGC_ZERO()
-  BUILTIN_CHECK_RECEIVER(MAP)
-
-  ObjMap* map = AS_MAP(argv[0]);
-
-  int processed = 0;
-  for (int i = 0; i < map->entries.capacity; i++) {
-    Entry* entry = &map->entries.entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key)) {
-      push(entry->key);
-      push(entry->value);
-      make_seq(2);  // Leaves a seq with the two values on the stack
-      processed++;
-    }
-  }
-
-  make_seq(processed);
-  Value seq = pop();  // The seq made by make_seq
-
-  return seq;
-}
-
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_MAP,
-    /* Name        */ keys,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all keys of a " STR(TYPENAME_MAP) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_MAP, keys) {
-  BUILTIN_CHECK_ARGC_ZERO()
-  BUILTIN_CHECK_RECEIVER(MAP)
-
-  ObjMap* map = AS_MAP(argv[0]);
-
-  int processed = 0;
-  for (int i = 0; i < map->entries.capacity; i++) {
-    Entry* entry = &map->entries.entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key)) {
-      push(entry->key);
-      processed++;
-    }
-  }
-
-  make_seq(processed);
-  Value seq = pop();  // The seq made by make_seq
-
-  return seq;
-}
-
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_MAP,
-    /* Name        */ values,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all values of a " STR(TYPENAME_MAP) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_MAP, values) {
-  BUILTIN_CHECK_ARGC_ZERO()
-  BUILTIN_CHECK_RECEIVER(MAP)
-
-  ObjMap* map = AS_MAP(argv[0]);
-
-  int processed = 0;
-  for (int i = 0; i < map->entries.capacity; i++) {
-    Entry* entry = &map->entries.entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key)) {
-      push(entry->value);
-      processed++;
-    }
-  }
-
-  make_seq(processed);
-  Value seq = pop();  // The seq made by make_seq
-
-  return seq;
 }
 
 // Binds a method to an instance by creating a new bound method object and
@@ -1356,9 +537,7 @@ static void define_method(ObjString* name) {
   pop();
 }
 
-// Determines whether a value is falsey. We consider nil and false to be falsey,
-// and everything else to be truthy.
-static bool is_falsey(Value value) {
+bool is_falsey(Value value) {
   return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
@@ -1484,7 +663,8 @@ static Value doc(Value value) {
   }
 
   // Create a default docstring as a fallback
-  push(OBJ_VAL(fast_to_str(value)));
+  push(value);  // Load the receiver onto the stack
+  push(exec_method(copy_string("to_str", 6), 0));
   push(OBJ_VAL(copy_string(":\nNo documentation available.\n", 30)));
   concatenate();
 
@@ -1510,7 +690,7 @@ static Value run() {
 // Perform a binary operation on the top two values on the stack.
 // This consumes two pieces of data from the stack, and pushes the result
 // value_type is the type of the result value, op is the operator to use
-#define BINARY_OP(value_type, op)                                                               \
+#define BINARY_OP(value_type, a_b_op)                                                           \
   do {                                                                                          \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                                           \
       runtime_error("Operands must be numbers. Left was %s, right was %s.", type_name(peek(1)), \
@@ -1519,7 +699,7 @@ static Value run() {
     }                                                                                           \
     double b = AS_NUMBER(pop());                                                                \
     double a = AS_NUMBER(pop());                                                                \
-    push(value_type(a op b));                                                                   \
+    push(value_type(a_b_op));                                                                   \
   } while (false)
 
   for (;;) {
@@ -1547,6 +727,7 @@ static Value run() {
       case OP_TRUE: push(BOOL_VAL(true)); break;
       case OP_FALSE: push(BOOL_VAL(false)); break;
       case OP_POP: pop(); break;
+      case OP_DUPE: push(peek(READ_ONE())); break;
       case OP_GET_LOCAL: {
         uint16_t slot = READ_ONE();
         push(frame->slots[slot]);
@@ -1710,17 +891,25 @@ static Value run() {
         break;
       }
       case OP_GET_PROPERTY: {
+        Value obj       = peek(0);
         ObjString* name = READ_STRING();
-        switch (peek(0).type) {
+
+        switch (obj.type) {
           case VAL_OBJ: {
-            switch (OBJ_TYPE(peek(0))) {
+            switch (OBJ_TYPE(obj)) {
+              // You can get properties of a class, namely:
+              // - the name
+              // - the constructor
               case OBJ_CLASS: {
-                ObjClass* klass = AS_CLASS(peek(0));
+                ObjClass* klass = AS_CLASS(obj);
                 if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_NAME])) {
+                  // Name is a special case, because it is a reserved word
                   pop();  // Pop the class
                   push(OBJ_VAL(klass->name));
                   goto done_getting_property;
                 } else if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_CTOR])) {
+                  // Ctor is a special case, because it is a reserved word.
+                  // Either we have a ctor, or we don't, in any case - we're done.
                   pop();  // Pop the class
                   Value ctor;
                   if (hashtable_get(&klass->methods, OBJ_VAL(name), &ctor)) {
@@ -1732,11 +921,26 @@ static Value run() {
                 }
                 break;
               }
+              // For instances, you can get
+              // - their fields
+              // - their class methods
               case OBJ_INSTANCE: {
-                ObjInstance* instance = AS_INSTANCE(peek(0));
+                ObjInstance* instance = AS_INSTANCE(obj);
                 Value value;
                 if (hashtable_get(&instance->fields, OBJ_VAL(name), &value)) {
                   pop();  // Instance.
+                  push(value);
+                  goto done_getting_property;
+                }
+                break;
+              }
+              // For maps, you can get:
+              // - their entries
+              case OBJ_MAP: {
+                ObjMap* map = AS_MAP(obj);
+                Value value;
+                if (hashtable_get(&map->entries, OBJ_VAL(name), &value)) {
+                  pop();  // Pop the map
                   push(value);
                   goto done_getting_property;
                 }
@@ -1747,19 +951,24 @@ static Value run() {
           }
         }
 
-        ObjClass* klass = type_of(peek(0));
+        // It could be a method of the objs class. This catches many of the cases where we map a builtin class
+        // to primitive types, e.g. Num.to_str()
+        ObjClass* klass = type_of(obj);
         if (bind_method(klass, name)) {
           goto done_getting_property;
         }
 
+        // It could be a __doc property, which is a special case.
+        // TODO (optimize): We could just make this a method like to_str. Kinda silly having it here as a
+        // property.
         if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_DOC])) {
-          Value doc_str = doc(peek(0));
+          Value doc_str = doc(obj);
           pop();  // Pop the object
           push(doc_str);
           goto done_getting_property;
         }
 
-        runtime_error("Property '%s' does not exist on type %s.", name->chars, type_name(peek(0)));
+        runtime_error("Property '%s' does not exist on type %s.", name->chars, type_name(obj));
         return exit_with_runtime_error();
 
       done_getting_property:
@@ -1769,26 +978,49 @@ static Value run() {
         Value obj       = peek(1);
         ObjString* name = READ_STRING();
 
-        if (!IS_INSTANCE(obj)) {
-          runtime_error("Cannot set field '%s' on value of type %s.", name->chars, type_name(peek(1)));
-          return exit_with_runtime_error();
-        }
+        switch (obj.type) {
+          case VAL_OBJ: {
+            switch (OBJ_TYPE(obj)) {
+              // On instances, you can set:
+              // - their fields
+              case OBJ_INSTANCE: {
+                ObjInstance* instance = AS_INSTANCE(obj);
 
-        ObjInstance* instance = AS_INSTANCE(obj);
+                // Check if it is a reserved word.
+                // TODO (robust): Not all cached words are actually **reserved**. We should make an enum for
+                // reserved words and check against that instead.
+                for (int i = 0; i < WORD_MAX; i++) {
+                  if (strcmp(name->chars, AS_STRING(vm.cached_words[i])->chars) == 0) {
+                    runtime_error("Cannot set reserved field '%s'.", name->chars);
+                    return exit_with_runtime_error();
+                  }
+                }
 
-        // TODO (robust): Not all cached words are actually **reserved**. We should make an enum for
-        // reserved words and check against that instead.
-        for (int i = 0; i < WORD_MAX; i++) {
-          if (strcmp(name->chars, AS_STRING(vm.cached_words[i])->chars) == 0) {
-            runtime_error("Cannot set reserved field '%s'.", name->chars);
-            return exit_with_runtime_error();
+                hashtable_set(&instance->fields, OBJ_VAL(name), peek(0));  // Create or update
+                Value value = pop();
+                pop();
+                push(value);
+                goto done_setting_property;
+              }
+              // On maps, you can set:
+              // - their entries
+              case OBJ_MAP: {
+                ObjMap* map = AS_MAP(obj);
+                hashtable_set(&map->entries, OBJ_VAL(name), peek(0));
+                Value value = pop();
+                pop();
+                push(value);
+                goto done_setting_property;
+              }
+            }
+            break;
           }
         }
 
-        hashtable_set(&instance->fields, OBJ_VAL(name), peek(0));  // Create or update
-        Value value = pop();
-        pop();
-        push(value);
+        runtime_error("Cannot set field '%s' on value of type %s.", name->chars, type_name(obj));
+        return exit_with_runtime_error();
+
+      done_setting_property:
         break;
       }
       case OP_IMPORT_FROM: {
@@ -1824,10 +1056,10 @@ static Value run() {
         push(BOOL_VAL(!values_equal(a, b)));
         break;
       }
-      case OP_GT: BINARY_OP(BOOL_VAL, >); break;
-      case OP_LT: BINARY_OP(BOOL_VAL, <); break;
-      case OP_GTEQ: BINARY_OP(BOOL_VAL, >=); break;
-      case OP_LTEQ: BINARY_OP(BOOL_VAL, <=); break;
+      case OP_GT: BINARY_OP(BOOL_VAL, a > b); break;
+      case OP_LT: BINARY_OP(BOOL_VAL, a < b); break;
+      case OP_GTEQ: BINARY_OP(BOOL_VAL, a >= b); break;
+      case OP_LTEQ: BINARY_OP(BOOL_VAL, a <= b); break;
       case OP_ADD: {
         if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
           concatenate();
@@ -1844,9 +1076,10 @@ static Value run() {
         }
         break;
       }
-      case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, -); break;
-      case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, *); break;
-      case OP_DIVIDE: BINARY_OP(NUMBER_VAL, /); break;
+      case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, a - b); break;
+      case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, a * b); break;
+      case OP_DIVIDE: BINARY_OP(NUMBER_VAL, a / b); break;
+      case OP_MODULO: BINARY_OP(NUMBER_VAL, fmod(a, b)); break;
       case OP_NOT: push(BOOL_VAL(is_falsey(pop()))); break;
       case OP_NEGATE:
         if (!IS_NUMBER(peek(0))) {
@@ -1856,9 +1089,8 @@ static Value run() {
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
       case OP_PRINT: {
-        ObjString* str = fast_to_str(peek(0));
+        ObjString* str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
         printf("%s\n", str->chars);
-        pop();
         break;
       }
       case OP_SEQ_LITERAL: {
@@ -1977,19 +1209,40 @@ static Value run() {
 #undef BINARY_OP
 }
 
-void start_module(const char* source_path, const char* module_name) {
-  ObjInstance* module = new_instance(vm.__builtin_Module_class);
-  vm.module           = module;
+ObjInstance* make_module(const char* source_path, const char* module_name) {
+  ObjInstance* prev_module = vm.module;
+  ObjInstance* module      = new_instance(vm.__builtin_Module_class);
 
-  char* base_dir_path = base(source_path);
+  // We need to have the new module active for the duration of the module creation.
+  // We'll restore it afterwards.
+  vm.module = module;
 
+  // Add a reference to the builtin instance, providing access to the builtin functions
+  // TODO (refactor): Remove this (including the INSTANCENAME_BUILTIN Macro) - I think it's not needed,
+  // because vm.builtin is used everywhere.
   define_obj(&module->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
+  // Add a reference to the module name, mostly used for stack traces
   define_obj(&module->fields, KEYWORD_MODULE_NAME,
              (Obj*)(copy_string(module_name, (int)strlen(module_name))));
-  define_obj(&module->fields, KEYWORD_FILE_PATH,
-             (Obj*)(copy_string(base_dir_path, (int)strlen(base_dir_path))));
 
-  free(base_dir_path);
+  // Add a reference to the file path of the module, if available
+  if (source_path == NULL) {
+    hashtable_set(&module->fields, OBJ_VAL(copy_string(KEYWORD_FILE_PATH, KEYWORD_FILE_PATH_LEN)), NIL_VAL);
+  } else {
+    char* base_dir_path = base(source_path);
+    define_obj(&module->fields, KEYWORD_FILE_PATH,
+               (Obj*)(copy_string(base_dir_path, (int)strlen(base_dir_path))));
+    free(base_dir_path);
+  }
+
+  vm.module = prev_module;
+
+  return module;
+}
+
+void start_module(const char* source_path, const char* module_name) {
+  ObjInstance* module = make_module(source_path, module_name);
+  vm.module           = module;
 }
 
 Value interpret(const char* source, const char* source_path, const char* module_name) {

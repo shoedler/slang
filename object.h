@@ -35,6 +35,9 @@
 // Determines whether a value is of type string.
 #define IS_STRING(value) is_obj_type(value, OBJ_STRING)
 
+// Determines whether a value is callable.
+#define IS_CALLABLE(value) is_callable(value)
+
 // Converts a value into a bound method.
 // Value must be of type bound method.
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
@@ -65,7 +68,7 @@
 
 // Converts a value into a native function.
 // Value must be of type native function.
-#define AS_NATIVE(value) (((ObjNative*)AS_OBJ(value))->function)
+#define AS_NATIVE(value) (((ObjNative*)AS_OBJ(value)))
 
 // Converts a value into a string.
 // Value must be of type string.
@@ -130,13 +133,14 @@ typedef struct {
   Obj obj;
   NativeFn function;
   ObjString* doc;
+  int arity;
 } ObjNative;
 
 struct ObjString {
   Obj obj;
   int length;
-  char* chars;
   uint32_t hash;
+  char* chars;
 };
 
 typedef struct ObjUpvalue {
@@ -192,9 +196,13 @@ ObjClosure* new_closure(ObjFunction* function);
 // garbage collection.
 ObjFunction* new_function();
 
+// Creates, initializes and allocates a new seq object. Might trigger garbage
+// collection.
+ObjSeq* new_seq();
+
 // Creates, initializes and allocates a new native function object. Might
 // trigger garbage collection.
-ObjNative* new_native(NativeFn function, ObjString* doc);
+ObjNative* new_native(NativeFn function, ObjString* doc, int arity);
 
 // Creates, initializes and allocates a new upvalue object. Might trigger
 // garbage collection.
@@ -204,6 +212,11 @@ ObjUpvalue* new_upvalue(Value* slot);
 // This does not take ownership of the string, but rather - as the name suggests - copies it. Might
 // trigger garbage collection.
 ObjString* copy_string(const char* chars, int length);
+
+// Creates, initializes and allocates a new seq object. Initializes the
+// value array to add 'count' values without resizing. It's intended to add items directly to
+// items.values[idx], do not use write_value_array. Might trigger garbage collection.
+ObjSeq* prealloc_seq(int count);
 
 // Creates a string object from a C string.
 // This takes ownership of the string. This means that the string will be freed
@@ -222,6 +235,36 @@ ObjMap* take_map(HashTable* entries);
 
 static inline bool is_obj_type(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;
+}
+
+// Determines if a value is callable. This is used to check if a value can be called as a function.
+static inline bool is_callable(Value value) {
+  if (IS_OBJ(value)) {
+    switch (OBJ_TYPE(value)) {
+      case OBJ_CLOSURE:
+      case OBJ_BOUND_METHOD:
+      case OBJ_NATIVE: return true;
+      default: break;
+    }
+  }
+  return false;
+}
+
+// Determines the arity of a callable obj. This is used to check how many arguments a function expects.
+static inline int get_arity(Obj* callable) {
+again:
+  switch (callable->type) {
+    case OBJ_CLOSURE: return ((ObjClosure*)callable)->function->arity;
+    case OBJ_NATIVE: return ((ObjNative*)callable)->arity;
+    case OBJ_BOUND_METHOD: {
+      callable = ((ObjBoundMethod*)callable)->method;
+      goto again;
+    };
+    default: break;
+  }
+
+  INTERNAL_ERROR("Value is not callable.");
+  return -999;
 }
 
 #endif

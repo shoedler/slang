@@ -15,7 +15,7 @@
 // print "--------------------------------------------------------------------------------"
 // print "Loops"
 // print "--------------------------------------------------------------------------------"
-// for let i = 0 ; i < 5 ; i = i + 1 ; {
+// for let i = 0 ; i < 5 ; i++ ; {
 //   print i
 // }
 
@@ -32,7 +32,7 @@
 //   print c
 // }
 
-// for let i = 0 ; i < 100 ; i = i + 1 ; {
+// for let i = 0 ; i < 100 ; i++ ; {
 //   let outer = fn {
 //     let x = "outside"
 //     let inner = fn {
@@ -188,11 +188,124 @@
 // s.list[1] = -2
 // s.printList()
 
-// // print sys.clock()
-// print "Hello"
-// print 123.type
-// print "Hello".len
-// // print "Hello".get(0)
+// //
+// // Seq.has
+// //
+// fn is_num(x) {
+//   ret type_of(x) == Num;
+// }
+
+// cls Validators { 
+//   ctor { this.num = 3 }
+//   fn is_num_3(x) { ret x == this.num; }
+// }
+
+// let validators = Validators()
+
+// print [1,3,4].has(2)
+// print [1,3,4].has(3)
+// print [1,3,4].has(is_num)
+// print [1,3,4].has(validators.is_num_3)
+// validators.num = 2
+// print [1,3,4].has(validators.is_num_3)
+
+// print [].has.__doc
+
+// // 
+// // Seq.first
+// //
+// print [].first() // nil
+// print [1,2,3].first() // 1
+// print [1,2,3].first(fn (x) -> x/2 == 1) // 2
+
+// //
+// // Seq.last
+// //
+// print [].last() // nil
+// print [1,2,3].last() // 3
+// print [1,2,3].last(fn (x) -> type_of(x) == Num) // 3
+
+// //
+// // Seq.each
+// //
+// print [1,2,3].each(fn (x) -> log(x)) // [1, 2, 3]
+// print [1,2,3].each(fn (x, i) -> log(x + i)) // [1, 3, 5]
+// let a = [1,2,3]
+// a.each(fn (x, i) {
+//   a.push(x + 1)
+// })
+// print a // [1, 2, 3, 2, 3, 4]
+
+// //
+// // Seq.map
+// //
+// print [].map(fn (x) -> x * 2) // []
+// print [1,2,3].map(fn (x) -> x * 2) // [2, 4, 6]
+// print [1,2,3].map(fn (x) -> log(x)) // [nil, nil, nil]
+// print ["a","b","c"].map(fn (x, i) -> ({i: x})) // [{0: "a"}, {1: "b"}, {2: "c"}]
+
+// //
+// // Seq.filter
+// //
+// print [].filter(fn (x) -> x > 0) // []
+// print [1,2,3].filter(fn (x) -> x > 1) // [2, 3]
+// print [1,2,3].filter(fn (x) {}) // []
+
+// //
+// // Seq.join
+// //
+// print [].join("") + "empty!" // "empty!"
+// print [1,2,3].join("") // "1,2,3"
+// print [1,2,3].join("") // "123"
+// print [1,2,3].join(" ") // "1 2 3"
+// print [nil, true, 1, "string", [1,2,3], {1 : 2}].join(",") // nil,true,1,string,[1, 2, 3],{1: 2}
+
+// // 
+// // Seq.reverse
+// //
+// print [].reverse() // []
+// print [1,2,3].reverse() // [3, 2, 1]
+// print [1,2,3].reverse().reverse() // [1, 2, 3]
+
+// // 
+// // Seq.some
+// //
+// print [].some(fn (x) -> x > 0) // false
+// print [1,2,3].some(fn (x) -> x > 1) // true
+// print [1,2,3].some(fn (x) -> x > 3) // false
+// print [1,2,3].some(fn (x) -> x > 1 and x < 3) // true
+
+// //
+// // Seq.every
+// //
+// print [].every(fn (x) -> x > 0) // true
+// print [1,2,3].every(fn (x) -> x > 1) // false
+// print [1,2,3].every(fn (x) -> x > 0) // true
+// print [1,2,3].every(fn (x) -> x > 0 and x < 3) // false
+
+// // 
+// // Seq.reduce
+// //
+// print [1,2,3].reduce(0, fn(acc,x) -> acc + x) // 6
+// print {1:10, true:10, nil:10, []:10, "9": "10"}
+//   .values()
+//   .reduce("", fn (acc, x) -> acc + x.to_str()) // 101010
+
+// //
+// // Seq.count
+// //
+// print [].count(fn (x) -> x) // 0
+// print [1,2,3].count(fn (x) -> x) // 0 (bc fn does not return a boolean)
+// print [1,2,3].count(fn (x) -> x > 1) // 2
+// print [1,2,3].count(fn (x) -> x > 1 and x < 3) // 1
+
+//
+// Seq.concat
+//
+print [].concat([]) // []
+print [1,2,3].concat([]) // [1, 2, 3]
+print [].concat([1,2,3]) // [1, 2, 3]
+print [1,2,3].concat([4,5,6]) // [1, 2, 3, 4, 5, 6]
 
 // print "--------------------------------------------------------------------------------"
 // print "Modules"
@@ -255,50 +368,50 @@
 // let l = List()
 // log("Hello", [1,2,3], clock(), type_name(nil), l.list.len(), type_name(l.list))
 
-print "--------------------------------------------------------------------------------"
-print "Builtin stuff"
-print "--------------------------------------------------------------------------------"
+// print "--------------------------------------------------------------------------------"
+// print "Builtin stuff"
+// print "--------------------------------------------------------------------------------"
 
-import std from "/modules/std"
-cls Sample { ctor { this.value = 10 } }
-fn sample_fn { ret 10; }
+// import std from "/modules/std"
+// cls Sample { ctor { this.value = 10 } }
+// fn sample_fn { ret 10; }
 
-print Sample.__name
-print Sample.__ctor
+// print Sample.__name
+// print Sample.__ctor
 
-let values = [0, nil, true, [], fn->1, clock, Sample]
-for let i = 0 ; i < values.len(); i = i + 1 ; {
-  log("---")
-  log("type_name: ", type_name(values[i]))
-  log("type_of:   ", type_of(values[i]))
-  log("to_str:    ", values[i].to_str())
-  log("hash:      ", values[i].hash())
-}
+// let values = [0, nil, true, [], fn->1, clock, Sample]
+// for let i = 0 ; i < values.len(); i++ ; {
+//   log("---")
+//   log("type_name: ", type_name(values[i]))
+//   log("type_of:   ", type_of(values[i]))
+//   log("to_str:    ", values[i].to_str())
+//   log("hash:      ", values[i].hash())
+// }
 
-print cwd()
-print std.__file_path
+// print cwd()
+// print std.__file_path
 
-print Nil.__ctor.__doc
-print Bool.__ctor.__doc
-print Num.__ctor.__doc
-print Str.__ctor.__doc
-print Seq.__ctor.__doc
-print Map.__ctor.__doc
+// print Nil.__ctor.__doc
+// print Bool.__ctor.__doc
+// print Num.__ctor.__doc
+// print Str.__ctor.__doc
+// print Seq.__ctor.__doc
+// print Map.__ctor.__doc
 
-// These have no docstrings:
-print "".to_str.__doc
-print "".len.__doc
-print (fn->1).__doc
-print sample_fn.__doc
-print [1,23].__doc
-print Sample.__doc
-print Sample().__doc
+// // These have no docstrings:
+// print "".to_str.__doc
+// print "".len.__doc
+// print (fn->1).__doc
+// print sample_fn.__doc
+// print [1,23].__doc
+// print Sample.__doc
+// print Sample().__doc
 
-print clock.__doc
-print type_name.__doc
-print type_of.__doc
-print cwd.__doc
-print log.__doc
+// print clock.__doc
+// print type_name.__doc
+// print type_of.__doc
+// print cwd.__doc
+// print log.__doc
 
 // print "--------------------------------------------------------------------------------"
 // print "Maps"
@@ -332,3 +445,30 @@ print log.__doc
 
 // // Order is not guaranteed, since the underlying data structure is a hash table
 // print a // Should print: {[1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn __anon>: <Fn __anon>, <Fn __anon>: <Fn __anon>, nil: nil, true: false, 1: 2, hello: world}
+
+// print "1234\n".split()
+// print "1234\n4321".split("4")
+// print "123".split("")
+
+// print "--------------------------------------------------------------------------------"
+// print "File & Perf modules"
+// print "--------------------------------------------------------------------------------"
+
+// import File
+// import Perf
+
+// let start = Perf.now()
+
+// let lines = File.read(cwd() + "sample.sl").split("\n")
+// let code = lines.filter(fn (line) -> line.len() > 2 and line[0] != "/" and line[1] != "/")
+// let time = Perf.now() - start
+
+
+// log(time, "s")
+// code.each(fn (line,i) -> log(i, "| ", line))
+
+// print ""
+
+// let out_file = File.join_path(cwd(), "sample.result.txt")
+// print File.exists(out_file)
+// print File.write(out_file, time.to_str() + "s\n")
