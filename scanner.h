@@ -1,6 +1,22 @@
 #ifndef scanner_h
 #define scanner_h
 
+// Hexadecimal (base-16) digits can represent 4 bits each (since 16=2^4). Given the 53-bit precision of a
+// double, the longest hexadecimal literal that can fit without loss of precision would be 53/4=13.25 digits.
+// Since we cannot have a fraction of a digit, the practical maximum length is 13 digits (excluding any prefix
+// like 0x), but remember the last digit can only partially contribute to the precision, effectively meaning
+// the fully precise range is limited to the lower 12 digits with the 13th digit being constrained.
+#define MAX_HEX_DIGITS 12
+
+// Binary literals (base-2) , the maximum length without losing precision in a double is 53 bits. So, a binary
+// literal can have up to 53 digits (1s or 0s).
+#define MAX_BINARY_DIGITS 53
+
+// Octal (base-8) digits can represent 3 bits each (since 8=2^3). Given the 53-bit precision of a double, the
+// longest octal literal without losing precision would be 53/3≈17.67 digits. This means you can have up to 17
+// digits in an octal literal to fit into a double without loss of precision, with similar considerations for
+// the last digit as in the hexadecimal case.
+#define MAX_OCTAL_DIGITS 17
 typedef enum {
   TOKEN_OR,     // 'or'
   TOKEN_AND,    // 'and'

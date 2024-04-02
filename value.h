@@ -35,12 +35,13 @@ typedef enum {
 
 #define TYPENAME_MODULE Module
 
+// On windows long long (%lld) is the type to use if you're casting from a double.
+#define VALUE_STR_INT "%lld"
+#define VALUE_STR_FLOAT "%f"
 #define VALUE_STR_TRUE "true"
 #define VALUE_STR_FALSE "false"
 #define VALUE_STR_NIL "nil"
 #define VALUE_STR_EMPTY_INTERNAL "EMPTY_INTERNAL"
-#define VALUE_STR_FLOAT "%f"
-#define VALUE_STR_INT "%d"
 
 #define VALUE_STRFMT_FUNCTION "<Fn %s>"
 #define VALUE_STRFMT_FUNCTION_LEN (sizeof(VALUE_STRFMT_FUNCTION) - 2)
@@ -146,8 +147,8 @@ Value pop_value_array(ValueArray* array);
 void free_value_array(ValueArray* array);
 
 // Returns true if a floating point number is an integer, false otherwise.
-// Assignes the resulting integer value to the integer pointer.
-bool is_int(double number, int* integer);
+// Assignes the resulting integer value to the long long pointer.
+bool is_int(double number, long long* integer);
 
 // Get the hashcode of a value, based on its type.
 uint32_t hash_value(Value value);
@@ -156,7 +157,7 @@ uint32_t hash_value(Value value);
 // Result for "[ 1, 2, 3, 4]": 1234.000000
 // Result for "12.34.56": 12.345600
 // Returns 0.0 if the string is not a valid number.
-double string_to_double(char* str, int length);
+double string_to_double(char* str, long long length);
 
 // Gets the name of a type.
 const char* type_name(Value value);

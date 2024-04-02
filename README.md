@@ -9,31 +9,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 ### Syntax & Language Features
 
 - [ ] `||` and `&&` operators.
-- [ ] `0b`, `0o`, `0x` literals.
-
-```c
-if (c == '0') {
-  if (peek() == 'x' || peek() == 'X') {
-    // Hexadecimal
-    advance();
-    while (isDigit(peek()) || (peek() >= 'a' && peek() <= 'f') ||
-           (peek() >= 'A' && peek() <= 'F')) advance();
-    return makeToken(TOKEN_NUMBER);
-  } else if (peek() == 'b' || peek() == 'B') {
-    // Binary
-    advance();
-    while (peek() == '0' || peek() == '1') advance();
-    return makeToken(TOKEN_NUMBER);
-  } if (peek() == 'o' || peek() == 'O') {
-    // Octal - must be 0o, none of those silly 0123 things
-    advance();
-    while (peek() >= '0' && peek() <= '7') advance();
-    return makeToken(TOKEN_NUMBER);
-  }
-  // Otherwise, decimal and maybe 0.123 floating
-}
-```
-
 - [ ] Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `when a then b else c`. This is a must-have. (**_See Challenge 17.3_**)
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] `continue` Statement (**_See Challenge 23.2_**)
@@ -57,6 +32,7 @@ if (c == '0') {
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
 - [ ] Implement a way to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing. Maybe attributes? (e.g. `@doc "This is a doc string"`)
 - [ ] Implement iterators
+- [x] `0b`, `0o`, `0x` literals.
 - [x] ASCII escape sequences in strings, e.g. `\n`, `\t`, `\r`, `\\`, `\"`.
 - [x] Implement `File` class
 - [x] Implement `File.read(Str, Str?) -> Str` (path, encoding) as a builtin
@@ -84,6 +60,7 @@ if (c == '0') {
 ## Improvements
 
 - [ ] Move exit codes to `common.h` and replace all magic numbers with them
+- [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
 - [ ] Add tests for to_str and overriden to_strs
 - [ ] Allow return stats without suffixed `;`

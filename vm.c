@@ -789,7 +789,7 @@ static Value run() {
           }
 
           double i_raw = AS_NUMBER(index);
-          int i;
+          long long i;
           if (!is_int(i_raw, &i)) {
             push(NIL_VAL);
             break;
@@ -812,7 +812,7 @@ static Value run() {
           }
 
           double i_raw = AS_NUMBER(index);
-          int i;
+          long long i;
           if (!is_int(i_raw, &i)) {
             push(NIL_VAL);
             break;
@@ -857,7 +857,7 @@ static Value run() {
           }
 
           double i_raw = AS_NUMBER(index);
-          int i;
+          long long i;
           if (!is_int(i_raw, &i)) {
             push(NIL_VAL);
             break;

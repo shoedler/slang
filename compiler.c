@@ -345,7 +345,7 @@ static int resolve_upvalue(Compiler* compiler, Token* name);
 static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local);
 static uint16_t parse_variable(const char* error_message);
 static void define_variable(uint16_t global);
-void declaration_let();
+static void declaration_let();
 
 // Checks if the current token is a compound assigment token.
 static bool match_compound_assignment() {
@@ -392,6 +392,7 @@ static void inc_dec() {
 // The opening parenthesis has already been consumed and is referenced by the
 // previous token.
 static void call(bool can_assign) {
+  UNUSED(can_assign);
   uint16_t arg_count = argument_list();
   emit_two(OP_CALL, arg_count);
 }
@@ -461,6 +462,7 @@ static void indexing(bool can_assign) {
 // The literal has already been consumed and is referenced by the previous
 // token.
 static void literal(bool can_assign) {
+  UNUSED(can_assign);
   TokenType op_type = parser.previous.type;
 
   switch (op_type) {
@@ -474,6 +476,7 @@ static void literal(bool can_assign) {
 // Compiles a grouping (expression in parentheses).
 // The opening parenthesis has already been consumed (previous token)
 static void grouping(bool can_assign) {
+  UNUSED(can_assign);
   expression();
   consume(TOKEN_CPAR, "Expecting ')' after expression.");
 }
@@ -481,6 +484,7 @@ static void grouping(bool can_assign) {
 // Compiles a seq literal.
 // The opening brace has already been consumed (previous token)
 static void seq_literal(bool can_assign) {
+  UNUSED(can_assign);
   int count = 0;
 
   if (!check(TOKEN_CBRACK)) {
@@ -501,6 +505,7 @@ static void seq_literal(bool can_assign) {
 // Compiles a map literal.
 // The opening brace has already been consumed (previous token)
 static void map_literal(bool can_assign) {
+  UNUSED(can_assign);
   int count = 0;
 
   if (!check(TOKEN_CBRACE)) {
@@ -523,6 +528,25 @@ static void map_literal(bool can_assign) {
 // Compiles a number literal and emits it as a number value.
 // The number has already been consumed and is referenced by the previous token.
 static void number(bool can_assign) {
+  UNUSED(can_assign);
+  if (parser.previous.start[0] == '0') {
+    char kind = parser.previous.start[1];
+    // See if it's a hexadecimal, binary, or octal number.
+    if ((kind == 'x' || kind == 'X')) {
+      long long int value = strtoll(parser.previous.start + 2, NULL, 16);
+      emit_constant(NUMBER_VAL((double)value));
+      return;
+    } else if ((kind == 'b' || kind == 'B')) {
+      long long int value = strtoll(parser.previous.start + 2, NULL, 2);
+      emit_constant(NUMBER_VAL((double)value));
+      return;
+    } else if ((kind == 'o' || kind == 'O')) {
+      long long int value = strtoll(parser.previous.start + 2, NULL, 8);
+      emit_constant(NUMBER_VAL((double)value));
+      return;
+    }
+  }
+
   double value = strtod(parser.previous.start, NULL);
   emit_constant(NUMBER_VAL(value));
 }
@@ -530,6 +554,7 @@ static void number(bool can_assign) {
 // Compiles a string literal and emits it as a string object value.
 // The string has already been consumed and is referenced by the previous token.
 static void string(bool can_assign) {
+  UNUSED(can_assign);
   // Build the string using a flexible array
   size_t str_capacity = 0;
   size_t str_length   = 0;
@@ -587,6 +612,7 @@ static void string(bool can_assign) {
 // The operator has already been consumed and is referenced by the previous
 // token.
 static void unary(bool can_assign) {
+  UNUSED(can_assign);
   TokenType operator_type = parser.previous.type;
 
   parse_precedence(PREC_UNARY);
@@ -603,6 +629,7 @@ static void unary(bool can_assign) {
 // The lhs bytecode has already been emitted. The rhs starts at the current
 // token. The operator is in the previous token.
 static void binary(bool can_assign) {
+  UNUSED(can_assign);
   TokenType op_type = parser.previous.type;
   ParseRule* rule   = get_rule(op_type);
   parse_precedence((Precedence)(rule->precedence + 1));
@@ -678,6 +705,7 @@ static Token synthetic_token(const char* text) {
 // operator allowed after a base expression.
 // The next token to be parsed is the dot operator.
 static void base_(bool can_assign) {
+  UNUSED(can_assign);
   if (current_class == NULL) {
     error("Can't use '" KEYWORD_BASE "' outside of a class.");
   } else if (!current_class->has_baseclass) {
@@ -709,6 +737,7 @@ static void base_(bool can_assign) {
 // parameters. Therefore is used for all supported functions:
 // named functions, anonymous functions, constructors and methods.
 static void function(bool can_assign, FunctionType type) {
+  UNUSED(can_assign);
   Compiler compiler;
   init_compiler(&compiler, type);
   begin_scope();
@@ -783,6 +812,7 @@ static void constructor() {
 // The lhs bytecode has already been emitted. The rhs starts at the current token. The and operator is in the
 // previous token.
 static void and_(bool can_assign) {
+  UNUSED(can_assign);
   int end_jump = emit_jump(OP_JUMP_IF_FALSE);
   emit_one(OP_POP);
 
@@ -796,6 +826,7 @@ static void and_(bool can_assign) {
 // a binary operator. It short-circuits the evaluation of the rhs if the lhs is
 // true by jumping over the rhs. The lhs bytecode has already been emitted. The
 static void or_(bool can_assign) {
+  UNUSED(can_assign);
   // TODO (optimize): We could optimize this by inverting the logic (jumping over the rhs if the lhs is true)
   // which would probably require a new opcode (OP_JUMP_IF_TRUE) and then we could reuse the and_ function -
   // well, it would have to be renamed then and accept a new parameter (the type of jump to emit).
@@ -813,6 +844,7 @@ static void or_(bool can_assign) {
 // The 'this' keyword has already been consumed and is referenced by the previous
 // token.
 static void this_(bool can_assign) {
+  UNUSED(can_assign);
   if (current_class == NULL) {
     error("Can't use 'this' outside of a class.");
     return;
