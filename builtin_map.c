@@ -69,13 +69,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_MAP, to_str) {
                                                             // if we're done after this
                                                             // iteration we won't need to
                                                             // expand and can just slap it on there
+
     // Expand if necessary
     if (new_buf_size > buf_size) {
       buf_size = new_buf_size;
       chars    = realloc(chars, buf_size);
-      if (chars == NULL) {
-        return OBJ_VAL(copy_string("{???}", 5));
-      }
     }
 
     // Append the strings

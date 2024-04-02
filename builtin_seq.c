@@ -17,6 +17,8 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, each, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, map, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, filter, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, join, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, reverse, 0);
 }
 
 // Built-in seq constructor
@@ -51,7 +53,7 @@ BUILTIN_METHOD_DOC(
     /* Name        */ to_str,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_SEQ,
-    /* Description */ "Returns a string representation of a " STR(TYPENAME_SEQ) ".");
+    /* Description */ "Returns a " STR(TYPENAME_STRING) " representation of a " STR(TYPENAME_SEQ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)
@@ -71,13 +73,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
         strlen(chars) + item_str->length + (sizeof(VALUE_STR_SEQ_DELIM) - 1) +
         (sizeof(VALUE_STR_SEQ_END) - 1);  // Consider the closing bracket -  if we're done after this
                                           // iteration we won't need to expand and can just slap it on there
+
     // Expand if necessary
     if (new_buf_size > buf_size) {
       buf_size = new_buf_size;
       chars    = realloc(chars, buf_size);
-      if (chars == NULL) {
-        return OBJ_VAL(copy_string("[???]", 5));
-      }
     }
 
     // Append the string
@@ -405,6 +405,85 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
         write_value_array(&filtered_seq->items, seq->items.values[i]);
       }
     }
+  }
+
+  return pop();  // The seq
+}
+
+// Built-in method to join a sequence
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ join,
+    /* Arguments   */ DOC_ARG("sep", TYPENAME_STRING),
+    /* Return Type */ TYPENAME_STRING,
+    /* Description */
+    "Joins the items of a " STR(TYPENAME_SEQ) " into a single " STR(TYPENAME_STRING) ", separated by 'sep'.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, join) {
+  UNUSED(argc);
+  BUILTIN_CHECK_RECEIVER(SEQ)
+  BUILTIN_CHECK_ARG_AT(1, STRING)
+
+  ObjSeq* seq    = AS_SEQ(argv[0]);
+  ObjString* sep = AS_STRING(argv[1]);
+
+  size_t buf_size = 64;  // Start with a reasonable size
+  char* chars     = malloc(buf_size);
+  chars[0]        = '\0';  // Start with an empty string, so we can use strcat
+
+  for (int i = 0; i < seq->items.count; i++) {
+    // Maybe this is faster (checking if the item is a string)  - unsure though
+    ObjString* item_str = NULL;
+    if (!IS_STRING(seq->items.values[i])) {
+      // Use the default to-string method of the value to convert the item to a string
+      push(seq->items.values[i]);  // Push the receiver (item at i) for to_str, or
+      item_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+    } else {
+      item_str = AS_STRING(seq->items.values[i]);
+    }
+
+    // Expand chars to fit the separator plus the next item
+    size_t new_buf_size = strlen(chars) + item_str->length + sep->length;  // Consider the separator
+
+    // Expand if necessary
+    if (new_buf_size > buf_size) {
+      buf_size = new_buf_size;
+      chars    = realloc(chars, buf_size);
+    }
+
+    // Append the string
+    strcat(chars, item_str->chars);
+    if (i < seq->items.count - 1) {
+      strcat(chars, sep->chars);
+    }
+  }
+
+  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+  // allocates the memory - we don't want this block in our own memory pool.
+  ObjString* str_obj = copy_string(chars, (int)strlen(chars));
+  free(chars);
+  return OBJ_VAL(str_obj);
+}
+
+// Built-in method to reverse a sequence
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ reverse,
+    /* Arguments   */ "",
+    /* Return Type */ TYPENAME_SEQ,
+    /* Description */
+    "Reverses the items of a " STR(TYPENAME_SEQ) ". Returns a new " STR(
+        TYPENAME_SEQ) " with the items in reverse order.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reverse) {
+  UNUSED(argc);
+  BUILTIN_CHECK_RECEIVER(SEQ)
+
+  ObjSeq* seq          = AS_SEQ(argv[0]);
+  ObjSeq* reversed_seq = prealloc_seq(seq->items.count);
+
+  push(OBJ_VAL(reversed_seq));  // GC Protection
+
+  for (int i = seq->items.count - 1; i >= 0; i--) {
+    reversed_seq->items.values[seq->items.count - 1 - i] = seq->items.values[i];
   }
 
   return pop();  // The seq

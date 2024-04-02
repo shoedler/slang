@@ -251,6 +251,22 @@
 // print [1,2,3].filter(fn (x) -> x > 1) // [2, 3]
 // print [1,2,3].filter(fn (x) {}) // []
 
+// //
+// // Seq.join
+// //
+// print [].join("") + "empty!" // "empty!"
+// print [1,2,3].join("") // "1,2,3"
+// print [1,2,3].join("") // "123"
+// print [1,2,3].join(" ") // "1 2 3"
+// print [nil, true, 1, "string", [1,2,3], {1 : 2}].join(",") // nil,true,1,string,[1, 2, 3],{1: 2}
+
+// // 
+// // Seq.reverse
+// //
+// print [].reverse() // []
+// print [1,2,3].reverse() // [3, 2, 1]
+// print [1,2,3].reverse().reverse() // [1, 2, 3]
+
 // print "--------------------------------------------------------------------------------"
 // print "Modules"
 // print "--------------------------------------------------------------------------------"
@@ -398,21 +414,21 @@
 // print "File & Perf modules"
 // print "--------------------------------------------------------------------------------"
 
-import File
-import Perf
+// import File
+// import Perf
 
-let start = Perf.now()
+// let start = Perf.now()
 
-let lines = File.read(cwd() + "sample.sl").split("\n")
-let code = lines.filter(fn (line) -> line.len() > 2 and line[0] != "/" and line[1] != "/")
-let time = Perf.now() - start
+// let lines = File.read(cwd() + "sample.sl").split("\n")
+// let code = lines.filter(fn (line) -> line.len() > 2 and line[0] != "/" and line[1] != "/")
+// let time = Perf.now() - start
 
 
-log(time, "s")
-code.each(fn (line,i) -> log(i, "| ", line))
+// log(time, "s")
+// code.each(fn (line,i) -> log(i, "| ", line))
 
-print ""
+// print ""
 
-let out_file = File.join_path(cwd(), "sample.result.txt")
-print File.exists(out_file)
-print File.write(out_file, time.to_str() + "s\n")
+// let out_file = File.join_path(cwd(), "sample.result.txt")
+// print File.exists(out_file)
+// print File.write(out_file, time.to_str() + "s\n")
