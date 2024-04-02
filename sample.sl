@@ -291,14 +291,21 @@
 //   .values()
 //   .reduce("", fn (acc, x) -> acc + x.to_str()) // 101010
 
-//
-// Seq.count
-//
-print [].count(fn (x) -> x) // 0
-print [1,2,3].count(fn (x) -> x) // 0 (bc fn does not return a boolean)
-print [1,2,3].count(fn (x) -> x > 1) // 2
-print [1,2,3].count(fn (x) -> x > 1 and x < 3) // 1
+// //
+// // Seq.count
+// //
+// print [].count(fn (x) -> x) // 0
+// print [1,2,3].count(fn (x) -> x) // 0 (bc fn does not return a boolean)
+// print [1,2,3].count(fn (x) -> x > 1) // 2
+// print [1,2,3].count(fn (x) -> x > 1 and x < 3) // 1
 
+//
+// Seq.concat
+//
+print [].concat([]) // []
+print [1,2,3].concat([]) // [1, 2, 3]
+print [].concat([1,2,3]) // [1, 2, 3]
+print [1,2,3].concat([4,5,6]) // [1, 2, 3, 4, 5, 6]
 
 // print "--------------------------------------------------------------------------------"
 // print "Modules"

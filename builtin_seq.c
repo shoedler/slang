@@ -23,6 +23,7 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, some, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, reduce, 2);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, count, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, concat, 1);
 }
 
 // Built-in seq constructor
@@ -676,4 +677,33 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
   }
 
   return NUMBER_VAL(occurrences);
+}
+
+// Built-in method to concatenate two sequences
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ concat,
+    /* Arguments   */ DOC_ARG("seq", TYPENAME_SEQ),
+    /* Return Type */ TYPENAME_SEQ,
+    /* Description */
+    "Concatenates two " STR(TYPENAME_SEQ) "s. Returns a new " STR(TYPENAME_SEQ) " with the items of the receiver followed by the "
+    "items of 'seq'.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, concat) {
+  UNUSED(argc);
+  BUILTIN_CHECK_RECEIVER(SEQ)
+  BUILTIN_CHECK_ARG_AT(1, SEQ)
+
+  ObjSeq* seq1         = AS_SEQ(argv[0]);
+  ObjSeq* seq2         = AS_SEQ(argv[1]);
+  ObjSeq* concated_seq = prealloc_seq(seq1->items.count + seq2->items.count);
+
+  for (int i = 0; i < seq1->items.count; i++) {
+    concated_seq->items.values[i] = seq1->items.values[i];
+  }
+
+  for (int i = 0; i < seq2->items.count; i++) {
+    concated_seq->items.values[seq1->items.count + i] = seq2->items.values[i];
+  }
+
+  return OBJ_VAL(concated_seq);
 }

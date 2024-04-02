@@ -45,7 +45,6 @@ if (c == '0') {
 - [ ] Implement `Test` class
 - [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
 - [ ] Implement `Seq.slice(Num?, Num?) -> Seq` as a builtin
-- [ ] Implement `Seq.concat(Seq) -> Seq` as a builtin
 - [ ] Implement `Seq[1..] -> Seq` as a builtin (slice)
 - [ ] Implement `Seq[..-1] -> Seq` as a builtin (slice)
 - [ ] Implement `Seq[1..-1] -> Seq` as a builtin (slice)
@@ -66,16 +65,17 @@ if (c == '0') {
 - [x] Implement `File.join(Str, Str) -> Str` (path, path, ...) as a builtin
 - [x] Implement `+=`, `-=`, `*=`, `/=`, `%=`
 - [x] Implement `++`, `--`
+- [x] Implement `Str.trim() -> Str` as a builtin
+- [x] Implement `Str.split(Str?) -> Seq` as a builtin
 - [x] Implement `Seq.each(fn) -> Nil` as a builtin
 - [x] Implement `Seq.has(predFn) -> Bool` as a builtin
-- [x] Implement `Str.split(Str?) -> Seq` as a builtin
 - [x] Implement `Seq.join(Str?) -> Str` as a builtin
 - [x] Implement `Seq.reduce(reduceFn) -> Seq` as a builtin
 - [x] Implement `Seq.count(predFn) -> Num` as a builtin
+- [x] Implement `Seq.concat(Seq) -> Seq` as a builtin
 - [x] Implement `Seq.some(predFn) -> Bool` as a builtin
 - [x] Implement `Seq.every(predFn) -> Bool` as a builtin
 - [x] Implement `Seq.reverse() -> Seq` as a builtin
-- [x] Implement `Str.trim() -> Str` as a builtin
 - [x] Implement `Seq.first(predFn?) -> Obj` as a builtin
 - [x] Implement `Seq.last(predFn?) -> Obj` as a builtin
 - [x] Implement `Seq.filter(predFn) -> Seq` as a builtin
