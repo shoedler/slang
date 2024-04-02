@@ -26,3 +26,11 @@ print [1,3,4].last(is.num_3) // [Expect] 4
 
 // Passing a function that does not return a boolean
 print [1,2,3].last(fn(x) -> x) // [Expect] nil
+
+// Side effects
+let a = [1,2,3]
+print a.last(fn(x) {
+  a = [4,5,6]
+  ret x == 6;
+}) // [Expect] nil
+print a // [Expect] [4, 5, 6]

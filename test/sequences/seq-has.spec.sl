@@ -27,3 +27,11 @@ print [1,3,4].has(is.num_3) // [Expect] false
 
 // Passing a function that does not return a boolean
 print [1,2,3].has(fn(x) -> x) // [Expect] false
+
+// Side effects
+let a = [1,2,3]
+print a.has(fn(x) {
+  a = [4,5,6]
+  ret x == 6;
+}) // [Expect] false
+print a // [Expect] [4, 5, 6]

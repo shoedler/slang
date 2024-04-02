@@ -31,3 +31,11 @@ print [1,2,3].count(fn(x) -> x != 4) // [Expect] 3
 print [1,2,3].count(fn (x) -> x > 1) // [Expect] 2
 print [1,2,3].count(fn (x) -> x > 0) // [Expect] 3
 print [1,2,3].count(fn (x) -> x > 0 and x < 3) // [Expect] 2
+
+// Side effects
+let a = [1,2,3]
+print a.count(fn(x) {
+  a.push(4)
+  ret x > 1;
+}) // [Expect] 2
+print a // [Expect] [1, 2, 3, 4, 4, 4]

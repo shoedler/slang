@@ -26,3 +26,8 @@ print [1,3,4].filter(storage.store)  // [Expect] [4]
 print storage.cache                  // [Expect] [1, 3, 4]
 print [5,6,8].filter(storage.store)  // [Expect] [6, 8]
 print storage.cache                  // [Expect] [1, 3, 4, 5, 6, 8]
+
+// Side effects
+let a = [1,2,3]
+print a.filter(fn(x) { a.push(x) }) // [Expect] []
+print a                             // [Expect] [1, 2, 3, 1, 2, 3]

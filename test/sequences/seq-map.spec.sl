@@ -30,3 +30,13 @@ print storage.cache               // [Expect] [1, 3, 4, 5, 6, 8]
 print [1,2,3].map(fn (x) -> x * 2)             // [Expect] [2, 4, 6]
 print [1,2,3].map(fn (x) { })                  // [Expect] [nil, nil, nil]
 print ["a","b","c"].map(fn (x, i) -> ({i: x})) // [Expect] [{0: a}, {1: b}, {2: c}]
+
+// Side effects
+// Side effects
+let a = [1,2,3]
+print a.map(fn(x) {
+  a = [4,5,6]
+  ret x == 6;
+}) // [Expect] [false, false, false]
+print a // [Expect] [4, 5, 6]
+

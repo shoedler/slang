@@ -13,3 +13,7 @@ print [1,3,4].join(",") // [Expect] 1,3,4
 // Differnet types
 print [nil, true, 1, "string", [1,2,3], {1 : 2}].join(",") // [Expect] nil,true,1,string,[1, 2, 3],{1: 2}
 
+// Side effects
+let a = [1,2,3]
+print a.join(a.to_str()) // [Expect] 1[1, 2, 3]2[1, 2, 3]3
+

@@ -27,3 +27,8 @@ print [1,2,3].reduce(0, fn(acc,x) -> acc + x) // [Expect] 6
 print {1:10, true:10, nil:10, []:10, "9": "10"}
   .values()
   .reduce("", fn (acc, x) -> acc + x.to_str()) // [Expect] 1010101010
+
+// Side effects
+let a = [1,2,3]
+print a.reduce("", fn(acc, x) -> a.push(x).to_str() + acc) // [Expect] nilnilnil
+print a // [Expect] [1, 2, 3, 1, 2, 3]

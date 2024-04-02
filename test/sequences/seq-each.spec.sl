@@ -35,3 +35,8 @@ print [1,3,4].each(storage.store) // [Expect] nil
 print storage.cache               // [Expect] [1, 3, 4]
 print [5,6,8].each(storage.store) // [Expect] nil
 print storage.cache               // [Expect] [1, 3, 4, 5, 6, 8]
+
+// Side effects
+let a = [1,3,4]
+print a.each(fn(x) -> a.push(x)) // [Expect] nil
+print a                          // [Expect] [1, 3, 4, 1, 3, 4]

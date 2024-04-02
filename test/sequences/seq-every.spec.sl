@@ -31,3 +31,11 @@ print [].every(fn (x) -> x > 0) // [Expect] true
 print [1,2,3].every(fn (x) -> x > 1) // [Expect] false
 print [1,2,3].every(fn (x) -> x > 0) // [Expect] true
 print [1,2,3].every(fn (x) -> x > 0 and x < 3) // [Expect] false
+
+// Side effects
+let a = [1,2,3]
+print a.every(fn(x) {
+  a.push(4)
+  ret x < 3;
+}) // [Expect] false
+print a // [Expect] [1, 2, 3, 4, 4, 4]
