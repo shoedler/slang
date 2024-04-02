@@ -75,6 +75,18 @@
                 {
                     "name": "constant.numeric.float.SlangScript",
                     "match": "\\b[0-9]+\\.[0-9]+\\b"
+                },
+                {
+                    "name": "constant.numeric.hex.SlangScript",
+                    "match": "\\b0x[0-9A-Fa-f]+\\b"
+                },
+                {
+                    "name": "constant.numeric.binary.SlangScript",
+                    "match": "\\b0b[01]+\\b"
+                },
+                {
+                    "name": "constant.numeric.octal.SlangScript",
+                    "match": "\\b0o[0-7]+\\b"
                 }
             ]
         },

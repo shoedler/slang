@@ -596,6 +596,7 @@ BUILTIN_METHOD_DOC(
     "Reduces the items of a " STR(TYPENAME_SEQ) " to a single value by executing 'fn' on each item. 'fn' should take two or three "
     "arguments: the accumulator, the item and the index. The latter is optional. The initial value of the accumulator is 'initial'.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)
   // BUILTIN_CHECK_ARG_AT(1, OBJ) // No need to check the type of the initial value, because it can be
   // anything

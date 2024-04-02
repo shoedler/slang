@@ -1,0 +1,1 @@
+0b100000000010000000001000000000100000000010000000001111 // [ExpectCompileError] Compile error at line 1: Binary number literal must have at least one digit and at most 53.

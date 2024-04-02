@@ -192,7 +192,58 @@ static Token identifier() {
   return make_token(identifier_type());
 }
 
-static Token number() {
+static Token number(char c) {
+  if (c == '0') {
+    char kind = peek();
+    if (kind == 'x' || kind == 'X') {
+      // Hexadecimal
+      advance();
+      int num_digits = 0;
+      while (is_digit(peek()) || (peek() >= 'a' && peek() <= 'f') || (peek() >= 'A' && peek() <= 'F')) {
+        advance();
+        num_digits++;
+      }
+      // Check literal length - this does not account for the actual value that results when parsing the
+      // literal
+      if (num_digits <= 0 || num_digits > MAX_HEX_DIGITS) {
+        return error_token("Hexadecimal number literal must have at least one digit/letter and at most " STR(
+            MAX_HEX_DIGITS) ".");
+      }
+      return make_token(TOKEN_NUMBER);
+    } else if (kind == 'b' || kind == 'B') {
+      // Binary
+      advance();
+      int num_digits = 0;
+      while (peek() == '0' || peek() == '1') {
+        advance();
+        num_digits++;
+      }
+      // Check literal length - this does not account for the actual value that results when parsing the
+      // literal
+      if (num_digits <= 0 || num_digits > MAX_BINARY_DIGITS) {
+        return error_token(
+            "Binary number literal must have at least one digit and at most " STR(MAX_BINARY_DIGITS) ".");
+      }
+      return make_token(TOKEN_NUMBER);
+    } else if (kind == 'o' || kind == 'O') {
+      // Octal - must be 0o, none of those silly 0123 things
+      advance();
+      int num_digits = 0;
+      while (peek() >= '0' && peek() <= '7') {
+        advance();
+        num_digits++;
+      }
+      // Check literal length - this does not account for the actual value that results when parsing the
+      // literal
+      if (num_digits <= 0 || num_digits > MAX_OCTAL_DIGITS) {
+        return error_token(
+            "Octal number literal must have at least one digit and at most " STR(MAX_OCTAL_DIGITS) ".");
+      }
+      return make_token(TOKEN_NUMBER);
+    }
+    // Otherwise, it's just a decimal
+  }
+
   while (is_digit(peek())) {
     advance();
   }
@@ -250,7 +301,7 @@ Token scan_token() {
   char c = advance();
 
   if (is_digit(c)) {
-    return number();
+    return number(c);
   }
 
   if (is_alpha(c)) {

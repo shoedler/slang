@@ -1,13 +1,13 @@
 // Number
 print Num("123.0")                    // [Expect] 123
-print Num("1kjhkjh2hkjhkj.....3hkj4") // [Expect] 12.340000
+print Num("1kjhkjh2hkjhkj.....3hkj4") // [Expect] 12.34
 print Num("false")                    // [Expect] 0
 print Num("true")                     // [Expect] 0
 print Num(true)                       // [Expect] 1
 print Num(false)                      // [Expect] 0
 print Num(123)                        // [Expect] 123
 print Num(123.0)                      // [Expect] 123
-print Num(123.456)                    // [Expect] 123.456000
+print Num(123.456)                    // [Expect] 123.456
 print Num(nil)                        // [Expect] 0
 print Num([1, 2, 3])                  // [Expect] 0
 print Num({"key": "value"})           // [Expect] 0
@@ -35,7 +35,7 @@ print Str(true)                       // [Expect] true
 print Str(false)                      // [Expect] false
 print Str(123)                        // [Expect] 123
 print Str(123.0)                      // [Expect] 123
-print Str(123.456)                    // [Expect] 123.456000
+print Str(123.456)                    // [Expect] 123.456
 print Str(nil)                        // [Expect] nil
 print Str([1, 2, 3])                  // [Expect] [1, 2, 3]
 // Order of keys in map is not guaranteed

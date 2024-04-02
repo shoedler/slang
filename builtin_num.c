@@ -49,13 +49,19 @@ BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, to_str) {
 
   double number = AS_NUMBER(argv[0]);
   char buffer[64];
-  int integer;
+  long long integer;
   int len = 0;
 
   if (is_int(number, &integer)) {
     len = snprintf(buffer, sizeof(buffer), VALUE_STR_INT, integer);
   } else {
     len = snprintf(buffer, sizeof(buffer), VALUE_STR_FLOAT, number);
+
+    // Remove trailing zeros. Ugh...
+    // TODO (optimize): This is not very efficient, find a better way to do this
+    while (buffer[len - 1] == '0') {
+      buffer[--len] = '\0';
+    }
   }
 
   ObjString* str_obj = copy_string(buffer, len);

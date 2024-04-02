@@ -5,5 +5,5 @@ let d = "hello"
 
 print a // [Expect] true
 print b // [Expect] 123
-print c // [Expect] 123.456000
+print c // [Expect] 123.456
 print d // [Expect] hello

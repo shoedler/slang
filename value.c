@@ -52,9 +52,9 @@ void free_value_array(ValueArray* array) {
   init_value_array(array);
 }
 
-bool is_int(double number, int* integer) {
+bool is_int(double number, long long* integer) {
   double dint = rint(number);
-  *integer    = (int)dint;
+  *integer    = (long long)dint;
   return number == dint;
 }
 
@@ -99,7 +99,7 @@ bool values_equal(Value a, Value b) {
     case VAL_NUMBER: return AS_NUMBER(a) == AS_NUMBER(b);
     case VAL_OBJ: {
       if (IS_STRING(a) && IS_STRING(b)) {
-        return AS_STRING(a) == AS_STRING(b);
+        return AS_STRING(a) == AS_STRING(b);  // Works, because strings are interned
       }
       if (IS_OBJ(a) && IS_OBJ(b)) {
         return AS_OBJ(a) == AS_OBJ(b);
@@ -173,7 +173,7 @@ int print_value_safe(FILE* f, Value value) {
       case VAL_BOOL: return fprintf(f, AS_BOOL(value) ? VALUE_STR_TRUE : VALUE_STR_FALSE);
       case VAL_NIL: return fprintf(f, VALUE_STR_NIL);
       case VAL_NUMBER: {
-        int integer;
+        long long integer;
         if (is_int(AS_NUMBER(value), &integer)) {
           return fprintf(f, VALUE_STR_INT, integer);
         } else {
