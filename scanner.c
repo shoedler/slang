@@ -218,6 +218,11 @@ static Token string() {
     if (peek() == '\n') {
       scanner.line++;
     }
+    // Handle escape characters, accept any character after a backslash.
+    if (peek() == '\\') {
+      advance();
+    }
+
     advance();
   }
 

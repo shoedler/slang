@@ -7,8 +7,9 @@ print "right ".trim() +
       "  left".trim()  + 
       "end"                     // [Expect] rightleftend
 
-print "\f TEST \f".trim()       // [Expect] \f TEST \f
-print "\n TEST \n".trim()       // [Expect] \n TEST \n
-print "\r TEST \r".trim()       // [Expect] \r TEST \r
-print "\t TEST \t".trim()       // [Expect] \t TEST \t
-print "\v TEST \v".trim()       // [Expect] \v TEST \v
+print "\f TEST \f".trim()       // [Expect] TEST
+print "\n TEST \n".trim()       // [Expect] TEST
+print "\r TEST \r".trim()       // [Expect] TEST
+print "\t TEST \t".trim()       // [Expect] TEST
+print "\v TEST \v".trim()       // [Expect] TEST
+print "\" TEST \"".trim()       // [Expect] " TEST "

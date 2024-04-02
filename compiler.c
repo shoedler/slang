@@ -530,9 +530,57 @@ static void number(bool can_assign) {
 // Compiles a string literal and emits it as a string object value.
 // The string has already been consumed and is referenced by the previous token.
 static void string(bool can_assign) {
-  // TODO (enhance): Handle escape sequences here.
-  emit_constant(OBJ_VAL(copy_string(parser.previous.start + 1,
-                                    parser.previous.length - 2)));  // +1 and -2 to strip the quotes
+  // Build the string using a flexible array
+  size_t str_capacity = 0;
+  size_t str_length   = 0;
+  char* str_bytes     = 0;
+
+#define PUSH_CHAR(c)                                                   \
+  do {                                                                 \
+    if (str_capacity < str_length + 1) {                               \
+      size_t old   = str_capacity;                                     \
+      str_capacity = GROW_CAPACITY(old);                               \
+      str_bytes    = RESIZE_ARRAY(char, str_bytes, old, str_capacity); \
+    }                                                                  \
+    str_bytes[str_length++] = c;                                       \
+  } while (0)
+
+  do {
+    const char* cur = parser.previous.start + 1;                           // Skip the opening quote.
+    const char* end = parser.previous.start + parser.previous.length - 1;  // Skip the closing quote.
+
+    while (cur < end) {
+      if (*cur == '\\') {
+        if (cur + 1 > end) {
+          error_at_current("Unterminated escape sequence.");
+          return;
+        }
+        switch (cur[1]) {
+          case 'f': PUSH_CHAR('\f'); break;  // Form feed
+          case 'r': PUSH_CHAR('\r'); break;  // Carriage return
+          case 'n': PUSH_CHAR('\n'); break;  // Newline
+          case 't': PUSH_CHAR('\t'); break;  // Tab
+          case 'v': PUSH_CHAR('\v'); break;  // Vertical tab
+          case 'b': PUSH_CHAR('\b'); break;  // Backspace
+          case '\\': PUSH_CHAR('\\'); break;
+          case '\"': PUSH_CHAR('\"'); break;
+          case '\'': PUSH_CHAR('\''); break;
+          default: error_at_current("Invalid escape sequence."); return;
+        }
+        cur += 2;
+      } else {
+        PUSH_CHAR(*cur);
+        cur++;
+      }
+    }
+  } while (match(TOKEN_STRING));
+
+  // Emit the string constant.
+  emit_constant(OBJ_VAL(copy_string(str_bytes, (int)str_length)));
+
+  // Cleanup
+  FREE_ARRAY(char, str_bytes, str_capacity);
+#undef PUSH_CHAR
 }
 
 // Compiles a unary expression and emits the corresponding instruction.

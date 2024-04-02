@@ -2,7 +2,7 @@ import File
 print File // [Expect] <Instance of Module>
 
 // Since this is modifying the file system, we want to check that cwd() returns something reasonable
-if cwd() == "C:\Projects\slang\test\builtin\" {
+if cwd() == "C:\\Projects\\slang\\test\\builtin\\" {
   // Valid path
   print File.write(cwd() + "a.b", "Hello world") // [Expect] true
   print File.read(cwd() + "a.b") // [Expect] Hello world
