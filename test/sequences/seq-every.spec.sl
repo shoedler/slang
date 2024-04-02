@@ -27,3 +27,7 @@ print [1,2,3].every(fn(x) -> x) // [Expect] false
 
 // Fuzzy tests
 print [1,2,3].every(fn(x) -> x != 4) // [Expect] true
+print [].every(fn (x) -> x > 0) // [Expect] true
+print [1,2,3].every(fn (x) -> x > 1) // [Expect] false
+print [1,2,3].every(fn (x) -> x > 0) // [Expect] true
+print [1,2,3].every(fn (x) -> x > 0 and x < 3) // [Expect] false

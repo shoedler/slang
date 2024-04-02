@@ -283,6 +283,23 @@
 // print [1,2,3].every(fn (x) -> x > 0) // true
 // print [1,2,3].every(fn (x) -> x > 0 and x < 3) // false
 
+// // 
+// // Seq.reduce
+// //
+// print [1,2,3].reduce(0, fn(acc,x) -> acc + x) // 6
+// print {1:10, true:10, nil:10, []:10, "9": "10"}
+//   .values()
+//   .reduce("", fn (acc, x) -> acc + x.to_str()) // 101010
+
+//
+// Seq.count
+//
+print [].count(fn (x) -> x) // 0
+print [1,2,3].count(fn (x) -> x) // 0 (bc fn does not return a boolean)
+print [1,2,3].count(fn (x) -> x > 1) // 2
+print [1,2,3].count(fn (x) -> x > 1 and x < 3) // 1
+
+
 // print "--------------------------------------------------------------------------------"
 // print "Modules"
 // print "--------------------------------------------------------------------------------"

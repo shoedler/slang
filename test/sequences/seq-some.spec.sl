@@ -27,3 +27,7 @@ print [1,2,3].some(fn(x) -> x) // [Expect] false
 
 // Fuzzy tests
 print [1,2,3].some(fn(x) -> x == 4) // [Expect] false
+print [].some(fn (x) -> x > 0) // [Expect] false
+print [1,2,3].some(fn (x) -> x > 1) // [Expect] true
+print [1,2,3].some(fn (x) -> x > 3) // [Expect] false
+print [1,2,3].some(fn (x) -> x > 1 and x < 3) // [Expect] true

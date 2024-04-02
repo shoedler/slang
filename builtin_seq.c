@@ -21,6 +21,8 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, reverse, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, every, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, some, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, reduce, 2);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, count, 1);
 }
 
 // Built-in seq constructor
@@ -581,4 +583,97 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, some) {
   }
 
   return BOOL_VAL(false);
+}
+
+// Built-in method to reduce a sequence to a single value
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ reduce,
+    /* Arguments   */ DOC_ARG("initial", TYPENAME_OBJ) DOC_ARG_SEP DOC_ARG("fn", TYPENAME_FUNCTION->TYPENAME_OBJ),
+    /* Return Type */ TYPENAME_OBJ,
+    /* Description */
+    "Reduces the items of a " STR(TYPENAME_SEQ) " to a single value by executing 'fn' on each item. 'fn' should take two or three "
+    "arguments: the accumulator, the item and the index. The latter is optional. The initial value of the accumulator is 'initial'.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
+  BUILTIN_CHECK_RECEIVER(SEQ)
+  // BUILTIN_CHECK_ARG_AT(1, OBJ) // No need to check the type of the initial value, because it can be
+  // anything
+  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(2)
+
+  ObjSeq* seq       = AS_SEQ(argv[0]);
+  Value accumulator = argv[1];
+  int fn_arity      = get_arity(AS_OBJ(argv[2]));
+  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+
+  // Loops are duplicated to avoid the overhead of checking the arity on each iteration
+  if (fn_arity > 2) {
+    for (int i = 0; i < count; i++) {
+      push(argv[2]);                              // Push the function
+      push(accumulator);                          // arg0 (1): Push the accumulator
+      push(seq->items.values[i]);                 // arg1 (2): Push the item
+      push(NUMBER_VAL(i));                        // arg2 (3): Push the index
+      accumulator = exec_fn(AS_OBJ(argv[2]), 3);  // Hard-code 3, because that's what we expect. Passing the
+                                                  // arity of the fn would result in a wrong error message.
+    }
+  } else {
+    for (int i = 0; i < count; i++) {
+      push(argv[2]);               // Push the function
+      push(accumulator);           // arg0 (1): Push the accumulator
+      push(seq->items.values[i]);  // arg1 (2): Push the item
+      accumulator = exec_fn(AS_OBJ(argv[2]), 2);
+    }
+  }
+
+  return accumulator;
+}
+
+// Built-in method to count the occurrences of a value in a sequence
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ count,
+    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
+    /* Return Type */ TYPENAME_NUMBER,
+    /* Description */
+    "Returns the number of occurrences of 'value' in the " STR(TYPENAME_SEQ) ".")
+BUILTIN_METHOD_DOC_OVERLOAD(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ count,
+    /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
+    /* Return Type */ TYPENAME_NUMBER,
+    /* Description */
+    "Returns the number of items in the " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE
+                                                            ".");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
+  UNUSED(argc);
+  BUILTIN_CHECK_RECEIVER(SEQ)
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+  if (seq->items.count == 0) {
+    return NUMBER_VAL(0);
+  }
+
+  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+  int occurrences = 0;
+
+  if (IS_CALLABLE(argv[1])) {
+    // Function predicate
+    for (int i = 0; i < count; i++) {
+      push(argv[1]);               // Push the function
+      push(seq->items.values[i]);  // Push the item
+      Value result = exec_fn(AS_OBJ(argv[1]), 1);
+      // We could also check for truthiness here,
+      if (IS_BOOL(result) && AS_BOOL(result)) {
+        occurrences++;
+      }
+    }
+  } else {
+    // Value equality
+    for (int i = 0; i < count; i++) {
+      if (values_equal(argv[1], seq->items.values[i])) {
+        occurrences++;
+      }
+    }
+  }
+
+  return NUMBER_VAL(occurrences);
 }
