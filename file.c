@@ -81,51 +81,91 @@ bool file_exists(const char* path) {
   return false;
 }
 
-char* join_path(const char* path_a, const char* path_b) {
-  if (path_a == NULL || path_b == NULL) {
-    return NULL;  // Safety check
+// Cleans a path (windows-style) by replacing all '/' with '\'. Returns a new string with the normalized
+// path.
+char* clean_path(const char* path, bool no_prefixed_separators) {
+  if (path == NULL || *path == '\0') {
+    return _strdup("");  // Return an empty string for NULL or empty input
   }
 
-  size_t path_a_len   = strlen(path_a);
-  size_t path_b_len   = strlen(path_b);
-  size_t total_length = path_a_len + path_b_len + 2;  // +2 for possible slash and null terminator
-
-  // Allocate memory for the new path
-  char* new_path = (char*)malloc(total_length);
-  if (new_path == NULL) {
-    return NULL;  // Failed to allocate memory
+  size_t len   = strlen(path);
+  char* result = (char*)malloc(len + 1);  // +1 for the null terminator
+  if (result == NULL) {
+    return NULL;
   }
 
-  // Copy first path
-  strcpy(new_path, path_a);
+  // Normalize slashes and remove redundant slashes
+  int write_index = 0;
+  for (int i = 0; i < len; ++i) {
+    if (path[i] == '/' || path[i] == '\\') {
+      // Skip slashes at the beginning
+      if (write_index != 0 || !no_prefixed_separators) {
+        result[write_index++] = '\\';  // Use backslash for Windows
+      }
 
-  // Check if path_a already ends with a separator
-  int ends_with_sep = (path_a[path_a_len - 1] == '/' || path_a[path_a_len - 1] == '\\');
-  if (!ends_with_sep) {
-    // Add a directory separator
-#ifdef _WIN32
-    strcat(new_path, "\\");
-#else
-    strcat(new_path, "/");
-#endif
+      // Skip additional slashes
+      while (i + 1 < len && (path[i + 1] == '\\' || path[i + 1] == '/')) {
+        ++i;
+      }
+    } else {
+      result[write_index++] = path[i];
+    }
   }
+  result[write_index] = '\0';  // Null-terminate the result
 
-  // Concatenate second path
-  strcat(new_path, path_b);
-
-  return new_path;
+  return result;
 }
 
-char* read_file(const char* path) {
+char* join_path(const char* path_a, const char* path_b) {
+  char* clean_a    = clean_path(path_a, false);
+  char* clean_b    = clean_path(path_b, true);
+  size_t len_a     = strlen(clean_a);
+  size_t total_len = len_a + strlen(clean_b) + 2;  // +2 for possible slash and null terminator
+
+  char* joined_path = (char*)malloc(total_len);
+  if (!joined_path) {
+    free(clean_a);
+    free(clean_b);
+    return NULL;
+  }
+
+  strcpy(joined_path, clean_a);
+  bool a_ends_with_slash   = len_a > 0 && clean_a[len_a - 1] == '\\';
+  bool b_starts_with_slash = clean_b[0] == '\\';
+  // Add a slash if necessary
+  if (!a_ends_with_slash && !b_starts_with_slash) {
+    strcat(joined_path, "\\");
+  }
+  // Remove a slash if necessary
+
+  strcat(joined_path, clean_b);
+
+  free(clean_a);
+  free(clean_b);
+  return joined_path;
+}
+
+// Internal function to read a file. Returns a pointer to the file's content.
+// The caller is responsible for freeing the returned string.
+// Either exits on error or returns NULL.
+static char* internal_read_file(const char* path, bool exit_on_error) {
   if (path == NULL) {
-    INTERNAL_ERROR("Cannot open NULL path \"%s\"", path);
-    exit(74);
+    if (exit_on_error) {
+      INTERNAL_ERROR("Cannot open NULL path \"%s\"", path);
+      exit(74);
+    } else {
+      return NULL;
+    }
   }
 
   FILE* file = fopen(path, "rb");
   if (file == NULL) {
-    INTERNAL_ERROR("Could not open file \"%s\"", path);
-    exit(74);
+    if (exit_on_error) {
+      INTERNAL_ERROR("Could not open file \"%s\"", path);
+      exit(74);
+    } else {
+      return NULL;
+    }
   }
 
   fseek(file, 0L, SEEK_END);
@@ -134,18 +174,54 @@ char* read_file(const char* path) {
 
   char* buffer = (char*)malloc(file_size + 1);
   if (buffer == NULL) {
-    INTERNAL_ERROR("Not enough memory to read \"%s\"\n", path);
-    exit(74);
+    if (exit_on_error) {
+      INTERNAL_ERROR("Not enough memory to read \"%s\"\n", path);
+      exit(74);
+    } else {
+      return NULL;
+    }
   }
 
   size_t bytes_read = fread(buffer, sizeof(char), file_size, file);
   if (bytes_read < file_size) {
-    INTERNAL_ERROR("Could not read file \"%s\"\n", path);
-    exit(74);
+    if (exit_on_error) {
+      INTERNAL_ERROR("Could not read file \"%s\"\n", path);
+      exit(74);
+    } else {
+      return NULL;
+    }
   }
 
   buffer[bytes_read] = '\0';
 
   fclose(file);
   return buffer;
+}
+
+char* read_file(const char* path) {
+  return internal_read_file(path, true);
+}
+
+char* read_file_safe(const char* path) {
+  return internal_read_file(path, false);
+}
+
+// Write a file. If the file already exists, it will be overwritten.
+// If it does not exist, it will be created.
+// Returns true on success, false on failure.
+bool write_file(const char* path, const char* content) {
+  if (path == NULL || content == NULL) {
+    return false;
+  }
+
+  FILE* file = fopen(path, "wb");
+  if (file == NULL) {
+    return false;
+  }
+
+  size_t content_len   = strlen(content);
+  size_t bytes_written = fwrite(content, sizeof(char), content_len, file);
+  fclose(file);
+
+  return bytes_written == content_len;
 }

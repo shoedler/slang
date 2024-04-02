@@ -5,11 +5,11 @@
 #include "vm.h"
 
 void register_builtin_functions() {
-  BUILTIN_REGISTER_FN(clock, 0);
-  BUILTIN_REGISTER_FN(log, -1);
-  BUILTIN_REGISTER_FN(type_of, 1);
-  BUILTIN_REGISTER_FN(type_name, 1);
-  BUILTIN_REGISTER_FN(cwd, 0);
+  BUILTIN_REGISTER_FN(vm.builtin, clock, 0);
+  BUILTIN_REGISTER_FN(vm.builtin, log, -1);
+  BUILTIN_REGISTER_FN(vm.builtin, type_of, 1);
+  BUILTIN_REGISTER_FN(vm.builtin, type_name, 1);
+  BUILTIN_REGISTER_FN(vm.builtin, cwd, 0);
 }
 
 // Native clock function.
@@ -17,7 +17,7 @@ BUILTIN_FN_DOC(
     /* Fn Name     */ clock,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the current execution time in miliseconds.");
+    /* Description */ "Returns the current execution time in seconds.");
 BUILTIN_FN_IMPL(clock) {
   UNUSED(argc);
   UNUSED(argv);

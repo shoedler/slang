@@ -393,3 +393,24 @@
 // print "1234\n".split()
 // print "1234\n4321".split("4")
 // print "123".split("")
+
+import File
+import Perf
+
+let start = Perf.now()
+
+let lines = File.read(cwd() + "sample.sl").split("
+")
+let code = lines.filter(fn (line) -> line.len() > 2 and line[0] != "/" and line[1] != "/")
+let time = Perf.now() - start
+
+
+log(time, "s")
+code.each(fn (line,i) -> log(i, "| ", line))
+
+print ""
+
+let out_file = File.join_path(cwd(), "sample.result.txt")
+print File.exists(out_file)
+print File.write(out_file, time.to_str() + "s
+")

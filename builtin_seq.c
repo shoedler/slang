@@ -28,6 +28,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Creates a new " STR(TYPENAME_NIL) "-initialized " STR(TYPENAME_SEQ) " of length 'len'.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, __ctor) {
+  UNUSED(argc);
   BUILTIN_CHECK_ARG_AT(1, NUMBER)
 
   ValueArray items;
@@ -52,6 +53,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_SEQ,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_SEQ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq     = AS_SEQ(argv[0]);

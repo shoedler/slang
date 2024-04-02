@@ -48,6 +48,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */ "Returns the length of a " STR(TYPENAME_STRING) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, len) {
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
 
   int length = AS_STRING(argv[0])->length;

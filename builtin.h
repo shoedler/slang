@@ -28,6 +28,12 @@ extern void register_builtin_seq_class();
 // Registers the built-in map class and its methods.
 extern void register_builtin_map_class();
 
+// Registers the built-in file module
+extern void register_builtin_file_module();
+
+// Registers the built-in perf module
+extern void register_builtin_perf_module();
+
 //
 // Built-in function-, method- and class-declarations
 //

@@ -8,6 +8,33 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ### Syntax & Language Features
 
+- [ ] `||` and `&&` operators.
+- [ ] `0b`, `0o`, `0x` literals.
+
+```c
+if (c == '0') {
+  if (peek() == 'x' || peek() == 'X') {
+    // Hexadecimal
+    advance();
+    while (isDigit(peek()) || (peek() >= 'a' && peek() <= 'f') ||
+           (peek() >= 'A' && peek() <= 'F')) advance();
+    return makeToken(TOKEN_NUMBER);
+  } else if (peek() == 'b' || peek() == 'B') {
+    // Binary
+    advance();
+    while (peek() == '0' || peek() == '1') advance();
+    return makeToken(TOKEN_NUMBER);
+  } if (peek() == 'o' || peek() == 'O') {
+    // Octal - must be 0o, none of those silly 0123 things
+    advance();
+    while (peek() >= '0' && peek() <= '7') advance();
+    return makeToken(TOKEN_NUMBER);
+  }
+  // Otherwise, decimal and maybe 0.123 floating
+}
+```
+
+- [ ] ASCII escape sequences in strings, e.g. `\n`, `\t`, `\r`, `\\`, `\"`. Probalba needs strings as flexible array members for this.
 - [ ] Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `when a then b else c`. This is a must-have. (**_See Challenge 17.3_**)
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] `continue` Statement (**_See Challenge 23.2_**)
@@ -30,11 +57,12 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `Seq[1..-1] -> Seq` as a builtin (slice)
 - [ ] Implement `Seq[-1] -> Obj` as a builtin
 - [ ] Implement `File` class
-- [ ] Implement `File.read(Str, Str?) -> Str` (path, encoding) as a builtin
-- [ ] Implement `File.write(Str, Str, Str?) -> Nil` (path, content, encoding) as a builtin
-- [ ] Implement `File.append(Str, Str, Str?) -> Nil` (path, content, encoding) as a builtin
-- [ ] Implement `File.exists(Str) -> Bool` (path) as a builtin
-- [ ] Implement `File.join(Str, Str, ...) -> Str` (path, path, ...) as a builtin
+- [ ] Implement `File.append(Str, Str) -> Nil` (path, content) as a builtin
+- [x] Implement `File.read(Str, Str?) -> Str` (path, encoding) as a builtin
+- [x] Implement `File.write(Str, Str) -> Nil` (path, content) as a builtin
+- [x] Implement `File.exists(Str) -> Bool` (path) as a builtin
+- [x] Implement `File.join(Str, Str) -> Str` (path, path, ...) as a builtin
+- [ ] Add Tests for `File.read`, `File.write`, `File.exists`, `File.join_path` and `Perf.now`
 - [ ] Implement Map destructuring `let { a } = { a: 1 } // a == 1`
 - [ ] Implement Seq destructuring `let [ a ] = [ 1 ] // a == 1`
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
@@ -83,3 +111,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - https://github.com/kuroko-lang/kuroko
 - https://github.com/Janko-dev/yabil/
 - https://luajit.org/luajit.html
+
+```
+
+```

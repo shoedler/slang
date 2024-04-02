@@ -196,6 +196,10 @@ void init_vm() {
   // Create the module class
   BUILTIN_REGISTER_CLASS(TYPENAME_MODULE, TYPENAME_OBJ)
 
+  // Register built-in modules
+  register_builtin_file_module();
+  register_builtin_perf_module();
+
   vm.pause_gc = 0;
   reset_stack();
 }
@@ -391,7 +395,7 @@ static CallResult invoke(ObjString* name, int arg_count) {
   Value receiver  = peek(arg_count);
   ObjClass* klass = type_of(receiver);
 
-  // Handle primitive and internal types which have a corresponding class
+  // Handle primitive and internal types which have a corresponding class.
   // Everything which is not an instance qualifies as such.
   if (!IS_INSTANCE(receiver)) {
     return invoke_from_class(klass, name, arg_count);
@@ -407,6 +411,7 @@ static CallResult invoke(ObjString* name, int arg_count) {
     return call_value(function, arg_count);
   }
 
+  // Otherwise, it's just a class method
   return invoke_from_class(klass, name, arg_count);
 }
 
@@ -892,13 +897,19 @@ static Value run() {
         switch (obj.type) {
           case VAL_OBJ: {
             switch (OBJ_TYPE(obj)) {
+              // You can get properties of a class, namely:
+              // - the name
+              // - the constructor
               case OBJ_CLASS: {
                 ObjClass* klass = AS_CLASS(obj);
                 if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_NAME])) {
+                  // Name is a special case, because it is a reserved word
                   pop();  // Pop the class
                   push(OBJ_VAL(klass->name));
                   goto done_getting_property;
                 } else if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_CTOR])) {
+                  // Ctor is a special case, because it is a reserved word.
+                  // Either we have a ctor, or we don't, in any case - we're done.
                   pop();  // Pop the class
                   Value ctor;
                   if (hashtable_get(&klass->methods, OBJ_VAL(name), &ctor)) {
@@ -910,6 +921,9 @@ static Value run() {
                 }
                 break;
               }
+              // For instances, you can get
+              // - their fields
+              // - their class methods
               case OBJ_INSTANCE: {
                 ObjInstance* instance = AS_INSTANCE(obj);
                 Value value;
@@ -920,6 +934,8 @@ static Value run() {
                 }
                 break;
               }
+              // For maps, you can get:
+              // - their entries
               case OBJ_MAP: {
                 ObjMap* map = AS_MAP(obj);
                 Value value;
@@ -935,11 +951,16 @@ static Value run() {
           }
         }
 
+        // It could be a method of the objs class. This catches many of the cases where we map a builtin class
+        // to primitive types, e.g. Num.to_str()
         ObjClass* klass = type_of(obj);
         if (bind_method(klass, name)) {
           goto done_getting_property;
         }
 
+        // It could be a __doc property, which is a special case.
+        // TODO (optimize): We could just make this a method like to_str. Kinda silly having it here as a
+        // property.
         if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_DOC])) {
           Value doc_str = doc(obj);
           pop();  // Pop the object
@@ -960,9 +981,12 @@ static Value run() {
         switch (obj.type) {
           case VAL_OBJ: {
             switch (OBJ_TYPE(obj)) {
+              // On instances, you can set:
+              // - their fields
               case OBJ_INSTANCE: {
                 ObjInstance* instance = AS_INSTANCE(obj);
 
+                // Check if it is a reserved word.
                 // TODO (robust): Not all cached words are actually **reserved**. We should make an enum for
                 // reserved words and check against that instead.
                 for (int i = 0; i < WORD_MAX; i++) {
@@ -978,6 +1002,8 @@ static Value run() {
                 push(value);
                 goto done_setting_property;
               }
+              // On maps, you can set:
+              // - their entries
               case OBJ_MAP: {
                 ObjMap* map = AS_MAP(obj);
                 hashtable_set(&map->entries, OBJ_VAL(name), peek(0));
@@ -1183,19 +1209,40 @@ static Value run() {
 #undef BINARY_OP
 }
 
-void start_module(const char* source_path, const char* module_name) {
-  ObjInstance* module = new_instance(vm.__builtin_Module_class);
-  vm.module           = module;
+ObjInstance* make_module(const char* source_path, const char* module_name) {
+  ObjInstance* prev_module = vm.module;
+  ObjInstance* module      = new_instance(vm.__builtin_Module_class);
 
-  char* base_dir_path = base(source_path);
+  // We need to have the new module active for the duration of the module creation.
+  // We'll restore it afterwards.
+  vm.module = module;
 
+  // Add a reference to the builtin instance, providing access to the builtin functions
+  // TODO (refactor): Remove this (including the INSTANCENAME_BUILTIN Macro) - I think it's not needed,
+  // because vm.builtin is used everywhere.
   define_obj(&module->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
+  // Add a reference to the module name, mostly used for stack traces
   define_obj(&module->fields, KEYWORD_MODULE_NAME,
              (Obj*)(copy_string(module_name, (int)strlen(module_name))));
-  define_obj(&module->fields, KEYWORD_FILE_PATH,
-             (Obj*)(copy_string(base_dir_path, (int)strlen(base_dir_path))));
 
-  free(base_dir_path);
+  // Add a reference to the file path of the module, if available
+  if (source_path == NULL) {
+    hashtable_set(&module->fields, OBJ_VAL(copy_string(KEYWORD_FILE_PATH, KEYWORD_FILE_PATH_LEN)), NIL_VAL);
+  } else {
+    char* base_dir_path = base(source_path);
+    define_obj(&module->fields, KEYWORD_FILE_PATH,
+               (Obj*)(copy_string(base_dir_path, (int)strlen(base_dir_path))));
+    free(base_dir_path);
+  }
+
+  vm.module = prev_module;
+
+  return module;
+}
+
+void start_module(const char* source_path, const char* module_name) {
+  ObjInstance* module = make_module(source_path, module_name);
+  vm.module           = module;
 }
 
 Value interpret(const char* source, const char* source_path, const char* module_name) {

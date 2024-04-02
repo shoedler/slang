@@ -50,8 +50,8 @@
                 BUILTIN_METHOD(class_name, method_name), BUILTIN_METHOD_DOC_STR(class_name, method_name), \
                 arity);
 // Register a built-in function in the VM, by adding it to the built-in object's field table.
-#define BUILTIN_REGISTER_FN(name, arity) \
-  define_native(&vm.builtin->fields, #name, BUILTIN_FN(name), BUILTIN_FN_DOC_STR(name), arity);
+#define BUILTIN_REGISTER_FN(instance, name, arity) \
+  define_native(&instance->fields, #name, BUILTIN_FN(name), BUILTIN_FN_DOC_STR(name), arity);
 
 // Define a built-in method's documentation string.
 #define BUILTIN_METHOD_DOC(class_name, method_name, args, return_type, description) \

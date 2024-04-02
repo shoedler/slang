@@ -12,7 +12,6 @@ void register_builtin_obj_class() {
   vm.builtin = new_instance(vm.__builtin_Obj_class);
 
   define_obj(&vm.builtin->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
-  // TODO: Remove this comment. Builtin functions were registered here.
   define_obj(&vm.builtin->fields, STR(TYPENAME_OBJ), (Obj*)vm.__builtin_Obj_class);
 
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, to_str, 0);

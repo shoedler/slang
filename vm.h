@@ -97,6 +97,9 @@ void init_vm();
 // Free the virtual machine.
 void free_vm();
 
+// Creates a new module instance.
+ObjInstance* make_module(const char* source_path, const char* module_name);
+
 // Creates a new module instance and sets it as the current module.
 void start_module(const char* source_path, const char* module_name);
 
