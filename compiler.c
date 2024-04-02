@@ -1166,14 +1166,14 @@ static void statement_for() {
 
   // Loop increment
   if (!match(TOKEN_SCOLON)) {
-    int body_jump      = emit_jump(OP_JUMP);
-    int incrementStart = current_chunk()->count;
+    int body_jump       = emit_jump(OP_JUMP);
+    int increment_start = current_chunk()->count;
     expression();
     emit_one(OP_POP);  // Discard the result of the increment expression.
     consume(TOKEN_SCOLON, "Expecting ';' after loop increment.");
 
     emit_loop(loop_start);
-    loop_start = incrementStart;
+    loop_start = increment_start;
     patch_jump(body_jump);
   }
 
