@@ -86,17 +86,17 @@
     return exit_with_runtime_error();                                                                     \
   }
 
-#define BUILTIN_CHECK_ARG_AT(index, type)                                                       \
-  if (!IS_##type(argv[index])) {                                                                \
-    runtime_error("Expected argument " #index " of type "##STR(TYPENAME_##type) " but got %s.", \
-                  type_name(argv[index]));                                                      \
-    return exit_with_runtime_error();                                                           \
+#define BUILTIN_CHECK_ARG_AT(index, type)                                                          \
+  if (!IS_##type(argv[index])) {                                                                   \
+    runtime_error("Expected argument %d of type "##STR(TYPENAME_##type) " but got %s.", index - 1, \
+                  type_name(argv[index]));                                                         \
+    return exit_with_runtime_error();                                                              \
   }
 
-#define BUILTIN_CHECK_ARG_AT_IS_CALLABLE(index)                                                       \
-  if (!IS_CALLABLE(argv[index])) {                                                                    \
-    runtime_error("Expected argument " #index " to be callable but got %s.", type_name(argv[index])); \
-    return exit_with_runtime_error();                                                                 \
+#define BUILTIN_CHECK_ARG_AT_IS_CALLABLE(index)                                                          \
+  if (!IS_CALLABLE(argv[index])) {                                                                       \
+    runtime_error("Expected argument %d to be callable but got %s.", index - 1, type_name(argv[index])); \
+    return exit_with_runtime_error();                                                                    \
   }
 
 #endif

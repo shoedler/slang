@@ -42,7 +42,8 @@ if (c == '0') {
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] `switch` Statement. Starting point for the `match` statement. (**_See Challenge 23.1_**)
 - [ ] Implement `break`
-- [ ] Implement error value
+- [ ] Implement error value and refactor tests to use it.
+- [ ] Implement `Test` class
 - [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
 - [ ] Implement `Seq.reduce(reduceFn) -> Seq` as a builtin
 - [ ] Implement `Seq.count(predFn) -> Num` as a builtin
@@ -56,18 +57,19 @@ if (c == '0') {
 - [ ] Implement `Seq[..-1] -> Seq` as a builtin (slice)
 - [ ] Implement `Seq[1..-1] -> Seq` as a builtin (slice)
 - [ ] Implement `Seq[-1] -> Obj` as a builtin
-- [ ] Implement `File` class
-- [ ] Implement `File.append(Str, Str) -> Nil` (path, content) as a builtin
-- [x] Implement `File.read(Str, Str?) -> Str` (path, encoding) as a builtin
-- [x] Implement `File.write(Str, Str) -> Nil` (path, content) as a builtin
-- [x] Implement `File.exists(Str) -> Bool` (path) as a builtin
-- [x] Implement `File.join(Str, Str) -> Str` (path, path, ...) as a builtin
-- [ ] Add Tests for `File.read`, `File.write`, `File.exists`, `File.join_path` and `Perf.now`
+- [ ] Implement `Gc` class
+- [ ] Implement `Gc.collect() -> Nil` as a builtin
+- [ ] Implement `Gc.stats() -> Obj` as a builtin
 - [ ] Implement Map destructuring `let { a } = { a: 1 } // a == 1`
 - [ ] Implement Seq destructuring `let [ a ] = [ 1 ] // a == 1`
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
 - [ ] Implement a way to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing. Maybe attributes? (e.g. `@doc "This is a doc string"`)
 - [ ] Implement iterators
+- [x] Implement `File` class
+- [x] Implement `File.read(Str, Str?) -> Str` (path, encoding) as a builtin
+- [x] Implement `File.write(Str, Str) -> Nil` (path, content) as a builtin
+- [x] Implement `File.exists(Str) -> Bool` (path) as a builtin
+- [x] Implement `File.join(Str, Str) -> Str` (path, path, ...) as a builtin
 - [x] Implement `+=`, `-=`, `*=`, `/=`, `%=`
 - [x] Implement `Seq.each(fn) -> Nil` as a builtin
 - [x] Implement `Seq.has(predFn) -> Bool` as a builtin
