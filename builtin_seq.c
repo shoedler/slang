@@ -19,6 +19,8 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, filter, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, join, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, reverse, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, every, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, some, 1);
 }
 
 // Built-in seq constructor
@@ -487,4 +489,96 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reverse) {
   }
 
   return pop();  // The seq
+}
+
+// Built-in method to check if all items in a sequence satisfy a predicate
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ every,
+    /* Arguments   */ DOC_ARG("fn", TYPENAME_FUNCTION->TYPENAME_BOOL),
+    /* Return Type */ TYPENAME_BOOL,
+    /* Description */
+    "Returns " VALUE_STR_TRUE
+    " if 'fn' evaluates to " VALUE_STR_TRUE
+    " for every item in the " STR(TYPENAME_SEQ) ". 'fn' should take one or two arguments: the item and the index of the "
+    "item. The latter is optional. Returns " VALUE_STR_FALSE " if the " STR(TYPENAME_SEQ) " is empty.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, every) {
+  UNUSED(argc);
+  BUILTIN_CHECK_RECEIVER(SEQ)
+  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
+
+  ObjSeq* seq  = AS_SEQ(argv[0]);
+  int fn_arity = get_arity(AS_OBJ(argv[1]));
+  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+
+  // Loops are duplicated to avoid the overhead of checking the arity on each iteration
+  if (fn_arity > 1) {
+    for (int i = 0; i < count; i++) {
+      push(argv[1]);                               // Push the function
+      push(seq->items.values[i]);                  // arg0 (1): Push the item
+      push(NUMBER_VAL(i));                         // arg1 (2): Push the index
+      Value result = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
+                                                   // arity of the fn would result in a wrong error message.
+      if (!IS_BOOL(result) || !AS_BOOL(result)) {
+        return BOOL_VAL(false);
+      }
+    }
+  } else {
+    for (int i = 0; i < count; i++) {
+      push(argv[1]);               // Push the function
+      push(seq->items.values[i]);  // arg0 (1): Push the item
+      Value result = exec_fn(AS_OBJ(argv[1]), 1);
+      if (!IS_BOOL(result) || !AS_BOOL(result)) {
+        return BOOL_VAL(false);
+      }
+    }
+  }
+
+  return BOOL_VAL(true);
+}
+
+// Built-in method to check if any item in a sequence satisfies a predicate
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ some,
+    /* Arguments   */ DOC_ARG("fn", TYPENAME_FUNCTION->TYPENAME_BOOL),
+    /* Return Type */ TYPENAME_BOOL,
+    /* Description */
+    "Returns " VALUE_STR_TRUE
+    " if 'fn' evaluates to " VALUE_STR_TRUE
+    " for at least one item in the " STR(TYPENAME_SEQ) ". 'fn' should take one or two arguments: the item and the index of the "
+    "item. The latter is optional. Returns " VALUE_STR_FALSE " if the " STR(TYPENAME_SEQ) " is empty.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, some) {
+  UNUSED(argc);
+  BUILTIN_CHECK_RECEIVER(SEQ)
+  BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
+
+  ObjSeq* seq  = AS_SEQ(argv[0]);
+  int fn_arity = get_arity(AS_OBJ(argv[1]));
+  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+
+  // Loops are duplicated to avoid the overhead of checking the arity on each iteration
+  if (fn_arity > 1) {
+    for (int i = 0; i < count; i++) {
+      push(argv[1]);                               // Push the function
+      push(seq->items.values[i]);                  // arg0 (1): Push the item
+      push(NUMBER_VAL(i));                         // arg1 (2): Push the index
+      Value result = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
+                                                   // arity of the fn would result in a wrong error message.
+      if (IS_BOOL(result) && AS_BOOL(result)) {
+        return BOOL_VAL(true);
+      }
+    }
+  } else {
+    for (int i = 0; i < count; i++) {
+      push(argv[1]);               // Push the function
+      push(seq->items.values[i]);  // arg0 (1): Push the item
+      Value result = exec_fn(AS_OBJ(argv[1]), 1);
+      if (IS_BOOL(result) && AS_BOOL(result)) {
+        return BOOL_VAL(true);
+      }
+    }
+  }
+
+  return BOOL_VAL(false);
 }

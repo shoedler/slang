@@ -267,6 +267,22 @@
 // print [1,2,3].reverse() // [3, 2, 1]
 // print [1,2,3].reverse().reverse() // [1, 2, 3]
 
+// // 
+// // Seq.some
+// //
+// print [].some(fn (x) -> x > 0) // false
+// print [1,2,3].some(fn (x) -> x > 1) // true
+// print [1,2,3].some(fn (x) -> x > 3) // false
+// print [1,2,3].some(fn (x) -> x > 1 and x < 3) // true
+
+// //
+// // Seq.every
+// //
+// print [].every(fn (x) -> x > 0) // true
+// print [1,2,3].every(fn (x) -> x > 1) // false
+// print [1,2,3].every(fn (x) -> x > 0) // true
+// print [1,2,3].every(fn (x) -> x > 0 and x < 3) // false
+
 // print "--------------------------------------------------------------------------------"
 // print "Modules"
 // print "--------------------------------------------------------------------------------"
