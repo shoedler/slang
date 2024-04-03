@@ -56,7 +56,7 @@ export const runProcess = (cmd, errorMessage, signal = null, abortOnError = true
  * @param {string} config - Build config to use
  * @returns
  */
-export const getSlangExe = config => path.join(SLANG_BIN_DIR, config, 'Slang.exe');
+export const getSlangExe = config => path.join(SLANG_BIN_DIR, config, 'slang.exe');
 
 /**
  * Make a command to run a slang file with a given config
@@ -142,7 +142,7 @@ const forceDeleteDirectory = async (dirPath, signal) => {
  * @returns {Promise<string>} - Promise that resolves when build completes
  */
 export const buildSlangConfig = async (config, signal = null, abortOnError = true) => {
-  const cmd = `cd ${SLANG_PROJ_DIR} && ${MSBUILD_EXE} Slang.sln /p:Configuration=${config}`;
+  const cmd = `cd ${SLANG_PROJ_DIR} && ${MSBUILD_EXE} slang.sln /p:Configuration=${config}`;
   await forceDeleteDirectory(path.join(SLANG_BIN_DIR, config), signal);
   info(`Building slang ${config}`, `Command: "${cmd}"`);
   return await runProcess(cmd, `Building config "${config}" failed`, signal, abortOnError);

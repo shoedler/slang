@@ -149,7 +149,7 @@ void define_native(HashTable* table, const char* name, NativeFn function, const 
 // Defines an object in the given table.
 void define_obj(HashTable* table, const char* name, Obj* obj);
 
-// Retrieves the class of a value. Everything in Slang is an 'object', so this function will always return
+// Retrieves the class of a value. Everything in slang is an 'object', so this function will always return
 // a class.
 ObjClass* type_of(Value value);
 
