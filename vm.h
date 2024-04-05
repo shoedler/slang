@@ -79,7 +79,6 @@ typedef struct {
   ObjInstance* builtin;          // The builtin (builtin things) object instance
   Value cached_words[WORD_MAX];  // Cached words for quick access
 
-  int pause_gc;
   size_t bytes_allocated;
   size_t next_gc;
   int gray_count;
@@ -87,7 +86,13 @@ typedef struct {
   Obj** gray_stack;  // Worklist for the garbage collector. This field is not
                      // managed by our own memory allocator, but rather by the
                      // system's allocator.
+
+  Value current_error;
+  int flags;
 } Vm;
+
+#define VM_FLAG_PAUSE_GC (1 << 0)
+#define VM_FLAG_HAS_ERROR (1 << 1)
 
 extern Vm vm;
 

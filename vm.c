@@ -32,10 +32,12 @@ static Value run();
 static Value peek(int distance);
 
 static void reset_stack() {
-  vm.pause_gc      = 0;
   vm.stack_top     = vm.stack;
   vm.frame_count   = 0;
   vm.open_upvalues = NULL;
+
+  vm.flags &= ~VM_FLAG_HAS_ERROR;  // Clear the error flag
+  vm.flags &= ~VM_FLAG_PAUSE_GC;   // Clear the pause flag
 }
 
 void runtime_error(const char* format, ...) {
@@ -166,7 +168,9 @@ void init_vm() {
   vm.gray_count      = 0;
   vm.gray_capacity   = 0;
   vm.gray_stack      = NULL;
-  vm.pause_gc        = 1;  // Pause while we initialize the vm.
+
+  // Pause while we initialize the vm.
+  vm.flags |= VM_FLAG_PAUSE_GC;
 
   init_hashtable(&vm.strings);
   init_hashtable(&vm.modules);
@@ -200,7 +204,8 @@ void init_vm() {
   register_builtin_file_module();
   register_builtin_perf_module();
 
-  vm.pause_gc = 0;
+  vm.flags &= ~VM_FLAG_PAUSE_GC;  // Unpause
+
   reset_stack();
 }
 
@@ -417,12 +422,12 @@ static CallResult invoke(ObjString* name, int arg_count) {
 
 // Executes a callframe by running the bytecode until it returns a value or an error occurs.
 static Value run_frame() {
-  int exit_on_frame = vm.exit_on_frame;
-  vm.exit_on_frame  = vm.frame_count - 1;
+  int previous_exit_frame = vm.exit_on_frame;
+  vm.exit_on_frame        = vm.frame_count - 1;
 
   Value result = run();
 
-  vm.exit_on_frame = exit_on_frame;
+  vm.exit_on_frame = previous_exit_frame;
   return result;
 }
 
