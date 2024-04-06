@@ -39,6 +39,7 @@ typedef enum {
   OP_PRINT,
   OP_JUMP,
   OP_JUMP_IF_FALSE,
+  OP_TRY,
   OP_LOOP,
   OP_CALL,
   OP_INVOKE,
@@ -53,6 +54,7 @@ typedef enum {
   OP_METHOD,
   OP_IMPORT,
   OP_IMPORT_FROM,
+  OP_THROW,
 } OpCode;
 
 // Dynamic array of instructions.

@@ -29,6 +29,7 @@
 #define KEYWORD_THIS_LEN (sizeof(KEYWORD_THIS) - 1)
 
 #define KEYWORD_BASE "base"
+#define KEYWORD_ERROR "error"
 
 // Holds the state of a stack frame.
 // Represents a single ongoing function call.
@@ -65,7 +66,7 @@ typedef struct {
 
   HashTable modules;    // Modules
   ObjInstance* module;  // The current module
-  int exit_on_frame;
+  int exit_on_frame;    // Index of the frame to exit on
 
   ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);     // The class of all objects
   ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);  // The module class
@@ -126,12 +127,8 @@ void push(Value value);
 // Pop a value off the stack.
 Value pop();
 
-// Prints a runtime error message including the stacktrace
+// Sets the current error value and puts the Vm into error state.
 void runtime_error(const char* format, ...);
-
-// This is just a placeholder to find where we actually throw rt errors.
-// I want another way to do this, but I don't know how yet.
-Value exit_with_runtime_error();
 
 // Internal function to execute a method on a value. This is similar to exec_fn, but it's expected that
 // there's a receiver on the stack before the arguments.

@@ -35,19 +35,13 @@ static void reset_stack() {
   vm.stack_top     = vm.stack;
   vm.frame_count   = 0;
   vm.open_upvalues = NULL;
+  vm.current_error = NIL_VAL;
 
   vm.flags &= ~VM_FLAG_HAS_ERROR;  // Clear the error flag
   vm.flags &= ~VM_FLAG_PAUSE_GC;   // Clear the pause flag
 }
 
-void runtime_error(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  vfprintf(stderr, format, args);
-  va_end(args);
-  fputs("\n", stderr);
-
-  // Stacktrace
+void dump_stacktrace() {
   for (int i = vm.frame_count - 1; i >= 0; i--) {
     CallFrame* frame      = &vm.frames[i];
     ObjFunction* function = frame->closure->function;
@@ -73,11 +67,16 @@ void runtime_error(const char* format, ...) {
   reset_stack();
 }
 
-Value exit_with_runtime_error() {
-  free_vm();
-  // TODO (recovery): Find a way to progpagate errors */
-  exit(70);
-  return NIL_VAL;
+void runtime_error(const char* format, ...) {
+  char buffer[1024] = {0};
+
+  va_list args;
+  va_start(args, format);
+  size_t length = vsnprintf(buffer, 1024, format, args);
+  va_end(args);
+
+  vm.flags |= VM_FLAG_HAS_ERROR;
+  vm.current_error = OBJ_VAL(copy_string(buffer, (int)length));
 }
 
 // This is just a plcaeholder to find where we actually throw compile errors.
@@ -168,6 +167,7 @@ void init_vm() {
   vm.gray_count      = 0;
   vm.gray_capacity   = 0;
   vm.gray_stack      = NULL;
+  vm.exit_on_frame   = 0;  // Default to exit on the first frame
 
   // Pause while we initialize the vm.
   vm.flags |= VM_FLAG_PAUSE_GC;
@@ -435,7 +435,11 @@ Value exec_fn(Obj* callable, int arg_count) {
   if (check_args(callable, arg_count) == false) {
     runtime_error("Expected callable to accept %d arguments, but it takes %d.", arg_count,
                   get_arity((Obj*)callable));
-    return exit_with_runtime_error();
+
+    // In this case, we'll clean up the stack and return NIL_VAL. Probably doesn't matter tough.
+    vm.stack_top -= arg_count + 1;  // Remove args + fn or receiver
+
+    return NIL_VAL;
   }
 
   CallResult result = CALL_FAILED;
@@ -549,14 +553,14 @@ bool is_falsey(Value value) {
 // Imports a module by name and pushes it onto the stack. If the module was already imported, it is loaded
 // from cache. If the module was not imported yet, it is loaded from the file system and then cached.
 // If module_path is NULL, the module is expected to be in the same directory as the
-// importing module.
-static void import_module(ObjString* module_name, ObjString* module_path) {
+// importing module. Returns true if the module was successfully imported, false otherwise.
+static bool import_module(ObjString* module_name, ObjString* module_path) {
   Value module;
 
   // Check if we have already imported the module
   if (hashtable_get(&vm.modules, OBJ_VAL(module_name), &module)) {
     push(module);
-    return;
+    return true;
   }
 
   // Not cached, so we need to load it. First, we need to get the current working directory
@@ -566,8 +570,7 @@ static void import_module(ObjString* module_name, ObjString* module_path) {
         "Could not import module '%s'. Could not get current working directory, because there is no "
         "active module or it is not a file.",
         module_name->chars);
-    exit_with_runtime_error();
-    return;
+    return false;
   }
 
   char* module_to_load_path;
@@ -605,8 +608,7 @@ static void import_module(ObjString* module_name, ObjString* module_path) {
   if (!file_exists(module_to_load_path)) {
     runtime_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars,
                   module_to_load_path);
-    exit_with_runtime_error();
-    return;
+    return false;
   }
 
   // Load the module by running the file
@@ -619,14 +621,14 @@ static void import_module(ObjString* module_name, ObjString* module_path) {
   if (!IS_OBJ(module) && !IS_INSTANCE(module) && !(AS_INSTANCE(module)->klass == vm.__builtin_Module_class)) {
     free(module_to_load_path);
     runtime_error("Could not import module '%s'. Expected module type", module_name->chars);
-    exit_with_runtime_error();
-    return;
+    return false;
   }
 
   push(module);  // Show ourselves to the GC before we put it in the hashtable
   hashtable_set(&vm.modules, OBJ_VAL(module_name), module);
 
   free(module_to_load_path);
+  return true;
 }
 
 // Concatenates two strings on the stack (pops them) into a new string and pushes it onto the stack
@@ -676,31 +678,86 @@ static Value doc(Value value) {
   return pop();
 }
 
-// This function represents the main loop of the virtual machine.
-// It fetches the next instruction, decodes it, and dispatches it
+static bool handle_error() {
+  int stack_offset;
+  int frame_offset;
+  int exit_slot = 0;  // Slot in the stack where we should stop looking for a handler
+
+  // If we have an exit frame, we need to use it's stack-start slot as the exit slot
+  // This ensures that we stay within the current frame's stack, and don't go beyond it.
+  if ((vm.exit_on_frame >= 0)) {
+    exit_slot = (int)(vm.frames[vm.exit_on_frame].slots - vm.stack);
+  }
+
+  // Rewind the stack to the last handler, or the exit slot
+  for (stack_offset = (int)(vm.stack_top - vm.stack - 1);                 // Start at the top of the stack
+       stack_offset >= exit_slot && !IS_HANDLER(vm.stack[stack_offset]);  // Stop at the exit slot or handler
+       stack_offset--)
+    ;
+
+  // Did we find a handler within the current frame?
+  if (stack_offset < exit_slot) {
+    // No handler found and we reached the bottom of the stack. So we print the stacktrace and reset the Vm's
+    // stack state. Should be fine to exectute more code after this, because the stack is reset.
+    if (exit_slot == 0) {
+      fprintf(stderr, "Uncaught error: ");
+      print_value_safe(stderr, vm.current_error);
+      fprintf(stderr, "\n");
+      dump_stacktrace();
+      reset_stack();
+      vm.frame_count = 0;
+    }
+    return false;
+  }
+
+  // We have a handler, now we need to find the frame it belongs to.
+  // We do that by going through the frames from the top to the bottom, and stop at the frame where the
+  // handler (stack_offset) is.
+  for (frame_offset = vm.frame_count - 1;  // Start at the top of the frame stack
+       frame_offset >= 0 &&
+       (size_t)(vm.frames[frame_offset].slots - vm.stack) > stack_offset;  // Stop at the frame
+       frame_offset--)
+    ;
+
+  // Did we find a frame that owns the handler?
+  if (frame_offset == -1) {
+    INTERNAL_ERROR("Call stack corrupted. No call frame found that owns the handler.");
+    exit(1);
+  }
+
+  // We have the handler's index/offset in the stack and the frame it belongs to. Now let's reset the Vm to
+  // that call frame.
+  close_upvalues(&vm.stack[stack_offset]);  // Close upvalues that are no longer needed
+  vm.stack_top   = vm.stack + stack_offset + 1;
+  vm.frame_count = frame_offset + 1;
+  vm.flags &= ~VM_FLAG_HAS_ERROR;
+
+  return true;
+}
+
+// This function represents the main loop of the virtual machine. It fetches the next instruction, decodes it,
+// and dispatches it
 static Value run() {
   CallFrame* frame = &vm.frames[vm.frame_count - 1];
 
-// Read a single piece of data from the current instruction pointer and advance
-// it
+// Read a single piece of data from the current instruction pointer and advance it
 #define READ_ONE() (*frame->ip++)
 
-// Read a constant from the constant pool. This consumes one piece of data
-// on the stack, which is the index of the constant to read
+// Read a constant from the constant pool. This consumes one piece of data on the stack, which is the index of
+// the constant to read
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_ONE()])
 
 // Read a string from the constant pool.
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
-// Perform a binary operation on the top two values on the stack.
-// This consumes two pieces of data from the stack, and pushes the result
-// value_type is the type of the result value, op is the operator to use
+// Perform a binary operation on the top two values on the stack. This consumes two pieces of data from the
+// stack, and pushes the result value_type is the type of the result value, op is the operator to use
 #define BINARY_OP(value_type, a_b_op)                                                           \
   do {                                                                                          \
     if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                                           \
       runtime_error("Operands must be numbers. Left was %s, right was %s.", type_name(peek(1)), \
                     type_name(peek(0)));                                                        \
-      return exit_with_runtime_error();                                                         \
+      goto finish_error;                                                                        \
     }                                                                                           \
     double b = AS_NUMBER(pop());                                                                \
     double a = AS_NUMBER(pop());                                                                \
@@ -744,7 +801,7 @@ static Value run() {
         if (!hashtable_get(frame->globals, OBJ_VAL(name), &value)) {
           if (!hashtable_get(&vm.builtin->fields, OBJ_VAL(name), &value)) {
             runtime_error("Undefined variable '%s'.", name->chars);
-            return exit_with_runtime_error();
+            goto finish_error;
           }
         }
         push(value);
@@ -772,7 +829,7 @@ static Value run() {
                           peek(0))) {  // peek, because assignment is an expression!
           hashtable_delete(frame->globals, OBJ_VAL(name));
           runtime_error("Undefined variable '%s'.", name->chars);
-          return exit_with_runtime_error();
+          goto finish_error;
         }
         break;
       }
@@ -790,7 +847,7 @@ static Value run() {
           if (!IS_NUMBER(index)) {
             runtime_error(STR(TYPENAME_STRING) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.",
                           type_name(index));
-            return exit_with_runtime_error();
+            goto finish_error;
           }
 
           double i_raw = AS_NUMBER(index);
@@ -803,7 +860,7 @@ static Value run() {
           ObjString* string = AS_STRING(indexee);
           if (i < 0 || i >= string->length) {
             runtime_error("Index out of bounds.");
-            return exit_with_runtime_error();
+            goto finish_error;
           }
 
           ObjString* char_str = copy_string(AS_CSTRING(indexee) + i, 1);
@@ -813,7 +870,7 @@ static Value run() {
           if (!IS_NUMBER(index)) {
             runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.",
                           type_name(index));
-            return exit_with_runtime_error();
+            goto finish_error;
           }
 
           double i_raw = AS_NUMBER(index);
@@ -827,7 +884,7 @@ static Value run() {
           if (i < 0 || i >= seq->items.count) {
             runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i,
                           seq->items.count);
-            return exit_with_runtime_error();
+            goto finish_error;
           }
 
           push(seq->items.values[i]);
@@ -841,7 +898,7 @@ static Value run() {
           }
         } else {
           runtime_error("%s cannot be get-indexed.", type_name(indexee));
-          return exit_with_runtime_error();
+          goto finish_error;
         }
         break;
       }
@@ -858,7 +915,7 @@ static Value run() {
           if (!IS_NUMBER(index)) {
             runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.",
                           type_name(index));
-            return exit_with_runtime_error();
+            goto finish_error;
           }
 
           double i_raw = AS_NUMBER(index);
@@ -873,7 +930,7 @@ static Value run() {
           if (i < 0 || i >= seq->items.count) {
             runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i,
                           seq->items.count);
-            return exit_with_runtime_error();
+            goto finish_error;
           }
 
           seq->items.values[i] = value;
@@ -891,7 +948,7 @@ static Value run() {
           push(value);  // Push back onto the stack, because assignment is an expression
         } else {
           runtime_error("%s cannot be set-indexed.", type_name(assignee));
-          return exit_with_runtime_error();
+          goto finish_error;
         }
         break;
       }
@@ -974,7 +1031,7 @@ static Value run() {
         }
 
         runtime_error("Property '%s' does not exist on type %s.", name->chars, type_name(obj));
-        return exit_with_runtime_error();
+        goto finish_error;
 
       done_getting_property:
         break;
@@ -997,7 +1054,7 @@ static Value run() {
                 for (int i = 0; i < WORD_MAX; i++) {
                   if (strcmp(name->chars, AS_STRING(vm.cached_words[i])->chars) == 0) {
                     runtime_error("Cannot set reserved field '%s'.", name->chars);
-                    return exit_with_runtime_error();
+                    goto finish_error;
                   }
                 }
 
@@ -1023,7 +1080,7 @@ static Value run() {
         }
 
         runtime_error("Cannot set field '%s' on value of type %s.", name->chars, type_name(obj));
-        return exit_with_runtime_error();
+        goto finish_error;
 
       done_setting_property:
         break;
@@ -1031,12 +1088,16 @@ static Value run() {
       case OP_IMPORT_FROM: {
         ObjString* name = READ_STRING();
         ObjString* from = READ_STRING();
-        import_module(name, from);
+        if (!import_module(name, from)) {
+          goto finish_error;
+        }
         break;
       }
       case OP_IMPORT: {
         ObjString* name = READ_STRING();
-        import_module(name, NULL);
+        if (!import_module(name, NULL)) {
+          goto finish_error;
+        }
         break;
       }
       case OP_GET_BASE_METHOD: {
@@ -1045,7 +1106,7 @@ static Value run() {
 
         if (!bind_method(baseclass, name)) {
           runtime_error("Property '%s' does not exist in '%s'.", name->chars, baseclass->name->chars);
-          return exit_with_runtime_error();
+          goto finish_error;
         }
         break;
       }
@@ -1077,7 +1138,7 @@ static Value run() {
               "Operands must be two numbers or two strings. Left was "
               "%s, right was %s.",
               type_name(peek(1)), type_name(peek(0)));
-          return exit_with_runtime_error();
+          goto finish_error;
         }
         break;
       }
@@ -1089,7 +1150,7 @@ static Value run() {
       case OP_NEGATE:
         if (!IS_NUMBER(peek(0))) {
           runtime_error("Operand must be a number. Was %s.", type_name(peek(0)));
-          return exit_with_runtime_error();
+          goto finish_error;
         }
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
@@ -1124,10 +1185,27 @@ static Value run() {
         frame->ip -= offset;
         break;
       }
+      case OP_TRY: {
+        uint16_t try_target = READ_ONE();
+        uint16_t offset =
+            frame->ip -
+            frame->closure->function->chunk.code;  // Offset from start of callframe to the try block
+        Value handler = HANDLER_VAL(try_target + offset);
+        push(handler);
+        break;
+      }
+      case OP_THROW: {
+        vm.current_error = pop();
+        vm.flags |= VM_FLAG_HAS_ERROR;
+        goto finish_error;
+      }
       case OP_CALL: {
         int arg_count = READ_ONE();
         if (call_value(peek(arg_count), arg_count) == CALL_FAILED) {
-          return exit_with_runtime_error();
+          if (vm.flags & VM_FLAG_HAS_ERROR) {
+            goto finish_error;
+          }
+          return NIL_VAL;
         }
         frame = &vm.frames[vm.frame_count - 1];
         break;
@@ -1136,7 +1214,10 @@ static Value run() {
         ObjString* method = READ_STRING();
         int arg_count     = READ_ONE();
         if (invoke(method, arg_count) == CALL_FAILED) {
-          return exit_with_runtime_error();
+          if (vm.flags & VM_FLAG_HAS_ERROR) {
+            goto finish_error;
+          }
+          return NIL_VAL;
         }
         frame = &vm.frames[vm.frame_count - 1];
         break;
@@ -1146,7 +1227,10 @@ static Value run() {
         int arg_count       = READ_ONE();
         ObjClass* baseclass = AS_CLASS(pop());
         if (invoke_from_class(baseclass, method, arg_count) == CALL_FAILED) {
-          return exit_with_runtime_error();
+          if (vm.flags & VM_FLAG_HAS_ERROR) {
+            goto finish_error;
+          }
+          return NIL_VAL;
         }
         frame = &vm.frames[vm.frame_count - 1];
         break;
@@ -1197,7 +1281,7 @@ static Value run() {
         ObjClass* subclass = AS_CLASS(peek(0));
         if (!IS_CLASS(baseclass)) {
           runtime_error("Base class must be a class. Was %s.", type_name(baseclass));
-          return exit_with_runtime_error();
+          goto finish_error;
         }
         hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);
         subclass->base = AS_CLASS(baseclass);
@@ -1205,6 +1289,25 @@ static Value run() {
         break;
       }
       case OP_METHOD: define_method(READ_STRING()); break;
+    }
+
+    if (!(vm.flags & VM_FLAG_HAS_ERROR)) {
+      continue;
+    }
+
+  finish_error:
+    if (handle_error()) {
+      frame     = &vm.frames[vm.frame_count - 1];                              // Get the current frame
+      frame->ip = frame->closure->function->chunk.code + AS_HANDLER(peek(0));  // Jump to the handler
+
+      // Remove the handler from the stack and push the error value
+      pop();
+      push(vm.current_error);
+
+      // We're done with the error, so we can clear it
+      vm.current_error = NIL_VAL;
+    } else {
+      return NIL_VAL;
     }
   }
 

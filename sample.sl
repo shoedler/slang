@@ -481,3 +481,37 @@ print 0o777 // 511
 // let out_file = File.join_path(cwd(), "sample.result.txt")
 // print File.exists(out_file)
 // print File.write(out_file, time.to_str() + "s\n")
+
+cls Base {
+  fn foo(a, b) {
+    print "Base.foo(" + a + ", " + b + ")"
+  }
+}
+
+cls Derived : Base {
+  fn foo() {
+    print "Derived.foo()"
+    base.foo("a", "b", "c", "d")
+  }
+}
+
+try {
+  print "Level one" 
+  try {
+    print "Level two" 
+    throw "Thrown exception"
+  }
+  catch {
+    print "Caught in level two"
+    throw error
+  }
+} 
+catch {
+  print("Caught in level one!")
+}
+
+try Derived().foo()
+catch print error
+
+// Currently prints the error seq.len() times, because reduce is a native calling managed code. And we just execute the managed code multiple times, without checking for errors.
+print [1,2,3,4].reduce("", fn(acc, x) -> acc + x)

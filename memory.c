@@ -251,6 +251,9 @@ static void mark_roots() {
     mark_obj((Obj*)vm.module);
   }
 
+  // Mark the current error
+  mark_value(vm.current_error);
+
   // And the modules hashtable.
   mark_hashtable(&vm.modules);
 

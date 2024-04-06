@@ -39,8 +39,8 @@ typedef void (*ParseFn)(bool can_assign);
 
 // Precedence-dependent rule for parsing expressions.
 typedef struct {
-  ParseFn prefix;
-  ParseFn infix;
+  ParseFn prefix;  // Prefix, e.g. unary operators. Example: -1, where '-' is the prefix operator.
+  ParseFn infix;   // Infix, e.g. binary operators. Example: 1 + 2, where '+' is the infix operator.
   Precedence precedence;
 } ParseRule;
 
@@ -771,7 +771,7 @@ static void function(bool can_assign, FunctionType type) {
     expression();
     emit_one(OP_RETURN);
   } else {
-    error_at_current("Expecting '{' before function body.");
+    error_at_current("Expecting '{' or '->' before function body.");
   }
 
   ObjFunction* function = end_compiler();  // Also handles end of scope. (end_scope())
@@ -891,6 +891,9 @@ ParseRule rules[] = {
     [TOKEN_PRINT]    = {NULL, NULL, PREC_NONE},
     [TOKEN_RETURN]   = {NULL, NULL, PREC_NONE},
     [TOKEN_BASE]     = {base_, NULL, PREC_NONE},
+    [TOKEN_TRY]      = {NULL, NULL, PREC_NONE},
+    [TOKEN_CATCH]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_THROW]    = {NULL, NULL, PREC_NONE},
     [TOKEN_THIS]     = {this_, NULL, PREC_NONE},
     [TOKEN_TRUE]     = {literal, NULL, PREC_NONE},
     [TOKEN_LET]      = {NULL, NULL, PREC_NONE},
@@ -1034,7 +1037,7 @@ static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
   return compiler->function->upvalue_count++;
 }
 
-// Declares a local variable in the current scope.
+// Declares a local variable in the current scope from the previous token.
 // If we're in the toplevel, nothing happens. This is because global variables
 // are late bound.
 // This function is the only place where the compiler records the existence
@@ -1159,7 +1162,7 @@ static void statement_if() {
   expression();
 
   int then_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_one(OP_POP);
+  emit_one(OP_POP);  // Discard the result of the condition expression.
 
   statement();
 
@@ -1175,13 +1178,47 @@ static void statement_if() {
   patch_jump(else_jump);
 }
 
+// Compiles a throw statement.
+// The throw keyword has already been consumed at this point.
+static void statement_throw() {
+  expression();
+  emit_one(OP_THROW);
+}
+
+// Compiles a try statement.
+// The try keyword has already been consumed at this point.
+static void statement_try() {
+  // Make sure we are in a local scope, so that the error variable is not defined globally.
+  begin_scope();
+  int try_jump = emit_jump(OP_TRY);
+
+  // Contextual variable: Inject the "error" variable into the local scope.
+  add_local(synthetic_token(KEYWORD_ERROR));
+  define_variable(0 /* ignore, we're not in global scope */);
+
+  // Compile the try block.
+  statement();
+
+  // If the try block was successful, skip the catch block.
+  int success_jump = emit_jump(OP_JUMP);
+  patch_jump(try_jump);
+
+  // Compile optional catch block.
+  if (match(TOKEN_CATCH)) {
+    statement();
+  }
+
+  patch_jump(success_jump);
+  end_scope();  // This will pop the error handler variable from the stack.
+}
+
 // Compiles a return statement.
 // The return keyword has already been consumed at this point.
 // Handles illegal return statements in a constructor.
 // The return value is an expression or nil.
 static void statement_return() {
   // TODO (syntax): We don't want semicolons after return statements - but it's
-  // almost impossible to get rid of them here Since there could literally come
+  // almost impossible to get rid of them here since there could literally come
   // anything after a return statement.
 
   if (match(TOKEN_SCOLON)) {
@@ -1306,6 +1343,10 @@ static void statement() {
     statement_print();
   } else if (match(TOKEN_IF)) {
     statement_if();
+  } else if (match(TOKEN_THROW)) {
+    statement_throw();
+  } else if (match(TOKEN_TRY)) {
+    statement_try();
   } else if (match(TOKEN_WHILE)) {
     statement_while();
   } else if (match(TOKEN_RETURN)) {
@@ -1377,9 +1418,9 @@ static void declaration_class() {
     }
 
     begin_scope();
-    add_local(synthetic_token(KEYWORD_BASE));  // TODO (optimize): Maybe use
-                                               // KEYWORD_BASE as a lexeme, then
-                                               // synthetic_token is not needed.
+
+    // Contextual variable: Inject the "base" variable into the scope.
+    add_local(synthetic_token(KEYWORD_BASE));
     define_variable(0 /* ignore, we're not in global scope */);
 
     named_variable(class_name, false);

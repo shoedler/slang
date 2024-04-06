@@ -133,6 +133,7 @@ static TokenType identifier_type() {
     case 'c': {
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
+          case 'a': return check_keyword(2, 3, "tch", TOKEN_CATCH);
           case 'l': return check_keyword(2, 1, "s", TOKEN_CLASS);
           case 'o': return check_keyword(2, 6, "ntinue", TOKEN_CONTINUE);
           case 't': return check_keyword(2, 2, "or", TOKEN_CTOR);
@@ -172,8 +173,20 @@ static TokenType identifier_type() {
     case 't':
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
-          case 'h': return check_keyword(2, 2, "is", TOKEN_THIS);
-          case 'r': return check_keyword(2, 2, "ue", TOKEN_TRUE);
+          case 'h':
+            if (scanner.current - scanner.start > 2) {
+              switch (scanner.start[2]) {
+                case 'i': return check_keyword(3, 1, "s", TOKEN_THIS);
+                case 'r': return check_keyword(3, 2, "ow", TOKEN_THROW);
+              }
+            }
+          case 'r':
+            if (scanner.current - scanner.start > 2) {
+              switch (scanner.start[2]) {
+                case 'u': return check_keyword(3, 1, "e", TOKEN_TRUE);
+                case 'y': return TOKEN_TRY;
+              }
+            }
         }
       }
       break;
