@@ -15,7 +15,7 @@ fn foo() {
   let a14
   let a15
   let a16
-  foo() // [ExpectRuntimeError] Stack overflow.
+  foo() // [ExpectRuntimeError] Uncaught error: Stack overflow.
 }       // [ExpectRuntimeError] at line 18 in "foo" in module "main"
         // [ExpectRuntimeError] at line 18 in "foo" in module "main"
 foo()   // [ExpectRuntimeError] at line 18 in "foo" in module "main"

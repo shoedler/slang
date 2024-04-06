@@ -1,2 +1,2 @@
-print [1,2,3].each(fn (a,b,c) -> log(a,b,c)) // [ExpectRuntimeError] Expected callable to accept 2 arguments, but it takes 3.
+print [1,2,3].each(fn (a,b,c) -> log(a,b,c)) // [ExpectRuntimeError] Uncaught error: Expected callable to accept 2 arguments, but it takes 3.
                                              // [ExpectRuntimeError]  at line 1 at the toplevel of module "main"
