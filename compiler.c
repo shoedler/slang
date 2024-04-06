@@ -346,6 +346,7 @@ static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local);
 static uint16_t parse_variable(const char* error_message);
 static void define_variable(uint16_t global);
 static void declaration_let();
+static void try_(bool can_assign);
 
 // Checks if the current token is a compound assigment token.
 static bool match_compound_assignment() {
@@ -891,7 +892,7 @@ ParseRule rules[] = {
     [TOKEN_PRINT]    = {NULL, NULL, PREC_NONE},
     [TOKEN_RETURN]   = {NULL, NULL, PREC_NONE},
     [TOKEN_BASE]     = {base_, NULL, PREC_NONE},
-    [TOKEN_TRY]      = {NULL, NULL, PREC_NONE},
+    [TOKEN_TRY]      = {try_, NULL, PREC_NONE},
     [TOKEN_CATCH]    = {NULL, NULL, PREC_NONE},
     [TOKEN_THROW]    = {NULL, NULL, PREC_NONE},
     [TOKEN_THIS]     = {this_, NULL, PREC_NONE},
@@ -1187,29 +1188,56 @@ static void statement_throw() {
 
 // Compiles a try statement.
 // The try keyword has already been consumed at this point.
-static void statement_try() {
+static void statement_try(bool is_try_expression) {
   // Make sure we are in a local scope, so that the error variable is not defined globally.
   begin_scope();
+
   int try_jump = emit_jump(OP_TRY);
 
   // Contextual variable: Inject the "error" variable into the local scope.
-  add_local(synthetic_token(KEYWORD_ERROR));
+  Token error = synthetic_token(KEYWORD_ERROR);
+  add_local(error);
   define_variable(0 /* ignore, we're not in global scope */);
 
-  // Compile the try block.
-  statement();
+  // Compile the try block / expression.
+  if (is_try_expression) {
+    expression();  // Leaves the result on the stack.
+
+    // Set the error variable to the expression result.
+    int arg = resolve_local(current, &error);
+    emit_two(OP_SET_LOCAL, (uint16_t)arg);
+  } else {
+    statement();
+  }
 
   // If the try block was successful, skip the catch block.
   int success_jump = emit_jump(OP_JUMP);
   patch_jump(try_jump);
 
-  // Compile optional catch block.
-  if (match(TOKEN_CATCH)) {
-    statement();
+  // Compile optional catch block / expression.
+  if (is_try_expression) {
+    //  If there is no else expression, we push nil as the "else" value.
+    match(TOKEN_ELSE) ? expression() : emit_one(OP_NIL);
+
+    // Set the error variable to the else expression result or the nil value.
+    int arg = resolve_local(current, &error);
+    emit_two(OP_SET_LOCAL, (uint16_t)arg);
+  } else {
+    if (match(TOKEN_CATCH)) {
+      statement();
+    }
   }
 
   patch_jump(success_jump);
+
   end_scope();  // This will pop the error handler variable from the stack.
+}
+
+// Compiles a try expression. This is a special form of the try "statement" that returns a value.
+// The try keyword has already been consumed at this point.
+static void try_(bool can_assign) {
+  UNUSED(can_assign);
+  statement_try(true /* is_try_expression */);
 }
 
 // Compiles a return statement.
@@ -1346,7 +1374,7 @@ static void statement() {
   } else if (match(TOKEN_THROW)) {
     statement_throw();
   } else if (match(TOKEN_TRY)) {
-    statement_try();
+    statement_try(false /* isn't try_expression */);
   } else if (match(TOKEN_WHILE)) {
     statement_while();
   } else if (match(TOKEN_RETURN)) {
