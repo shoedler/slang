@@ -130,19 +130,31 @@ Value pop();
 // Sets the current error value and puts the Vm into error state.
 void runtime_error(const char* format, ...);
 
-// Internal function to execute a method on a value. This is similar to exec_fn, but it's expected that
-// there's a receiver on the stack before the arguments.
-// `Stack: ...[receiver][arg0][arg1]...[argN]`
+// Internal function to execute a method on a value on the stack. This is similar to exec_fn, but it's
+// expected that there's a receiver on the stack before the arguments that has the method we want to call.
+// This function will pop the receiver and the arguments off the stack, execute it and return the result of
+// the method call, leaving the stack "untouched":
+//
+// `Stack before: ...[receiver][arg0][arg1]...[argN]`
+// `Stack after:  ...`
+//
+// **Calls should be followed by a check for errors!**
 Value exec_method(ObjString* name, int arg_count);
 
-// Internal function to execute a call to a managed-code OR native function.
-// Arguments are expected to be on the stack, with the function preceding them.
-// Returns the value returned by the function, or NIL_VAL if the call failed.
+// Internal function to execute a call to a managed-code OR native function on the stack. 'callable' does not
+// need to be on the stack, but there needs to be something for the receiver/function befor the arguments.
+// This function will pop the function and the arguments off the stack, execute it and return the result of
+// the function call, leaving the stack "untouched":
 //
+// `Stack before: ...[function][arg0][arg1]...[argN]`
+// `Stack after:  ...`
+//
+// **Calls should be followed by a check for errors!**
+//
+// (`function` can also be a bound method, in which case it is replaced with the receiver during execution.)
 // This is pretty similar to call_value, but it's intended to also EXECUTE the function. For native functions,
-// the result will be available "immediately", but for managed_code we have to execute the new call frame
-// (provided by call_managed) to get to the result. That's why we have this function - so we can execute any
-// callable value internally
+// the result will be available "immediately", but for managed code we have to execute the new call frame
+// (which was provided by call_managed) to get to the result.
 Value exec_fn(Obj* callable, int arg_count);
 
 // Defines a native function in the given table.

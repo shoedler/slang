@@ -1,11 +1,11 @@
 // print "--------------------------------------------------------------------------------"
 // print "Basic"
 // print "--------------------------------------------------------------------------------"
-print 123
-print 123.123
-print 0xDEADBEEF // 3735928559
-print 0b1010 // 10
-print 0o777 // 511
+// print 123
+// print 123.123
+// print 0xDEADBEEF // 3735928559
+// print 0b1010 // 10
+// print 0o777 // 511
 
 // print "--------------------------------------------------------------------------------"
 // print "Conditionals"
@@ -482,6 +482,30 @@ print 0o777 // 511
 // print File.exists(out_file)
 // print File.write(out_file, time.to_str() + "s\n")
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 cls Base {
   fn foo(a, b) {
     print "Base.foo(" + a + ", " + b + ")"
@@ -513,5 +537,3 @@ catch {
 try Derived().foo()
 catch print error
 
-// Currently prints the error seq.len() times, because reduce is a native calling managed code. And we just execute the managed code multiple times, without checking for errors.
-print [1,2,3,4].reduce("", fn(acc, x) -> acc + x)

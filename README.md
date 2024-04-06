@@ -16,7 +16,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] `switch` Statement. Starting point for the `match` statement. (**_See Challenge 23.1_**)
 - [ ] Implement `break`
-- [ ] Implement error value and refactor tests to use it.
+- [x] Implement error value and refactor tests to use it.
 - [ ] Implement `Test` class
 - [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
 - [ ] Implement `Seq.slice(Num?, Num?) -> Seq` as a builtin
@@ -59,6 +59,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
+- [ ] Make sure managed code classes do not override internal classes.
 - [ ] Move exit codes to `common.h` and replace all magic numbers with them
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.

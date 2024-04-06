@@ -1,0 +1,3 @@
+cls A {}
+
+throw "Whoops!"

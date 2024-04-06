@@ -436,9 +436,10 @@ Value exec_fn(Obj* callable, int arg_count) {
     runtime_error("Expected callable to accept %d arguments, but it takes %d.", arg_count,
                   get_arity((Obj*)callable));
 
-    // In this case, we'll clean up the stack and return NIL_VAL. Probably doesn't matter tough.
+    // In this case, we'll clean up the stack and return NIL_VAL. This is because this does get executed in
+    // native functions, and we want to keep the stack in a consistent state until we get back to the main
+    // dispatch loop, where the error will be handled.
     vm.stack_top -= arg_count + 1;  // Remove args + fn or receiver
-
     return NIL_VAL;
   }
 
@@ -670,8 +671,14 @@ static Value doc(Value value) {
   }
 
   // Create a default docstring as a fallback
+
+  // Exectute the to_str method on the receiver, if it exists
   push(value);  // Load the receiver onto the stack
   push(exec_method(copy_string("to_str", 6), 0));
+  if (vm.flags & VM_FLAG_HAS_ERROR) {
+    return OBJ_VAL(copy_string(":\nNo documentation available.\n", 30));
+  }
+
   push(OBJ_VAL(copy_string(":\nNo documentation available.\n", 30)));
   concatenate();
 
@@ -1156,6 +1163,9 @@ static Value run() {
         break;
       case OP_PRINT: {
         ObjString* str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          goto finish_error;
+        }
         printf("%s\n", str->chars);
         break;
       }

@@ -69,9 +69,12 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
 
   strcpy(chars, VALUE_STR_SEQ_START);
   for (int i = 0; i < seq->items.count; i++) {
-    // Use the default to-string method of the value to convert the item to a string
+    // Execute the to_str method on the item
     push(seq->items.values[i]);  // Push the receiver (item at i) for to_str
     ObjString* item_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+    if (vm.flags & VM_FLAG_HAS_ERROR) {
+      return NIL_VAL;
+    }
 
     // Expand chars to fit the separator plus the next item
     size_t new_buf_size =
@@ -188,10 +191,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, has) {
   if (IS_CALLABLE(argv[1])) {
     // Function predicate
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);               // Push the function
       push(seq->items.values[i]);  // Push the item
       Value result = exec_fn(AS_OBJ(argv[1]), 1);
-      // We could also check for truthiness here,
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
+
+      // We don't use is_falsey here, because we want to check for a boolean value.
       if (IS_BOOL(result) && AS_BOOL(result)) {
         return BOOL_VAL(true);
       }
@@ -233,10 +241,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, first) {
 
   // Function predicate
   for (int i = 0; i < count; i++) {
+    // Execute the provided function on the item
     push(argv[1]);               // Push the function
     push(seq->items.values[i]);  // Push the item
     Value result = exec_fn(AS_OBJ(argv[1]), 1);
-    // We could also check for truthiness here,
+    if (vm.flags & VM_FLAG_HAS_ERROR) {
+      return NIL_VAL;  // Propagate the error
+    }
+
+    // We don't use is_falsey here, because we want to check for a boolean value.
     if (IS_BOOL(result) && AS_BOOL(result)) {
       return seq->items.values[i];
     }
@@ -270,10 +283,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, last) {
 
   // Function predicate
   for (int i = count - 1; i >= 0; i--) {
+    // Execute the provided function on the item
     push(argv[1]);               // Push the function
     push(seq->items.values[i]);  // Push the item
     Value result = exec_fn(AS_OBJ(argv[1]), 1);
-    // We could also check for truthiness here,
+    if (vm.flags & VM_FLAG_HAS_ERROR) {
+      return NIL_VAL;  // Propagate the error
+    }
+
+    // We don't use is_falsey here, because we want to check for a boolean value.
     if (IS_BOOL(result) && AS_BOOL(result)) {
       return seq->items.values[i];
     }
@@ -304,17 +322,25 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
   if (fn_arity > 1) {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);                // Push the function
       push(seq->items.values[i]);   // arg0 (1): Push the item
       push(NUMBER_VAL(i));          // arg1 (2): Push the index
       exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the arity of the fn
                                     // would result in a wrong error message.
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
     }
   } else {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);               // Push the function
       push(seq->items.values[i]);  // arg0: Push the item
       exec_fn(AS_OBJ(argv[1]), 1);
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
     }
   }
 
@@ -346,18 +372,30 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, map) {
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
   if (fn_arity > 1) {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);                               // Push the function
       push(seq->items.values[i]);                  // arg0 (1): Push the item
       push(NUMBER_VAL(i));                         // arg1 (2): Push the index
       Value mapped = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
                                                    // arity of the fn would result in a wrong error message.
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
+
+      // Store the mapped value
       mapped_seq->items.values[i] = mapped;
     }
   } else {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);               // Push the function
       push(seq->items.values[i]);  // arg0 (1): Push the item
-      Value mapped                = exec_fn(AS_OBJ(argv[1]), 1);
+      Value mapped = exec_fn(AS_OBJ(argv[1]), 1);
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
+
+      // Store the mapped value
       mapped_seq->items.values[i] = mapped;
     }
   }
@@ -392,20 +430,32 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
   if (fn_arity > 1) {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);                               // Push the function
       push(seq->items.values[i]);                  // arg0 (1): Push the item
       push(NUMBER_VAL(i));                         // arg1 (2): Push the index
       Value result = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
                                                    // arity of the fn would result in a wrong error message.
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
+
+      // We don't use is_falsey here, because we want to check for a boolean value.
       if (IS_BOOL(result) && AS_BOOL(result)) {
         write_value_array(&filtered_seq->items, seq->items.values[i]);
       }
     }
   } else {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);               // Push the function
       push(seq->items.values[i]);  // arg0 (1): Push the item
       Value result = exec_fn(AS_OBJ(argv[1]), 1);
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
+
+      // We don't use is_falsey here, because we want to check for a boolean value.
       if (IS_BOOL(result) && AS_BOOL(result)) {
         write_value_array(&filtered_seq->items, seq->items.values[i]);
       }
@@ -439,9 +489,12 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, join) {
     // Maybe this is faster (checking if the item is a string)  - unsure though
     ObjString* item_str = NULL;
     if (!IS_STRING(seq->items.values[i])) {
-      // Use the default to-string method of the value to convert the item to a string
+      // Execute the to_str method on the item
       push(seq->items.values[i]);  // Push the receiver (item at i) for to_str, or
       item_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;
+      }
     } else {
       item_str = AS_STRING(seq->items.values[i]);
     }
@@ -517,20 +570,32 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, every) {
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
   if (fn_arity > 1) {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);                               // Push the function
       push(seq->items.values[i]);                  // arg0 (1): Push the item
       push(NUMBER_VAL(i));                         // arg1 (2): Push the index
       Value result = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
                                                    // arity of the fn would result in a wrong error message.
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
+
+      // We don't use is_falsey here, because we want to check for a boolean value.
       if (!IS_BOOL(result) || !AS_BOOL(result)) {
         return BOOL_VAL(false);
       }
     }
   } else {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);               // Push the function
       push(seq->items.values[i]);  // arg0 (1): Push the item
       Value result = exec_fn(AS_OBJ(argv[1]), 1);
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
+
+      // We don't use is_falsey here, because we want to check for a boolean value.
       if (!IS_BOOL(result) || !AS_BOOL(result)) {
         return BOOL_VAL(false);
       }
@@ -563,20 +628,32 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, some) {
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
   if (fn_arity > 1) {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);                               // Push the function
       push(seq->items.values[i]);                  // arg0 (1): Push the item
       push(NUMBER_VAL(i));                         // arg1 (2): Push the index
       Value result = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
                                                    // arity of the fn would result in a wrong error message.
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
+
+      // We don't use is_falsey here, because we want to check for a boolean value.
       if (IS_BOOL(result) && AS_BOOL(result)) {
         return BOOL_VAL(true);
       }
     }
   } else {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);               // Push the function
       push(seq->items.values[i]);  // arg0 (1): Push the item
       Value result = exec_fn(AS_OBJ(argv[1]), 1);
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
+
+      // We don't use is_falsey here, because we want to check for a boolean value.
       if (IS_BOOL(result) && AS_BOOL(result)) {
         return BOOL_VAL(true);
       }
@@ -610,19 +687,27 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
   if (fn_arity > 2) {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[2]);                              // Push the function
       push(accumulator);                          // arg0 (1): Push the accumulator
       push(seq->items.values[i]);                 // arg1 (2): Push the item
       push(NUMBER_VAL(i));                        // arg2 (3): Push the index
       accumulator = exec_fn(AS_OBJ(argv[2]), 3);  // Hard-code 3, because that's what we expect. Passing the
                                                   // arity of the fn would result in a wrong error message.
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
     }
   } else {
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[2]);               // Push the function
       push(accumulator);           // arg0 (1): Push the accumulator
       push(seq->items.values[i]);  // arg1 (2): Push the item
       accumulator = exec_fn(AS_OBJ(argv[2]), 2);
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
     }
   }
 
@@ -660,10 +745,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
   if (IS_CALLABLE(argv[1])) {
     // Function predicate
     for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
       push(argv[1]);               // Push the function
       push(seq->items.values[i]);  // Push the item
       Value result = exec_fn(AS_OBJ(argv[1]), 1);
-      // We could also check for truthiness here,
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
+
+      // We don't use is_falsey here, because we want to check for a boolean value.
       if (IS_BOOL(result) && AS_BOOL(result)) {
         occurrences++;
       }
