@@ -14,14 +14,14 @@ fn is_num(x) {
 print [1,3,4].count(is_num) // [Expect] 3
 
 // Passing a bound method
-cls Is { 
+cls Equals { 
   ctor { this.num = 3 }
   fn num_3(x) { ret x == this.num; }
 }
-let is = Is()
-print [1,3,4,1].count(is.num_3) // [Expect] 1
-is.num = 1
-print [1,3,4,1].count(is.num_3) // [Expect] 2
+let equals = Equals()
+print [1,3,4,1].count(equals.num_3) // [Expect] 1
+equals.num = 1
+print [1,3,4,1].count(equals.num_3) // [Expect] 2
 
 // Passing a function that does not return a boolean
 print [1,2,3].count(fn(x) -> x) // [Expect] 0

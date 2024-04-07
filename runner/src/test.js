@@ -94,8 +94,8 @@ export const runTests = async (config, signal, updateFiles = false, testNamePatt
       errorMessages.push(chalk.red('Test has failed assertions:'));
       for (const { actual, expected, line } of diffs) {
         errorMessages.push(
-          `${chalk.red(' × Failed assertion. Expected:')} ${expected} ${chalk.red(
-            'Actual:',
+          `${chalk.red(' × Failed assertion. Expected:')} ${expected}\n${chalk.red(
+            '                       Actual:',
           )} ${actual} ${chalk.blue('Tagged on line:')} ${line}`,
         );
       }

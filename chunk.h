@@ -55,6 +55,7 @@ typedef enum {
   OP_IMPORT,
   OP_IMPORT_FROM,
   OP_THROW,
+  OP_IS,
 } OpCode;
 
 // Dynamic array of instructions.

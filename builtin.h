@@ -28,6 +28,12 @@ extern void register_builtin_seq_class();
 // Registers the built-in map class and its methods.
 extern void register_builtin_map_class();
 
+// Registers the built-in fn class and its methods.
+extern void register_builtin_fn_class();
+
+// Registers the built-in class class and its methods.
+extern void register_builtin_class_class();
+
 // Registers the built-in file module
 extern void register_builtin_file_module();
 
@@ -42,7 +48,6 @@ extern void register_builtin_perf_module();
 BUILTIN_DECLARE_FN(clock);
 BUILTIN_DECLARE_FN(log);
 BUILTIN_DECLARE_FN(type_of);
-BUILTIN_DECLARE_FN(type_name);
 BUILTIN_DECLARE_FN(cwd);
 
 // Obj built-in methods
@@ -95,5 +100,13 @@ BUILTIN_DECLARE_METHOD(TYPENAME_MAP, len)
 BUILTIN_DECLARE_METHOD(TYPENAME_MAP, entries)
 BUILTIN_DECLARE_METHOD(TYPENAME_MAP, values)
 BUILTIN_DECLARE_METHOD(TYPENAME_MAP, keys)
+
+// Fn built-in methods
+BUILTIN_DECLARE_METHOD(TYPENAME_FUNCTION, __ctor)
+BUILTIN_DECLARE_METHOD(TYPENAME_FUNCTION, to_str)
+
+// Class built-in methods
+BUILTIN_DECLARE_METHOD(TYPENAME_CLASS, __ctor)
+BUILTIN_DECLARE_METHOD(TYPENAME_CLASS, to_str)
 
 #endif

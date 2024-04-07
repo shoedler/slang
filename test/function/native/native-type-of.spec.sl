@@ -14,20 +14,20 @@ print type_of("hello")       // [Expect] <Class Str>
 print type_of([])            // [Expect] <Class Seq>
 print type_of([1, 2, 3])     // [Expect] <Class Seq>
 
-print type_of(fn -> nil)     // [Expect] <Class Obj>
-print type_of(fn(x) -> x)    // [Expect] <Class Obj>
+print type_of(fn -> nil)     // [Expect] <Class Fn>
+print type_of(fn(x) -> x)    // [Expect] <Class Fn>
 
-print type_of(clock)         // [Expect] <Class Obj>
-print type_of(type_of)       // [Expect] <Class Obj>
+print type_of(clock)         // [Expect] <Class Fn>
+print type_of(type_of)       // [Expect] <Class Fn>
 
 cls X { ctor {} fn y {}}
-print type_of(Str)           // [Expect] <Class Obj>
-print type_of(Num)           // [Expect] <Class Obj>
-print type_of(X)             // [Expect] <Class Obj>
+print type_of(Str)           // [Expect] <Class Class>
+print type_of(Num)           // [Expect] <Class Class>
+print type_of(X)             // [Expect] <Class Class>
 
 let x = X()
 print type_of(x)             // [Expect] <Class X>
 
-print type_of(X.__ctor)      // [Expect] <Class Obj>
-print type_of(0.to_str)      // [Expect] <Class Obj>
-print type_of(x.y)           // [Expect] <Class Obj>
+print type_of(X.__ctor)      // [Expect] <Class Fn>
+print type_of(0.to_str)      // [Expect] <Class Fn>
+print type_of(x.y)           // [Expect] <Class Fn>

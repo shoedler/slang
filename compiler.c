@@ -26,7 +26,7 @@ typedef enum {
   PREC_OR,          // or
   PREC_AND,         // and
   PREC_EQUALITY,    // == !=
-  PREC_COMPARISON,  // < > <= >=
+  PREC_COMPARISON,  // < > <= >= is
   PREC_TERM,        // + -
   PREC_FACTOR,      // * / %
   PREC_UNARY,       // ! -
@@ -822,6 +822,13 @@ static void and_(bool can_assign) {
   patch_jump(end_jump);
 }
 
+static void is_(bool can_assign) {
+  UNUSED(can_assign);
+  consume(TOKEN_ID, "Expecting type name after 'is'.");
+  uint16_t type_name = string_constant(&parser.previous);
+  emit_two(OP_IS, type_name);
+}
+
 // Compiles an or expression.
 // Or is special in that it acts more lik a control flow construct rather than
 // a binary operator. It short-circuits the evaluation of the rhs if the lhs is
@@ -895,6 +902,7 @@ ParseRule rules[] = {
     [TOKEN_TRY]      = {try_, NULL, PREC_NONE},
     [TOKEN_CATCH]    = {NULL, NULL, PREC_NONE},
     [TOKEN_THROW]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_IS]       = {NULL, is_, PREC_COMPARISON},
     [TOKEN_THIS]     = {this_, NULL, PREC_NONE},
     [TOKEN_TRUE]     = {literal, NULL, PREC_NONE},
     [TOKEN_LET]      = {NULL, NULL, PREC_NONE},

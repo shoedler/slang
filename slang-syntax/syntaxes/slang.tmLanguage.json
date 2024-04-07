@@ -24,6 +24,9 @@
             "include": "#constants"
         },
         {
+            "include": "#types"
+        },
+        {
             "include": "#variables"
         },
         {
@@ -46,6 +49,14 @@
                 }
             ]
         },
+        "types": {
+            "patterns": [
+                {
+                    "name": "entity.name.type.SlangScript",
+                    "match": "\\b(Obj|Nil|Bool|Num|Str|Seq|Map|Fn)\\b"
+                }
+            ]
+        },
         "constants": {
             "patterns": [
                 {
@@ -58,7 +69,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.SlangScript",
-                    "match": "\\b(if|for|else|while|fn|ret|print|or|and|cls|ctor|import|from|throw|try|catch)\\b"
+                    "match": "\\b(if|for|else|while|fn|ret|print|or|and|cls|ctor|import|from|throw|try|catch|is)\\b"
                 },
                 {
                     "name": "storage.type.SlangScript",

@@ -155,6 +155,8 @@
     <ClCompile Include="builtin_str.c" />
     <ClCompile Include="builtin_seq.c" />
     <ClCompile Include="builtin_map.c" />
+    <ClCompile Include="builtin_fn.c" />
+    <ClCompile Include="builtin_class.c" />
     <ClCompile Include="builtin_module_file.c" />
     <ClCompile Include="builtin_module_perf.c" />
     <ClCompile Include="scanner.c" />

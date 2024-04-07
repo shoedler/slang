@@ -51,9 +51,9 @@
 // #define DEBUG_TRACE_EXECUTION
 
 #define DEBUG_STRESS_GC
-//  #define DEBUG_LOG_GC
-//  #define DEBUG_LOG_GC_FREE
-//  #define DEBUG_LOG_GC_ALLOCATIONS
+// #define DEBUG_LOG_GC
+// #define DEBUG_LOG_GC_FREE
+// #define DEBUG_LOG_GC_ALLOCATIONS
 
 #define UINT8_COUNT (UINT8_MAX + 1)
 

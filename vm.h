@@ -68,14 +68,16 @@ typedef struct {
   ObjInstance* module;  // The current module
   int exit_on_frame;    // Index of the frame to exit on
 
-  ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);     // The class of all objects
-  ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);  // The module class
-  ObjClass* BUILTIN_CLASS(TYPENAME_STRING);  // The string class
-  ObjClass* BUILTIN_CLASS(TYPENAME_NUMBER);  // The number class
-  ObjClass* BUILTIN_CLASS(TYPENAME_BOOL);    // The bool class
-  ObjClass* BUILTIN_CLASS(TYPENAME_NIL);     // The nil class
-  ObjClass* BUILTIN_CLASS(TYPENAME_SEQ);     // The sequence class
-  ObjClass* BUILTIN_CLASS(TYPENAME_MAP);     // The map class
+  ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);       // The class of all objects
+  ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);    // The module class
+  ObjClass* BUILTIN_CLASS(TYPENAME_STRING);    // The string class
+  ObjClass* BUILTIN_CLASS(TYPENAME_NUMBER);    // The number class
+  ObjClass* BUILTIN_CLASS(TYPENAME_BOOL);      // The bool class
+  ObjClass* BUILTIN_CLASS(TYPENAME_NIL);       // The nil class
+  ObjClass* BUILTIN_CLASS(TYPENAME_SEQ);       // The sequence class
+  ObjClass* BUILTIN_CLASS(TYPENAME_MAP);       // The map class
+  ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // The function class
+  ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // The class class
 
   ObjInstance* builtin;          // The builtin (builtin things) object instance
   Value cached_words[WORD_MAX];  // Cached words for quick access
