@@ -42,7 +42,6 @@ extern void register_builtin_perf_module();
 BUILTIN_DECLARE_FN(clock);
 BUILTIN_DECLARE_FN(log);
 BUILTIN_DECLARE_FN(type_of);
-BUILTIN_DECLARE_FN(type_name);
 BUILTIN_DECLARE_FN(cwd);
 
 // Obj built-in methods

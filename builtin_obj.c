@@ -108,15 +108,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, to_str) {
   }
 
   // This here is the catch-all for all values. We print the type-name and memory address of the value.
-  const char* t_name = type_name(argv[0]);
+  ObjString* t_name = type_of(argv[0])->name;
 
   // Print the memory address of the object using (void*)AS_OBJ(argv[0]).
   // We need to know the size of the buffer to allocate, so we calculate it first.
   size_t adr_str_len = snprintf(NULL, 0, "%p", (void*)AS_OBJ(argv[0]));
 
-  size_t buf_size = VALUE_STRFMT_OBJ_LEN + strlen(t_name) + adr_str_len;
+  size_t buf_size = VALUE_STRFMT_OBJ_LEN + t_name->length + adr_str_len;
   char* chars     = malloc(buf_size);
-  snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name, (void*)AS_OBJ(argv[0]));
+  snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name->chars, (void*)AS_OBJ(argv[0]));
   // Intuitively, you'd expect to use take_string here, but we don't know where malloc
   // allocates the memory - we don't want this block in our own memory pool.
   ObjString* str_obj = copy_string(chars, (int)buf_size - 1);

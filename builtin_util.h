@@ -80,23 +80,25 @@
 // Macros for argument checking in built-in functions.
 //
 
-#define BUILTIN_CHECK_RECEIVER(type)                                                                      \
-  if (!IS_##type(argv[0])) {                                                                              \
-    runtime_error("Expected receiver of type "##STR(TYPENAME_##type) " but got %s.", type_name(argv[0])); \
-    return NIL_VAL;                                                                                       \
+#define BUILTIN_CHECK_RECEIVER(type)                                                 \
+  if (!IS_##type(argv[0])) {                                                         \
+    runtime_error("Expected receiver of type "##STR(TYPENAME_##type) " but got %s.", \
+                  type_of(argv[0])->name->chars);                                    \
+    return NIL_VAL;                                                                  \
   }
 
 #define BUILTIN_CHECK_ARG_AT(index, type)                                                          \
   if (!IS_##type(argv[index])) {                                                                   \
     runtime_error("Expected argument %d of type "##STR(TYPENAME_##type) " but got %s.", index - 1, \
-                  type_name(argv[index]));                                                         \
+                  type_of(argv[index])->name->chars);                                              \
     return NIL_VAL;                                                                                \
   }
 
-#define BUILTIN_CHECK_ARG_AT_IS_CALLABLE(index)                                                          \
-  if (!IS_CALLABLE(argv[index])) {                                                                       \
-    runtime_error("Expected argument %d to be callable but got %s.", index - 1, type_name(argv[index])); \
-    return NIL_VAL;                                                                                      \
+#define BUILTIN_CHECK_ARG_AT_IS_CALLABLE(index)                                 \
+  if (!IS_CALLABLE(argv[index])) {                                              \
+    runtime_error("Expected argument %d to be callable but got %s.", index - 1, \
+                  type_of(argv[index])->name->chars);                           \
+    return NIL_VAL;                                                             \
   }
 
 #endif

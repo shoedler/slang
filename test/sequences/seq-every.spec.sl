@@ -13,14 +13,14 @@ fn is_num(x) {
 print [1,3,4].every(is_num) // [Expect] true
 
 // Passing a bound method
-cls Is { 
+cls Equals { 
   ctor { this.num = 3 }
   fn num_3(x) { ret x == this.num; }
 }
-let is = Is()
-print [1,3,4].every(is.num_3) // [Expect] false
-is.num = 4
-print [1,3,4].every(is.num_3) // [Expect] false
+let equals = Equals()
+print [1,3,4].every(equals.num_3) // [Expect] false
+equals.num = 4
+print [1,3,4].every(equals.num_3) // [Expect] false
 
 // Passing a function that does not return a boolean
 print [1,2,3].every(fn(x) -> x) // [Expect] false

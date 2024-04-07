@@ -172,9 +172,6 @@ uint32_t hash_value(Value value);
 // Returns 0.0 if the string is not a valid number.
 double string_to_double(char* str, long long length);
 
-// Gets the name of a type.
-const char* type_name(Value value);
-
 // Prints a value to a file. Will look different from the values default print representation, but it will
 // guarantee that the gc will not be called.
 // Returns the number of characters printed.
