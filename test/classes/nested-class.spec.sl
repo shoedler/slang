@@ -17,6 +17,6 @@ cls Main {
 
 let main = Main()
 main.define_other_class()
-let other = Other() // [ExpectRuntimeError] Undefined variable 'Other'.
+let other = Other() // [ExpectRuntimeError] Uncaught error: Undefined variable 'Other'.
                     // [ExpectRuntimeError] at line 20 at the toplevel of module "main"
                     // [Expect] 2

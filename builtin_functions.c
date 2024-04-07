@@ -58,8 +58,13 @@ BUILTIN_FN_IMPL(log) {
   // Since argv[0] contains the receiver or function, we start at 1 and run that, even if we have only one
   // arg. Basically, arguments are 1 indexed for native function
   for (int i = 1; i <= argc; i++) {
+    // Execute the to_str method on the receiver
     push(argv[i]);  // Load the receiver onto the stack
     ObjString* str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+    if (vm.flags & VM_FLAG_HAS_ERROR) {
+      return NIL_VAL;
+    }
+
     printf("%s", str->chars);
     if (i <= argc - 1) {
       printf(" ");

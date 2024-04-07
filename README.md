@@ -16,7 +16,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] `switch` Statement. Starting point for the `match` statement. (**_See Challenge 23.1_**)
 - [ ] Implement `break`
-- [ ] Implement error value and refactor tests to use it.
 - [ ] Implement `Test` class
 - [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
 - [ ] Implement `Seq.slice(Num?, Num?) -> Seq` as a builtin
@@ -32,33 +31,11 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
 - [ ] Implement a way to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing. Maybe attributes? (e.g. `@doc "This is a doc string"`)
 - [ ] Implement iterators
-- [x] `0b`, `0o`, `0x` literals.
-- [x] ASCII escape sequences in strings, e.g. `\n`, `\t`, `\r`, `\\`, `\"`.
-- [x] Implement `File` class
-- [x] Implement `File.read(Str, Str?) -> Str` (path, encoding) as a builtin
-- [x] Implement `File.write(Str, Str) -> Nil` (path, content) as a builtin
-- [x] Implement `File.exists(Str) -> Bool` (path) as a builtin
-- [x] Implement `File.join(Str, Str) -> Str` (path, path, ...) as a builtin
-- [x] Implement `+=`, `-=`, `*=`, `/=`, `%=`
-- [x] Implement `++`, `--`
-- [x] Implement `Str.trim() -> Str` as a builtin
-- [x] Implement `Str.split(Str?) -> Seq` as a builtin
-- [x] Implement `Seq.each(fn) -> Nil` as a builtin
-- [x] Implement `Seq.has(predFn) -> Bool` as a builtin
-- [x] Implement `Seq.join(Str?) -> Str` as a builtin
-- [x] Implement `Seq.reduce(reduceFn) -> Seq` as a builtin
-- [x] Implement `Seq.count(predFn) -> Num` as a builtin
-- [x] Implement `Seq.concat(Seq) -> Seq` as a builtin
-- [x] Implement `Seq.some(predFn) -> Bool` as a builtin
-- [x] Implement `Seq.every(predFn) -> Bool` as a builtin
-- [x] Implement `Seq.reverse() -> Seq` as a builtin
-- [x] Implement `Seq.first(predFn?) -> Obj` as a builtin
-- [x] Implement `Seq.last(predFn?) -> Obj` as a builtin
-- [x] Implement `Seq.filter(predFn) -> Seq` as a builtin
-- [x] Implement `Seq.map(mapFn) -> Seq` as a builtin
 
 ## Improvements
 
+- [ ] Add `error` to the reserved words
+- [ ] Make sure managed code classes do not override internal classes.
 - [ ] Move exit codes to `common.h` and replace all magic numbers with them
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.

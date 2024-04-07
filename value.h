@@ -15,6 +15,7 @@ typedef enum {
   VAL_NIL,
   VAL_NUMBER,
   VAL_OBJ,
+  VAL_HANDLER,
   VAL_EMPTY_INTERNAL,
 } ValueType;
 
@@ -51,6 +52,7 @@ typedef enum {
 #define VALUE_STRFTM_INSTANCE_LEN (sizeof(VALUE_STRFTM_INSTANCE) - 2)
 #define VALUE_STRFMT_BOUND_METHOD "<BoundMethod %s>"
 #define VALUE_STRFMT_BOUND_METHOD_LEN (sizeof(VALUE_STRFMT_BOUND_METHOD) - 2)
+#define VALUE_STRFMT_HANDLER "<Try -> %hu>"  // The handler is a 16-bit unsigned integer
 #define VALUE_STRFMT_OBJ "<%s at %p>"
 #define VALUE_STRFMT_OBJ_LEN (sizeof(VALUE_STRFMT_OBJ) - 4)
 #define VALUE_STR_NATIVE "<Native Fn>"
@@ -71,6 +73,7 @@ typedef struct {
   union {
     bool boolean;
     double number;
+    uint16_t handler;
     Obj* obj;
   } as;
 } Value;
@@ -86,6 +89,9 @@ typedef struct {
 
 // Determines whether a value is of type object.
 #define IS_OBJ(value) ((value).type == VAL_OBJ)
+
+// Determines whether a value is of type (error) handler.
+#define IS_HANDLER(value) ((value).type == VAL_HANDLER)
 
 // Determines whether a value is of type empty.
 // Users will never see this type, it is used internally to represent empty buckets in the
@@ -104,6 +110,10 @@ typedef struct {
 // Value must be of type object.
 #define AS_OBJ(value) ((value).as.obj)
 
+// Unpacks a value into a C long long.
+// Value must be of type (error) handler.
+#define AS_HANDLER(value) ((value).as.handler)
+
 // Converts a C boolean into a value.
 #define BOOL_VAL(value) ((Value){VAL_BOOL, {.boolean = value}})
 
@@ -115,6 +125,9 @@ typedef struct {
 
 // Converts a C object pointer into a value.
 #define OBJ_VAL(object) ((Value){VAL_OBJ, {.obj = (Obj*)object}})
+
+// Converts a C long long into a value.
+#define HANDLER_VAL(value) ((Value){VAL_HANDLER, {.handler = value}})
 
 // The singleton empty value.
 // Users will never see this value, it is used internally to represent empty buckets in the

@@ -1,11 +1,11 @@
 // print "--------------------------------------------------------------------------------"
 // print "Basic"
 // print "--------------------------------------------------------------------------------"
-print 123
-print 123.123
-print 0xDEADBEEF // 3735928559
-print 0b1010 // 10
-print 0o777 // 511
+// print 123
+// print 123.123
+// print 0xDEADBEEF // 3735928559
+// print 0b1010 // 10
+// print 0o777 // 511
 
 // print "--------------------------------------------------------------------------------"
 // print "Conditionals"
@@ -481,3 +481,45 @@ print 0o777 // 511
 // let out_file = File.join_path(cwd(), "sample.result.txt")
 // print File.exists(out_file)
 // print File.write(out_file, time.to_str() + "s\n")
+
+print "--------------------------------------------------------------------------------"
+print "Try/Catch, Try/Else and Throw"
+print "--------------------------------------------------------------------------------"
+
+// Basic try/catch statements
+try {
+  print "Level one" 
+  try {
+    print "Level two" 
+    throw "Thrown exception"
+  }
+  catch {
+    print "Caught in level two"
+    throw error // Context variable 'error' is available in catch blocks
+  }
+} 
+catch {
+  print("Caught in level one!")
+}
+
+// Statements are allowed, blocks aren't necessary
+try Derived().foo()
+catch print error
+
+// Try/Else is an expression and returns a value
+let a = try 1 + true else "nope"
+print a
+
+// No else clause will default to nil in the error case
+let b = try 1 + true
+print b 
+
+// Using the context variable 'error' is allowed
+let c = try 1 + true else error
+print c 
+print "still running" 
+
+// Nested try/else
+let x = try try ASLDJKASLDJK else error else error
+print x // Inner error
+print "still running..."

@@ -7,7 +7,7 @@ cls Base {
 cls Derived : Base {
   fn foo() {
     print "Derived.foo()"
-    base.foo("a", "b", "c", "d") // [ExpectRuntimeError] Expected 2 arguments but got 4.
+    base.foo("a", "b", "c", "d") // [ExpectRuntimeError] Uncaught error: Expected 2 arguments but got 4.
   }                              // [ExpectRuntimeError] at line 10 in "foo" in module "main"
 }                                // [ExpectRuntimeError] at line 14 at the toplevel of module "main"
 

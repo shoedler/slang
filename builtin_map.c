@@ -54,12 +54,22 @@ BUILTIN_METHOD_IMPL(TYPENAME_MAP, to_str) {
       continue;
     }
 
-    // Use the default to-string methods for key and value
+    // Execute the to_str method on the key
     push(map->entries.entries[i].key);  // Push the receiver (key at i) for to_str
     ObjString* key_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
-    push(OBJ_VAL(key_str));               // GC Protection
+    if (vm.flags & VM_FLAG_HAS_ERROR) {
+      return NIL_VAL;
+    }
+
+    push(OBJ_VAL(key_str));  // GC Protection
+
+    // Execute the to_str method on the value
     push(map->entries.entries[i].value);  // Push the receiver (value at i) for to_str
     ObjString* value_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+    if (vm.flags & VM_FLAG_HAS_ERROR) {
+      return NIL_VAL;
+    }
+
     pop();  // Key str
 
     // Expand chars to fit the separator, delimiter plus the next key and value

@@ -22,8 +22,14 @@ BUILTIN_METHOD_DOC(
     "Converts the first argument to a " STR(TYPENAME_STRING) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, __ctor) {
   UNUSED(argc);
+  // Execute the to_str method on the argument
   push(argv[1]);  // Push the receiver for to_str, which is the ctors' argument
-  return exec_method(copy_string("to_str", 6), 0);  // Convert to string
+  Value result = exec_method(copy_string("to_str", 6), 0);  // Convert to string
+  if (vm.flags & VM_FLAG_HAS_ERROR) {
+    return NIL_VAL;
+  }
+
+  return result;
 }
 
 // Built-in method to convert a string to a string

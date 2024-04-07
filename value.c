@@ -107,6 +107,8 @@ bool values_equal(Value a, Value b) {
       return false;
     }
     case VAL_EMPTY_INTERNAL: return true;
+    case VAL_HANDLER:
+      INTERNAL_ERROR("Cannot compare a value to a error handler. Vm has leaked a stack value.");
     default: INTERNAL_ERROR("Unhandled comparison type: %d", a.type); return false;
   }
 }
@@ -143,6 +145,7 @@ uint32_t hash_value(Value value) {
 }
 
 const char* type_name(Value value) {
+  // TODO (refactor): Use nested switch-case (value.type) and for VAL_OBJ, switch-case (OBJ_TYPE(value))
   if (value.type == VAL_BOOL) {
     return STR(TYPENAME_BOOL);
   } else if (value.type == VAL_NIL) {
@@ -168,10 +171,12 @@ const char* type_name(Value value) {
 }
 
 int print_value_safe(FILE* f, Value value) {
+  // TODO (refactor): Use nested switch-case (value.type) and for VAL_OBJ, switch-case (OBJ_TYPE(value))
   if (!IS_OBJ(value)) {
     switch (value.type) {
       case VAL_BOOL: return fprintf(f, AS_BOOL(value) ? VALUE_STR_TRUE : VALUE_STR_FALSE);
       case VAL_NIL: return fprintf(f, VALUE_STR_NIL);
+      case VAL_HANDLER: return fprintf(f, VALUE_STRFMT_HANDLER, AS_HANDLER(value));
       case VAL_NUMBER: {
         long long integer;
         if (is_int(AS_NUMBER(value), &integer)) {
@@ -187,7 +192,7 @@ int print_value_safe(FILE* f, Value value) {
   }
 
   switch (OBJ_TYPE(value)) {
-    case OBJ_STRING: return fprintf(f, "\"%s\"", AS_CSTRING(value));
+    case OBJ_STRING: return fprintf(f, "%s", AS_CSTRING(value));
     case OBJ_FUNCTION: return fprintf(f, VALUE_STRFMT_FUNCTION, AS_FUNCTION(value)->name->chars);
     case OBJ_CLOSURE: return fprintf(f, VALUE_STRFMT_FUNCTION, AS_CLOSURE(value)->function->name->chars);
     case OBJ_CLASS: return fprintf(f, VALUE_STRFMT_CLASS, AS_CLASS(value)->name->chars);

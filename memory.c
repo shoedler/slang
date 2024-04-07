@@ -17,7 +17,7 @@
 void* reallocate(void* pointer, size_t old_size, size_t new_size) {
   vm.bytes_allocated += new_size - old_size;
 
-  if (vm.pause_gc == 0 && new_size > old_size) {
+  if (new_size > old_size && !(vm.flags & VM_FLAG_PAUSE_GC)) {
     // Only collect_garbage if we're not freeing memory
 #ifdef DEBUG_STRESS_GC
     collect_garbage();
@@ -250,6 +250,9 @@ static void mark_roots() {
   if (vm.module != NULL) {
     mark_obj((Obj*)vm.module);
   }
+
+  // Mark the current error
+  mark_value(vm.current_error);
 
   // And the modules hashtable.
   mark_hashtable(&vm.modules);

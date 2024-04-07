@@ -75,6 +75,9 @@ typedef enum {
   TOKEN_LET,       // 'let'
   TOKEN_CTOR,      // 'ctor'
   TOKEN_BASE,      // 'base'
+  TOKEN_TRY,       // 'try'
+  TOKEN_THROW,     // 'throw'
+  TOKEN_CATCH,     // 'catch'
 
   TOKEN_ID,      // [a-zA-Z_] [a-zA-Z_0-9]*
   TOKEN_NUMBER,  // [0-9]+  or [0-9]+ '.' [0-9]* | '.' [0-9]+

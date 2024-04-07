@@ -29,6 +29,7 @@
 #define KEYWORD_THIS_LEN (sizeof(KEYWORD_THIS) - 1)
 
 #define KEYWORD_BASE "base"
+#define KEYWORD_ERROR "error"
 
 // Holds the state of a stack frame.
 // Represents a single ongoing function call.
@@ -65,7 +66,7 @@ typedef struct {
 
   HashTable modules;    // Modules
   ObjInstance* module;  // The current module
-  int exit_on_frame;
+  int exit_on_frame;    // Index of the frame to exit on
 
   ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);     // The class of all objects
   ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);  // The module class
@@ -79,7 +80,6 @@ typedef struct {
   ObjInstance* builtin;          // The builtin (builtin things) object instance
   Value cached_words[WORD_MAX];  // Cached words for quick access
 
-  int pause_gc;
   size_t bytes_allocated;
   size_t next_gc;
   int gray_count;
@@ -87,7 +87,13 @@ typedef struct {
   Obj** gray_stack;  // Worklist for the garbage collector. This field is not
                      // managed by our own memory allocator, but rather by the
                      // system's allocator.
+
+  Value current_error;
+  int flags;
 } Vm;
+
+#define VM_FLAG_PAUSE_GC (1 << 0)
+#define VM_FLAG_HAS_ERROR (1 << 1)
 
 extern Vm vm;
 
@@ -121,26 +127,34 @@ void push(Value value);
 // Pop a value off the stack.
 Value pop();
 
-// Prints a runtime error message including the stacktrace
+// Sets the current error value and puts the Vm into error state.
 void runtime_error(const char* format, ...);
 
-// This is just a placeholder to find where we actually throw rt errors.
-// I want another way to do this, but I don't know how yet.
-Value exit_with_runtime_error();
-
-// Internal function to execute a method on a value. This is similar to exec_fn, but it's expected that
-// there's a receiver on the stack before the arguments.
-// `Stack: ...[receiver][arg0][arg1]...[argN]`
+// Internal function to execute a method on a value on the stack. This is similar to exec_fn, but it's
+// expected that there's a receiver on the stack before the arguments that has the method we want to call.
+// This function will pop the receiver and the arguments off the stack, execute it and return the result of
+// the method call, leaving the stack "untouched":
+//
+// `Stack before: ...[receiver][arg0][arg1]...[argN]`
+// `Stack after:  ...`
+//
+// **Calls should be followed by a check for errors!**
 Value exec_method(ObjString* name, int arg_count);
 
-// Internal function to execute a call to a managed-code OR native function.
-// Arguments are expected to be on the stack, with the function preceding them.
-// Returns the value returned by the function, or NIL_VAL if the call failed.
+// Internal function to execute a call to a managed-code OR native function on the stack. 'callable' does not
+// need to be on the stack, but there needs to be something for the receiver/function befor the arguments.
+// This function will pop the function and the arguments off the stack, execute it and return the result of
+// the function call, leaving the stack "untouched":
 //
+// `Stack before: ...[function][arg0][arg1]...[argN]`
+// `Stack after:  ...`
+//
+// **Calls should be followed by a check for errors!**
+//
+// (`function` can also be a bound method, in which case it is replaced with the receiver during execution.)
 // This is pretty similar to call_value, but it's intended to also EXECUTE the function. For native functions,
-// the result will be available "immediately", but for managed_code we have to execute the new call frame
-// (provided by call_managed) to get to the result. That's why we have this function - so we can execute any
-// callable value internally
+// the result will be available "immediately", but for managed code we have to execute the new call frame
+// (which was provided by call_managed) to get to the result.
 Value exec_fn(Obj* callable, int arg_count);
 
 // Defines a native function in the given table.
