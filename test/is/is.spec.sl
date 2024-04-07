@@ -16,9 +16,9 @@ print [] is Seq      // [Expect] true
 print [1, 2] is Seq  // [Expect] true
 print {} is Seq      // [Expect] false
 
-print {} is Map      // [Expect] true
-print {1: 2} is Map  // [Expect] true
-print [] is Map      // [Expect] false
+print {} is Obj      // [Expect] true
+print {1: 2} is Obj  // [Expect] true
+print [] is Obj      // [Expect] false
 
 print "str" is Str   // [Expect] true
 print 1 is Str       // [Expect] false
@@ -32,5 +32,5 @@ print X.__ctor is Fn   // [Expect] true
 print X().x is Fn      // [Expect] true
 
 print X is Class       // [Expect] true
-print Map is Class     // [Expect] true
+print Obj is Class     // [Expect] true
 print X() is Class     // [Expect] false

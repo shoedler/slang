@@ -503,9 +503,9 @@ static void seq_literal(bool can_assign) {
   }
 }
 
-// Compiles a map literal.
+// Compiles an object literal.
 // The opening brace has already been consumed (previous token)
-static void map_literal(bool can_assign) {
+static void object_literal(bool can_assign) {
   UNUSED(can_assign);
   int count = 0;
 
@@ -517,12 +517,12 @@ static void map_literal(bool can_assign) {
       count++;
     } while (match(TOKEN_COMMA));
   }
-  consume(TOKEN_CBRACE, "Expecting '}' after " STR(TYPENAME_MAP) " literal. Or maybe you are missing a ','?");
+  consume(TOKEN_CBRACE, "Expecting '}' after " STR(TYPENAME_OBJ) " literal. Or maybe you are missing a ','?");
 
-  if (count <= MAX_MAP_ITEMS) {
-    emit_two(OP_MAP_LITERAL, (uint16_t)count);
+  if (count <= MAX_OBJECT_ITEMS) {
+    emit_two(OP_OBJECT_LITERAL, (uint16_t)count);
   } else {
-    error_at_current("Can't have more than " STR(MAX_MAP_ITEMS) " items in a " STR(TYPENAME_MAP) ".");
+    error_at_current("Can't have more than " STR(MAX_OBJECT_ITEMS) " items in a " STR(TYPENAME_OBJ) ".");
   }
 }
 
@@ -864,7 +864,7 @@ static void this_(bool can_assign) {
 ParseRule rules[] = {
     [TOKEN_OPAR]     = {grouping, call, PREC_CALL},
     [TOKEN_CPAR]     = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACE]   = {map_literal, NULL, PREC_NONE},
+    [TOKEN_OBRACE]   = {object_literal, NULL, PREC_NONE},
     [TOKEN_CBRACE]   = {NULL, NULL, PREC_NONE},
     [TOKEN_OBRACK]   = {seq_literal, indexing, PREC_CALL},
     [TOKEN_CBRACK]   = {NULL, NULL, PREC_NONE},

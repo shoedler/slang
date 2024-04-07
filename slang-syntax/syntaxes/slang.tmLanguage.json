@@ -53,7 +53,7 @@
             "patterns": [
                 {
                     "name": "entity.name.type.SlangScript",
-                    "match": "\\b(Obj|Nil|Bool|Num|Str|Seq|Map|Fn)\\b"
+                    "match": "\\b(Obj|Nil|Bool|Num|Str|Seq|Fn)\\b"
                 }
             ]
         },

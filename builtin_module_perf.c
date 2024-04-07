@@ -7,7 +7,7 @@
 BUILTIN_DECLARE_FN(now);
 
 void register_builtin_perf_module() {
-  ObjInstance* perf_module = make_module(NULL, "Perf");
+  ObjObject* perf_module = make_module(NULL, "Perf");
   define_obj(&vm.modules, "Perf", (Obj*)perf_module);
 
   BUILTIN_REGISTER_FN(perf_module, now, 0);

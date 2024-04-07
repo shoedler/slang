@@ -404,7 +404,7 @@
 // print Num.__ctor.__doc
 // print Str.__ctor.__doc
 // print Seq.__ctor.__doc
-// print Map.__ctor.__doc
+// print Obj.__ctor.__doc
 
 // // These have no docstrings:
 // print "".to_str.__doc
@@ -421,7 +421,7 @@
 // print log.__doc
 
 // print "--------------------------------------------------------------------------------"
-// print "Maps"
+// print "Objs"
 // print "--------------------------------------------------------------------------------"
 
 // let f = fn -> 10
@@ -522,13 +522,19 @@
 // print x // Inner error
 // print "still running..."
 
-print nil is Nil
-print true is Bool
-print 1 is Num
-print "Hello" is Str
-print [1,2,3] is Seq
-print {1:2, 3:4} is Map
+// print nil is Nil
+// print true is Bool
+// print 1 is Num
+// print "Hello" is Str
+// print [1,2,3] is Seq
+print {1:2, 3:4} is Obj
 print (fn -> 1) is Obj
 print (fn -> 1)() is Num
 print 1 == 2 is Bool
 print 1 < 2 is Bool
+
+cls A{
+  ctor {
+    this.a = 1
+  }
+}

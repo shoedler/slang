@@ -131,31 +131,31 @@ void make_seq(int count) {
   push(OBJ_VAL(seq));
 }
 
-// Creates a map from the top "count" * 2 values on the stack.
-// The resulting map is pushed onto the stack.
-static void make_map(int count) {
-  // Since we know the count, we can preallocate the hashtable for the map. This allows
+// Creates an object from the top "count" * 2 values on the stack.
+// The resulting object is pushed onto the stack.
+static void make_object(int count) {
+  // Since we know the count, we can preallocate the hashtable for the object. This allows
   // using hashtable_set within the loop. We don't have to worry about it wanting to resize the hashtable,
   // which can trigger a GC and free items in the middle of the loop, because it already has enough capacity.
-  // Also, it lets us pop the map items on the stack, instead of peeking and then having to pop them later
+  // Also, it lets us pop the object items on the stack, instead of peeking and then having to pop them later
   // (Requiring us to loop over the keys and values twice)
   HashTable entries;
   init_hashtable(&entries);
   hashtable_preallocate(&entries, count);
 
   // Take the hashtable while before we start popping the stack, so the entries are still seen by the GC as
-  // we allocate the new map object.
-  ObjMap* map = take_map(&entries);
+  // we allocate the new object.
+  ObjObject* obj = take_object(&entries);
 
   // Use pop
   for (int i = 0; i < count; i++) {
     Value value = pop();
     Value key   = pop();
 
-    hashtable_set(&map->entries, key, value);
+    hashtable_set(&obj->fields, key, value);
   }
 
-  push(OBJ_VAL(map));
+  push(OBJ_VAL(obj));
 }
 
 void init_vm() {
@@ -195,7 +195,6 @@ void init_vm() {
   register_builtin_num_class();
   register_builtin_seq_class();
   register_builtin_str_class();
-  register_builtin_map_class();
   register_builtin_fn_class();
   register_builtin_class_class();
 
@@ -235,29 +234,30 @@ static Value peek(int distance) {
 
 ObjClass* type_of(Value value) {
   // Handle primitive and internal types which have a corresponding class
-  if (!IS_INSTANCE(value)) {
-    switch (value.type) {
-      case VAL_NIL: return vm.__builtin_Nil_class;     // This field name was created via macro
-      case VAL_BOOL: return vm.__builtin_Bool_class;   // This field name was created via macro
-      case VAL_NUMBER: return vm.__builtin_Num_class;  // This field name was created via macro
-      case VAL_OBJ: {
-        switch (OBJ_TYPE(value)) {
-          case OBJ_STRING: return vm.__builtin_Str_class;  // This field name was created via macro
-          case OBJ_SEQ: return vm.__builtin_Seq_class;     // This field name was created via macro
-          case OBJ_MAP: return vm.__builtin_Map_class;     // This field name was created via macro
-          case OBJ_NATIVE:
-          case OBJ_CLOSURE:
-          case OBJ_BOUND_METHOD:
-          case OBJ_FUNCTION: return vm.__builtin_Fn_class;  // This field name was created via macro
-          case OBJ_CLASS: return vm.__builtin_Class_class;  // This field name was created via macro
+  switch (value.type) {
+    case VAL_NIL: return vm.__builtin_Nil_class;     // This field name was created via macro
+    case VAL_BOOL: return vm.__builtin_Bool_class;   // This field name was created via macro
+    case VAL_NUMBER: return vm.__builtin_Num_class;  // This field name was created via macro
+    case VAL_OBJ: {
+      switch (OBJ_TYPE(value)) {
+        case OBJ_STRING: return vm.__builtin_Str_class;  // This field name was created via macro
+        case OBJ_SEQ: return vm.__builtin_Seq_class;     // This field name was created via macro
+        case OBJ_NATIVE:
+        case OBJ_CLOSURE:
+        case OBJ_BOUND_METHOD:
+        case OBJ_FUNCTION: return vm.__builtin_Fn_class;  // This field name was created via macro
+        case OBJ_CLASS: return vm.__builtin_Class_class;  // This field name was created via macro
+        case OBJ_OBJECT: {
+          ObjObject* object = AS_OBJECT(value);
+          if (OBJECT_IS_INSTANCE(object)) {
+            return object->klass;
+          }
+          return vm.__builtin_Obj_class;  // This field name was created via macro
         }
       }
     }
-    return vm.__builtin_Obj_class;
   }
-
-  // Instances are easy, just return the class. Most of them are probably managed-code classes.
-  return AS_INSTANCE(value)->klass;
+  return vm.__builtin_Obj_class;  // This field name was created via macro
 }
 
 // Checks if the provided callable accepts the expected number of arguments.
@@ -404,27 +404,27 @@ static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_co
 // Invokes a managed-code or native method with receiver and arguments on the top of the stack.
 // `Stack: ...[receiver][arg0][arg1]...[argN]`
 static CallResult invoke(ObjString* name, int arg_count) {
-  Value receiver  = peek(arg_count);
-  ObjClass* klass = type_of(receiver);
+  Value receiver = peek(arg_count);
 
-  // Handle primitive and internal types which have a corresponding class.
-  // Everything which is not an instance qualifies as such.
-  if (!IS_INSTANCE(receiver)) {
+  // Handle primitives which have a corresponding class.
+  // Everything which is not an object
+  if (!IS_OBJECT(receiver)) {
+    ObjClass* klass = type_of(receiver);
     return invoke_from_class(klass, name, arg_count);
   }
 
-  // Handle managed-code class instances
-  ObjInstance* instance = AS_INSTANCE(receiver);
+  // Handle object (could also be class instances)
+  ObjObject* object = AS_OBJECT(receiver);
 
   // It could be a field which is a function, we need to check that first
   Value function;
-  if (hashtable_get(&instance->fields, OBJ_VAL(name), &function)) {
+  if (hashtable_get(&object->fields, OBJ_VAL(name), &function)) {
     vm.stack_top[-arg_count - 1] = function;
     return call_value(function, arg_count);
   }
 
   // Otherwise, it's just a class method
-  return invoke_from_class(klass, name, arg_count);
+  return invoke_from_class(object->klass, name, arg_count);
 }
 
 // Executes a callframe by running the bytecode until it returns a value or an error occurs.
@@ -626,7 +626,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   vm.exit_on_frame        = previous_exit_frame;
 
   // Check if the module is actually a module
-  if (!IS_OBJ(module) && !IS_INSTANCE(module) && !(AS_INSTANCE(module)->klass == vm.__builtin_Module_class)) {
+  if (!IS_OBJ(module) && !IS_OBJECT(module) && !(AS_OBJECT(module)->klass == vm.__builtin_Module_class)) {
     free(module_to_load_path);
     runtime_error("Could not import module '%s'. Expected module type", module_name->chars);
     return false;
@@ -902,10 +902,10 @@ static Value run() {
           }
 
           push(seq->items.values[i]);
-        } else if (IS_MAP(indexee)) {
-          ObjMap* map = AS_MAP(indexee);
+        } else if (IS_OBJECT(indexee)) {
+          ObjObject* object = AS_OBJECT(indexee);
           Value value;
-          if (hashtable_get(&map->entries, index, &value)) {
+          if (hashtable_get(&object->fields, index, &value)) {
             push(value);
           } else {
             push(NIL_VAL);
@@ -949,13 +949,13 @@ static Value run() {
 
           seq->items.values[i] = value;
           push(value);
-        } else if (IS_MAP(assignee)) {
+        } else if (IS_OBJECT(assignee)) {
           // We peek, because we might trigger the GC
           Value value = peek(0);  // value
           Value index = peek(1);  // index
 
-          ObjMap* map = AS_MAP(assignee);
-          hashtable_set(&map->entries, index, value);
+          ObjObject* object = AS_OBJECT(assignee);
+          hashtable_set(&object->fields, index, value);
           pop();        // value
           pop();        // index
           pop();        // assignee
@@ -997,26 +997,14 @@ static Value run() {
                 }
                 break;
               }
-              // For instances, you can get
+              // For objects/class instances, you can get
               // - their fields
               // - their class methods
-              case OBJ_INSTANCE: {
-                ObjInstance* instance = AS_INSTANCE(obj);
+              case OBJ_OBJECT: {
+                ObjObject* object = AS_OBJECT(obj);
                 Value value;
-                if (hashtable_get(&instance->fields, OBJ_VAL(name), &value)) {
-                  pop();  // Instance.
-                  push(value);
-                  goto done_getting_property;
-                }
-                break;
-              }
-              // For maps, you can get:
-              // - their entries
-              case OBJ_MAP: {
-                ObjMap* map = AS_MAP(obj);
-                Value value;
-                if (hashtable_get(&map->entries, OBJ_VAL(name), &value)) {
-                  pop();  // Pop the map
+                if (hashtable_get(&object->fields, OBJ_VAL(name), &value)) {
+                  pop();  // Object.
                   push(value);
                   goto done_getting_property;
                 }
@@ -1057,10 +1045,10 @@ static Value run() {
         switch (obj.type) {
           case VAL_OBJ: {
             switch (OBJ_TYPE(obj)) {
-              // On instances, you can set:
+              // On objects/class instances, you can set:
               // - their fields
-              case OBJ_INSTANCE: {
-                ObjInstance* instance = AS_INSTANCE(obj);
+              case OBJ_OBJECT: {
+                ObjObject* object = AS_OBJECT(obj);
 
                 // Check if it is a reserved word.
                 // TODO (robust): Not all cached words are actually **reserved**. We should make an enum for
@@ -1072,17 +1060,7 @@ static Value run() {
                   }
                 }
 
-                hashtable_set(&instance->fields, OBJ_VAL(name), peek(0));  // Create or update
-                Value value = pop();
-                pop();
-                push(value);
-                goto done_setting_property;
-              }
-              // On maps, you can set:
-              // - their entries
-              case OBJ_MAP: {
-                ObjMap* map = AS_MAP(obj);
-                hashtable_set(&map->entries, OBJ_VAL(name), peek(0));
+                hashtable_set(&object->fields, OBJ_VAL(name), peek(0));  // Create or update
                 Value value = pop();
                 pop();
                 push(value);
@@ -1181,9 +1159,9 @@ static Value run() {
         make_seq(count);
         break;
       }
-      case OP_MAP_LITERAL: {
+      case OP_OBJECT_LITERAL: {
         int count = READ_ONE();
-        make_map(count);
+        make_object(count);
         break;
       }
       case OP_JUMP: {
@@ -1343,9 +1321,9 @@ static Value run() {
 #undef BINARY_OP
 }
 
-ObjInstance* make_module(const char* source_path, const char* module_name) {
-  ObjInstance* prev_module = vm.module;
-  ObjInstance* module      = new_instance(vm.__builtin_Module_class);
+ObjObject* make_module(const char* source_path, const char* module_name) {
+  ObjObject* prev_module = vm.module;
+  ObjObject* module      = new_instance(vm.__builtin_Module_class);
 
   // We need to have the new module active for the duration of the module creation.
   // We'll restore it afterwards.
@@ -1375,13 +1353,13 @@ ObjInstance* make_module(const char* source_path, const char* module_name) {
 }
 
 void start_module(const char* source_path, const char* module_name) {
-  ObjInstance* module = make_module(source_path, module_name);
-  vm.module           = module;
+  ObjObject* module = make_module(source_path, module_name);
+  vm.module         = module;
 }
 
 Value interpret(const char* source, const char* source_path, const char* module_name) {
-  ObjInstance* enclosing_module = vm.module;
-  bool is_module                = module_name != NULL && source_path != NULL;
+  ObjObject* enclosing_module = vm.module;
+  bool is_module              = module_name != NULL && source_path != NULL;
 
   if (is_module) {
     start_module(source_path, module_name);

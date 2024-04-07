@@ -60,21 +60,21 @@ print Seq(12.456)                     // [Expect] [nil, nil, nil, nil, nil, nil,
 // print Seq([1, 2, 3])                  // Error
 // print Seq({"key": "value"})           // Error
 
-// Map
-print Map()                           // [Expect] {}
+// Obj
+print Obj()                           // [Expect] {}
 // Only no-param invocations are allowed
-// print Map("123.0")                    // Error
-// print Map("1kjhkjh2hkjhkj.....3hkj4") // Error
-// print Map("false")                    // Error
-// print Map("true")                     // Error
-// print Map(true)                       // Error
-// print Map(false)                      // Error
-// print Map(12)                         // Error
-// print Map(12.0)                       // Error
-// print Map(12.456)                     // Error
-// print Map(nil)                        // Error
-// print Map([1, 2, 3])                  // Error
-// print Map({"key": "value"})           // Error
+// print Obj("123.0")                    // Error
+// print Obj("1kjhkjh2hkjhkj.....3hkj4") // Error
+// print Obj("false")                    // Error
+// print Obj("true")                     // Error
+// print Obj(true)                       // Error
+// print Obj(false)                      // Error
+// print Obj(12)                         // Error
+// print Obj(12.0)                       // Error
+// print Obj(12.456)                     // Error
+// print Obj(nil)                        // Error
+// print Obj([1, 2, 3])                  // Error
+// print Obj({"key": "value"})           // Error
 
 // Cannot instantiate a Fn directly
 print try Fn() else error                // [Expect] Cannot instantiate a function via Fn __ctor.
