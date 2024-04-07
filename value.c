@@ -6,6 +6,7 @@
 #include "memory.h"
 #include "object.h"
 #include "value.h"
+#include "vm.h"
 
 void init_value_array(ValueArray* array) {
   array->values   = NULL;
@@ -170,7 +171,6 @@ int print_value_safe(FILE* f, Value value) {
     case OBJ_FUNCTION: return fprintf(f, VALUE_STRFMT_FUNCTION, AS_FUNCTION(value)->name->chars);
     case OBJ_CLOSURE: return fprintf(f, VALUE_STRFMT_FUNCTION, AS_CLOSURE(value)->function->name->chars);
     case OBJ_CLASS: return fprintf(f, VALUE_STRFMT_CLASS, AS_CLASS(value)->name->chars);
-    case OBJ_INSTANCE: return fprintf(f, VALUE_STRFTM_INSTANCE, AS_INSTANCE(value)->klass->name->chars);
     case OBJ_NATIVE: return fprintf(f, VALUE_STR_NATIVE);
     case OBJ_BOUND_METHOD: {
       ObjBoundMethod* bound = AS_BOUND_METHOD(value);
@@ -202,26 +202,30 @@ int print_value_safe(FILE* f, Value value) {
       written += fprintf(f, VALUE_STR_SEQ_END);
       return written;
     }
-    case OBJ_MAP: {
-      ObjMap* map   = AS_MAP(value);
-      int written   = fprintf(f, VALUE_STR_MAP_START);
+    case OBJ_OBJECT: {
+      ObjObject* object = AS_OBJECT(value);
+      if (OBJECT_IS_INSTANCE(object)) {
+        return fprintf(f, VALUE_STRFTM_INSTANCE, AS_OBJECT(value)->klass->name->chars);
+      }
+
+      int written   = fprintf(f, VALUE_STR_OBJECT_START);
       int processed = 0;
-      for (int i = 0; i < map->entries.capacity; i++) {
-        if (IS_EMPTY_INTERNAL(map->entries.entries[i].key)) {
+      for (int i = 0; i < object->fields.capacity; i++) {
+        if (IS_EMPTY_INTERNAL(object->fields.entries[i].key)) {
           continue;
         }
-        Entry* entry = &map->entries.entries[i];
+        Entry* entry = &object->fields.entries[i];
 
         written += print_value_safe(f, entry->key);
-        written += fprintf(f, VALUE_STR_MAP_SEPARATOR);
+        written += fprintf(f, VALUE_STR_OBJECT_SEPARATOR);
         written += print_value_safe(f, entry->value);
 
-        if (processed < map->entries.count - 1) {
-          written += fprintf(f, VALUE_STR_MAP_DELIM);
+        if (processed < object->fields.count - 1) {
+          written += fprintf(f, VALUE_STR_OBJECT_DELIM);
         }
         processed++;
       }
-      written += fprintf(f, VALUE_STR_MAP_END);
+      written += fprintf(f, VALUE_STR_OBJECT_END);
       return written;
     }
     default: return fprintf(f, VALUE_STRFMT_OBJ, "Unknown", (void*)AS_OBJ(value));

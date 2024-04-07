@@ -9,7 +9,7 @@ BUILTIN_DECLARE_FN(exists);
 BUILTIN_DECLARE_FN(join_path);
 
 void register_builtin_file_module() {
-  ObjInstance* file_module = make_module(NULL, "File");
+  ObjObject* file_module = make_module(NULL, "File");
   define_obj(&vm.modules, "File", (Obj*)file_module);
 
   BUILTIN_REGISTER_FN(file_module, read, 1);

@@ -20,14 +20,11 @@
 // Determines whether a value is of type sequence.
 #define IS_SEQ(value) is_obj_type(value, OBJ_SEQ)
 
-// Determines whether a value is of type map.
-#define IS_MAP(value) is_obj_type(value, OBJ_MAP)
-
 // Determines whether a value is of type function.
 #define IS_FUNCTION(value) is_obj_type(value, OBJ_FUNCTION)
 
-// Determines whether a value is of type instance.
-#define IS_INSTANCE(value) is_obj_type(value, OBJ_INSTANCE)
+// Determines whether a value is of type object.
+#define IS_OBJECT(value) is_obj_type(value, OBJ_OBJECT)
 
 // Determines whether a value is of type native function.
 #define IS_NATIVE(value) is_obj_type(value, OBJ_NATIVE)
@@ -37,6 +34,9 @@
 
 // Determines whether a value is callable.
 #define IS_CALLABLE(value) is_callable(value)
+
+// Determines whether an object is an instance of a class.
+#define OBJECT_IS_INSTANCE(object) (object->klass != vm.__builtin_Obj_class)
 
 // Converts a value into a bound method.
 // Value must be of type bound method.
@@ -54,17 +54,13 @@
 // Value must be of type sequence.
 #define AS_SEQ(value) ((ObjSeq*)AS_OBJ(value))
 
-// Converts a value into a map.
-// Value must be of type map.
-#define AS_MAP(value) ((ObjMap*)AS_OBJ(value))
-
 // Converts a value into a function.
 // Value must be of type function.
 #define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
 
-// Converts a value into an instance.
-// Value must be of type instance.
-#define AS_INSTANCE(value) ((ObjInstance*)AS_OBJ(value))
+// Converts a value into an object.
+// Value must be of type object.
+#define AS_OBJECT(value) ((ObjObject*)AS_OBJ(value))
 
 // Converts a value into a native function.
 // Value must be of type native function.
@@ -83,10 +79,9 @@ typedef enum {
   OBJ_CLASS,
   OBJ_CLOSURE,
   OBJ_FUNCTION,
-  OBJ_INSTANCE,
+  OBJ_OBJECT,
   OBJ_NATIVE,
   OBJ_SEQ,
-  OBJ_MAP,
   OBJ_STRING,
   OBJ_UPVALUE,
   OBJ_BOUND_METHOD,
@@ -104,12 +99,7 @@ struct ObjSeq {
   ValueArray items;
 };
 
-struct ObjMap {
-  Obj obj;
-  HashTable entries;
-};
-
-struct ObjInstance;
+struct ObjObject;
 
 typedef struct {
   Obj obj;
@@ -118,7 +108,7 @@ typedef struct {
   Chunk chunk;
   ObjString* name;
   ObjString* doc;
-  struct ObjInstance* globals_context;
+  struct ObjObject* globals_context;
 } ObjFunction;
 
 // The type of a native function. Native functions are functions that are
@@ -164,11 +154,11 @@ typedef struct ObjClass {
   struct ObjClass* base;
 } ObjClass;
 
-typedef struct ObjInstance {
+typedef struct ObjObject {
   Obj obj;
   ObjClass* klass;
   HashTable fields;
-} ObjInstance;
+} ObjObject;
 
 typedef struct {
   Obj obj;
@@ -180,9 +170,9 @@ typedef struct {
 // garbage collection.
 ObjBoundMethod* new_bound_method(Value receiver, Obj* method);
 
-// Creates, initializes and allocates a new instance object. Might trigger
+// Creates, initializes and allocates a new object. Might trigger
 // garbage collection.
-ObjInstance* new_instance(ObjClass* klass);
+ObjObject* new_instance(ObjClass* klass);
 
 // Creates, initializes and allocates a new class object. Might trigger garbage
 // collection.
@@ -228,10 +218,10 @@ ObjString* take_string(char* chars, int length);
 // be freed when the object is freed. Might trigger garbage collection.
 ObjSeq* take_seq(ValueArray* items);
 
-// Creates a new map object from a hashtable.
+// Creates a new object from a hashtable.
 // This takes ownership of the hashtable. This means that the hashtable will be
 // freed when the object is freed. Might trigger garbage collection.
-ObjMap* take_map(HashTable* entries);
+ObjObject* take_object(HashTable* entries);
 
 static inline bool is_obj_type(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;

@@ -65,11 +65,11 @@ ObjClass* new_class(ObjString* name, ObjClass* base) {
   return klass;
 }
 
-ObjInstance* new_instance(ObjClass* klass) {
-  ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
-  instance->klass       = klass;
-  init_hashtable(&instance->fields);
-  return instance;
+ObjObject* new_instance(ObjClass* klass) {
+  ObjObject* object = ALLOCATE_OBJ(ObjObject, OBJ_OBJECT);
+  object->klass     = klass;
+  init_hashtable(&object->fields);
+  return object;
 }
 
 ObjUpvalue* new_upvalue(Value* slot) {
@@ -148,10 +148,11 @@ ObjSeq* take_seq(ValueArray* items) {
   return seq;
 }
 
-ObjMap* take_map(HashTable entries) {
-  ObjMap* map  = ALLOCATE_OBJ(ObjMap, OBJ_MAP);
-  map->entries = entries;
-  return map;
+ObjObject* take_object(HashTable fields) {
+  ObjObject* object = ALLOCATE_OBJ(ObjObject, OBJ_OBJECT);
+  object->klass     = vm.__builtin_Obj_class;
+  object->fields    = fields;
+  return object;
 }
 
 ObjString* take_string(char* chars, int length) {

@@ -25,9 +25,6 @@ extern void register_builtin_str_class();
 // Registers the built-in seq class and its methods.
 extern void register_builtin_seq_class();
 
-// Registers the built-in map class and its methods.
-extern void register_builtin_map_class();
-
 // Registers the built-in fn class and its methods.
 extern void register_builtin_fn_class();
 
@@ -51,8 +48,13 @@ BUILTIN_DECLARE_FN(type_of);
 BUILTIN_DECLARE_FN(cwd);
 
 // Obj built-in methods
+BUILTIN_DECLARE_METHOD(TYPENAME_OBJ, __ctor)
 BUILTIN_DECLARE_METHOD(TYPENAME_OBJ, to_str)
 BUILTIN_DECLARE_METHOD(TYPENAME_OBJ, hash)
+BUILTIN_DECLARE_METHOD(TYPENAME_OBJ, len)
+BUILTIN_DECLARE_METHOD(TYPENAME_OBJ, entries)
+BUILTIN_DECLARE_METHOD(TYPENAME_OBJ, values)
+BUILTIN_DECLARE_METHOD(TYPENAME_OBJ, keys)
 
 // Bool built-in methods
 BUILTIN_DECLARE_METHOD(TYPENAME_BOOL, __ctor)
@@ -92,14 +94,6 @@ BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, some)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, reduce)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, count)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, concat)
-
-// Map built-in methods
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, __ctor)
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, to_str)
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, len)
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, entries)
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, values)
-BUILTIN_DECLARE_METHOD(TYPENAME_MAP, keys)
 
 // Fn built-in methods
 BUILTIN_DECLARE_METHOD(TYPENAME_FUNCTION, __ctor)

@@ -126,21 +126,16 @@ static void blacken_object(Obj* object) {
       mark_array(&function->chunk.constants);
       break;
     }
-    case OBJ_INSTANCE: {
-      ObjInstance* instance = (ObjInstance*)object;
-      mark_obj((Obj*)instance->klass);
-      mark_hashtable(&instance->fields);
+    case OBJ_OBJECT: {
+      ObjObject* object_ = (ObjObject*)object;
+      mark_obj((Obj*)object_->klass);
+      mark_hashtable(&object_->fields);
       break;
     }
     case OBJ_UPVALUE: mark_value(((ObjUpvalue*)object)->closed); break;
     case OBJ_SEQ: {
       ObjSeq* seq = (ObjSeq*)object;
       mark_array(&seq->items);
-      break;
-    }
-    case OBJ_MAP: {
-      ObjMap* map = (ObjMap*)object;
-      mark_hashtable(&map->entries);
       break;
     }
     case OBJ_NATIVE: {
@@ -182,10 +177,10 @@ static void free_object(Obj* object) {
       FREE(ObjFunction, object);
       break;
     }
-    case OBJ_INSTANCE: {
-      ObjInstance* instance = (ObjInstance*)object;
-      free_hashtable(&instance->fields);
-      FREE(ObjInstance, object);
+    case OBJ_OBJECT: {
+      ObjObject* object_ = (ObjObject*)object;
+      free_hashtable(&object_->fields);
+      FREE(ObjObject, object);
       break;
     }
     case OBJ_NATIVE: FREE(ObjNative, object); break;
@@ -199,12 +194,6 @@ static void free_object(Obj* object) {
       ObjSeq* seq = (ObjSeq*)object;
       free_value_array(&seq->items);
       FREE(ObjSeq, object);
-      break;
-    }
-    case OBJ_MAP: {
-      ObjMap* map = (ObjMap*)object;
-      free_hashtable(&map->entries);
-      FREE(ObjMap, object);
       break;
     }
     case OBJ_UPVALUE:
@@ -262,7 +251,6 @@ static void mark_roots() {
   BUILTIN_MARK_CLASS(TYPENAME_NUMBER);
   BUILTIN_MARK_CLASS(TYPENAME_STRING);
   BUILTIN_MARK_CLASS(TYPENAME_SEQ);
-  BUILTIN_MARK_CLASS(TYPENAME_MAP);
   BUILTIN_MARK_CLASS(TYPENAME_MODULE);
   BUILTIN_MARK_CLASS(TYPENAME_FUNCTION);
   BUILTIN_MARK_CLASS(TYPENAME_CLASS);
