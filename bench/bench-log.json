@@ -766,5 +766,73 @@
       "value": "59940000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-04-07T20:55:12.732Z",
+    "commit": {
+      "date": "2024-04-07 22:55:06 +0200",
+      "hash": "569830e774baa3282b06852c615adac5e7aa1b75",
+      "message": "Merges maps and instances into 'objects'. Yeah. Could've realised that sooner."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "10.367"
+    }
+  },
+  {
+    "date": "2024-04-07T20:55:12.732Z",
+    "commit": {
+      "date": "2024-04-07 22:55:06 +0200",
+      "hash": "569830e774baa3282b06852c615adac5e7aa1b75",
+      "message": "Merges maps and instances into 'objects'. Yeah. Could've realised that sooner."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "1.16"
+    }
+  },
+  {
+    "date": "2024-04-07T20:55:12.732Z",
+    "commit": {
+      "date": "2024-04-07 22:55:06 +0200",
+      "hash": "569830e774baa3282b06852c615adac5e7aa1b75",
+      "message": "Merges maps and instances into 'objects'. Yeah. Could've realised that sooner."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "159",
+      "value": "9540000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-04-07T20:55:12.732Z",
+    "commit": {
+      "date": "2024-04-07 22:55:06 +0200",
+      "hash": "569830e774baa3282b06852c615adac5e7aa1b75",
+      "message": "Merges maps and instances into 'objects'. Yeah. Could've realised that sooner."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "976",
+      "value": "58560000",
+      "durationInSecs": "5"
+    }
   }
 ]
