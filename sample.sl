@@ -348,7 +348,7 @@
 // print "Bound native function test: "
 // let sample = "Hello"
 // let bound_native = sample.to_str
-// print type_name(bound_native)
+// print type_of(bound_native)
 // print "'" + bound_native() + "' should be the same as '" + (sample.to_str)() +  "', and the same as '" + sample.to_str()
 
 // print "--------------------------------------------------------------------------------"
@@ -375,7 +375,7 @@
 // print List().to_str()
 
 // let l = List()
-// log("Hello", [1,2,3], clock(), type_name(nil), l.list.len(), type_name(l.list))
+// log("Hello", [1,2,3], clock(), type_of(nil), l.list.len(), type_of(l.list))
 
 // print "--------------------------------------------------------------------------------"
 // print "Builtin stuff"
@@ -391,7 +391,6 @@
 // let values = [0, nil, true, [], fn->1, clock, Sample]
 // for let i = 0 ; i < values.len(); i++ ; {
 //   log("---")
-//   log("type_name: ", type_name(values[i]))
 //   log("type_of:   ", type_of(values[i]))
 //   log("to_str:    ", values[i].to_str())
 //   log("hash:      ", values[i].hash())
@@ -417,7 +416,6 @@
 // print Sample().__doc
 
 // print clock.__doc
-// print type_name.__doc
 // print type_of.__doc
 // print cwd.__doc
 // print log.__doc
@@ -482,44 +480,55 @@
 // print File.exists(out_file)
 // print File.write(out_file, time.to_str() + "s\n")
 
-print "--------------------------------------------------------------------------------"
-print "Try/Catch, Try/Else and Throw"
-print "--------------------------------------------------------------------------------"
+// print "--------------------------------------------------------------------------------"
+// print "Try/Catch, Try/Else and Throw"
+// print "--------------------------------------------------------------------------------"
 
-// Basic try/catch statements
-try {
-  print "Level one" 
-  try {
-    print "Level two" 
-    throw "Thrown exception"
-  }
-  catch {
-    print "Caught in level two"
-    throw error // Context variable 'error' is available in catch blocks
-  }
-} 
-catch {
-  print("Caught in level one!")
-}
+// // Basic try/catch statements
+// try {
+//   print "Level one" 
+//   try {
+//     print "Level two" 
+//     throw "Thrown exception"
+//   }
+//   catch {
+//     print "Caught in level two"
+//     throw error // Context variable 'error' is available in catch blocks
+//   }
+// } 
+// catch {
+//   print("Caught in level one!")
+// }
 
-// Statements are allowed, blocks aren't necessary
-try Derived().foo()
-catch print error
+// // Statements are allowed, blocks aren't necessary
+// try Derived().foo()
+// catch print error
 
-// Try/Else is an expression and returns a value
-let a = try 1 + true else "nope"
-print a
+// // Try/Else is an expression and returns a value
+// let a = try 1 + true else "nope"
+// print a
 
-// No else clause will default to nil in the error case
-let b = try 1 + true
-print b 
+// // No else clause will default to nil in the error case
+// let b = try 1 + true
+// print b 
 
-// Using the context variable 'error' is allowed
-let c = try 1 + true else error
-print c 
-print "still running" 
+// // Using the context variable 'error' is allowed
+// let c = try 1 + true else error
+// print c 
+// print "still running" 
 
-// Nested try/else
-let x = try try ASLDJKASLDJK else error else error
-print x // Inner error
-print "still running..."
+// // Nested try/else
+// let x = try try ASLDJKASLDJK else error else error
+// print x // Inner error
+// print "still running..."
+
+print nil is Nil
+print true is Bool
+print 1 is Num
+print "Hello" is Str
+print [1,2,3] is Seq
+print {1:2, 3:4} is Map
+print (fn -> 1) is Obj
+print (fn -> 1)() is Num
+print 1 == 2 is Bool
+print 1 < 2 is Bool

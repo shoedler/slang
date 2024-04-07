@@ -153,7 +153,7 @@ static TokenType identifier_type() {
         switch (scanner.start[1]) {
           case 'a': return check_keyword(2, 3, "lse", TOKEN_FALSE);
           case 'o': return check_keyword(2, 1, "r", TOKEN_FOR);
-          case 'n': return TOKEN_FN;
+          case 'n': return check_keyword(2, 0, "", TOKEN_FN);
           case 'r': return check_keyword(2, 2, "om", TOKEN_FROM);
         }
       }
@@ -161,7 +161,8 @@ static TokenType identifier_type() {
     case 'i':
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {
-          case 'f': return TOKEN_IF;
+          case 'f': return check_keyword(2, 0, "", TOKEN_IF);
+          case 's': return check_keyword(2, 0, "", TOKEN_IS);
           case 'm': return check_keyword(2, 4, "port", TOKEN_IMPORT);
         }
       }
@@ -184,7 +185,7 @@ static TokenType identifier_type() {
             if (scanner.current - scanner.start > 2) {
               switch (scanner.start[2]) {
                 case 'u': return check_keyword(3, 1, "e", TOKEN_TRUE);
-                case 'y': return TOKEN_TRY;
+                case 'y': return check_keyword(3, 0, "", TOKEN_TRY);
               }
             }
         }

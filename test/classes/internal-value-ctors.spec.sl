@@ -76,3 +76,8 @@ print Map()                           // [Expect] {}
 // print Map([1, 2, 3])                  // Error
 // print Map({"key": "value"})           // Error
 
+// Cannot instantiate a Fn directly
+print try Fn() else error                // [Expect] Cannot instantiate a function via Fn __ctor.
+
+// Cannot instantiate a Class
+print try Class() else error             // [Expect] Cannot instantiate a class via Class __ctor.

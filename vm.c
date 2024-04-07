@@ -196,9 +196,8 @@ void init_vm() {
   register_builtin_seq_class();
   register_builtin_str_class();
   register_builtin_map_class();
-
-  BUILTIN_REGISTER_CLASS(TYPENAME_FUNCTION, TYPENAME_OBJ);
-  BUILTIN_REGISTER_CLASS(TYPENAME_CLASS, TYPENAME_OBJ);
+  register_builtin_fn_class();
+  register_builtin_class_class();
 
   // Create the module class
   BUILTIN_REGISTER_CLASS(TYPENAME_MODULE, TYPENAME_OBJ)
@@ -1304,6 +1303,15 @@ static Value run() {
         hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);
         subclass->base = AS_CLASS(baseclass);
         pop();  // Subclass.
+        break;
+      }
+      case OP_IS: {
+        ObjString* type_name_ = READ_STRING();
+        Value value           = peek(0);
+        ObjClass* klass       = type_of(value);
+        Value result          = BOOL_VAL(values_equal(OBJ_VAL(klass->name), OBJ_VAL(type_name_)));
+        pop();  // Pop the value
+        push(result);
         break;
       }
       case OP_METHOD: define_method(READ_STRING()); break;
