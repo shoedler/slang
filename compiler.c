@@ -490,6 +490,9 @@ static void seq_literal(bool can_assign) {
 
   if (!check(TOKEN_CBRACK)) {
     do {
+      if (check(TOKEN_CBRACK)) {
+        break;  // Allow trailing comma.
+      }
       expression();
       count++;
     } while (match(TOKEN_COMMA));
@@ -511,6 +514,9 @@ static void object_literal(bool can_assign) {
 
   if (!check(TOKEN_CBRACE)) {
     do {
+      if (check(TOKEN_CBRACE)) {
+        break;  // Allow trailing comma.
+      }
       expression();
       consume(TOKEN_COLON, "Expecting ':' after key.");
       expression();

@@ -1,0 +1,1 @@
+print { "a":1, } // [Expect] {a: 1}

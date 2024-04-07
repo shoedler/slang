@@ -168,7 +168,7 @@ uint32_t hash_value(Value value);
 // Result for "[ 1, 2, 3, 4]": 1234.000000
 // Result for "12.34.56": 12.345600
 // Returns 0.0 if the string is not a valid number.
-double string_to_double(char* str, long long length);
+double string_to_double(char* str, int length);
 
 // Prints a value to a file. Will look different from the values default print representation, but it will
 // guarantee that the gc will not be called.
