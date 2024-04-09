@@ -45,7 +45,10 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ### Optimizations
 
-- [ ] Implement a fast hashtable-get function which uses a shortened version of `find_entry`.
+- [x] Implement a fast hashtable-get function which uses a shortened version of `find_entry`.
+- [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
+- [ ] Add methods which are used frequently as props on `ObjClass` e.g. `method_to_str` etc.
+- [ ] Add more words to `vm.cached_words` to reduce the number of lookups and string allocations.
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
 - [ ] Improve `hash_value` and `values_equal`. I guess with the switch to allowing all values as keys it went down the drain.
