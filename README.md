@@ -51,7 +51,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add more words to `vm.cached_words` to reduce the number of lookups and string allocations.
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
-- [ ] Improve `hash_value` and `values_equal`. I guess with the switch to allowing all values as keys it went down the drain.
 - [ ] Constant time global variable lookup. (**_See Challenge 21.2_**)
 - [ ] Cache function / method calls in the Vm
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)

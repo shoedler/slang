@@ -17,4 +17,6 @@ print a[[1,2,3]] // [Expect] nil
 print a[f] // [Expect] <Fn __anon>
 print a[s] // [Expect] [4, 5, 6]
 print a["hello"] // [Expect] world
-print a // [Expect] {[1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn __anon>: <Fn __anon>, <Fn __anon>: <Fn __anon>, nil: nil, true: false, 1: 2, hello: world}
+
+// This order changes when you fiddle with hashing and other object related stuff
+print a // [Expect] {1: 2, nil: nil, true: false, [1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn __anon>: <Fn __anon>, <Fn __anon>: <Fn __anon>, hello: world}

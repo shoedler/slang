@@ -133,15 +133,17 @@ static uint32_t hash_string(const char* key, int length) {
 ObjSeq* prealloc_seq(int count) {
   ValueArray items;
   init_value_array(&items);
+
   int capacity   = GROW_CAPACITY(count);
   items.values   = RESIZE_ARRAY(Value, items.values, 0, capacity);
   items.capacity = capacity;
   items.count    = count;
 
-  ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
-  seq->items  = items;
+  for (int i = 0; i < count; i++) {
+    items.values[i] = NIL_VAL;
+  }
 
-  return seq;
+  return take_seq(&items);
 }
 
 ObjSeq* take_seq(ValueArray* items) {
@@ -150,10 +152,10 @@ ObjSeq* take_seq(ValueArray* items) {
   return seq;
 }
 
-ObjObject* take_object(HashTable fields) {
+ObjObject* take_object(HashTable* fields) {
   ObjObject* object = ALLOCATE_OBJ(ObjObject, OBJ_OBJECT);
   object->klass     = vm.__builtin_Obj_class;
-  object->fields    = fields;
+  object->fields    = *fields;
   return object;
 }
 

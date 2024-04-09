@@ -522,19 +522,18 @@
 // print x // Inner error
 // print "still running..."
 
-// print nil is Nil
-// print true is Bool
-// print 1 is Num
-// print "Hello" is Str
-// print [1,2,3] is Seq
+print "--------------------------------------------------------------------------------"
+print "Is operator"
+print "--------------------------------------------------------------------------------"
+
+print nil is Nil
+print true is Bool
+print 1 is Num
+print "Hello" is Str
+print [1,2,3] is Seq
 print {1:2, 3:4} is Obj
 print (fn -> 1) is Obj
 print (fn -> 1)() is Num
 print 1 == 2 is Bool
 print 1 < 2 is Bool
 
-cls A{
-  ctor {
-    this.a = 1
-  }
-}
