@@ -22,7 +22,9 @@ static Obj* allocate_object(size_t size, ObjType type) {
                                          // isn't referenced by anything yet -> not reachable by GC
   object->type      = type;
   object->is_marked = false;
-
+  object->hash =
+      (uint32_t)((intptr_t)(object) >> 4 | (intptr_t)(object) << 28);  // Get a better distribution of hash
+                                                                       // values, by shifting the address
   object->next = vm.objects;
   vm.objects   = object;
 
@@ -41,7 +43,7 @@ static ObjString* allocate_string(char* chars, int length, uint32_t hash) {
   ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
   string->length    = length;
   string->chars     = chars;
-  string->hash      = hash;
+  string->obj.hash  = hash;
 
   push(OBJ_VAL(string));  // Prevent GC from freeing string
   hashtable_set(&vm.strings, OBJ_VAL(string), NIL_VAL);

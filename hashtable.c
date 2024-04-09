@@ -156,7 +156,7 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
 
     // Check if we found the string.
     ObjString* string = AS_STRING(entry->key);
-    if (string->length == length && string->hash == hash && memcmp(string->chars, chars, length) == 0) {
+    if (string->length == length && string->obj.hash == hash && memcmp(string->chars, chars, length) == 0) {
       // We found it.
       return string;
     }
