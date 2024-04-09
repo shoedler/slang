@@ -274,7 +274,7 @@ static bool check_args(Obj* callable, int expected) {
 static Value find_method_in_inheritance_chain(ObjClass* klass, ObjString* name) {
   while (klass != NULL) {
     Value method;
-    if (hashtable_get(&klass->methods, OBJ_VAL(name), &method)) {
+    if (hashtable_get_string(&klass->methods, name, &method)) {
       return method;
     }
     klass = klass->base;
@@ -419,7 +419,7 @@ static CallResult invoke(ObjString* name, int arg_count) {
 
   // It could be a field which is a function, we need to check that first
   Value function;
-  if (hashtable_get(&object->fields, OBJ_VAL(name), &function)) {
+  if (hashtable_get_string(&object->fields, name, &function)) {
     vm.stack_top[-arg_count - 1] = function;
     return call_value(function, arg_count);
   }
@@ -567,7 +567,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   Value module;
 
   // Check if we have already imported the module
-  if (hashtable_get(&vm.modules, OBJ_VAL(module_name), &module)) {
+  if (hashtable_get_string(&vm.modules, module_name, &module)) {
     push(module);
     return true;
   }
@@ -813,8 +813,8 @@ static Value run() {
       case OP_GET_GLOBAL: {
         ObjString* name = READ_STRING();
         Value value;
-        if (!hashtable_get(frame->globals, OBJ_VAL(name), &value)) {
-          if (!hashtable_get(&vm.builtin->fields, OBJ_VAL(name), &value)) {
+        if (!hashtable_get_string(frame->globals, name, &value)) {
+          if (!hashtable_get_string(&vm.builtin->fields, name, &value)) {
             runtime_error("Undefined variable '%s'.", name->chars);
             goto finish_error;
           }
@@ -989,7 +989,7 @@ static Value run() {
                   // Either we have a ctor, or we don't, in any case - we're done.
                   pop();  // Pop the class
                   Value ctor;
-                  if (hashtable_get(&klass->methods, OBJ_VAL(name), &ctor)) {
+                  if (hashtable_get_string(&klass->methods, name, &ctor)) {
                     push(ctor);
                   } else {
                     push(NIL_VAL);
@@ -1004,7 +1004,7 @@ static Value run() {
               case OBJ_OBJECT: {
                 ObjObject* object = AS_OBJECT(obj);
                 Value value;
-                if (hashtable_get(&object->fields, OBJ_VAL(name), &value)) {
+                if (hashtable_get_string(&object->fields, name, &value)) {
                   pop();  // Object.
                   push(value);
                   goto done_getting_property;
