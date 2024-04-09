@@ -33,6 +33,10 @@ void free_hashtable(HashTable* table);
 // Gets a value from a hashtable.
 bool hashtable_get(HashTable* table, Value key, Value* value);
 
+// Gets a value from a hashtable by a string key. This is much faster than using a Value key.
+// Whenever possible, use this function instead of hashtable_get.
+bool hashtable_get_string(HashTable* table, ObjString* key, Value* value);
+
 // Adds a value to a hashtable. Returns true if the value was added, false if
 // it was an update.
 bool hashtable_set(HashTable* table, Value key, Value value);

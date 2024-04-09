@@ -78,8 +78,8 @@ typedef struct {
   ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // The function class
   ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // The class class
 
-  ObjObject* builtin;            // The builtin (builtin things) object instance
-  Value cached_words[WORD_MAX];  // Cached words for quick access
+  ObjObject* builtin;                 // The builtin (builtin things) object instance
+  ObjString* cached_words[WORD_MAX];  // Cached words for quick access
 
   size_t bytes_allocated;
   size_t next_gc;

@@ -261,7 +261,7 @@ static void mark_roots() {
 
   // And the reserved names.
   for (int i = 0; i < WORD_MAX; i++) {
-    mark_value(vm.cached_words[i]);
+    mark_obj(vm.cached_words[i]);
   }
 
   // And the compiler roots. The GC can run while compiling, so we need to mark
