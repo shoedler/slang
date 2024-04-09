@@ -834,5 +834,73 @@
       "value": "58560000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-04-09T09:36:15.017Z",
+    "commit": {
+      "date": "2024-04-09 11:35:58 +0200",
+      "hash": "3683ba1626bba06e52394143d1b2b580db4bfbd7",
+      "message": "🚀 Swap hashtable_get with hashtable_get_string in the obvious places. (See previous commit) For the ultimate performance gain!"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "8.619"
+    }
+  },
+  {
+    "date": "2024-04-09T09:36:15.017Z",
+    "commit": {
+      "date": "2024-04-09 11:35:58 +0200",
+      "hash": "3683ba1626bba06e52394143d1b2b580db4bfbd7",
+      "message": "🚀 Swap hashtable_get with hashtable_get_string in the obvious places. (See previous commit) For the ultimate performance gain!"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.875"
+    }
+  },
+  {
+    "date": "2024-04-09T09:36:15.017Z",
+    "commit": {
+      "date": "2024-04-09 11:35:58 +0200",
+      "hash": "3683ba1626bba06e52394143d1b2b580db4bfbd7",
+      "message": "🚀 Swap hashtable_get with hashtable_get_string in the obvious places. (See previous commit) For the ultimate performance gain!"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "292",
+      "value": "17520000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-04-09T09:36:15.017Z",
+    "commit": {
+      "date": "2024-04-09 11:35:58 +0200",
+      "hash": "3683ba1626bba06e52394143d1b2b580db4bfbd7",
+      "message": "🚀 Swap hashtable_get with hashtable_get_string in the obvious places. (See previous commit) For the ultimate performance gain!"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "2695",
+      "value": "161700000",
+      "durationInSecs": "5"
+    }
   }
 ]
