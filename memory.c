@@ -196,11 +196,8 @@ static void free_object(Obj* object) {
       FREE(ObjSeq, object);
       break;
     }
-    case OBJ_UPVALUE:
-      FREE(ObjUpvalue, object);
-      break;
-      // TODO (recovery): We probably need a default case here. What do we do
-      // there? Throw? Probably yes, bc we need to free all objects
+    case OBJ_UPVALUE: FREE(ObjUpvalue, object); break;
+    default: INTERNAL_ERROR("Don't know how to free unknown object type: %d", object->type);
   }
 }
 
@@ -232,7 +229,8 @@ static void mark_roots() {
     mark_obj((Obj*)upvalue);
   }
 
-  // Also mark the module, if there is one.
+  // Also mark the active module, if there is one and the table of loaded modules.
+  mark_hashtable(&vm.modules);
   if (vm.module != NULL) {
     mark_obj((Obj*)vm.module);
   }
@@ -240,8 +238,13 @@ static void mark_roots() {
   // Mark the current error
   mark_value(vm.current_error);
 
-  // And the modules hashtable.
-  mark_hashtable(&vm.modules);
+  // And the builtin object.
+  mark_obj((Obj*)vm.builtin);
+
+  // And the reserved names.
+  for (int i = 0; i < WORD_MAX; i++) {
+    mark_obj((Obj*)(vm.cached_words[i]));
+  }
 
 // And the base classes
 #define BUILTIN_MARK_CLASS(name) mark_obj((Obj*)vm.BUILTIN_CLASS(name))
@@ -255,14 +258,6 @@ static void mark_roots() {
   BUILTIN_MARK_CLASS(TYPENAME_FUNCTION);
   BUILTIN_MARK_CLASS(TYPENAME_CLASS);
 #undef BUILTIN_MARK_CLASS
-
-  // And the builtin object.
-  mark_obj((Obj*)vm.builtin);
-
-  // And the reserved names.
-  for (int i = 0; i < WORD_MAX; i++) {
-    mark_value(vm.cached_words[i]);
-  }
 
   // And the compiler roots. The GC can run while compiling, so we need to mark
   // the compiler's internal state as well.

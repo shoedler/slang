@@ -132,14 +132,7 @@ uint32_t hash_value(Value value) {
     case VAL_BOOL: return AS_BOOL(value) ? 4 : 3;
     case VAL_NIL: return 2;
     case VAL_NUMBER: return hash_double(AS_NUMBER(value));
-    case VAL_OBJ: {
-      if (IS_STRING(value)) {
-        ObjString* string = AS_STRING(value);
-        return string->hash;
-      } else {
-        return (uint32_t)(intptr_t)AS_OBJ(value);  // Hash objects by pointer for now...
-      }
-    }
+    case VAL_OBJ: return AS_OBJ(value)->hash;
     case VAL_EMPTY_INTERNAL: return 0;
     default: INTERNAL_ERROR("Unhandled hash type: %d", value.type); return 0;
   }

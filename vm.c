@@ -50,7 +50,8 @@ void dump_stacktrace() {
     fprintf(stderr, "  at line %d ", function->chunk.lines[instruction]);
 
     Value module_name;
-    if (!hashtable_get(&function->globals_context->fields, vm.cached_words[WORD_MODULE_NAME], &module_name)) {
+    if (!hashtable_get_string(&function->globals_context->fields, vm.cached_words[WORD_MODULE_NAME],
+                              &module_name)) {
       fprintf(stderr, "in \"%s\"\n", function->name->chars);
       break;
     }
@@ -177,11 +178,11 @@ void init_vm() {
 
   // Build the reserved words lookup table
   memset(vm.cached_words, 0, sizeof(vm.cached_words));
-  vm.cached_words[WORD_CTOR]        = OBJ_VAL(copy_string(KEYWORD_CONSTRUCTOR, KEYWORD_CONSTRUCTOR_LEN));
-  vm.cached_words[WORD_NAME]        = OBJ_VAL(copy_string(KEYWORD_NAME, KEYWORD_NAME_LEN));
-  vm.cached_words[WORD_MODULE_NAME] = OBJ_VAL(copy_string(KEYWORD_MODULE_NAME, KEYWORD_MODULE_NAME_LEN));
-  vm.cached_words[WORD_FILE_PATH]   = OBJ_VAL(copy_string(KEYWORD_FILE_PATH, KEYWORD_FILE_PATH_LEN));
-  vm.cached_words[WORD_DOC]         = OBJ_VAL(copy_string(KEYWORD_DOC, KEYWORD_DOC_LEN));
+  vm.cached_words[WORD_CTOR]        = copy_string(KEYWORD_CONSTRUCTOR, KEYWORD_CONSTRUCTOR_LEN);
+  vm.cached_words[WORD_NAME]        = copy_string(KEYWORD_NAME, KEYWORD_NAME_LEN);
+  vm.cached_words[WORD_MODULE_NAME] = copy_string(KEYWORD_MODULE_NAME, KEYWORD_MODULE_NAME_LEN);
+  vm.cached_words[WORD_FILE_PATH]   = copy_string(KEYWORD_FILE_PATH, KEYWORD_FILE_PATH_LEN);
+  vm.cached_words[WORD_DOC]         = copy_string(KEYWORD_DOC, KEYWORD_DOC_LEN);
 
   // Register the built-in classes, starting with the obj class, which is the base class for all objects.
   register_builtin_obj_class();
@@ -273,7 +274,7 @@ static bool check_args(Obj* callable, int expected) {
 static Value find_method_in_inheritance_chain(ObjClass* klass, ObjString* name) {
   while (klass != NULL) {
     Value method;
-    if (hashtable_get(&klass->methods, OBJ_VAL(name), &method)) {
+    if (hashtable_get_string(&klass->methods, name, &method)) {
       return method;
     }
     klass = klass->base;
@@ -354,7 +355,7 @@ static CallResult call_value(Value callable, int arg_count) {
         // method. It's perfectly valid to have no ctor - you'll also end up with a valid instance on the
         // stack.
         Value ctor;
-        if (hashtable_get(&klass->methods, vm.cached_words[WORD_CTOR], &ctor)) {
+        if (hashtable_get_string(&klass->methods, vm.cached_words[WORD_CTOR], &ctor)) {
           switch (AS_OBJ(ctor)->type) {
             case OBJ_CLOSURE: return call_managed(AS_CLOSURE(ctor), arg_count);
             case OBJ_NATIVE: return call_native(AS_NATIVE(ctor), arg_count);
@@ -418,7 +419,7 @@ static CallResult invoke(ObjString* name, int arg_count) {
 
   // It could be a field which is a function, we need to check that first
   Value function;
-  if (hashtable_get(&object->fields, OBJ_VAL(name), &function)) {
+  if (hashtable_get_string(&object->fields, name, &function)) {
     vm.stack_top[-arg_count - 1] = function;
     return call_value(function, arg_count);
   }
@@ -566,7 +567,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   Value module;
 
   // Check if we have already imported the module
-  if (hashtable_get(&vm.modules, OBJ_VAL(module_name), &module)) {
+  if (hashtable_get_string(&vm.modules, module_name, &module)) {
     push(module);
     return true;
   }
@@ -812,8 +813,8 @@ static Value run() {
       case OP_GET_GLOBAL: {
         ObjString* name = READ_STRING();
         Value value;
-        if (!hashtable_get(frame->globals, OBJ_VAL(name), &value)) {
-          if (!hashtable_get(&vm.builtin->fields, OBJ_VAL(name), &value)) {
+        if (!hashtable_get_string(frame->globals, name, &value)) {
+          if (!hashtable_get_string(&vm.builtin->fields, name, &value)) {
             runtime_error("Undefined variable '%s'.", name->chars);
             goto finish_error;
           }
@@ -978,17 +979,17 @@ static Value run() {
               // - the constructor
               case OBJ_CLASS: {
                 ObjClass* klass = AS_CLASS(obj);
-                if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_NAME])) {
+                if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.cached_words[WORD_NAME]))) {
                   // Name is a special case, because it is a reserved word
                   pop();  // Pop the class
                   push(OBJ_VAL(klass->name));
                   goto done_getting_property;
-                } else if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_CTOR])) {
+                } else if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.cached_words[WORD_CTOR]))) {
                   // Ctor is a special case, because it is a reserved word.
                   // Either we have a ctor, or we don't, in any case - we're done.
                   pop();  // Pop the class
                   Value ctor;
-                  if (hashtable_get(&klass->methods, OBJ_VAL(name), &ctor)) {
+                  if (hashtable_get_string(&klass->methods, name, &ctor)) {
                     push(ctor);
                   } else {
                     push(NIL_VAL);
@@ -1003,7 +1004,7 @@ static Value run() {
               case OBJ_OBJECT: {
                 ObjObject* object = AS_OBJECT(obj);
                 Value value;
-                if (hashtable_get(&object->fields, OBJ_VAL(name), &value)) {
+                if (hashtable_get_string(&object->fields, name, &value)) {
                   pop();  // Object.
                   push(value);
                   goto done_getting_property;
@@ -1025,7 +1026,7 @@ static Value run() {
         // It could be a __doc property, which is a special case.
         // TODO (optimize): We could just make this a method like to_str. Kinda silly having it here as a
         // property.
-        if (values_equal(OBJ_VAL(name), vm.cached_words[WORD_DOC])) {
+        if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.cached_words[WORD_DOC]))) {
           Value doc_str = doc(obj);
           pop();  // Pop the object
           push(doc_str);
@@ -1054,7 +1055,7 @@ static Value run() {
                 // TODO (robust): Not all cached words are actually **reserved**. We should make an enum for
                 // reserved words and check against that instead.
                 for (int i = 0; i < WORD_MAX; i++) {
-                  if (strcmp(name->chars, AS_STRING(vm.cached_words[i])->chars) == 0) {
+                  if (strcmp(name->chars, vm.cached_words[i]->chars) == 0) {
                     runtime_error("Cannot set reserved field '%s'.", name->chars);
                     goto finish_error;
                   }
@@ -1284,11 +1285,18 @@ static Value run() {
         break;
       }
       case OP_IS: {
-        ObjString* type_name_ = READ_STRING();
-        Value value           = peek(0);
-        ObjClass* klass       = type_of(value);
-        Value result          = BOOL_VAL(values_equal(OBJ_VAL(klass->name), OBJ_VAL(type_name_)));
-        pop();  // Pop the value
+        Value type  = pop();
+        Value value = pop();
+
+        if (!IS_CLASS(type)) {
+          runtime_error("Type must be a class. Was %s.", type_of(type)->name->chars);
+          goto finish_error;
+        }
+
+        Value value_klass_name = OBJ_VAL(type_of(value)->name);
+        Value type_name        = OBJ_VAL(AS_CLASS(type)->name);
+        Value result           = BOOL_VAL(values_equal(type_name, value_klass_name));
+
         push(result);
         break;
       }

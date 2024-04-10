@@ -27,8 +27,9 @@ static Entry* find_entry(Entry* entries, int capacity, Value key) {
         return tombstone != NULL ? tombstone : entry;
       } else {
         // We found a tombstone.
-        if (tombstone == NULL)
+        if (tombstone == NULL) {
           tombstone = entry;
+        }
       }
     } else if (values_equal(entry->key, key)) {
       // We found the key.
@@ -80,6 +81,29 @@ bool hashtable_get(HashTable* table, Value key, Value* value) {
   return true;
 }
 
+bool hashtable_get_string(HashTable* table, ObjString* key, Value* value) {
+  if (table->count == 0) {
+    return false;
+  }
+  int capacity   = table->capacity;
+  uint32_t index = key->obj.hash & (capacity - 1);
+
+  for (;;) {
+    Entry* entry = &table->entries[index];
+
+    if (IS_EMPTY_INTERNAL(entry->key)) {
+      return false;
+    }
+
+    if (IS_STRING(entry->key) && AS_STRING(entry->key) == key) {
+      *value = entry->value;
+      return true;
+    }
+    index = (index + 1) & (capacity - 1);
+  }
+  return false;
+}
+
 void hashtable_preallocate(HashTable* table, int target_count) {
   // Grow the capacity using the default growth formula, starting at 0 until we have enough capacity to hold
   // count considering the max load factor. This ensures that hashtable_set will not need to resize the table
@@ -99,7 +123,8 @@ bool hashtable_set(HashTable* table, Value key, Value value) {
     adjust_capacity(table, capacity);
   }
 
-  Entry* entry    = find_entry(table->entries, table->capacity, key);
+  Entry* entry = find_entry(table->entries, table->capacity, key);
+
   bool is_new_key = IS_EMPTY_INTERNAL(entry->key);
   if (is_new_key && IS_NIL(entry->value)) {
     table->count++;
@@ -156,7 +181,7 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
 
     // Check if we found the string.
     ObjString* string = AS_STRING(entry->key);
-    if (string->length == length && string->hash == hash && memcmp(string->chars, chars, length) == 0) {
+    if (string->length == length && string->obj.hash == hash && memcmp(string->chars, chars, length) == 0) {
       // We found it.
       return string;
     }

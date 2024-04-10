@@ -522,19 +522,44 @@
 // print x // Inner error
 // print "still running..."
 
+// print "--------------------------------------------------------------------------------"
+// print "Is operator"
+// print "--------------------------------------------------------------------------------"
+
 // print nil is Nil
 // print true is Bool
 // print 1 is Num
 // print "Hello" is Str
 // print [1,2,3] is Seq
-print {1:2, 3:4} is Obj
-print (fn -> 1) is Obj
-print (fn -> 1)() is Num
-print 1 == 2 is Bool
-print 1 < 2 is Bool
+// print {1:2, 3:4} is Obj
+// print (fn -> 1) is Obj
+// print (fn -> 1)() is Num
+// print 1 == 2 is Bool
+// print 1 < 2 is Bool
 
-cls A{
-  ctor {
-    this.a = 1
-  }
-}
+// // Only Classes are accepted as the rval of 'is' operator.
+// print try (0 is 1) else error // [Expect] Type must be a class. Was Num.
+// print 0 is type_of(1)         // [Expect] true
+
+
+
+
+
+
+
+
+
+
+
+// import Test from "/modules/assert"
+
+// let Assert = Test.Assert()
+// let Is = Test.Is()
+
+// Assert.that(0,             Is.true_())
+// Assert.that(true,          Is.true_())
+// Assert.that(fn -> [] + 20, Is.nil_())
+// Assert.report()
+
+
+

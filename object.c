@@ -22,7 +22,9 @@ static Obj* allocate_object(size_t size, ObjType type) {
                                          // isn't referenced by anything yet -> not reachable by GC
   object->type      = type;
   object->is_marked = false;
-
+  object->hash =
+      (uint32_t)((intptr_t)(object) >> 4 | (intptr_t)(object) << 28);  // Get a better distribution of hash
+                                                                       // values, by shifting the address
   object->next = vm.objects;
   vm.objects   = object;
 
@@ -41,7 +43,7 @@ static ObjString* allocate_string(char* chars, int length, uint32_t hash) {
   ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
   string->length    = length;
   string->chars     = chars;
-  string->hash      = hash;
+  string->obj.hash  = hash;
 
   push(OBJ_VAL(string));  // Prevent GC from freeing string
   hashtable_set(&vm.strings, OBJ_VAL(string), NIL_VAL);
@@ -131,15 +133,17 @@ static uint32_t hash_string(const char* key, int length) {
 ObjSeq* prealloc_seq(int count) {
   ValueArray items;
   init_value_array(&items);
+
   int capacity   = GROW_CAPACITY(count);
   items.values   = RESIZE_ARRAY(Value, items.values, 0, capacity);
   items.capacity = capacity;
   items.count    = count;
 
-  ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
-  seq->items  = items;
+  for (int i = 0; i < count; i++) {
+    items.values[i] = NIL_VAL;
+  }
 
-  return seq;
+  return take_seq(&items);
 }
 
 ObjSeq* take_seq(ValueArray* items) {
@@ -148,10 +152,10 @@ ObjSeq* take_seq(ValueArray* items) {
   return seq;
 }
 
-ObjObject* take_object(HashTable fields) {
+ObjObject* take_object(HashTable* fields) {
   ObjObject* object = ALLOCATE_OBJ(ObjObject, OBJ_OBJECT);
   object->klass     = vm.__builtin_Obj_class;
-  object->fields    = fields;
+  object->fields    = *fields;
   return object;
 }
 

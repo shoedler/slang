@@ -91,6 +91,7 @@ typedef enum {
 struct Obj {
   ObjType type;
   bool is_marked;
+  uint32_t hash;
   struct Obj* next;
 };
 
@@ -129,7 +130,6 @@ typedef struct {
 struct ObjString {
   Obj obj;
   int length;
-  uint32_t hash;
   char* chars;
 };
 
@@ -204,8 +204,8 @@ ObjUpvalue* new_upvalue(Value* slot);
 ObjString* copy_string(const char* chars, int length);
 
 // Creates, initializes and allocates a new seq object. Initializes the
-// value array to add 'count' values without resizing. It's intended to add items directly to
-// items.values[idx], do not use write_value_array. Might trigger garbage collection.
+// value array with all nils and a capacity to add 'count' values without resizing. It's intended to add items
+// directly to items.values[idx], no need to use write_value_array. Might trigger garbage collection.
 ObjSeq* prealloc_seq(int count);
 
 // Creates a string object from a C string.
@@ -221,7 +221,7 @@ ObjSeq* take_seq(ValueArray* items);
 // Creates a new object from a hashtable.
 // This takes ownership of the hashtable. This means that the hashtable will be
 // freed when the object is freed. Might trigger garbage collection.
-ObjObject* take_object(HashTable* entries);
+ObjObject* take_object(HashTable* fields);
 
 static inline bool is_obj_type(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;

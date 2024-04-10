@@ -84,9 +84,8 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
     for (int i = 0; i < str->length; i++) {
       seq->items.values[i] = OBJ_VAL(copy_string(str->chars + i, 1));
     }
-    pop();  // The seq
 
-    return OBJ_VAL(seq);
+    return pop();  // The seq
   }
 
   ObjSeq* seq = new_seq();
@@ -105,7 +104,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
   }
 
   // Add the last part of the string aswell - same behavior as Js.
-  // TODO (optimize): Maybe remove this? "123".split("3") -> ["12", ""], but withour this it would be ["12"]
+  // TODO (optimize): Maybe remove this? "123".split("3") -> ["12", ""], but without this it would be ["12"]
   Value item = OBJ_VAL(copy_string(str->chars + start, str->length - start));
   push(item);  // GC Protection
   write_value_array(&seq->items, item);
