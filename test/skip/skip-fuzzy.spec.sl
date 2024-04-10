@@ -30,6 +30,7 @@ while i++ <= 5 {
   do_something()
   do_something_else()
 }
+
 // [Expect] l = 0
 // [Expect] l = 1
 // [Expect] l = 3
