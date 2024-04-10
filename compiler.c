@@ -1283,18 +1283,29 @@ static void statement_return() {
 // Compiles a while statement.
 // The while keyword has already been consumed at this point.
 static void statement_while() {
-  int loop_start = current_chunk()->count;
+  // Save the loop start for continue statements, which might occur in the loop body.
+  int surrounding_loop_start          = current->innermost_loop_start;
+  int surrounding_loop_scope_depth    = current->innermost_loop_scope_depth;
+  current->innermost_loop_start       = current_chunk()->count;
+  current->innermost_loop_scope_depth = current->scope_depth;
 
+  // Loop condition
   expression();
 
   int exit_jump = emit_jump(OP_JUMP_IF_FALSE);
   emit_one(OP_POP);
 
+  // Loop body
   statement();
-  emit_loop(loop_start);
+
+  emit_loop(current->innermost_loop_start);
 
   patch_jump(exit_jump);
   emit_one(OP_POP);
+
+  // Restore the surrounding loop state.
+  current->innermost_loop_start       = surrounding_loop_start;
+  current->innermost_loop_scope_depth = surrounding_loop_scope_depth;
 }
 
 // Compiles a for statement.
