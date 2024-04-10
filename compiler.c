@@ -75,6 +75,15 @@ typedef struct Compiler {
   int local_count;
   Upvalue upvalues[2048];
   int scope_depth;
+
+  // Brake jumps need to be stored because we don't know the offset of the jump when we compile them.
+  // That's why we store them in an array and patch them later.
+  int brakes_count;
+  int brakes_capacity;
+  int* brake_jumps;
+
+  int innermost_loop_start;
+  int innermost_loop_scope_depth;
 } Compiler;
 
 typedef struct ClassCompiler {
@@ -215,6 +224,14 @@ static void patch_jump(int offset) {
   current_chunk()->code[offset] = (uint16_t)jump;
 }
 
+// Patches a previously emitted jump instruction from a break statement.
+static void patch_breaks(int jump_start_offset) {
+  while (current->brakes_count > 0 && current->brake_jumps[current->brakes_count - 1] > jump_start_offset) {
+    patch_jump(current->brake_jumps[current->brakes_count - 1]);
+    current->brakes_count--;
+  }
+}
+
 // Adds a value to the current constant pool and returns its index.
 // Logs a compile error if the constant pool is full.
 static uint16_t make_constant(Value value) {
@@ -250,12 +267,18 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
   compiler->enclosing = current;
   current             = compiler;
 
-  compiler->function                  = NULL;
-  compiler->type                      = type;
-  compiler->local_count               = 0;
-  compiler->scope_depth               = 0;
-  compiler->function                  = new_function();
-  compiler->function->globals_context = vm.module;
+  compiler->function                   = NULL;
+  compiler->type                       = type;
+  compiler->local_count                = 0;
+  compiler->scope_depth                = 0;
+  compiler->function                   = new_function();
+  compiler->function->globals_context  = vm.module;
+  compiler->innermost_loop_start       = -1;
+  compiler->innermost_loop_scope_depth = -1;
+
+  compiler->brakes_capacity = 0;
+  compiler->brakes_count    = 0;
+  compiler->brake_jumps     = NULL;
 
   // Determine the name of the function via its type.
   switch (type) {
@@ -287,6 +310,11 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
     local->name.start  = "";  // Not accessible.
     local->name.length = 0;
   }
+}
+
+// Frees a compiler
+static void free_compiler(Compiler* compiler) {
+  FREE_ARRAY(int, compiler->brake_jumps, compiler->brakes_capacity);
 }
 
 // Ends the current compiler and returns the compiled function.
@@ -788,6 +816,8 @@ static void function(bool can_assign, FunctionType type) {
     emit_one(compiler.upvalues[i].is_local ? 1 : 0);
     emit_one(compiler.upvalues[i].index);
   }
+
+  free_compiler(&compiler);
 }
 
 static void anonymous_function(bool can_assign) {
@@ -867,55 +897,55 @@ static void this_(bool can_assign) {
 }
 
 ParseRule rules[] = {
-    [TOKEN_OPAR]     = {grouping, call, PREC_CALL},
-    [TOKEN_CPAR]     = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACE]   = {object_literal, NULL, PREC_NONE},
-    [TOKEN_CBRACE]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACK]   = {seq_literal, indexing, PREC_CALL},
-    [TOKEN_CBRACK]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_COMMA]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_DOT]      = {NULL, dot, PREC_CALL},
-    [TOKEN_MINUS]    = {unary, binary, PREC_TERM},
-    [TOKEN_PLUS]     = {NULL, binary, PREC_TERM},
-    [TOKEN_DIV]      = {NULL, binary, PREC_FACTOR},
-    [TOKEN_MULT]     = {NULL, binary, PREC_FACTOR},
-    [TOKEN_MOD]      = {NULL, binary, PREC_FACTOR},
-    [TOKEN_NOT]      = {unary, NULL, PREC_NONE},
-    [TOKEN_NEQ]      = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_ASSIGN]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_EQ]       = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_GT]       = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_GTEQ]     = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LT]       = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LTEQ]     = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_ID]       = {variable, NULL, PREC_NONE},
-    [TOKEN_STRING]   = {string, NULL, PREC_NONE},
-    [TOKEN_NUMBER]   = {number, NULL, PREC_NONE},
-    [TOKEN_AND]      = {NULL, and_, PREC_AND},
-    [TOKEN_CLASS]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_ELSE]     = {NULL, NULL, PREC_NONE},
-    [TOKEN_FALSE]    = {literal, NULL, PREC_NONE},
-    [TOKEN_FOR]      = {NULL, NULL, PREC_NONE},
-    [TOKEN_FN]       = {anonymous_function, NULL, PREC_NONE},
-    [TOKEN_LAMBDA]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_IF]       = {NULL, NULL, PREC_NONE},
-    [TOKEN_NIL]      = {literal, NULL, PREC_NONE},
-    [TOKEN_OR]       = {NULL, or_, PREC_OR},
-    [TOKEN_PRINT]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_RETURN]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_BASE]     = {base_, NULL, PREC_NONE},
-    [TOKEN_TRY]      = {try_, NULL, PREC_NONE},
-    [TOKEN_CATCH]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_THROW]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_IS]       = {NULL, is_, PREC_COMPARISON},
-    [TOKEN_THIS]     = {this_, NULL, PREC_NONE},
-    [TOKEN_TRUE]     = {literal, NULL, PREC_NONE},
-    [TOKEN_LET]      = {NULL, NULL, PREC_NONE},
-    [TOKEN_WHILE]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_BREAK]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_CONTINUE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_ERROR]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_EOF]      = {NULL, NULL, PREC_NONE},
+    [TOKEN_OPAR]   = {grouping, call, PREC_CALL},
+    [TOKEN_CPAR]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_OBRACE] = {object_literal, NULL, PREC_NONE},
+    [TOKEN_CBRACE] = {NULL, NULL, PREC_NONE},
+    [TOKEN_OBRACK] = {seq_literal, indexing, PREC_CALL},
+    [TOKEN_CBRACK] = {NULL, NULL, PREC_NONE},
+    [TOKEN_COMMA]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_DOT]    = {NULL, dot, PREC_CALL},
+    [TOKEN_MINUS]  = {unary, binary, PREC_TERM},
+    [TOKEN_PLUS]   = {NULL, binary, PREC_TERM},
+    [TOKEN_DIV]    = {NULL, binary, PREC_FACTOR},
+    [TOKEN_MULT]   = {NULL, binary, PREC_FACTOR},
+    [TOKEN_MOD]    = {NULL, binary, PREC_FACTOR},
+    [TOKEN_NOT]    = {unary, NULL, PREC_NONE},
+    [TOKEN_NEQ]    = {NULL, binary, PREC_EQUALITY},
+    [TOKEN_ASSIGN] = {NULL, NULL, PREC_NONE},
+    [TOKEN_EQ]     = {NULL, binary, PREC_EQUALITY},
+    [TOKEN_GT]     = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_GTEQ]   = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_LT]     = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_LTEQ]   = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_ID]     = {variable, NULL, PREC_NONE},
+    [TOKEN_STRING] = {string, NULL, PREC_NONE},
+    [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
+    [TOKEN_AND]    = {NULL, and_, PREC_AND},
+    [TOKEN_CLASS]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_ELSE]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_FALSE]  = {literal, NULL, PREC_NONE},
+    [TOKEN_FOR]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_FN]     = {anonymous_function, NULL, PREC_NONE},
+    [TOKEN_LAMBDA] = {NULL, NULL, PREC_NONE},
+    [TOKEN_IF]     = {NULL, NULL, PREC_NONE},
+    [TOKEN_NIL]    = {literal, NULL, PREC_NONE},
+    [TOKEN_OR]     = {NULL, or_, PREC_OR},
+    [TOKEN_PRINT]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
+    [TOKEN_BASE]   = {base_, NULL, PREC_NONE},
+    [TOKEN_TRY]    = {try_, NULL, PREC_NONE},
+    [TOKEN_CATCH]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_THROW]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_IS]     = {NULL, is_, PREC_COMPARISON},
+    [TOKEN_THIS]   = {this_, NULL, PREC_NONE},
+    [TOKEN_TRUE]   = {literal, NULL, PREC_NONE},
+    [TOKEN_LET]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_WHILE]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_BREAK]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_SKIP]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_ERROR]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_EOF]    = {NULL, NULL, PREC_NONE},
 };
 
 // Returns the rule for the given token type.
@@ -1278,18 +1308,31 @@ static void statement_return() {
 // Compiles a while statement.
 // The while keyword has already been consumed at this point.
 static void statement_while() {
-  int loop_start = current_chunk()->count;
+  // Save the loop state for continue(skip)/break statements, which might occur in the loop body.
+  int surrounding_loop_start          = current->innermost_loop_start;
+  int surrounding_loop_scope_depth    = current->innermost_loop_scope_depth;
+  current->innermost_loop_start       = current_chunk()->count;
+  current->innermost_loop_scope_depth = current->scope_depth;
 
+  // Loop condition
   expression();
 
   int exit_jump = emit_jump(OP_JUMP_IF_FALSE);
   emit_one(OP_POP);
 
+  // Loop body
   statement();
-  emit_loop(loop_start);
+
+  emit_loop(current->innermost_loop_start);
 
   patch_jump(exit_jump);
   emit_one(OP_POP);
+
+  patch_breaks(current->innermost_loop_start);
+
+  // Restore the surrounding loop state.
+  current->innermost_loop_start       = surrounding_loop_start;
+  current->innermost_loop_scope_depth = surrounding_loop_scope_depth;
 }
 
 // Compiles a for statement.
@@ -1309,7 +1352,11 @@ static void statement_for() {
     consume(TOKEN_SCOLON, "Expecting ';' after loop initializer.");
   }
 
-  int loop_start = current_chunk()->count;
+  // Save the loop state for continue(skip)/break statements, which might occur in the loop body.
+  int surrounding_loop_start          = current->innermost_loop_start;
+  int surrounding_loop_scope_depth    = current->innermost_loop_scope_depth;
+  current->innermost_loop_start       = current_chunk()->count;
+  current->innermost_loop_scope_depth = current->scope_depth;
 
   // Loop condition
   int exit_jump = -1;
@@ -1330,21 +1377,69 @@ static void statement_for() {
     emit_one(OP_POP);  // Discard the result of the increment expression.
     consume(TOKEN_SCOLON, "Expecting ';' after loop increment.");
 
-    emit_loop(loop_start);
-    loop_start = increment_start;
+    emit_loop(current->innermost_loop_start);
+    current->innermost_loop_start = increment_start;
     patch_jump(body_jump);
   }
 
   // Loop body
   statement();
-  emit_loop(loop_start);
+  emit_loop(current->innermost_loop_start);
 
   if (exit_jump != -1) {
     patch_jump(exit_jump);
     emit_one(OP_POP);  // Discard the result of the condition expression.
   }
 
+  patch_breaks(current->innermost_loop_start);
+
+  // Restore the surrounding loop state.
+  current->innermost_loop_start       = surrounding_loop_start;
+  current->innermost_loop_scope_depth = surrounding_loop_scope_depth;
+
   end_scope();
+}
+
+// Compiles a skip statement.
+// The skip keyword has already been consumed at this point.
+static void statement_skip() {
+  if (current->innermost_loop_start == -1) {
+    error("Can't skip outside of a loop.");
+  }
+
+  // Discard any locals created in the loop body.
+  for (int i = current->local_count - 1;
+       i >= 0 && current->locals[i].depth > current->innermost_loop_scope_depth; i--) {
+    emit_one(OP_POP);
+  }
+
+  // Jump back to the start of the loop.
+  emit_loop(current->innermost_loop_start);
+}
+
+// Compiles a break statement.
+// The break keyword has already been consumed at this point.
+static void statement_break() {
+  if (current->innermost_loop_start == -1) {
+    error("Can't break outside of a loop.");
+  }
+
+  // Grow the array if necessary.
+  if (SHOULD_GROW(current->brakes_count + 1, current->brakes_capacity)) {
+    int old_capacity         = current->brakes_capacity;
+    current->brakes_capacity = GROW_CAPACITY(old_capacity);
+    current->brake_jumps =
+        RESIZE_ARRAY(int, current->brake_jumps, current->brakes_count, current->brakes_capacity);
+  }
+
+  // Discard any locals created in the loop body.
+  for (int i = current->local_count - 1;
+       i >= 0 && current->locals[i].depth > current->innermost_loop_scope_depth; i--) {
+    emit_one(OP_POP);
+  }
+
+  // Jump to the end of the loop.
+  current->brake_jumps[current->brakes_count++] = emit_jump(OP_JUMP);
 }
 
 // Compiles an import statement.
@@ -1396,6 +1491,10 @@ static void statement() {
     statement_for();
   } else if (match(TOKEN_IMPORT)) {
     statement_import();
+  } else if (match(TOKEN_SKIP)) {
+    statement_skip();
+  } else if (match(TOKEN_BREAK)) {
+    statement_break();
   } else if (match(TOKEN_OBRACE)) {
     begin_scope();
     block();
@@ -1532,6 +1631,7 @@ ObjFunction* compile_module(const char* source) {
   }
 
   ObjFunction* function = end_compiler();
+  free_compiler(&compiler);
   return parser.had_error ? NULL : function;
 }
 

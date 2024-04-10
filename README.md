@@ -10,8 +10,8 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 - [ ] Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `when a then b else c`. This is a must-have. (**_See Challenge 17.3_**)
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
-- [ ] Implement `continue` Statement (**_See Challenge 23.2_**)
-- [ ] Implement `break` Statement.
+- [x] Implement `continue` Statement (**_See Challenge 23.2_**)
+- [x] Implement `break` Statement.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] Implement `||` and `&&` operators.
@@ -49,6 +49,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
+- [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Rename `type_of` to `typeof`
 - [ ] Make `len` a property instead of a function?
 - [ ] Add `error` to the reserved words
