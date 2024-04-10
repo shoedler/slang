@@ -135,7 +135,6 @@ static TokenType identifier_type() {
         switch (scanner.start[1]) {
           case 'a': return check_keyword(2, 3, "tch", TOKEN_CATCH);
           case 'l': return check_keyword(2, 1, "s", TOKEN_CLASS);
-          case 'o': return check_keyword(2, 6, "ntinue", TOKEN_CONTINUE);
           case 't': return check_keyword(2, 2, "or", TOKEN_CTOR);
         }
       }
@@ -171,6 +170,7 @@ static TokenType identifier_type() {
     case 'o': return check_keyword(1, 1, "r", TOKEN_OR);
     case 'p': return check_keyword(1, 4, "rint", TOKEN_PRINT);
     case 'r': return check_keyword(1, 2, "et", TOKEN_RETURN);
+    case 's': return check_keyword(1, 3, "kip", TOKEN_SKIP);
     case 't':
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {

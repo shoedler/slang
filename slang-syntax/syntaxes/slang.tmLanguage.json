@@ -69,7 +69,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.SlangScript",
-                    "match": "\\b(if|for|else|while|fn|ret|print|or|and|cls|ctor|import|from|throw|try|catch|is)\\b"
+                    "match": "\\b(if|for|else|while|fn|ret|print|or|and|cls|ctor|import|from|throw|try|catch|is|skip)\\b"
                 },
                 {
                     "name": "storage.type.SlangScript",
