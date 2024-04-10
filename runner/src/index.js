@@ -7,7 +7,16 @@ import {
   SLANG_TEST_SUFFIX,
 } from './config.js';
 import { runTests } from './test.js';
-import { abort, buildSlangConfig, info, ok, runSlangFile, separator, warn } from './utils.js';
+import {
+  abort,
+  buildSlangConfig,
+  error,
+  info,
+  ok,
+  runSlangFile,
+  separator,
+  warn,
+} from './utils.js';
 import { watch } from './watch.js';
 
 // Process arguments. This is a simple command line interface for running benchmarks and tests
@@ -39,14 +48,17 @@ const validateOptions = () => {
 
 const hint = [
   'Available commands & options:',
-  '  - bench           Run benchmarks',
+  '  - bench           Run benchmarks (Debug & Release)',
+  '  - sample          Run sample file (sample.sl)',
   '  - test            Run tests (.spec.sl files)',
   '    - update-files  Update test files with new expectations',
   '    - <pattern>     Run tests that match the regex pattern',
-  '  - watch-sample    Watch sample file',
+  '  - watch-sample    Watch sample file (sample.sl)',
   '  - watch-test      Watch test files',
   '    - <pattern>     Watch tests that match the regex pattern',
   '  - serve-results   Serve benchmark results',
+  '',
+  'Note: If not specified, the default configuration is Release',
 ];
 
 switch (cmd) {
@@ -73,6 +85,24 @@ switch (cmd) {
 
     await buildSlangConfig(config);
     await runTests(config, undefined, doUpdateFiles, testNamePattern);
+    break;
+  }
+  case 'sample': {
+    const config = BUILD_CONFIG_RELEASE;
+    validateOptions();
+
+    await buildSlangConfig(config);
+    console.clear();
+    info('Running slang file', SLANG_SAMPLE_FILE);
+    const { exitCode, rawOutput } = await runSlangFile(SLANG_SAMPLE_FILE, config);
+    separator();
+    console.log(rawOutput);
+    separator();
+    if (exitCode === 0) {
+      ok('Ran with 0 exit code');
+    } else {
+      error('Ran with non-zero exit code', exitCode);
+    }
     break;
   }
   case 'watch-sample': {

@@ -34,6 +34,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
+- [ ] Make `len` a property instead of a function?
 - [ ] Add `error` to the reserved words
 - [ ] Make sure managed code classes do not override internal classes.
 - [ ] Move exit codes to `common.h` and replace all magic numbers with them

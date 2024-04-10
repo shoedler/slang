@@ -1285,11 +1285,18 @@ static Value run() {
         break;
       }
       case OP_IS: {
-        ObjString* type_name_ = READ_STRING();
-        Value value           = peek(0);
-        ObjClass* klass       = type_of(value);
-        Value result          = BOOL_VAL(values_equal(OBJ_VAL(klass->name), OBJ_VAL(type_name_)));
-        pop();  // Pop the value
+        Value type  = pop();
+        Value value = pop();
+
+        if (!IS_CLASS(type)) {
+          runtime_error("Type must be a class. Was %s.", type_of(type)->name->chars);
+          goto finish_error;
+        }
+
+        Value value_klass_name = OBJ_VAL(type_of(value)->name);
+        Value type_name        = OBJ_VAL(AS_CLASS(type)->name);
+        Value result           = BOOL_VAL(values_equal(type_name, value_klass_name));
+
         push(result);
         break;
       }

@@ -830,9 +830,8 @@ static void and_(bool can_assign) {
 
 static void is_(bool can_assign) {
   UNUSED(can_assign);
-  consume(TOKEN_ID, "Expecting type name after 'is'.");
-  uint16_t type_name = string_constant(&parser.previous);
-  emit_two(OP_IS, type_name);
+  expression();
+  emit_one(OP_IS);
 }
 
 // Compiles an or expression.

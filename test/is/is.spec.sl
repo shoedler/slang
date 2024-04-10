@@ -34,3 +34,7 @@ print X().x is Fn      // [Expect] true
 print X is Class       // [Expect] true
 print Obj is Class     // [Expect] true
 print X() is Class     // [Expect] false
+
+// Only Classes are accepted as the rval of 'is' operator.
+print try (0 is 1) else error // [Expect] Type must be a class. Was Num.
+print 0 is type_of(1)         // [Expect] true
