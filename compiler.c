@@ -23,6 +23,7 @@ typedef struct {
 typedef enum {
   PREC_NONE,
   PREC_ASSIGN,      // =
+  PREC_TERNARY,     // ?:
   PREC_OR,          // or
   PREC_AND,         // and
   PREC_EQUALITY,    // == !=
@@ -858,12 +859,6 @@ static void and_(bool can_assign) {
   patch_jump(end_jump);
 }
 
-static void is_(bool can_assign) {
-  UNUSED(can_assign);
-  expression();
-  emit_one(OP_IS);
-}
-
 // Compiles an or expression.
 // Or is special in that it acts more lik a control flow construct rather than
 // a binary operator. It short-circuits the evaluation of the rhs if the lhs is
@@ -883,6 +878,33 @@ static void or_(bool can_assign) {
   patch_jump(end_jump);
 }
 
+// Compiles a ternary expression. The condition bytecode has already been emitted. The question mark has been
+// consumed and is referenced by the previous token. The true branch starts at the current token.
+static void ternary(bool can_assign) {
+  UNUSED(can_assign);
+  int else_jump = emit_jump(OP_JUMP_IF_FALSE);
+  emit_one(OP_POP);  // Discard the condition.
+
+  parse_precedence(PREC_TERNARY);
+
+  consume(TOKEN_COLON, "Expecting ':' after true branch.");
+  int end_jump = emit_jump(OP_JUMP);
+
+  patch_jump(else_jump);
+  emit_one(OP_POP);  // Discard the true branch.
+
+  parse_precedence(PREC_TERNARY);
+  patch_jump(end_jump);
+}
+
+// Compiles an is expression. The is keyword has already been consumed and is referenced by the previous
+// token.
+static void is_(bool can_assign) {
+  UNUSED(can_assign);
+  expression();
+  emit_one(OP_IS);
+}
+
 // Compiles a 'this' expression.
 // The 'this' keyword has already been consumed and is referenced by the previous
 // token.
@@ -897,55 +919,56 @@ static void this_(bool can_assign) {
 }
 
 ParseRule rules[] = {
-    [TOKEN_OPAR]   = {grouping, call, PREC_CALL},
-    [TOKEN_CPAR]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACE] = {object_literal, NULL, PREC_NONE},
-    [TOKEN_CBRACE] = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACK] = {seq_literal, indexing, PREC_CALL},
-    [TOKEN_CBRACK] = {NULL, NULL, PREC_NONE},
-    [TOKEN_COMMA]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_DOT]    = {NULL, dot, PREC_CALL},
-    [TOKEN_MINUS]  = {unary, binary, PREC_TERM},
-    [TOKEN_PLUS]   = {NULL, binary, PREC_TERM},
-    [TOKEN_DIV]    = {NULL, binary, PREC_FACTOR},
-    [TOKEN_MULT]   = {NULL, binary, PREC_FACTOR},
-    [TOKEN_MOD]    = {NULL, binary, PREC_FACTOR},
-    [TOKEN_NOT]    = {unary, NULL, PREC_NONE},
-    [TOKEN_NEQ]    = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_ASSIGN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_EQ]     = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_GT]     = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_GTEQ]   = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LT]     = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LTEQ]   = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_ID]     = {variable, NULL, PREC_NONE},
-    [TOKEN_STRING] = {string, NULL, PREC_NONE},
-    [TOKEN_NUMBER] = {number, NULL, PREC_NONE},
-    [TOKEN_AND]    = {NULL, and_, PREC_AND},
-    [TOKEN_CLASS]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_ELSE]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_FALSE]  = {literal, NULL, PREC_NONE},
-    [TOKEN_FOR]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_FN]     = {anonymous_function, NULL, PREC_NONE},
-    [TOKEN_LAMBDA] = {NULL, NULL, PREC_NONE},
-    [TOKEN_IF]     = {NULL, NULL, PREC_NONE},
-    [TOKEN_NIL]    = {literal, NULL, PREC_NONE},
-    [TOKEN_OR]     = {NULL, or_, PREC_OR},
-    [TOKEN_PRINT]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_RETURN] = {NULL, NULL, PREC_NONE},
-    [TOKEN_BASE]   = {base_, NULL, PREC_NONE},
-    [TOKEN_TRY]    = {try_, NULL, PREC_NONE},
-    [TOKEN_CATCH]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_THROW]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_IS]     = {NULL, is_, PREC_COMPARISON},
-    [TOKEN_THIS]   = {this_, NULL, PREC_NONE},
-    [TOKEN_TRUE]   = {literal, NULL, PREC_NONE},
-    [TOKEN_LET]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_WHILE]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_BREAK]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_SKIP]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_ERROR]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_EOF]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_OPAR]    = {grouping, call, PREC_CALL},
+    [TOKEN_CPAR]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_OBRACE]  = {object_literal, NULL, PREC_NONE},
+    [TOKEN_CBRACE]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_OBRACK]  = {seq_literal, indexing, PREC_CALL},
+    [TOKEN_CBRACK]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_COMMA]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_DOT]     = {NULL, dot, PREC_CALL},
+    [TOKEN_MINUS]   = {unary, binary, PREC_TERM},
+    [TOKEN_PLUS]    = {NULL, binary, PREC_TERM},
+    [TOKEN_DIV]     = {NULL, binary, PREC_FACTOR},
+    [TOKEN_MULT]    = {NULL, binary, PREC_FACTOR},
+    [TOKEN_MOD]     = {NULL, binary, PREC_FACTOR},
+    [TOKEN_NOT]     = {unary, NULL, PREC_NONE},
+    [TOKEN_TERNARY] = {NULL, ternary, PREC_TERNARY},
+    [TOKEN_NEQ]     = {NULL, binary, PREC_EQUALITY},
+    [TOKEN_ASSIGN]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_EQ]      = {NULL, binary, PREC_EQUALITY},
+    [TOKEN_GT]      = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_GTEQ]    = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_LT]      = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_LTEQ]    = {NULL, binary, PREC_COMPARISON},
+    [TOKEN_ID]      = {variable, NULL, PREC_NONE},
+    [TOKEN_STRING]  = {string, NULL, PREC_NONE},
+    [TOKEN_NUMBER]  = {number, NULL, PREC_NONE},
+    [TOKEN_AND]     = {NULL, and_, PREC_AND},
+    [TOKEN_CLASS]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_ELSE]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_FALSE]   = {literal, NULL, PREC_NONE},
+    [TOKEN_FOR]     = {NULL, NULL, PREC_NONE},
+    [TOKEN_FN]      = {anonymous_function, NULL, PREC_NONE},
+    [TOKEN_LAMBDA]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_IF]      = {NULL, NULL, PREC_NONE},
+    [TOKEN_NIL]     = {literal, NULL, PREC_NONE},
+    [TOKEN_OR]      = {NULL, or_, PREC_OR},
+    [TOKEN_PRINT]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_RETURN]  = {NULL, NULL, PREC_NONE},
+    [TOKEN_BASE]    = {base_, NULL, PREC_NONE},
+    [TOKEN_TRY]     = {try_, NULL, PREC_NONE},
+    [TOKEN_CATCH]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_THROW]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_IS]      = {NULL, is_, PREC_COMPARISON},
+    [TOKEN_THIS]    = {this_, NULL, PREC_NONE},
+    [TOKEN_TRUE]    = {literal, NULL, PREC_NONE},
+    [TOKEN_LET]     = {NULL, NULL, PREC_NONE},
+    [TOKEN_WHILE]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_BREAK]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_SKIP]    = {NULL, NULL, PREC_NONE},
+    [TOKEN_ERROR]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_EOF]     = {NULL, NULL, PREC_NONE},
 };
 
 // Returns the rule for the given token type.

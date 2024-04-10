@@ -22,6 +22,13 @@ print false == 2 <= 1 // [Expect] true
 // >= has higher precedence than ==.
 print false == 1 >= 2 // [Expect] true
 
+// or has higher precedence than ?:.
+print true ? true or false : false // [Expect] true
+
+// = has lower precedence than ?:.
+let a
+print a = 1 ? 2 : 3 // [Expect] 2
+
 // 1 - 1 is not space-sensitive.
 print 1 - 1 // [Expect] 0
 print 1 -1  // [Expect] 0

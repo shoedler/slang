@@ -21,6 +21,10 @@
 // if a and b print "a and b is Truthy!"
 // if a or b print "a or b is Truthy!"
 
+// // Ternary operators
+// print {} ? "Truthy" : "(skip)" // "Truthy"
+// print nil ? "(skip)" : false ? "(skip)" : true ? "Truthy" : "(skip)" // "Truthy"
+
 // print "--------------------------------------------------------------------------------"
 // print "Loops"
 // print "--------------------------------------------------------------------------------"
@@ -59,6 +63,26 @@
 //   let closure = outer()
 //   closure()
 //   print i
+// }
+
+// // Skip (Continue) 
+// for let i = 0; i < 10; i++; {
+//   if i % 2 == 0
+//     skip
+//   print i.to_str() + " is odd"
+// }
+
+// // Break
+// let i = 0
+// while i++ <= 5 {
+//   for let l = 0; l <= 5; l++; {
+//     if l == 2 
+//       break
+//     print "l = " + l.to_str()
+//   }
+
+//   if i % 2 == 0
+//     break
 // }
 
 // print "--------------------------------------------------------------------------------"
@@ -147,16 +171,12 @@
 // maker.brew() // Error
 
 // print "--------------------------------------------------------------------------------"
-// print "Base Classes"
+// print "Inheritance"
 // print "--------------------------------------------------------------------------------"
 // cls A {
 //   fn method {
 //     print "A"
 //   }
-// }
-
-// while false {
-//   let a = nil
 // }
 
 // cls B : A {
@@ -538,17 +558,14 @@
 // print 1 < 2 is Bool
 
 // // Only Classes are accepted as the rval of 'is' operator.
-// print try (0 is 1) else error // [Expect] Type must be a class. Was Num.
-// print 0 is type_of(1)         // [Expect] true
+// print try (0 is 1) else error // Type must be a class. Was Num.
+// print 0 is type_of(1)         // true
 
-// for let i = 0; i < 10; i++; {
-//   if i % 2 == 0
-//     skip
-//   print i.to_str() + " is odd"
-// }
 import Perf
+
 let i = 0
 let t = Perf.now()
+
 while true {
   if i >= 100000
     break
@@ -558,19 +575,5 @@ while true {
 }
 
 print i
-
-
-
-
-// import Test from "/modules/assert"
-
-// let Assert = Test.Assert()
-// let Is = Test.Is()
-
-// Assert.that(0,             Is.true_())
-// Assert.that(true,          Is.true_())
-// Assert.that(fn -> [] + 20, Is.nil_())
-// Assert.report()
-
 
 

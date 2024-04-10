@@ -333,6 +333,7 @@ Token scan_token() {
     case ':': return make_token(TOKEN_COLON);
     case ';': return make_token(TOKEN_SCOLON);
     case ',': return make_token(TOKEN_COMMA);
+    case '?': return make_token(TOKEN_TERNARY);
 
     case '+': return make_token(match('=') ? TOKEN_PLUS_ASSIGN : match('+') ? TOKEN_PLUS_PLUS : TOKEN_PLUS);
     case '-':
