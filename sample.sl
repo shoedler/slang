@@ -221,7 +221,7 @@
 // // Seq.has
 // //
 // fn is_num(x) {
-//   ret type_of(x) == Num;
+//   ret typeof(x) == Num;
 // }
 
 // cls Validators { 
@@ -252,7 +252,7 @@
 // //
 // print [].last() // nil
 // print [1,2,3].last() // 3
-// print [1,2,3].last(fn (x) -> type_of(x) == Num) // 3
+// print [1,2,3].last(fn (x) -> typeof(x) == Num) // 3
 
 // //
 // // Seq.each
@@ -368,7 +368,7 @@
 // print "Bound native function test: "
 // let sample = "Hello"
 // let bound_native = sample.to_str
-// print type_of(bound_native)
+// print typeof(bound_native)
 // print "'" + bound_native() + "' should be the same as '" + (sample.to_str)() +  "', and the same as '" + sample.to_str()
 
 // print "--------------------------------------------------------------------------------"
@@ -395,7 +395,7 @@
 // print List().to_str()
 
 // let l = List()
-// log("Hello", [1,2,3], clock(), type_of(nil), l.list.len(), type_of(l.list))
+// log("Hello", [1,2,3], clock(), typeof(nil), l.list.len(), typeof(l.list))
 
 // print "--------------------------------------------------------------------------------"
 // print "Builtin stuff"
@@ -411,7 +411,7 @@
 // let values = [0, nil, true, [], fn->1, clock, Sample]
 // for let i = 0 ; i < values.len(); i++ ; {
 //   log("---")
-//   log("type_of:   ", type_of(values[i]))
+//   log("typeof:   ", typeof(values[i]))
 //   log("to_str:    ", values[i].to_str())
 //   log("hash:      ", values[i].hash())
 // }
@@ -436,7 +436,7 @@
 // print Sample().__doc
 
 // print clock.__doc
-// print type_of.__doc
+// print typeof.__doc
 // print cwd.__doc
 // print log.__doc
 
@@ -559,7 +559,7 @@
 
 // // Only Classes are accepted as the rval of 'is' operator.
 // print try (0 is 1) else error // Type must be a class. Was Num.
-// print 0 is type_of(1)         // true
+// print 0 is typeof(1)         // true
 
 import Perf
 
@@ -577,3 +577,5 @@ while true {
 print i
 
 
+print typeof(1) == Num
+if 1 is Num print "1 is Num"

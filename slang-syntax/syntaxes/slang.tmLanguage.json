@@ -69,7 +69,11 @@
             "patterns": [
                 {
                     "name": "keyword.control.SlangScript",
-                    "match": "\\b(if|for|else|while|fn|ret|print|or|and|cls|ctor|import|from|throw|try|catch|is|skip|break)\\b"
+                    "match": "\\b(if|for|else|while|fn|ret|print|or|and|cls|ctor|import|from|throw|try|catch|skip|break)\\b"
+                },
+                {
+                    "name": "keyword.operator.expression.SlangScript",
+                    "match": "\\b(typeof|is|in)\\b"
                 },
                 {
                     "name": "storage.type.SlangScript",

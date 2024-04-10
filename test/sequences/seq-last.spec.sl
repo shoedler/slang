@@ -6,11 +6,11 @@ print [1,3,4].last(fn(x) -> x == 3) // [Expect] 3
 print [1,3,4].last(fn(x) -> x/2 == 2) // [Expect] 4
 
 // Actually returns the last element that satisfies the condition
-print [1,3,4].last(fn(x) -> type_of(x) == Num) // [Expect] 4
+print [1,3,4].last(fn(x) -> typeof(x) == Num) // [Expect] 4
 
 // Passing a named function
 fn is_num(x) {
-  ret type_of(x) == Num;
+  ret typeof(x) == Num;
 }
 print [1,3,4].last(is_num) // [Expect] 4
 

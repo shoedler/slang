@@ -4,11 +4,11 @@ print [].some(fn(x) -> x == x) // [Expect] false
 // Passing an anonymous function
 print [1,3,4].some(fn(x) -> x == 3) // [Expect] true
 print [1,3,4].some(fn(x) -> x/2 == 2) // [Expect] true
-print [1,3,4].some(fn(x) -> type_of(x) == Num) // [Expect] true
+print [1,3,4].some(fn(x) -> typeof(x) == Num) // [Expect] true
 
 // Passing a named function
 fn is_num(x) {
-  ret type_of(x) == Num;
+  ret typeof(x) == Num;
 }
 print [1,3,4].some(is_num) // [Expect] true
 

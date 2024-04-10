@@ -166,7 +166,7 @@ void define_obj(HashTable* table, const char* name, Obj* obj);
 
 // Retrieves the class of a value. Everything in slang is an 'object', so this function will always return
 // a class.
-ObjClass* type_of(Value value);
+ObjClass* typeof(Value value);
 
 // Determines whether a value is falsey. We consider nil and false to be falsey,
 // and everything else to be truthy.

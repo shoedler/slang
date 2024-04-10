@@ -233,7 +233,7 @@ static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
 }
 
-ObjClass* type_of(Value value) {
+ObjClass* typeof(Value value) {
   // Handle primitive and internal types which have a corresponding class
   switch (value.type) {
     case VAL_NIL: return vm.__builtin_Nil_class;     // This field name was created via macro
@@ -360,7 +360,7 @@ static CallResult call_value(Value callable, int arg_count) {
             case OBJ_CLOSURE: return call_managed(AS_CLOSURE(ctor), arg_count);
             case OBJ_NATIVE: return call_native(AS_NATIVE(ctor), arg_count);
             default: {
-              runtime_error("Cannot invoke ctor of type '%s'", type_of(ctor)->name->chars);
+              runtime_error("Cannot invoke ctor of type '%s'", typeof(ctor)->name->chars);
               return CALL_FAILED;
             }
           }
@@ -376,7 +376,7 @@ static CallResult call_value(Value callable, int arg_count) {
     }
   }
 
-  runtime_error("Attempted to call non-callable value of type %s.", type_of(callable)->name->chars);
+  runtime_error("Attempted to call non-callable value of type %s.", typeof(callable)->name->chars);
   return CALL_FAILED;
 }
 
@@ -396,7 +396,7 @@ static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_co
     case OBJ_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
     case OBJ_NATIVE: return call_native(AS_NATIVE(method), arg_count);
     default: {
-      runtime_error("Cannot invoke method of type '%s' on class", type_of(method)->name->chars);
+      runtime_error("Cannot invoke method of type '%s' on class", typeof(method)->name->chars);
       return CALL_FAILED;
     }
   }
@@ -410,7 +410,7 @@ static CallResult invoke(ObjString* name, int arg_count) {
   // Handle primitives which have a corresponding class.
   // Everything which is not an object
   if (!IS_OBJECT(receiver)) {
-    ObjClass* klass = type_of(receiver);
+    ObjClass* klass = typeof(receiver);
     return invoke_from_class(klass, name, arg_count);
   }
 
@@ -475,7 +475,7 @@ Value exec_fn(Obj* callable, int arg_count) {
 
 Value exec_method(ObjString* name, int arg_count) {
   Value receiver    = peek(arg_count);
-  ObjClass* klass   = type_of(receiver);
+  ObjClass* klass   = typeof(receiver);
   CallResult result = invoke_from_class(klass, name, arg_count);
 
   if (result == CALL_RETURNED) {
@@ -767,16 +767,16 @@ static Value run() {
 
 // Perform a binary operation on the top two values on the stack. This consumes two pieces of data from the
 // stack, and pushes the result value_type is the type of the result value, op is the operator to use
-#define BINARY_OP(value_type, a_b_op)                                                                      \
-  do {                                                                                                     \
-    if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                                                      \
-      runtime_error("Operands must be numbers. Left was %s, right was %s.", type_of(peek(1))->name->chars, \
-                    type_of(peek(0))->name->chars);                                                        \
-      goto finish_error;                                                                                   \
-    }                                                                                                      \
-    double b = AS_NUMBER(pop());                                                                           \
-    double a = AS_NUMBER(pop());                                                                           \
-    push(value_type(a_b_op));                                                                              \
+#define BINARY_OP(value_type, a_b_op)                                                                     \
+  do {                                                                                                    \
+    if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                                                     \
+      runtime_error("Operands must be numbers. Left was %s, right was %s.", typeof(peek(1))->name->chars, \
+                    typeof(peek(0))->name->chars);                                                        \
+      goto finish_error;                                                                                  \
+    }                                                                                                     \
+    double b = AS_NUMBER(pop());                                                                          \
+    double a = AS_NUMBER(pop());                                                                          \
+    push(value_type(a_b_op));                                                                             \
   } while (false)
 
   for (;;) {
@@ -861,7 +861,7 @@ static Value run() {
         if (IS_STRING(indexee)) {
           if (!IS_NUMBER(index)) {
             runtime_error(STR(TYPENAME_STRING) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.",
-                          type_of(index)->name->chars);
+                          typeof(index)->name->chars);
             goto finish_error;
           }
 
@@ -884,7 +884,7 @@ static Value run() {
         } else if (IS_SEQ(indexee)) {
           if (!IS_NUMBER(index)) {
             runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.",
-                          type_of(index)->name->chars);
+                          typeof(index)->name->chars);
             goto finish_error;
           }
 
@@ -912,7 +912,7 @@ static Value run() {
             push(NIL_VAL);
           }
         } else {
-          runtime_error("%s cannot be get-indexed.", type_of(indexee)->name->chars);
+          runtime_error("%s cannot be get-indexed.", typeof(indexee)->name->chars);
           goto finish_error;
         }
         break;
@@ -929,7 +929,7 @@ static Value run() {
 
           if (!IS_NUMBER(index)) {
             runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.",
-                          type_of(index)->name->chars);
+                          typeof(index)->name->chars);
             goto finish_error;
           }
 
@@ -962,7 +962,7 @@ static Value run() {
           pop();        // assignee
           push(value);  // Push back onto the stack, because assignment is an expression
         } else {
-          runtime_error("%s cannot be set-indexed.", type_of(assignee)->name->chars);
+          runtime_error("%s cannot be set-indexed.", typeof(assignee)->name->chars);
           goto finish_error;
         }
         break;
@@ -1018,7 +1018,7 @@ static Value run() {
 
         // It could be a method of the objs class. This catches many of the cases where we map a builtin class
         // to primitive types, e.g. Num.to_str()
-        ObjClass* klass = type_of(obj);
+        ObjClass* klass = typeof(obj);
         if (bind_method(klass, name)) {
           goto done_getting_property;
         }
@@ -1033,7 +1033,7 @@ static Value run() {
           goto done_getting_property;
         }
 
-        runtime_error("Property '%s' does not exist on type %s.", name->chars, type_of(obj)->name->chars);
+        runtime_error("Property '%s' does not exist on type %s.", name->chars, typeof(obj)->name->chars);
         goto finish_error;
 
       done_getting_property:
@@ -1072,7 +1072,7 @@ static Value run() {
           }
         }
 
-        runtime_error("Cannot set field '%s' on value of type %s.", name->chars, type_of(obj)->name->chars);
+        runtime_error("Cannot set field '%s' on value of type %s.", name->chars, typeof(obj)->name->chars);
         goto finish_error;
 
       done_setting_property:
@@ -1130,7 +1130,7 @@ static Value run() {
           runtime_error(
               "Operands must be two numbers or two strings. Left was "
               "%s, right was %s.",
-              type_of(peek(1))->name->chars, type_of(peek(0))->name->chars);
+              typeof(peek(1))->name->chars, typeof(peek(0))->name->chars);
           goto finish_error;
         }
         break;
@@ -1142,7 +1142,7 @@ static Value run() {
       case OP_NOT: push(BOOL_VAL(is_falsey(pop()))); break;
       case OP_NEGATE:
         if (!IS_NUMBER(peek(0))) {
-          runtime_error("Operand must be a number. Was %s.", type_of(peek(0))->name->chars);
+          runtime_error("Operand must be a number. Was %s.", typeof(peek(0))->name->chars);
           goto finish_error;
         }
         push(NUMBER_VAL(-AS_NUMBER(pop())));
@@ -1276,7 +1276,7 @@ static Value run() {
         Value baseclass    = peek(1);
         ObjClass* subclass = AS_CLASS(peek(0));
         if (!IS_CLASS(baseclass)) {
-          runtime_error("Base class must be a class. Was %s.", type_of(baseclass)->name->chars);
+          runtime_error("Base class must be a class. Was %s.", typeof(baseclass)->name->chars);
           goto finish_error;
         }
         hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);
@@ -1289,11 +1289,11 @@ static Value run() {
         Value value = pop();
 
         if (!IS_CLASS(type)) {
-          runtime_error("Type must be a class. Was %s.", type_of(type)->name->chars);
+          runtime_error("Type must be a class. Was %s.", typeof(type)->name->chars);
           goto finish_error;
         }
 
-        Value value_klass_name = OBJ_VAL(type_of(value)->name);
+        Value value_klass_name = OBJ_VAL(typeof(value)->name);
         Value type_name        = OBJ_VAL(AS_CLASS(type)->name);
         Value result           = BOOL_VAL(values_equal(type_name, value_klass_name));
 

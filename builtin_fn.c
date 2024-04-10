@@ -37,7 +37,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, to_str) {
   if (!IS_FUNCTION(argv[0]) && !IS_CLOSURE(argv[0]) && !IS_BOUND_METHOD(argv[0]) && !IS_NATIVE(argv[0])) {
     runtime_error("Expected receiver of type " STR(TYPENAME_FUNCTION) ", " STR(TYPENAME_CLOSURE) ", " STR(
                       TYPENAME_NATIVE) " or " STR(TYPENAME_BOUND_METHOD) ", but got %s.",
-                  type_of(argv[0])->name->chars);
+                  typeof(argv[0])->name->chars);
     return NIL_VAL;
   }
 

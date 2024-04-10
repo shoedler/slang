@@ -11,7 +11,7 @@ print [1,3,4].has(fn(x) -> x == 2) // [Expect] false
 
 // Passing a named function
 fn is_num(x) {
-  ret type_of(x) == Num;
+  ret typeof(x) == Num;
 }
 print [1,3,4].has(is_num) // [Expect] true
 

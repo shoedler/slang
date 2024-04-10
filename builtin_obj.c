@@ -167,7 +167,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, to_str) {
   }
 
   // This here is the catch-all for all values. We print the type-name and memory address of the value.
-  ObjString* t_name = type_of(argv[0])->name;
+  ObjString* t_name = typeof(argv[0])->name;
 
   // Print the memory address of the object using (void*)AS_OBJ(argv[0]).
   // We need to know the size of the buffer to allocate, so we calculate it first.

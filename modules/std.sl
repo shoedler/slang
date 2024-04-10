@@ -30,7 +30,7 @@ cls List {
   }
 
   fn map(f) {
-    if type_of(f).__name != type_of(fn -> nil).__name {
+    if typeof(f).__name != typeof(fn -> nil).__name {
       print "Error: map requires a function as an argument"
       ret nil;
     }

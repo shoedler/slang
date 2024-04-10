@@ -7,7 +7,7 @@
 void register_builtin_functions() {
   BUILTIN_REGISTER_FN(vm.builtin, clock, 0);
   BUILTIN_REGISTER_FN(vm.builtin, log, -1);
-  BUILTIN_REGISTER_FN(vm.builtin, type_of, 1);
+  BUILTIN_REGISTER_FN(vm.builtin, typeof, 1);
   BUILTIN_REGISTER_FN(vm.builtin, cwd, 0);
 }
 
@@ -75,13 +75,13 @@ BUILTIN_FN_IMPL(log) {
 
 // Native type of.
 BUILTIN_FN_DOC(
-    /* Fn Name     */ type_of,
+    /* Fn Name     */ typeof,
     /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
     /* Return Type */ TYPENAME_CLASS,
     /* Description */ "Returns the class of the value.");
-BUILTIN_FN_IMPL(type_of) {
+BUILTIN_FN_IMPL(typeof) {
   UNUSED(argc);
 
-  ObjClass* klass = type_of(argv[1]);
+  ObjClass* klass = typeof(argv[1]);
   return OBJ_VAL(klass);
 }

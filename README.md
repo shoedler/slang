@@ -8,13 +8,8 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ### Syntax & Language Features
 
-- [ ] Ternaries. We can already achieve this with `and` + `or`, but it's not as nice. Syntax: `a ? b : c`, or `when a then b else c`. This is a must-have. (**_See Challenge 17.3_**)
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
-- [x] Implement `continue` Statement (**_See Challenge 23.2_**)
-- [x] Implement `break` Statement.
-- [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Add `const` (**_See Challenge 22.3_**)
-- [ ] Implement `||` and `&&` operators.
 - [ ] Implement `static fn foo -> nil` syntax for static methods. They are just another hashtable on the class object. Only accessible trough dot notation.
 - [ ] Implement `in` operator. E.g. `item in Seq` (Check if item is in Seq), `item in Set` (Check if item is in Set), `key in Obj` (Check if key is in Obj), `string in Str` (Check if char / substr is in Str)
 - [ ] Remove `Seq.has()` in favor of the `in` operator.
@@ -49,8 +44,9 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
+- [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
-- [ ] Rename `type_of` to `typeof`
+- [ ] Rename `typeof` to `typeof`
 - [ ] Make `len` a property instead of a function?
 - [ ] Add `error` to the reserved words
 - [ ] Make sure managed code classes do not override internal classes.
@@ -60,11 +56,9 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add tests for `to_str`
 - [ ] Allow return stats without suffixed `;`
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
-- [x] Add test for overriding natives (E.g. overriding `to_str` on a class)
 
 ### Optimizations
 
-- [x] Implement a fast hashtable-get function which uses a shortened version of `find_entry`.
 - [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
 - [ ] Add methods which are used frequently as props on `ObjClass` e.g. `method_to_str` etc.
 - [ ] Add `get` and `set` methods to `ObjClass` to reduce the number of lookups.
