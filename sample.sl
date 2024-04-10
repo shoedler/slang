@@ -541,16 +541,23 @@
 // print try (0 is 1) else error // [Expect] Type must be a class. Was Num.
 // print 0 is type_of(1)         // [Expect] true
 
-
-
-
-for let i = 0; i < 10; i++; {
-  if i % 2 == 0
-    skip
-  print i.to_str() + " is odd"
+// for let i = 0; i < 10; i++; {
+//   if i % 2 == 0
+//     skip
+//   print i.to_str() + " is odd"
+// }
+import Perf
+let i = 0
+let t = Perf.now()
+while true {
+  if i >= 100000
+    break
+  if (Perf.now() - t) > 0.01
+    break  
+  i++
 }
 
-
+print i
 
 
 

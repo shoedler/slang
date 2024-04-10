@@ -76,6 +76,12 @@ typedef struct Compiler {
   Upvalue upvalues[2048];
   int scope_depth;
 
+  // Brake jumps need to be stored because we don't know the offset of the jump when we compile them.
+  // That's why we store them in an array and patch them later.
+  int brakes_count;
+  int brakes_capacity;
+  int* brake_jumps;
+
   int innermost_loop_start;
   int innermost_loop_scope_depth;
 } Compiler;
@@ -218,6 +224,14 @@ static void patch_jump(int offset) {
   current_chunk()->code[offset] = (uint16_t)jump;
 }
 
+// Patches a previously emitted jump instruction from a break statement.
+static void patch_breaks(int jump_start_offset) {
+  while (current->brakes_count > 0 && current->brake_jumps[current->brakes_count - 1] > jump_start_offset) {
+    patch_jump(current->brake_jumps[current->brakes_count - 1]);
+    current->brakes_count--;
+  }
+}
+
 // Adds a value to the current constant pool and returns its index.
 // Logs a compile error if the constant pool is full.
 static uint16_t make_constant(Value value) {
@@ -262,6 +276,10 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
   compiler->innermost_loop_start       = -1;
   compiler->innermost_loop_scope_depth = -1;
 
+  compiler->brakes_capacity = 0;
+  compiler->brakes_count    = 0;
+  compiler->brake_jumps     = NULL;
+
   // Determine the name of the function via its type.
   switch (type) {
     case TYPE_MODULE: {
@@ -292,6 +310,11 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
     local->name.start  = "";  // Not accessible.
     local->name.length = 0;
   }
+}
+
+// Frees a compiler
+static void free_compiler(Compiler* compiler) {
+  FREE_ARRAY(int, compiler->brake_jumps, compiler->brakes_capacity);
 }
 
 // Ends the current compiler and returns the compiled function.
@@ -793,6 +816,8 @@ static void function(bool can_assign, FunctionType type) {
     emit_one(compiler.upvalues[i].is_local ? 1 : 0);
     emit_one(compiler.upvalues[i].index);
   }
+
+  free_compiler(&compiler);
 }
 
 static void anonymous_function(bool can_assign) {
@@ -1283,7 +1308,7 @@ static void statement_return() {
 // Compiles a while statement.
 // The while keyword has already been consumed at this point.
 static void statement_while() {
-  // Save the loop start for continue statements, which might occur in the loop body.
+  // Save the loop state for continue(skip)/break statements, which might occur in the loop body.
   int surrounding_loop_start          = current->innermost_loop_start;
   int surrounding_loop_scope_depth    = current->innermost_loop_scope_depth;
   current->innermost_loop_start       = current_chunk()->count;
@@ -1302,6 +1327,8 @@ static void statement_while() {
 
   patch_jump(exit_jump);
   emit_one(OP_POP);
+
+  patch_breaks(current->innermost_loop_start);
 
   // Restore the surrounding loop state.
   current->innermost_loop_start       = surrounding_loop_start;
@@ -1325,7 +1352,7 @@ static void statement_for() {
     consume(TOKEN_SCOLON, "Expecting ';' after loop initializer.");
   }
 
-  // Save the loop start for continue statements, which might occur in the loop body.
+  // Save the loop state for continue(skip)/break statements, which might occur in the loop body.
   int surrounding_loop_start          = current->innermost_loop_start;
   int surrounding_loop_scope_depth    = current->innermost_loop_scope_depth;
   current->innermost_loop_start       = current_chunk()->count;
@@ -1364,6 +1391,8 @@ static void statement_for() {
     emit_one(OP_POP);  // Discard the result of the condition expression.
   }
 
+  patch_breaks(current->innermost_loop_start);
+
   // Restore the surrounding loop state.
   current->innermost_loop_start       = surrounding_loop_start;
   current->innermost_loop_scope_depth = surrounding_loop_scope_depth;
@@ -1386,6 +1415,31 @@ static void statement_skip() {
 
   // Jump back to the start of the loop.
   emit_loop(current->innermost_loop_start);
+}
+
+// Compiles a break statement.
+// The break keyword has already been consumed at this point.
+static void statement_break() {
+  if (current->innermost_loop_start == -1) {
+    error("Can't break outside of a loop.");
+  }
+
+  // Grow the array if necessary.
+  if (SHOULD_GROW(current->brakes_count + 1, current->brakes_capacity)) {
+    int old_capacity         = current->brakes_capacity;
+    current->brakes_capacity = GROW_CAPACITY(old_capacity);
+    current->brake_jumps =
+        RESIZE_ARRAY(int, current->brake_jumps, current->brakes_count, current->brakes_capacity);
+  }
+
+  // Discard any locals created in the loop body.
+  for (int i = current->local_count - 1;
+       i >= 0 && current->locals[i].depth > current->innermost_loop_scope_depth; i--) {
+    emit_one(OP_POP);
+  }
+
+  // Jump to the end of the loop.
+  current->brake_jumps[current->brakes_count++] = emit_jump(OP_JUMP);
 }
 
 // Compiles an import statement.
@@ -1439,6 +1493,8 @@ static void statement() {
     statement_import();
   } else if (match(TOKEN_SKIP)) {
     statement_skip();
+  } else if (match(TOKEN_BREAK)) {
+    statement_break();
   } else if (match(TOKEN_OBRACE)) {
     begin_scope();
     block();
@@ -1575,6 +1631,7 @@ ObjFunction* compile_module(const char* source) {
   }
 
   ObjFunction* function = end_compiler();
+  free_compiler(&compiler);
   return parser.had_error ? NULL : function;
 }
 
