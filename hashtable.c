@@ -81,7 +81,7 @@ bool hashtable_get(HashTable* table, Value key, Value* value) {
   return true;
 }
 
-bool hashtable_get_string(HashTable* table, ObjString* key, Value* value) {
+bool hashtable_get_by_string(HashTable* table, ObjString* key, Value* value) {
   if (table->count == 0) {
     return false;
   }

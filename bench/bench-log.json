@@ -840,7 +840,7 @@
     "commit": {
       "date": "2024-04-09 11:35:58 +0200",
       "hash": "3683ba1626bba06e52394143d1b2b580db4bfbd7",
-      "message": "🚀 Swap hashtable_get with hashtable_get_string in the obvious places. (See previous commit) For the ultimate performance gain!"
+      "message": "🚀 Swap hashtable_get with hashtable_get_by_string in the obvious places. (See previous commit) For the ultimate performance gain!"
     },
     "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
     "config": "Debug",
@@ -857,7 +857,7 @@
     "commit": {
       "date": "2024-04-09 11:35:58 +0200",
       "hash": "3683ba1626bba06e52394143d1b2b580db4bfbd7",
-      "message": "🚀 Swap hashtable_get with hashtable_get_string in the obvious places. (See previous commit) For the ultimate performance gain!"
+      "message": "🚀 Swap hashtable_get with hashtable_get_by_string in the obvious places. (See previous commit) For the ultimate performance gain!"
     },
     "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
     "config": "Release",
@@ -874,7 +874,7 @@
     "commit": {
       "date": "2024-04-09 11:35:58 +0200",
       "hash": "3683ba1626bba06e52394143d1b2b580db4bfbd7",
-      "message": "🚀 Swap hashtable_get with hashtable_get_string in the obvious places. (See previous commit) For the ultimate performance gain!"
+      "message": "🚀 Swap hashtable_get with hashtable_get_by_string in the obvious places. (See previous commit) For the ultimate performance gain!"
     },
     "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
     "config": "Debug",
@@ -891,7 +891,7 @@
     "commit": {
       "date": "2024-04-09 11:35:58 +0200",
       "hash": "3683ba1626bba06e52394143d1b2b580db4bfbd7",
-      "message": "🚀 Swap hashtable_get with hashtable_get_string in the obvious places. (See previous commit) For the ultimate performance gain!"
+      "message": "🚀 Swap hashtable_get with hashtable_get_by_string in the obvious places. (See previous commit) For the ultimate performance gain!"
     },
     "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
     "config": "Release",

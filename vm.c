@@ -50,8 +50,8 @@ void dump_stacktrace() {
     fprintf(stderr, "  at line %d ", function->chunk.lines[instruction]);
 
     Value module_name;
-    if (!hashtable_get_string(&function->globals_context->fields, vm.cached_words[WORD_MODULE_NAME],
-                              &module_name)) {
+    if (!hashtable_get_by_string(&function->globals_context->fields, vm.cached_words[WORD_MODULE_NAME],
+                                 &module_name)) {
       fprintf(stderr, "in \"%s\"\n", function->name->chars);
       break;
     }
@@ -274,7 +274,7 @@ static bool check_args(Obj* callable, int expected) {
 static Value find_method_in_inheritance_chain(ObjClass* klass, ObjString* name) {
   while (klass != NULL) {
     Value method;
-    if (hashtable_get_string(&klass->methods, name, &method)) {
+    if (hashtable_get_by_string(&klass->methods, name, &method)) {
       return method;
     }
     klass = klass->base;
@@ -355,7 +355,7 @@ static CallResult call_value(Value callable, int arg_count) {
         // method. It's perfectly valid to have no ctor - you'll also end up with a valid instance on the
         // stack.
         Value ctor;
-        if (hashtable_get_string(&klass->methods, vm.cached_words[WORD_CTOR], &ctor)) {
+        if (hashtable_get_by_string(&klass->methods, vm.cached_words[WORD_CTOR], &ctor)) {
           switch (AS_OBJ(ctor)->type) {
             case OBJ_CLOSURE: return call_managed(AS_CLOSURE(ctor), arg_count);
             case OBJ_NATIVE: return call_native(AS_NATIVE(ctor), arg_count);
@@ -419,7 +419,7 @@ static CallResult invoke(ObjString* name, int arg_count) {
 
   // It could be a field which is a function, we need to check that first
   Value function;
-  if (hashtable_get_string(&object->fields, name, &function)) {
+  if (hashtable_get_by_string(&object->fields, name, &function)) {
     vm.stack_top[-arg_count - 1] = function;
     return call_value(function, arg_count);
   }
@@ -567,7 +567,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   Value module;
 
   // Check if we have already imported the module
-  if (hashtable_get_string(&vm.modules, module_name, &module)) {
+  if (hashtable_get_by_string(&vm.modules, module_name, &module)) {
     push(module);
     return true;
   }
@@ -813,8 +813,8 @@ static Value run() {
       case OP_GET_GLOBAL: {
         ObjString* name = READ_STRING();
         Value value;
-        if (!hashtable_get_string(frame->globals, name, &value)) {
-          if (!hashtable_get_string(&vm.builtin->fields, name, &value)) {
+        if (!hashtable_get_by_string(frame->globals, name, &value)) {
+          if (!hashtable_get_by_string(&vm.builtin->fields, name, &value)) {
             runtime_error("Undefined variable '%s'.", name->chars);
             goto finish_error;
           }
@@ -989,7 +989,7 @@ static Value run() {
                   // Either we have a ctor, or we don't, in any case - we're done.
                   pop();  // Pop the class
                   Value ctor;
-                  if (hashtable_get_string(&klass->methods, name, &ctor)) {
+                  if (hashtable_get_by_string(&klass->methods, name, &ctor)) {
                     push(ctor);
                   } else {
                     push(NIL_VAL);
@@ -1004,7 +1004,7 @@ static Value run() {
               case OBJ_OBJECT: {
                 ObjObject* object = AS_OBJECT(obj);
                 Value value;
-                if (hashtable_get_string(&object->fields, name, &value)) {
+                if (hashtable_get_by_string(&object->fields, name, &value)) {
                   pop();  // Object.
                   push(value);
                   goto done_getting_property;

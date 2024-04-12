@@ -288,7 +288,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
       // toplevel function has the same name as the module. This is useful for debugging and for stacktraces -
       // it let's us easily determine if a frames function is a toplevel function or not.
       Value module_name;
-      if (hashtable_get_string(&vm.module->fields, vm.cached_words[WORD_MODULE_NAME], &module_name)) {
+      if (hashtable_get_by_string(&vm.module->fields, vm.cached_words[WORD_MODULE_NAME], &module_name)) {
         current->function->name = AS_STRING(module_name);
         break;
       }

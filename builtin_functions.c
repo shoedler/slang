@@ -40,7 +40,7 @@ BUILTIN_FN_IMPL(cwd) {
   }
 
   Value cwd;
-  if (!hashtable_get_string(&vm.module->fields, vm.cached_words[WORD_FILE_PATH], &cwd)) {
+  if (!hashtable_get_by_string(&vm.module->fields, vm.cached_words[WORD_FILE_PATH], &cwd)) {
     return NIL_VAL;
   }
 
