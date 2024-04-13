@@ -794,6 +794,9 @@ static void function(bool can_assign, FunctionType type) {
   if (match(TOKEN_OBRACE)) {
     block();
   } else if (match(TOKEN_LAMBDA)) {
+    if (type == TYPE_CONSTRUCTOR) {
+      error_at_current("Constructors can't be lambda functions.");
+    }
     // TODO (optimize): end_compiler() will also emit OP_NIL and OP_RETURN, which are unnecessary (Same goes
     // for non-lambda functions which only have a return) We could optimize this by not emitting those
     // instructions, but that would require some changes to end_compiler() and emit_return().
