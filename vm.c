@@ -47,6 +47,12 @@ void dump_stacktrace() {
     ObjFunction* function = frame->closure->function;
     size_t instruction    = frame->ip - function->chunk.code - 1;
 
+    // First of all, we process the active native function, if there is one.
+    if (frame->current_native != NULL) {
+      fprintf(stderr, "  at line %d in native \"%s\" \n", function->chunk.lines[instruction],
+              frame->current_native->name->chars);
+    }
+
     fprintf(stderr, "  at line %d ", function->chunk.lines[instruction]);
 
     Value module_name;
@@ -57,7 +63,7 @@ void dump_stacktrace() {
     }
 
     // If the module_name is the same ref as the current frame's function-name, then we know it's the
-    // toplevel. because that's how we initialize it in the compiler.
+    // toplevel, because that's how we initialize it in the compiler.
     if (AS_STRING(module_name) == function->name) {
       fprintf(stderr, "at the toplevel of module \"%s\"\n", AS_CSTRING(module_name));
     } else {
@@ -89,13 +95,17 @@ static void exit_with_compile_error() {
 }
 
 void define_native(HashTable* table, const char* name, NativeFn function, const char* doc, int arity) {
-  Value key          = OBJ_VAL(copy_string(name, (int)strlen(name)));
-  ObjString* doc_str = copy_string(doc, (int)strlen(doc));
-  Value value        = OBJ_VAL(new_native(function, doc_str, arity));
+  Value key           = OBJ_VAL(copy_string(name, (int)strlen(name)));
+  ObjString* doc_str  = copy_string(doc, (int)strlen(doc));
+  ObjString* name_str = copy_string(name, (int)strlen(name));
+  Value value         = OBJ_VAL(new_native(function, name_str, doc_str, arity));
+
   push(key);
   push(value);
   push(OBJ_VAL(doc_str));
+  push(OBJ_VAL(name_str));
   hashtable_set(table, key, value);
+  pop();
   pop();
   pop();
   pop();
@@ -314,10 +324,15 @@ static CallResult call_native(ObjNative* native, int arg_count) {
     return CALL_FAILED;
   }
 
+  vm.frames[vm.frame_count - 1].current_native = native;
+
   Value* args  = vm.stack_top - arg_count - 1;
   Value result = native->function(arg_count, args);
   vm.stack_top -= arg_count + 1;  // Remove args + fn or receiver
   push(result);
+
+  // Since the call is done, we can remove the active native again.
+  vm.frames[vm.frame_count - 1].current_native = NULL;
 
   return CALL_RETURNED;
 }
@@ -1239,7 +1254,7 @@ static Value run() {
           }
           return NIL_VAL;
         }
-        frame = &vm.frames[vm.frame_count - 1];
+        frame = &vm.frames[vm.frame_count - 1];  // Set the frame to the current frame
         break;
       }
       case OP_INVOKE: {

@@ -113,9 +113,10 @@ ObjSeq* new_seq() {
   return take_seq(&items);
 }
 
-ObjNative* new_native(NativeFn function, ObjString* doc, int arity) {
+ObjNative* new_native(NativeFn function, ObjString* name, ObjString* doc, int arity) {
   ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
   native->function  = function;
+  native->name      = name;
   native->doc       = doc;
   native->arity     = arity;
   return native;

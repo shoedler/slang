@@ -123,6 +123,7 @@ typedef Value (*NativeFn)(int argc, Value argv[]);
 typedef struct {
   Obj obj;
   NativeFn function;
+  ObjString* name;
   ObjString* doc;
   int arity;
 } ObjNative;
@@ -193,7 +194,7 @@ ObjSeq* new_seq();
 
 // Creates, initializes and allocates a new native function object. Might
 // trigger garbage collection.
-ObjNative* new_native(NativeFn function, ObjString* doc, int arity);
+ObjNative* new_native(NativeFn function, ObjString* name, ObjString* doc, int arity);
 
 // Creates, initializes and allocates a new upvalue object. Might trigger
 // garbage collection.
