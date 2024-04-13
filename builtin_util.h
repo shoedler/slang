@@ -79,6 +79,17 @@
 //
 // Macros for argument checking in built-in functions.
 //
+#define BUILTIN_ARGC_AT_LEAST(min)                                          \
+  if (argc < min) {                                                         \
+    runtime_error("Expected at least %d arguments but got %d.", min, argc); \
+    return NIL_VAL;                                                         \
+  }
+
+#define BUILTIN_ARGC_EXACTLY(count)                                  \
+  if (argc != count) {                                               \
+    runtime_error("Expected %d arguments but got %d.", count, argc); \
+    return NIL_VAL;                                                  \
+  }
 
 #define BUILTIN_CHECK_RECEIVER(type)                                                 \
   if (!IS_##type(argv[0])) {                                                         \

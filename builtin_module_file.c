@@ -24,7 +24,7 @@ BUILTIN_FN_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Reads the content of a file and returns it as a string.");
 BUILTIN_FN_IMPL(read) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   UNUSED(argv);
   BUILTIN_CHECK_ARG_AT(1, STRING);
 
@@ -47,7 +47,7 @@ BUILTIN_FN_DOC(
     "the file if it "
     "exists. Returns " VALUE_STR_TRUE " on success, " VALUE_STR_FALSE " otherwise.");
 BUILTIN_FN_IMPL(write) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(2)
   UNUSED(argv);
   BUILTIN_CHECK_ARG_AT(1, STRING);
   BUILTIN_CHECK_ARG_AT(2, STRING);
@@ -63,7 +63,7 @@ BUILTIN_FN_DOC(
     /* Description */
     "Returns " VALUE_STR_TRUE " if the file at 'path' exists, " VALUE_STR_FALSE " otherwise.");
 BUILTIN_FN_IMPL(exists) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   UNUSED(argv);
   BUILTIN_CHECK_ARG_AT(1, STRING);
 
@@ -79,7 +79,7 @@ BUILTIN_FN_DOC(
     "Joins two paths together and returns the result or " STR(TYPENAME_NIL) " if joining failed. The paths are joined with the system's path "
     "separator.");
 BUILTIN_FN_IMPL(join_path) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(2)
   UNUSED(argv);
   BUILTIN_CHECK_ARG_AT(1, STRING);
   BUILTIN_CHECK_ARG_AT(2, STRING);

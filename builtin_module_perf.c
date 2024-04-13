@@ -20,11 +20,13 @@ BUILTIN_FN_DOC(
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */ "High-precision clock function. Returns the current execution time in seconds.");
 BUILTIN_FN_IMPL(now) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   UNUSED(argv);
+
   LARGE_INTEGER frequency;
   LARGE_INTEGER now;
   QueryPerformanceFrequency(&frequency);
   QueryPerformanceCounter(&now);
+
   return NUMBER_VAL((double)now.QuadPart / frequency.QuadPart);
 }

@@ -17,7 +17,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Returns " STR(TYPENAME_NIL) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_NIL, __ctor) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   UNUSED(argv);
   return NIL_VAL;
 }
@@ -30,7 +30,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of " STR(TYPENAME_NIL) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_NIL, to_str) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(NIL)
 
   ObjString* str_obj = copy_string(VALUE_STR_NIL, sizeof(VALUE_STR_NIL) - 1);

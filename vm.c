@@ -271,14 +271,6 @@ ObjClass* typeof(Value value) {
   return vm.__builtin_Obj_class;  // This field name was created via macro
 }
 
-// Checks if the provided callable accepts the expected number of arguments.
-// Returns true if the number of arguments is correct, or if the callable accepts a variable number of
-// arguments.
-static bool check_args(Obj* callable, int expected) {
-  int given = get_arity(callable);
-  return given == expected || given == -1;
-}
-
 // Finds a method in the inheritance chain of a class. This is used to find methods in the class hierarchy.
 // If the method is not found, NIL_VAL is returned.
 static Value find_method_in_inheritance_chain(ObjClass* klass, ObjString* name) {
@@ -319,11 +311,7 @@ static CallResult call_managed(ObjClosure* closure, int arg_count) {
 // Calls a native function with the given number of arguments (on the stack).
 // `Stack: ...[native|receiver][arg0][arg1]...[argN]`
 static CallResult call_native(ObjNative* native, int arg_count) {
-  if (check_args((Obj*)native, arg_count) == false) {
-    runtime_error("Expected %d arguments but got %d.", native->arity, arg_count);
-    return CALL_FAILED;
-  }
-
+  // Set the current native function on the frame, so we can show it in the stack trace.
   vm.frames[vm.frame_count - 1].current_native = native;
 
   Value* args  = vm.stack_top - arg_count - 1;
@@ -465,21 +453,16 @@ static Value run_frame() {
 }
 
 Value exec_fn(Obj* callable, int arg_count) {
-  if (check_args(callable, arg_count) == false) {
-    runtime_error("Expected callable to accept %d arguments, but it takes %d.", arg_count,
-                  get_arity((Obj*)callable));
-
-    // In this case, we'll clean up the stack and return NIL_VAL. This is because this does get executed in
-    // native functions, and we want to keep the stack in a consistent state until we get back to the main
-    // dispatch loop, where the error will be handled.
-    vm.stack_top -= arg_count + 1;  // Remove args + fn or receiver
-    return NIL_VAL;
-  }
-
   CallResult result = CALL_FAILED;
   switch (callable->type) {
     case OBJ_CLOSURE: result = call_managed((ObjClosure*)callable, arg_count); break;
     case OBJ_NATIVE: result = call_native(((ObjNative*)callable), arg_count); break;
+    case OBJ_STRING: {
+      Value receiver  = peek(arg_count);
+      ObjClass* klass = typeof(receiver);
+      result          = invoke_from_class(klass, (ObjString*)callable, arg_count);
+      break;
+    }
     case OBJ_BOUND_METHOD: {
       // For bound methods, we need to load the receiver onto the stack just before the arguments, overriding
       // the bound method on the stack.
@@ -488,20 +471,6 @@ Value exec_fn(Obj* callable, int arg_count) {
       return exec_fn(bound->method, arg_count);
     }
   }
-
-  if (result == CALL_RETURNED) {
-    return pop();
-  } else if (result == CALL_RUNNING) {
-    return run_frame();
-  }
-
-  return NIL_VAL;
-}
-
-Value exec_method(ObjString* name, int arg_count) {
-  Value receiver    = peek(arg_count);
-  ObjClass* klass   = typeof(receiver);
-  CallResult result = invoke_from_class(klass, name, arg_count);
 
   if (result == CALL_RETURNED) {
     return pop();
@@ -717,7 +686,7 @@ static Value doc(Value value) {
 
   // Execute the to_str method on the receiver, if it exists
   push(value);  // Load the receiver onto the stack
-  push(exec_method(copy_string("to_str", 6), 0));
+  push(exec_fn((Obj*)copy_string("to_str", 6), 0));
   push(OBJ_VAL(copy_string(":\nNo documentation available.\n", 30)));
   if (vm.flags & VM_FLAG_HAS_ERROR) {
     return pop();
@@ -1199,7 +1168,7 @@ static Value run() {
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
       case OP_PRINT: {
-        ObjString* str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+        ObjString* str = AS_STRING(exec_fn((Obj*)copy_string("to_str", 6), 0));
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           goto finish_error;
         }

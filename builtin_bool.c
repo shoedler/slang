@@ -17,7 +17,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Converts the first argument to a " STR(TYPENAME_BOOL) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_BOOL, __ctor) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
 
   if (is_falsey(argv[1])) {
     return BOOL_VAL(false);
@@ -34,7 +34,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_BOOL) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_BOOL, to_str) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
 
   BUILTIN_CHECK_RECEIVER(BOOL)
 

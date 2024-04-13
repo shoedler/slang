@@ -21,10 +21,10 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Converts the first argument to a " STR(TYPENAME_STRING) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, __ctor) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1);
   // Execute the to_str method on the argument
   push(argv[1]);  // Push the receiver for to_str, which is the ctors' argument
-  Value result = exec_method(copy_string("to_str", 6), 0);  // Convert to string
+  Value result = exec_fn((Obj*)copy_string("to_str", 6), 0);  // Convert to string
   if (vm.flags & VM_FLAG_HAS_ERROR) {
     return NIL_VAL;
   }
@@ -40,7 +40,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_STRING) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, to_str) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(STRING)
 
   return argv[0];
@@ -54,7 +54,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */ "Returns the length of a " STR(TYPENAME_STRING) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, len) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(STRING)
 
   int length = AS_STRING(argv[0])->length;
@@ -70,7 +70,7 @@ BUILTIN_METHOD_DOC(
     "Splits a " STR(TYPENAME_STRING) " into a " STR(
         TYPENAME_SEQ) " of substrings, using 'sep' as the delimiter.");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(STRING)
   BUILTIN_CHECK_ARG_AT(1, STRING)
 
@@ -121,7 +121,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a new " STR(TYPENAME_STRING) " with leading and trailing whitespace removed.");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, trim) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(STRING)
 
   ObjString* str = AS_STRING(argv[0]);
