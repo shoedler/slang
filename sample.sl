@@ -579,3 +579,13 @@ print i
 
 print typeof(1) == Num
 if 1 is Num print "1 is Num"
+
+cls Test {
+  static fn assert() {
+    ret Test();
+  }
+}
+
+let t = Test.assert()
+print t is Test
+print Test.assert

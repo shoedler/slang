@@ -64,6 +64,7 @@ ObjClass* new_class(ObjString* name, ObjClass* base) {
   klass->name     = name;
   klass->base     = base;
   init_hashtable(&klass->methods);
+  init_hashtable(&klass->static_methods);
   return klass;
 }
 

@@ -192,7 +192,7 @@ int disassemble_instruction(Chunk* chunk, int offset) {
     case OP_RETURN: return simple_instruction(STR(OP_RETURN), offset);
     case OP_CLASS: return constant_instruction(STR(OP_CLASS), chunk, offset);
     case OP_INHERIT: return simple_instruction(STR(OP_INHERIT), offset);
-    case OP_METHOD: return constant_instruction(STR(OP_METHOD), chunk, offset);
+    case OP_METHOD: return constant_constant_instruction(STR(OP_METHOD), chunk, offset);
     case OP_ADD: return simple_instruction(STR(OP_ADD), offset);
     case OP_SUBTRACT: return simple_instruction(STR(OP_SUBTRACT), offset);
     case OP_MULTIPLY: return simple_instruction(STR(OP_MULTIPLY), offset);

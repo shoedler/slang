@@ -151,6 +151,7 @@ typedef struct ObjClass {
   Obj obj;
   ObjString* name;
   HashTable methods;
+  HashTable static_methods;
   struct ObjClass* base;
 } ObjClass;
 

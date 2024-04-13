@@ -170,7 +170,13 @@ static TokenType identifier_type() {
     case 'o': return check_keyword(1, 1, "r", TOKEN_OR);
     case 'p': return check_keyword(1, 4, "rint", TOKEN_PRINT);
     case 'r': return check_keyword(1, 2, "et", TOKEN_RETURN);
-    case 's': return check_keyword(1, 3, "kip", TOKEN_SKIP);
+    case 's':
+      if (scanner.current - scanner.start > 1) {
+        switch (scanner.start[1]) {
+          case 'k': return check_keyword(2, 2, "ip", TOKEN_SKIP);
+          case 't': return check_keyword(2, 4, "atic", TOKEN_STATIC);
+        }
+      }
     case 't':
       if (scanner.current - scanner.start > 1) {
         switch (scanner.start[1]) {

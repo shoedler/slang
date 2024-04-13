@@ -69,6 +69,7 @@ typedef enum {
   TOKEN_BREAK,   // 'break'
   TOKEN_SKIP,    // 'skip'
   TOKEN_CLASS,   // 'class'
+  TOKEN_STATIC,  // 'static'
   TOKEN_THIS,    // 'this'
   TOKEN_PRINT,   // 'print'
   TOKEN_FN,      // 'fn'

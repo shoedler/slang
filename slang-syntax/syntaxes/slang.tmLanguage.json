@@ -61,7 +61,7 @@
             "patterns": [
                 {
                     "name": "constant.language.SlangScript",
-                    "match": "\\b(nil|true|false|this|base)\\b"
+                    "match": "\\b(nil|true|false|this|base|error)\\b"
                 }
             ]
         },
@@ -69,15 +69,37 @@
             "patterns": [
                 {
                     "name": "keyword.control.SlangScript",
-                    "match": "\\b(if|for|else|while|fn|ret|print|or|and|cls|ctor|import|from|throw|try|catch|skip|break)\\b"
+                    "match": "\\b(if|for|else|while|ret|print|import|from|throw|try|catch|skip|break)\\b"
                 },
                 {
                     "name": "keyword.operator.expression.SlangScript",
                     "match": "\\b(typeof|is|in)\\b"
                 },
                 {
+                    "name": "keyword.operator.logical.SlangScript",
+                    "match": "\\b(or|and)\\b"
+                },
+                {
                     "name": "storage.type.SlangScript",
-                    "match": "\\b(let|const)\\b"
+                    "match": "\\b(let|const|fn|ctor)\\b"
+                },
+                {
+                    "match": "(cls)\\s+\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b(\\s*:\\s*)?([a-zA-Z_][a-zA-Z0-9_]*)?",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.SlangScript"
+                        },
+                        "2": {
+                            "name": "entity.name.type.class.SlangScript"
+                        },
+                        "4": {
+                            "name": "entity.other.inherited-class.SlangScript"
+                        }
+                    }
+                },
+                {
+                    "name": "storage.modifier.SlangScript",
+                    "match": "\\b(static)\\b"
                 }
             ]
         },

@@ -58,14 +58,6 @@ typedef struct {
   bool is_local;
 } Upvalue;
 
-typedef enum {
-  TYPE_FUNCTION,
-  TYPE_CONSTRUCTOR,
-  TYPE_METHOD,
-  TYPE_ANONYMOUS_FUNCTION,
-  TYPE_MODULE
-} FunctionType;
-
 // A construct holding the compiler's state.
 typedef struct Compiler {
   struct Compiler* enclosing;
@@ -746,6 +738,8 @@ static void base_(bool can_assign) {
     error("Can't use '" KEYWORD_BASE "' outside of a class.");
   } else if (!current_class->has_baseclass) {
     error("Can't use '" KEYWORD_BASE "' in a class with no base class.");
+  } else if (current->type == TYPE_METHOD_STATIC) {
+    error("Can't use '" KEYWORD_BASE "' in a static method.");
   }
 
   consume(TOKEN_DOT, "Expecting '.' after '" KEYWORD_BASE "'.");
@@ -828,12 +822,13 @@ static void anonymous_function(bool can_assign) {
 // Compiles a class method.
 // Nothing has been consumed yet.
 static void method() {
+  FunctionType type = match(TOKEN_STATIC) ? TYPE_METHOD_STATIC : TYPE_METHOD;
   consume(TOKEN_FN, "Expecting method initializer.");
   consume(TOKEN_ID, "Expecting method name.");
   uint16_t constant = string_constant(&parser.previous);
-
-  function(false /* does not matter */, TYPE_METHOD);
+  function(false /* does not matter */, type);
   emit_two(OP_METHOD, constant);
+  emit_one((uint16_t)type);
 }
 
 static void constructor() {
@@ -843,6 +838,7 @@ static void constructor() {
 
   function(false /* does not matter */, TYPE_CONSTRUCTOR);
   emit_two(OP_METHOD, constant);
+  emit_one((uint16_t)TYPE_CONSTRUCTOR);
 }
 
 // Compiles an and expression. And is special in that it acts more lik a control flow construct rather than a
@@ -913,6 +909,9 @@ static void this_(bool can_assign) {
   if (current_class == NULL) {
     error("Can't use 'this' outside of a class.");
     return;
+  } else if (current->type == TYPE_METHOD_STATIC) {
+    error("Can't use 'this' in a static method.");
+    return;
   }
 
   variable(false);  // Can't assign to 'this'.
@@ -946,6 +945,7 @@ ParseRule rules[] = {
     [TOKEN_NUMBER]  = {number, NULL, PREC_NONE},
     [TOKEN_AND]     = {NULL, and_, PREC_AND},
     [TOKEN_CLASS]   = {NULL, NULL, PREC_NONE},
+    [TOKEN_STATIC]  = {NULL, NULL, PREC_NONE},
     [TOKEN_ELSE]    = {NULL, NULL, PREC_NONE},
     [TOKEN_FALSE]   = {literal, NULL, PREC_NONE},
     [TOKEN_FOR]     = {NULL, NULL, PREC_NONE},

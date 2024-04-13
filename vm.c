@@ -407,6 +407,16 @@ static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_co
 static CallResult invoke(ObjString* name, int arg_count) {
   Value receiver = peek(arg_count);
 
+  // Handle static methods on classes
+  Value static_method;
+  if (IS_CLASS(receiver)) {
+    ObjClass* klass = AS_CLASS(receiver);
+    if (hashtable_get_by_string(&klass->static_methods, name, &static_method)) {
+      vm.stack_top[-arg_count - 1] = static_method;
+      return call_value(static_method, arg_count);
+    }
+  }
+
   // Handle primitives which have a corresponding class.
   // Everything which is not an object
   if (!IS_OBJECT(receiver)) {
@@ -547,11 +557,21 @@ static void close_upvalues(Value* last) {
 
 // Adds a method to the class on top of the stack.
 // The methods closure is on top of the stack, the class is one below that.
-static void define_method(ObjString* name) {
+static void define_method(ObjString* name, FunctionType type) {
   Value method    = peek(0);
   ObjClass* klass = AS_CLASS(peek(1));  // We trust the compiler that this value
                                         // is actually a class
-  hashtable_set(&klass->methods, OBJ_VAL(name), method);
+
+  switch (type) {
+    case TYPE_METHOD:
+    case TYPE_CONSTRUCTOR: hashtable_set(&klass->methods, OBJ_VAL(name), method); break;
+    case TYPE_METHOD_STATIC: hashtable_set(&klass->static_methods, OBJ_VAL(name), method); break;
+    default: {
+      INTERNAL_ERROR("Unknown method FunctionType %d", type);
+      exit(1);
+    }
+  }
+
   pop();
 }
 
@@ -680,16 +700,15 @@ static Value doc(Value value) {
 
   // Create a default docstring as a fallback
 
-  // Exectute the to_str method on the receiver, if it exists
+  // Execute the to_str method on the receiver, if it exists
   push(value);  // Load the receiver onto the stack
   push(exec_method(copy_string("to_str", 6), 0));
+  push(OBJ_VAL(copy_string(":\nNo documentation available.\n", 30)));
   if (vm.flags & VM_FLAG_HAS_ERROR) {
-    return OBJ_VAL(copy_string(":\nNo documentation available.\n", 30));
+    return pop();
   }
 
-  push(OBJ_VAL(copy_string(":\nNo documentation available.\n", 30)));
   concatenate();
-
   return pop();
 }
 
@@ -977,6 +996,7 @@ static Value run() {
               // You can get properties of a class, namely:
               // - the name
               // - the constructor
+              // - static methods
               case OBJ_CLASS: {
                 ObjClass* klass = AS_CLASS(obj);
                 if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.cached_words[WORD_NAME]))) {
@@ -996,6 +1016,15 @@ static Value run() {
                   }
                   goto done_getting_property;
                 }
+
+                // We do not bind the method, because it's a static method.
+                Value static_method;
+                if (hashtable_get_by_string(&klass->static_methods, name, &static_method)) {
+                  pop();  // Pop the class
+                  push(static_method);
+                  goto done_getting_property;
+                }
+
                 break;
               }
               // For objects/class instances, you can get
@@ -1300,7 +1329,13 @@ static Value run() {
         push(result);
         break;
       }
-      case OP_METHOD: define_method(READ_STRING()); break;
+      case OP_METHOD: {
+        ObjString* name   = READ_STRING();
+        FunctionType type = (FunctionType)
+            READ_ONE();  // We trust the compiler that this is either a method, or a static method
+        define_method(name, type);
+        break;
+      }
     }
 
     if (!(vm.flags & VM_FLAG_HAS_ERROR)) {
