@@ -62,6 +62,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, to_str) {
     while (buffer[len - 1] == '0') {
       buffer[--len] = '\0';
     }
+
+    if (buffer[len - 1] == '.') {
+      buffer[--len] = '\0';
+    }
   }
 
   ObjString* str_obj = copy_string(buffer, len);
