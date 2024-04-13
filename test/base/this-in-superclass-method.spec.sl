@@ -6,7 +6,7 @@ cls Base {
 
 cls Derived : Base {
   ctor(a, b) {
-    base.__ctor(a)
+    base(a)
     this.b = b
   }
 }

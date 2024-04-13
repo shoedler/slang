@@ -742,11 +742,16 @@ static void base_(bool can_assign) {
     error("Can't use '" KEYWORD_BASE "' in a static method.");
   }
 
-  consume(TOKEN_DOT, "Expecting '.' after '" KEYWORD_BASE "'.");
-  if (!match(TOKEN_ID)) {
-    consume(TOKEN_CTOR, "Expecting base class method name.");
+  Token method_name;
+  if (check(TOKEN_OPAR)) {
+    method_name = synthetic_token(KEYWORD_CONSTRUCTOR);
+  } else {
+    consume(TOKEN_DOT, "Expecting '.' after '" KEYWORD_BASE "'.");
+    consume(TOKEN_ID, "Expecting base class method name.");
+    method_name = parser.previous;
   }
-  uint16_t name = string_constant(&parser.previous);
+
+  uint16_t name = string_constant(&method_name);
 
   named_variable(synthetic_token(KEYWORD_THIS), false);
   if (match(TOKEN_OPAR)) {

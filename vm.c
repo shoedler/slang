@@ -200,7 +200,7 @@ void init_vm() {
   register_builtin_class_class();
 
   // Create the module class
-  BUILTIN_REGISTER_CLASS(TYPENAME_MODULE, TYPENAME_OBJ)
+  BUILTIN_REGISTER_CLASS(TYPENAME_MODULE, TYPENAME_OBJ);
 
   // Register built-in modules
   register_builtin_file_module();
@@ -563,8 +563,8 @@ static void define_method(ObjString* name, FunctionType type) {
                                         // is actually a class
 
   switch (type) {
-    case TYPE_METHOD:
-    case TYPE_CONSTRUCTOR: hashtable_set(&klass->methods, OBJ_VAL(name), method); break;
+    case TYPE_METHOD: hashtable_set(&klass->methods, OBJ_VAL(name), method); break;
+    case TYPE_CONSTRUCTOR: hashtable_set(&klass->methods, OBJ_VAL(vm.cached_words[WORD_CTOR]), method); break;
     case TYPE_METHOD_STATIC: hashtable_set(&klass->static_methods, OBJ_VAL(name), method); break;
     default: {
       INTERNAL_ERROR("Unknown method FunctionType %d", type);
@@ -1305,7 +1305,7 @@ static Value run() {
         break;
       }
       case OP_CLASS:
-        // Initially, a class always inherits from Object
+        // Initially, a class always inherits from Obj
         push(OBJ_VAL(new_class(READ_STRING(), vm.__builtin_Obj_class)));
         break;
       case OP_INHERIT: {

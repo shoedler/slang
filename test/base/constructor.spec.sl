@@ -5,12 +5,24 @@ cls Base {
 }
 
 cls Derived : Base {
-  ctor() {
-    print "Derived.__ctor()"
-    base.__ctor("a", "b")
+  ctor(a, b) {
+    print "Derived.__ctor(" + a + ", " + b + ")"
+    base(a, b)
   }
 }
 
-Derived()
-// [Expect] Derived.__ctor()
+cls Derived2 : Derived {
+  ctor(a, b) {
+    print "Derived2.__ctor(" + a + ", " + b + ")"
+    base.__ctor(a, b) // Also valid syntax
+  }
+}
+
+Derived("a", "b")
+// [Expect] Derived.__ctor(a, b)
 // [Expect] Base.__ctor(a, b)
+
+Derived2("c", "d") 
+// [Expect] Derived2.__ctor(c, d)
+// [Expect] Derived.__ctor(c, d)
+// [Expect] Base.__ctor(c, d)

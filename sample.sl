@@ -561,21 +561,6 @@
 // print try (0 is 1) else error // Type must be a class. Was Num.
 // print 0 is typeof(1)         // true
 
-import Perf
-
-let i = 0
-let t = Perf.now()
-
-while true {
-  if i >= 100000
-    break
-  if (Perf.now() - t) > 0.01
-    break  
-  i++
-}
-
-print i
-
 
 print typeof(1) == Num
 if 1 is Num print "1 is Num"
@@ -589,3 +574,53 @@ cls Test {
 let t = Test.assert()
 print t is Test
 print Test.assert
+
+import Perf
+
+cls BenchBase {
+  ctor (name, type) { 
+    if !(name is Str) throw "Name must be a string"
+    if !(type is Str) throw "Type must be a string"
+
+    this.type = type
+    this.name = name
+    this.result = nil
+  }
+
+  // Should be overridden
+  fn map_result(result) -> result
+
+  fn exec(bench) {
+    if !(bench is Fn) throw "Provided argument is not a function"
+    
+    let start = Perf.now()
+    let result = bench()
+    this.time = Perf.now() - start
+
+    result = this.map_result(result)
+    this.result = result
+  }
+
+  fn to_json {
+    ret {
+      "name": this.name,
+      "type": this.type,
+      "result": this.result,
+      "time": this.time
+    };
+  }
+}
+
+cls LatencyBench : BenchBase {
+  ctor (name) { 
+    base(name, "LatencyBenchmark")
+  }
+
+  fn to_str -> base.to_json().to_str()
+}
+
+// let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
+
+let l = LatencyBench("test")
+l.exec(fn -> 1)
+print l

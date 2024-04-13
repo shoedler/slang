@@ -45,9 +45,9 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
+- [ ] Use something else instead of `rint`, because it's not very precise. See _num-to-str.spec.sl_ for an example.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
-- [ ] Rename `typeof` to `typeof`
 - [ ] Make `len` a property instead of a function?
 - [ ] Add `error` to the reserved words
 - [ ] Make sure managed code classes do not override internal classes.
@@ -57,6 +57,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add tests for `to_str`
 - [ ] Allow return stats without suffixed `;`
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
+- [x] Rename `typeof` to `typeof`
 
 ### Optimizations
 
