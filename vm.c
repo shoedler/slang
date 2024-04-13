@@ -712,6 +712,13 @@ static Value doc(Value value) {
   return pop();
 }
 
+// Handles errors in the virtual machine.
+// This function is responsible for handling errors that occur during the execution of the virtual machine.
+// It searches for the nearest error handler in the call stack and resets the virtual machine state to that
+// handler's call frame.
+// If no error handler is found, it prints the error message, dumps the stack trace, resets the virtual
+// machine's stack state and returns false. Returns true if an error handler is found and the virtual machine
+// state is reset, false otherwise.
 static bool handle_error() {
   int stack_offset;
   int frame_offset;

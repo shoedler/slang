@@ -18,9 +18,6 @@
             "include": "#strings"
         },
         {
-            "include": "#functions"
-        },
-        {
             "include": "#constants"
         },
         {
@@ -61,7 +58,7 @@
             "patterns": [
                 {
                     "name": "constant.language.SlangScript",
-                    "match": "\\b(nil|true|false|this|base|error)\\b"
+                    "match": "\\b(nil|true|false)\\b"
                 }
             ]
         },
@@ -81,7 +78,7 @@
                 },
                 {
                     "name": "storage.type.SlangScript",
-                    "match": "\\b(let|const|fn|ctor)\\b"
+                    "match": "\\b(let|const|ctor)\\b"
                 },
                 {
                     "match": "(cls)\\s+\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b(\\s*:\\s*)?([a-zA-Z_][a-zA-Z0-9_]*)?",
@@ -94,6 +91,17 @@
                         },
                         "4": {
                             "name": "entity.other.inherited-class.SlangScript"
+                        }
+                    }
+                },
+                {
+                    "match": "(fn)\\s+\\b([a-zA-Z_][a-zA-Z0-9_]*)?",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.SlangScript"
+                        },
+                        "2": {
+                            "name": "entity.name.function.SlangScript"
                         }
                     }
                 },
@@ -145,16 +153,12 @@
         "variables": {
             "patterns": [
                 {
+                    "name": "variable.language.SlangScript",
+                    "match": "\\b(this|base|error)\\b"
+                },
+                {
                     "name": "variable.other.local.SlangScript",
                     "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
-                }
-            ]
-        },
-        "functions": {
-            "patterns": [
-                {
-                    "name": "entity.name.function.SlangScript",
-                    "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\s*\\("
                 }
             ]
         },

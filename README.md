@@ -12,6 +12,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] Implement `in` operator. E.g. `item in Seq` (Check if item is in Seq), `item in Set` (Check if item is in Set), `key in Obj` (Check if key is in Obj), `string in Str` (Check if char / substr is in Str)
 - [ ] Remove `Seq.has()` in favor of the `in` operator.
+- [ ] Implement `Json` module
 - [ ] Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`
 - [ ] Implement `Set` class
 - [ ] Implement `Set.add(Obj) -> Nil` as a builtin
