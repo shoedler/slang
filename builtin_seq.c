@@ -24,6 +24,7 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, reduce, 2);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, count, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, concat, 1);
+  BUILTIN_FINALIZE_CLASS(TYPENAME_SEQ);
 }
 
 // Built-in seq constructor
@@ -71,7 +72,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_TO_STR) {
   for (int i = 0; i < seq->items.count; i++) {
     // Execute the to_str method on the item
     push(seq->items.values[i]);  // Push the receiver (item at i) for to_str
-    ObjString* item_str = AS_STRING(exec_fn((Obj*)vm.special_field_names[SPECIAL_METHOD_TO_STR], 0));
+    ObjString* item_str = AS_STRING(exec_fn(typeof(seq->items.values[i])->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -509,7 +510,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, join) {
     if (!IS_STRING(seq->items.values[i])) {
       // Execute the to_str method on the item
       push(seq->items.values[i]);  // Push the receiver (item at i) for to_str, or
-      item_str = AS_STRING(exec_fn((Obj*)vm.special_field_names[SPECIAL_METHOD_TO_STR], 0));
+      item_str = AS_STRING(exec_fn(typeof(seq->items.values[i])->__to_str, 0));
       if (vm.flags & VM_FLAG_HAS_ERROR) {
         return NIL_VAL;
       }

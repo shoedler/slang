@@ -23,7 +23,7 @@ static Obj* allocate_object(size_t size, ObjType type) {
   object->type      = type;
   object->is_marked = false;
   object->hash      = (uint32_t)((intptr_t)(object) >> 4 | (intptr_t)(object) << 28);  // Get a better distribution of hash
-                                                                       // values, by shifting the address
+                                                                                       // values, by shifting the address
   object->next = vm.objects;
   vm.objects   = object;
 
@@ -64,6 +64,47 @@ ObjClass* new_class(ObjString* name, ObjClass* base) {
   init_hashtable(&klass->methods);
   init_hashtable(&klass->static_methods);
   return klass;
+}
+
+void finalize_new_class(ObjClass* klass) {
+  struct TypeMap {
+    Obj** field;
+    SpecialFieldNames index;
+  };
+
+  struct TypeMap specials[] = {
+      {&klass->__ctor, SPECIAL_METHOD_CTOR},
+      {&klass->__get, SPECIAL_METHOD_GET},
+      {&klass->__set, SPECIAL_METHOD_SET},
+      {&klass->__len, SPECIAL_METHOD_LEN},
+      {&klass->__to_str, SPECIAL_METHOD_TO_STR},
+      {&klass->__has, SPECIAL_METHOD_HAS},
+      {&klass->__get_slice, SPECIAL_METHOD_GETSLICE},
+      {&klass->__set_slice, SPECIAL_METHOD_SETSLICE},
+      {&klass->__name, SPECIAL_PROP_NAME},
+      {&klass->__doc, SPECIAL_PROP_DOC},
+      {&klass->__file_path, SPECIAL_PROP_FILE_PATH},
+      {&klass->__module_name, SPECIAL_PROP_MODULE_NAME},
+      {NULL, SPECIAL_FIELD_MAX},
+  };
+
+  Value temp;
+  for (struct TypeMap* entry = specials; entry->field != NULL; entry++) {
+    // Try to populate the field from the class itself, or any of its base classes
+    ObjClass* base = klass;
+    while (base != NULL) {
+      if (hashtable_get_by_string(&base->methods, vm.special_field_names[entry->index], &temp)) {
+        break;
+      }
+      base = base->base;
+    }
+
+    if (base != NULL && IS_CALLABLE(temp)) {
+      *entry->field = AS_OBJ(temp);
+    } else {
+      *entry->field = NULL;
+    }
+  }
 }
 
 ObjObject* new_instance(ObjClass* klass) {

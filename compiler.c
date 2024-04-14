@@ -1612,7 +1612,7 @@ static void declaration_class() {
     }
   }
   consume(TOKEN_CBRACE, "Expecting '}' after class body.");
-  emit_one(OP_POP);
+  emit_one(OP_FINALIZE);  // Finalize the class & pop it from the stack.
 
   if (class_compiler.has_baseclass) {
     end_scope();

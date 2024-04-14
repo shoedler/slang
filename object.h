@@ -154,6 +154,20 @@ typedef struct ObjClass {
   HashTable methods;
   HashTable static_methods;
   struct ObjClass* base;
+
+  // Special methods and properties for quick access.
+  Obj* __ctor;  // Constructor
+  Obj* __get;
+  Obj* __set;
+  Obj* __len;
+  Obj* __to_str;
+  Obj* __has;
+  Obj* __get_slice;
+  Obj* __set_slice;
+  Obj* __name;
+  Obj* __doc;
+  Obj* __file_path;    // Only used for modules
+  Obj* __module_name;  // Only used for modules
 } ObjClass;
 
 typedef struct ObjObject {
@@ -177,8 +191,12 @@ ObjBoundMethod* new_bound_method(Value receiver, Obj* method);
 ObjObject* new_instance(ObjClass* klass);
 
 // Creates, initializes and allocates a new class object. Might trigger garbage
-// collection.
+// collection. Must be finalized with finalize_new_class at some point.
 ObjClass* new_class(ObjString* name, ObjClass* base);
+
+// Finalizes a new class object. This is used to set up the special methods and properties for quick access.
+// Also ensures that the class inherits the special methods and properties from its base class.
+void finalize_new_class(ObjClass* klass);
 
 // Creates, initializes and allocates a new closure object. Might trigger
 // garbage collection.

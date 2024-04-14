@@ -51,6 +51,8 @@
 // Register a built-in function in the VM, by adding it to the built-in object's field table.
 #define BUILTIN_REGISTER_FN(instance, name, arity) \
   define_native(&instance->fields, #name, BUILTIN_FN(name), BUILTIN_FN_DOC_STR(name), arity);
+// Finalize a built-in class by populating its special fields.
+#define BUILTIN_FINALIZE_CLASS(class_name) finalize_new_class(vm.##BUILTIN_CLASS(class_name))
 
 // Define a built-in method's documentation string.
 #define BUILTIN_METHOD_DOC(class_name, method_name, args, return_type, description) \

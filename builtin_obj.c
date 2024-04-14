@@ -21,6 +21,7 @@ void register_builtin_obj_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, entries, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, keys, 0);
+  BUILTIN_FINALIZE_CLASS(TYPENAME_OBJ);
 }
 
 // Built-in obj constructor
@@ -91,7 +92,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the key
     push(object->fields.entries[i].key);  // Push the receiver (key at i) for to_str
-    ObjString* key_str = AS_STRING(exec_fn((Obj*)vm.special_field_names[SPECIAL_METHOD_TO_STR], 0));
+    ObjString* key_str = AS_STRING(exec_fn(typeof(object->fields.entries[i].key)->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -100,7 +101,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the value
     push(object->fields.entries[i].value);  // Push the receiver (value at i) for to_str
-    ObjString* value_str = AS_STRING(exec_fn((Obj*)vm.special_field_names[SPECIAL_METHOD_TO_STR], 0));
+    ObjString* value_str = AS_STRING(exec_fn(typeof(object->fields.entries[i].value)->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -154,7 +155,7 @@ BUILTIN_METHOD_DOC(
     /* Description */ "Returns a string representation of the " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
   BUILTIN_ARGC_EXACTLY(0)
-  BUILTIN_CHECK_RECEIVER(OBJ)
+  // BUILTIN_CHECK_RECEIVER(OBJ) // This should accept any value
 
   // Handle anonymous objects and instance objects differently
   if (IS_OBJECT(argv[0])) {

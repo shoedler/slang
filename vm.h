@@ -22,10 +22,8 @@
 #define SP_METHOD_HAS has
 #define SP_METHOD_GET __get
 #define SP_METHOD_SET __set
-#define SP_METHOD_DEL __del
 #define SP_METHOD_GETSLICE __get_slice
 #define SP_METHOD_SETSLICE __set_slice
-#define SP_METHOD_DELSLICE __del_slice
 #define SP_PROP_NAME __name
 #define SP_PROP_DOC __doc
 #define SP_PROP_FILE_PATH __file_path
@@ -52,10 +50,8 @@ typedef enum {
 
   SPECIAL_METHOD_GET,       // __get
   SPECIAL_METHOD_SET,       // __set
-  SPECIAL_METHOD_DEL,       // __del
   SPECIAL_METHOD_GETSLICE,  // __get_slice
   SPECIAL_METHOD_SETSLICE,  // __set_slice
-  SPECIAL_METHOD_DELSLICE,  // __del_slice
 
   SPECIAL_PROP_NAME,         // __name
   SPECIAL_PROP_DOC,          // __doc

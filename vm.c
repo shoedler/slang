@@ -190,13 +190,11 @@ void init_vm() {
   vm.special_field_names[SPECIAL_METHOD_CTOR]      = copy_string(STR(SP_METHOD_CTOR), STR_LEN(STR(SP_METHOD_CTOR)));
   vm.special_field_names[SPECIAL_METHOD_GET]       = copy_string(STR(SP_METHOD_GET), STR_LEN(STR(SP_METHOD_GET)));
   vm.special_field_names[SPECIAL_METHOD_SET]       = copy_string(STR(SP_METHOD_SET), STR_LEN(STR(SP_METHOD_SET)));
-  vm.special_field_names[SPECIAL_METHOD_DEL]       = copy_string(STR(SP_METHOD_DEL), STR_LEN(STR(SP_METHOD_DEL)));
   vm.special_field_names[SPECIAL_METHOD_LEN]       = copy_string(STR(SP_METHOD_LEN), STR_LEN(STR(SP_METHOD_LEN)));
   vm.special_field_names[SPECIAL_METHOD_TO_STR]    = copy_string(STR(SP_METHOD_TO_STR), STR_LEN(STR(SP_METHOD_TO_STR)));
   vm.special_field_names[SPECIAL_METHOD_HAS]       = copy_string(STR(SP_METHOD_HAS), STR_LEN(STR(SP_METHOD_HAS)));
   vm.special_field_names[SPECIAL_METHOD_GETSLICE]  = copy_string(STR(SP_METHOD_GETSLICE), STR_LEN(STR(SP_METHOD_GETSLICE)));
   vm.special_field_names[SPECIAL_METHOD_SETSLICE]  = copy_string(STR(SP_METHOD_SETSLICE), STR_LEN(STR(SP_METHOD_SETSLICE)));
-  vm.special_field_names[SPECIAL_METHOD_DELSLICE]  = copy_string(STR(SP_METHOD_DELSLICE), STR_LEN(STR(SP_METHOD_DELSLICE)));
   vm.special_field_names[SPECIAL_PROP_NAME]        = copy_string(STR(SP_PROP_NAME), STR_LEN(STR(SP_PROP_NAME)));
   vm.special_field_names[SPECIAL_PROP_DOC]         = copy_string(STR(SP_PROP_DOC), STR_LEN(STR(SP_PROP_DOC)));
   vm.special_field_names[SPECIAL_PROP_FILE_PATH]   = copy_string(STR(SP_PROP_FILE_PATH), STR_LEN(STR(SP_PROP_FILE_PATH)));
@@ -219,6 +217,7 @@ void init_vm() {
 
   // Create the module class
   BUILTIN_REGISTER_CLASS(TYPENAME_MODULE, TYPENAME_OBJ);
+  BUILTIN_FINALIZE_CLASS(TYPENAME_MODULE);
 
   // Register built-in modules
   register_builtin_file_module();
@@ -266,13 +265,8 @@ ObjClass* typeof(Value value) {
         case OBJ_BOUND_METHOD:
         case OBJ_FUNCTION: return vm.__builtin_Fn_class;  // This field name was created via macro
         case OBJ_CLASS: return vm.__builtin_Class_class;  // This field name was created via macro
-        case OBJ_OBJECT: {
-          ObjObject* object = AS_OBJECT(value);
-          if (OBJECT_IS_INSTANCE(object)) {
-            return object->klass;
-          }
-          return vm.__builtin_Obj_class;  // This field name was created via macro
-        }
+        case OBJ_OBJECT:
+          return AS_OBJECT(value)->klass;  // Class X, if it's an instance. Or just vm.__builtin_Obj_class, if it's an object.
       }
     }
   }
@@ -691,7 +685,7 @@ static Value doc(Value value) {
 
   // Execute the to_str method on the receiver, if it exists
   push(value);  // Load the receiver onto the stack
-  push(exec_fn((Obj*)copy_string(STR(SP_METHOD_TO_STR), STR_LEN(STR(SP_METHOD_TO_STR))), 0));
+  push(exec_fn(typeof(value)->__to_str, 0));
   push(OBJ_VAL(copy_string(":\nNo documentation available.\n", 30)));
   if (vm.flags & VM_FLAG_HAS_ERROR) {
     return pop();
@@ -1073,8 +1067,6 @@ static Value run() {
                 ObjObject* object = AS_OBJECT(obj);
 
                 // Check if it is a reserved word.
-                // TODO (robust): Not all cached words are actually **reserved**. We should make an enum for
-                // reserved words and check against that instead.
                 for (int i = 0; i < SPECIAL_FIELD_MAX; i++) {
                   if (strcmp(name->chars, vm.special_field_names[i]->chars) == 0) {
                     runtime_error("Cannot set reserved field '%s'.", name->chars);
@@ -1169,7 +1161,7 @@ static Value run() {
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
       case OP_PRINT: {
-        ObjString* str = AS_STRING(exec_fn((Obj*)copy_string(STR(SP_METHOD_TO_STR), STR_LEN(STR(SP_METHOD_TO_STR))), 0));
+        ObjString* str = AS_STRING(exec_fn(typeof(peek(0))->__to_str, 0));
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           goto finish_error;
         }
@@ -1301,6 +1293,12 @@ static Value run() {
         hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);
         subclass->base = AS_CLASS(baseclass);
         pop();  // Subclass.
+        break;
+      }
+      case OP_FINALIZE: {
+        Value klass = peek(0);
+        finalize_new_class(AS_CLASS(klass));  // We trust the compiler that this value is actually a class
+        pop();
         break;
       }
       case OP_IS: {
