@@ -18,8 +18,9 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Returns " STR(TYPENAME_CLASS) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_CLASS, __ctor) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   UNUSED(argv);
+
   runtime_error("Cannot instantiate a class via " STR(TYPENAME_CLASS) " " KEYWORD_CONSTRUCTOR ".");
   return NIL_VAL;
 }
@@ -32,7 +33,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of " STR(TYPENAME_CLASS) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_CLASS, to_str) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(CLASS)
 
   ObjClass* klass = AS_CLASS(argv[0]);

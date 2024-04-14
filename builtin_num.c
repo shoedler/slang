@@ -17,7 +17,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Converts the first argument to a " STR(TYPENAME_NUMBER) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, __ctor) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
 
   switch (argv[1].type) {
     case VAL_NUMBER: return argv[1];
@@ -44,7 +44,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_NUMBER) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, to_str) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(NUMBER)
 
   double number = AS_NUMBER(argv[0]);

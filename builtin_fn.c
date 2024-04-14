@@ -18,8 +18,9 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Returns " STR(TYPENAME_FUNCTION) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, __ctor) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   UNUSED(argv);
+
   runtime_error("Cannot instantiate a function via " STR(TYPENAME_FUNCTION) " " KEYWORD_CONSTRUCTOR ".");
   return NIL_VAL;
 }
@@ -32,8 +33,9 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of " STR(TYPENAME_FUNCTION) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, to_str) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   // BUILTIN_CHECK_RECEIVER(FUNCTION) Doesn't work here, because we need to check multiple types
+
   if (!IS_FUNCTION(argv[0]) && !IS_CLOSURE(argv[0]) && !IS_BOUND_METHOD(argv[0]) && !IS_NATIVE(argv[0])) {
     runtime_error("Expected receiver of type " STR(TYPENAME_FUNCTION) ", " STR(TYPENAME_CLOSURE) ", " STR(
                       TYPENAME_NATIVE) " or " STR(TYPENAME_BOUND_METHOD) ", but got %s.",

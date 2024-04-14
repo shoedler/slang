@@ -970,5 +970,73 @@
       "value": "153180000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-04-13T21:42:28.088Z",
+    "commit": {
+      "date": "2024-04-13 20:26:35 +0200",
+      "hash": "9dc625b57b7f9e0ebeb8db1ba6be5555f4d428c8",
+      "message": "Tracks active native for better stack traces. Adds name field to natives."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "7.222"
+    }
+  },
+  {
+    "date": "2024-04-13T21:42:28.088Z",
+    "commit": {
+      "date": "2024-04-13 20:26:35 +0200",
+      "hash": "9dc625b57b7f9e0ebeb8db1ba6be5555f4d428c8",
+      "message": "Tracks active native for better stack traces. Adds name field to natives."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.893"
+    }
+  },
+  {
+    "date": "2024-04-13T21:42:28.088Z",
+    "commit": {
+      "date": "2024-04-13 20:26:35 +0200",
+      "hash": "9dc625b57b7f9e0ebeb8db1ba6be5555f4d428c8",
+      "message": "Tracks active native for better stack traces. Adds name field to natives."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "283",
+      "value": "16980000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-04-13T21:42:28.088Z",
+    "commit": {
+      "date": "2024-04-13 20:26:35 +0200",
+      "hash": "9dc625b57b7f9e0ebeb8db1ba6be5555f4d428c8",
+      "message": "Tracks active native for better stack traces. Adds name field to natives."
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "2663",
+      "value": "159780000",
+      "durationInSecs": "5"
+    }
   }
 ]

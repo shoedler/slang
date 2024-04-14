@@ -141,6 +141,7 @@ static void blacken_object(Obj* object) {
     }
     case OBJ_NATIVE: {
       ObjNative* native = (ObjNative*)object;
+      mark_obj((Obj*)native->name);
       mark_obj((Obj*)native->doc);
       break;
     }

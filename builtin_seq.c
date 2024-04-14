@@ -35,7 +35,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Creates a new " STR(TYPENAME_NIL) "-initialized " STR(TYPENAME_SEQ) " of length 'len'.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, __ctor) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_ARG_AT(1, NUMBER)
 
   ValueArray items;
@@ -60,7 +60,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_SEQ,
     /* Description */ "Returns a " STR(TYPENAME_STRING) " representation of a " STR(TYPENAME_SEQ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq     = AS_SEQ(argv[0]);
@@ -71,7 +71,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
   for (int i = 0; i < seq->items.count; i++) {
     // Execute the to_str method on the item
     push(seq->items.values[i]);  // Push the receiver (item at i) for to_str
-    ObjString* item_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+    ObjString* item_str = AS_STRING(exec_fn((Obj*)copy_string("to_str", 6), 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -116,7 +116,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */ "Returns the length of a " STR(TYPENAME_SEQ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, len) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   int length = AS_SEQ(argv[0])->items.count;
@@ -131,6 +131,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NIL,
     /* Description */ "Pushes one or many values to a " STR(TYPENAME_SEQ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, push) {
+  BUILTIN_ARGC_AT_LEAST(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
@@ -150,7 +151,7 @@ BUILTIN_METHOD_DOC(
     "Pops and returns the last item of a " STR(TYPENAME_SEQ) ". Returns " STR(
         TYPENAME_NIL) " if it is empty.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
@@ -178,7 +179,7 @@ BUILTIN_METHOD_DOC_OVERLOAD(
     "Returns " VALUE_STR_TRUE
     " if the " STR(TYPENAME_SEQ) " contains an item for which 'pred' evaulates to " VALUE_STR_TRUE ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, has) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
@@ -228,7 +229,7 @@ BUILTIN_METHOD_DOC(
                       ". Returns " STR(TYPENAME_NIL) " if the " STR(
                           TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, first) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
@@ -270,7 +271,7 @@ BUILTIN_METHOD_DOC(
                       ". Returns " STR(TYPENAME_NIL) " if the " STR(
                           TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, last) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
@@ -311,7 +312,7 @@ BUILTIN_METHOD_DOC(
         TYPENAME_SEQ) ". 'fn' should take one or two arguments: the item and the index of the item."
         " The latter is optional.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
@@ -320,27 +321,35 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
   int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
-  if (fn_arity > 1) {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[1]);                // Push the function
-      push(seq->items.values[i]);   // arg0 (1): Push the item
-      push(NUMBER_VAL(i));          // arg1 (2): Push the index
-      exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the arity of the fn
-                                    // would result in a wrong error message.
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
+  switch (fn_arity) {
+    case 1: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[1]);               // Push the function
+        push(seq->items.values[i]);  // arg0: Push the item
+        exec_fn(AS_OBJ(argv[1]), 1);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
       }
+      break;
     }
-  } else {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[1]);               // Push the function
-      push(seq->items.values[i]);  // arg0: Push the item
-      exec_fn(AS_OBJ(argv[1]), 1);
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
+    case 2: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[1]);               // Push the function
+        push(seq->items.values[i]);  // arg0 (1): Push the item
+        push(NUMBER_VAL(i));         // arg1 (2): Push the index
+        exec_fn(AS_OBJ(argv[1]), 2);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
       }
+      break;
+    }
+    default: {
+      runtime_error("Function passed to \"" STR(each) "\" must take 1 or 2 arguments, but got %d.", fn_arity);
+      return NIL_VAL;
     }
   }
 
@@ -358,7 +367,7 @@ BUILTIN_METHOD_DOC(
     STR(TYPENAME_SEQ) " with the mapped values. 'fn' should take one or two arguments: the item and the index of the "
     "item. The latter is optional.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, map) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
@@ -370,33 +379,41 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, map) {
   push(OBJ_VAL(mapped_seq));  // GC Protection
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
-  if (fn_arity > 1) {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[1]);                               // Push the function
-      push(seq->items.values[i]);                  // arg0 (1): Push the item
-      push(NUMBER_VAL(i));                         // arg1 (2): Push the index
-      Value mapped = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
-                                                   // arity of the fn would result in a wrong error message.
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
-      }
+  switch (fn_arity) {
+    case 1: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[1]);               // Push the function
+        push(seq->items.values[i]);  // arg0 (1): Push the item
+        Value mapped = exec_fn(AS_OBJ(argv[1]), 1);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
 
-      // Store the mapped value
-      mapped_seq->items.values[i] = mapped;
+        // Store the mapped value
+        mapped_seq->items.values[i] = mapped;
+      }
+      break;
     }
-  } else {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[1]);               // Push the function
-      push(seq->items.values[i]);  // arg0 (1): Push the item
-      Value mapped = exec_fn(AS_OBJ(argv[1]), 1);
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
-      }
+    case 2: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[1]);               // Push the function
+        push(seq->items.values[i]);  // arg0 (1): Push the item
+        push(NUMBER_VAL(i));         // arg1 (2): Push the index
+        Value mapped = exec_fn(AS_OBJ(argv[1]), 2);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
 
-      // Store the mapped value
-      mapped_seq->items.values[i] = mapped;
+        // Store the mapped value
+        mapped_seq->items.values[i] = mapped;
+      }
+      break;
+    }
+    default: {
+      runtime_error("Function passed to \"" STR(map) "\" must take 1 or 2 arguments, but got %d.", fn_arity);
+      return NIL_VAL;
     }
   }
 
@@ -416,7 +433,7 @@ BUILTIN_METHOD_DOC(
                       "latter is "
                       "optional.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
@@ -428,37 +445,46 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
   push(OBJ_VAL(filtered_seq));  // GC Protection
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
-  if (fn_arity > 1) {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[1]);                               // Push the function
-      push(seq->items.values[i]);                  // arg0 (1): Push the item
-      push(NUMBER_VAL(i));                         // arg1 (2): Push the index
-      Value result = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
-                                                   // arity of the fn would result in a wrong error message.
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
-      }
+  switch (fn_arity) {
+    case 1: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[1]);               // Push the function
+        push(seq->items.values[i]);  // arg0 (1): Push the item
+        Value result = exec_fn(AS_OBJ(argv[1]), 1);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
 
-      // We don't use is_falsey here, because we want to check for a boolean value.
-      if (IS_BOOL(result) && AS_BOOL(result)) {
-        write_value_array(&filtered_seq->items, seq->items.values[i]);
+        // We don't use is_falsey here, because we want to check for a boolean value.
+        if (IS_BOOL(result) && AS_BOOL(result)) {
+          write_value_array(&filtered_seq->items, seq->items.values[i]);
+        }
       }
+      break;
     }
-  } else {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[1]);               // Push the function
-      push(seq->items.values[i]);  // arg0 (1): Push the item
-      Value result = exec_fn(AS_OBJ(argv[1]), 1);
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
-      }
+    case 2: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[1]);               // Push the function
+        push(seq->items.values[i]);  // arg0 (1): Push the item
+        push(NUMBER_VAL(i));         // arg1 (2): Push the index
+        Value result = exec_fn(AS_OBJ(argv[1]), 2);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
 
-      // We don't use is_falsey here, because we want to check for a boolean value.
-      if (IS_BOOL(result) && AS_BOOL(result)) {
-        write_value_array(&filtered_seq->items, seq->items.values[i]);
+        // We don't use is_falsey here, because we want to check for a boolean value.
+        if (IS_BOOL(result) && AS_BOOL(result)) {
+          write_value_array(&filtered_seq->items, seq->items.values[i]);
+        }
       }
+      break;
+    }
+    default: {
+      runtime_error("Function passed to \"" STR(filter) "\" must take 1 or 2 arguments, but got %d.",
+                    fn_arity);
+      return NIL_VAL;
     }
   }
 
@@ -474,7 +500,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Joins the items of a " STR(TYPENAME_SEQ) " into a single " STR(TYPENAME_STRING) ", separated by 'sep'.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, join) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT(1, STRING)
 
@@ -491,7 +517,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, join) {
     if (!IS_STRING(seq->items.values[i])) {
       // Execute the to_str method on the item
       push(seq->items.values[i]);  // Push the receiver (item at i) for to_str, or
-      item_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+      item_str = AS_STRING(exec_fn((Obj*)copy_string("to_str", 6), 0));
       if (vm.flags & VM_FLAG_HAS_ERROR) {
         return NIL_VAL;
       }
@@ -532,7 +558,7 @@ BUILTIN_METHOD_DOC(
     "Reverses the items of a " STR(TYPENAME_SEQ) ". Returns a new " STR(
         TYPENAME_SEQ) " with the items in reverse order.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reverse) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq          = AS_SEQ(argv[0]);
@@ -559,7 +585,7 @@ BUILTIN_METHOD_DOC(
     " for every item in the " STR(TYPENAME_SEQ) ". 'fn' should take one or two arguments: the item and the index of the "
     "item. The latter is optional. Returns " VALUE_STR_FALSE " if the " STR(TYPENAME_SEQ) " is empty.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, every) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
@@ -568,38 +594,50 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, every) {
   int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
+  switch (fn_arity) {
+    case 1: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[1]);               // Push the function
+        push(seq->items.values[i]);  // arg0 (1): Push the item
+        Value result = exec_fn(AS_OBJ(argv[1]), 1);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
+
+        // We don't use is_falsey here, because we want to check for a boolean value.
+        if (!IS_BOOL(result) || !AS_BOOL(result)) {
+          return BOOL_VAL(false);
+        }
+      }
+      break;
+    }
+    case 2: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[1]);               // Push the function
+        push(seq->items.values[i]);  // arg0 (1): Push the item
+        push(NUMBER_VAL(i));         // arg1 (2): Push the index
+        Value result = exec_fn(AS_OBJ(argv[1]), 2);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
+
+        // We don't use is_falsey here, because we want to check for a boolean value.
+        if (!IS_BOOL(result) || !AS_BOOL(result)) {
+          return BOOL_VAL(false);
+        }
+      }
+      break;
+    }
+    default: {
+      runtime_error("Function passed to \"" STR(every) "\" must take 1 or 2 arguments, but got %d.",
+                    fn_arity);
+      return NIL_VAL;
+    }
+  }
   if (fn_arity > 1) {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[1]);                               // Push the function
-      push(seq->items.values[i]);                  // arg0 (1): Push the item
-      push(NUMBER_VAL(i));                         // arg1 (2): Push the index
-      Value result = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
-                                                   // arity of the fn would result in a wrong error message.
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
-      }
-
-      // We don't use is_falsey here, because we want to check for a boolean value.
-      if (!IS_BOOL(result) || !AS_BOOL(result)) {
-        return BOOL_VAL(false);
-      }
-    }
   } else {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[1]);               // Push the function
-      push(seq->items.values[i]);  // arg0 (1): Push the item
-      Value result = exec_fn(AS_OBJ(argv[1]), 1);
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
-      }
-
-      // We don't use is_falsey here, because we want to check for a boolean value.
-      if (!IS_BOOL(result) || !AS_BOOL(result)) {
-        return BOOL_VAL(false);
-      }
-    }
   }
 
   return BOOL_VAL(true);
@@ -617,7 +655,7 @@ BUILTIN_METHOD_DOC(
     " for at least one item in the " STR(TYPENAME_SEQ) ". 'fn' should take one or two arguments: the item and the index of the "
     "item. The latter is optional. Returns " VALUE_STR_FALSE " if the " STR(TYPENAME_SEQ) " is empty.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, some) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
@@ -626,37 +664,45 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, some) {
   int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
-  if (fn_arity > 1) {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[1]);                               // Push the function
-      push(seq->items.values[i]);                  // arg0 (1): Push the item
-      push(NUMBER_VAL(i));                         // arg1 (2): Push the index
-      Value result = exec_fn(AS_OBJ(argv[1]), 2);  // Hard-code 2, because that's what we expect. Passing the
-                                                   // arity of the fn would result in a wrong error message.
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
-      }
+  switch (fn_arity) {
+    case 1: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[1]);               // Push the function
+        push(seq->items.values[i]);  // arg0 (1): Push the item
+        Value result = exec_fn(AS_OBJ(argv[1]), 1);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
 
-      // We don't use is_falsey here, because we want to check for a boolean value.
-      if (IS_BOOL(result) && AS_BOOL(result)) {
-        return BOOL_VAL(true);
+        // We don't use is_falsey here, because we want to check for a boolean value.
+        if (IS_BOOL(result) && AS_BOOL(result)) {
+          return BOOL_VAL(true);
+        }
       }
+      break;
     }
-  } else {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[1]);               // Push the function
-      push(seq->items.values[i]);  // arg0 (1): Push the item
-      Value result = exec_fn(AS_OBJ(argv[1]), 1);
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
-      }
+    case 2: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[1]);               // Push the function
+        push(seq->items.values[i]);  // arg0 (1): Push the item
+        push(NUMBER_VAL(i));         // arg1 (2): Push the index
+        Value result = exec_fn(AS_OBJ(argv[1]), 2);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
 
-      // We don't use is_falsey here, because we want to check for a boolean value.
-      if (IS_BOOL(result) && AS_BOOL(result)) {
-        return BOOL_VAL(true);
+        // We don't use is_falsey here, because we want to check for a boolean value.
+        if (IS_BOOL(result) && AS_BOOL(result)) {
+          return BOOL_VAL(true);
+        }
       }
+      break;
+    }
+    default: {
+      runtime_error("Function passed to \"" STR(some) "\" must take 1 or 2 arguments, but got %d.", fn_arity);
+      return NIL_VAL;
     }
   }
 
@@ -673,10 +719,8 @@ BUILTIN_METHOD_DOC(
     "Reduces the items of a " STR(TYPENAME_SEQ) " to a single value by executing 'fn' on each item. 'fn' should take two or three "
     "arguments: the accumulator, the item and the index. The latter is optional. The initial value of the accumulator is 'initial'.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(2)
   BUILTIN_CHECK_RECEIVER(SEQ)
-  // BUILTIN_CHECK_ARG_AT(1, OBJ) // No need to check the type of the initial value, because it can be
-  // anything
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(2)
 
   ObjSeq* seq       = AS_SEQ(argv[0]);
@@ -685,29 +729,38 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
   int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
-  if (fn_arity > 2) {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[2]);                              // Push the function
-      push(accumulator);                          // arg0 (1): Push the accumulator
-      push(seq->items.values[i]);                 // arg1 (2): Push the item
-      push(NUMBER_VAL(i));                        // arg2 (3): Push the index
-      accumulator = exec_fn(AS_OBJ(argv[2]), 3);  // Hard-code 3, because that's what we expect. Passing the
-                                                  // arity of the fn would result in a wrong error message.
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
+  switch (fn_arity) {
+    case 2: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[2]);               // Push the function
+        push(accumulator);           // arg0 (1): Push the accumulator
+        push(seq->items.values[i]);  // arg1 (2): Push the item
+        accumulator = exec_fn(AS_OBJ(argv[2]), 2);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
       }
+      break;
     }
-  } else {
-    for (int i = 0; i < count; i++) {
-      // Execute the provided function on the item
-      push(argv[2]);               // Push the function
-      push(accumulator);           // arg0 (1): Push the accumulator
-      push(seq->items.values[i]);  // arg1 (2): Push the item
-      accumulator = exec_fn(AS_OBJ(argv[2]), 2);
-      if (vm.flags & VM_FLAG_HAS_ERROR) {
-        return NIL_VAL;  // Propagate the error
+    case 3: {
+      for (int i = 0; i < count; i++) {
+        // Execute the provided function on the item
+        push(argv[2]);               // Push the function
+        push(accumulator);           // arg0 (1): Push the accumulator
+        push(seq->items.values[i]);  // arg1 (2): Push the item
+        push(NUMBER_VAL(i));         // arg2 (3): Push the index
+        accumulator = exec_fn(AS_OBJ(argv[2]), 3);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          return NIL_VAL;  // Propagate the error
+        }
       }
+      break;
+    }
+    default: {
+      runtime_error("Function passed to \"" STR(reduce) "\" must take 2 or 3 arguments, but got %d.",
+                    fn_arity);
+      return NIL_VAL;
     }
   }
 
@@ -731,7 +784,7 @@ BUILTIN_METHOD_DOC_OVERLOAD(
     "Returns the number of items in the " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE
                                                             ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
@@ -743,6 +796,12 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
   int occurrences = 0;
 
   if (IS_CALLABLE(argv[1])) {
+    int fn_arity = get_arity(AS_OBJ(argv[1]));
+    if (fn_arity != 1) {
+      runtime_error("Function passed to \"" STR(count) "\" must take 1 argument, but got %d.", fn_arity);
+      return NIL_VAL;
+    }
+
     // Function predicate
     for (int i = 0; i < count; i++) {
       // Execute the provided function on the item
@@ -780,7 +839,7 @@ BUILTIN_METHOD_DOC(
     "Concatenates two " STR(TYPENAME_SEQ) "s. Returns a new " STR(TYPENAME_SEQ) " with the items of the receiver followed by the "
     "items of 'seq'.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, concat) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT(1, SEQ)
 

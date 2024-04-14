@@ -32,7 +32,7 @@ BUILTIN_METHOD_DOC(
     /* Description */ "Returns a new empty " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, __ctor) {
   UNUSED(argv);
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
 
   HashTable fields;
   init_hashtable(&fields);
@@ -48,7 +48,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */ "Returns the hash of the " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   return NUMBER_VAL(hash_value(argv[0]));
 }
 
@@ -91,7 +91,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the key
     push(object->fields.entries[i].key);  // Push the receiver (key at i) for to_str
-    ObjString* key_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+    ObjString* key_str = AS_STRING(exec_fn((Obj*)copy_string("to_str", 6), 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -100,7 +100,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the value
     push(object->fields.entries[i].value);  // Push the receiver (value at i) for to_str
-    ObjString* value_str = AS_STRING(exec_method(copy_string("to_str", 6), 0));
+    ObjString* value_str = AS_STRING(exec_fn((Obj*)copy_string("to_str", 6), 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -153,7 +153,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of the " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, to_str) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   // Handle anonymous objects and instance objects differently
@@ -192,7 +192,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */ "Returns the length of a " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, len) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   int length = AS_OBJECT(argv[0])->fields.count;
@@ -209,7 +209,7 @@ BUILTIN_METHOD_DOC(
     "Returns a " STR(TYPENAME_SEQ) " of key-value pairs (which are " STR(
         TYPENAME_SEQ) "s of length 2 ) of a " STR(TYPENAME_OBJ) ", containing all entries.");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
@@ -238,7 +238,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_SEQ,
     /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all keys of a " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, keys) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
@@ -264,7 +264,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_SEQ,
     /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all values of a " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, values) {
-  UNUSED(argc);
+  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
