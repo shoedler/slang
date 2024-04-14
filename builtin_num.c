@@ -4,19 +4,19 @@
 
 void register_builtin_num_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_NUMBER, TYPENAME_OBJ);
-  BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, __ctor, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, to_str, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, SP_METHOD_CTOR, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, SP_METHOD_TO_STR, 0);
 }
 
 // Built-in number constructor
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_NUMBER,
-    /* Name        */ __ctor,
+    /* Name        */ SP_METHOD_CTOR,
     /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */
     "Converts the first argument to a " STR(TYPENAME_NUMBER) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, __ctor) {
+BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, SP_METHOD_CTOR) {
   BUILTIN_ARGC_EXACTLY(1)
 
   switch (argv[1].type) {
@@ -39,11 +39,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, __ctor) {
 // Built-in method to convert a number to a string
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_NUMBER,
-    /* Name        */ to_str,
+    /* Name        */ SP_METHOD_TO_STR,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_NUMBER) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, to_str) {
+BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, SP_METHOD_TO_STR) {
   BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(NUMBER)
 

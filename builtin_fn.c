@@ -5,34 +5,33 @@
 
 void register_builtin_fn_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_FUNCTION, TYPENAME_OBJ);
-  BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, __ctor, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, to_str, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_CTOR, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_TO_STR, 0);
 }
 
 // Built-in fn constructor
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_FUNCTION,
-    /* Name        */ __ctor,
+    /* Name        */ SP_METHOD_CTOR,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_FUNCTION,
     /* Description */
     "Returns " STR(TYPENAME_FUNCTION) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, __ctor) {
-  BUILTIN_ARGC_EXACTLY(0)
+BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_CTOR) {
+  UNUSED(argc);
   UNUSED(argv);
-
-  runtime_error("Cannot instantiate a function via " STR(TYPENAME_FUNCTION) " " KEYWORD_CONSTRUCTOR ".");
+  runtime_error("Cannot instantiate a function via " STR(TYPENAME_FUNCTION) "." STR(SP_METHOD_CTOR) ".");
   return NIL_VAL;
 }
 
 // Built-in method to convert a fn to a string
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_FUNCTION,
-    /* Name        */ to_str,
+    /* Name        */ SP_METHOD_TO_STR,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of " STR(TYPENAME_FUNCTION) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, to_str) {
+BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_TO_STR) {
   BUILTIN_ARGC_EXACTLY(0)
   // BUILTIN_CHECK_RECEIVER(FUNCTION) Doesn't work here, because we need to check multiple types
 
@@ -57,7 +56,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, to_str) {
 
   // Native functions
   if (IS_NATIVE(fn)) {
-    return OBJ_VAL(copy_string(VALUE_STR_NATIVE, sizeof(VALUE_STR_NATIVE) - 1));
+    return OBJ_VAL(copy_string(VALUE_STR_NATIVE, STR_LEN(VALUE_STR_NATIVE)));
   }
 
   // It's a function

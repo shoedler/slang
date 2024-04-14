@@ -10,26 +10,26 @@
 #define FRAMES_MAX 64
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
-#define KEYWORD_CONSTRUCTOR "__ctor"
-#define KEYWORD_CONSTRUCTOR_LEN (sizeof(KEYWORD_CONSTRUCTOR) - 1)
-
-#define KEYWORD_NAME "__name"
-#define KEYWORD_NAME_LEN (sizeof(KEYWORD_NAME) - 1)
-
-#define KEYWORD_MODULE_NAME "__module_name"
-#define KEYWORD_MODULE_NAME_LEN (sizeof(KEYWORD_MODULE_NAME) - 1)
-
-#define KEYWORD_FILE_PATH "__file_path"
-#define KEYWORD_FILE_PATH_LEN (sizeof(KEYWORD_FILE_PATH) - 1)
-
-#define KEYWORD_DOC "__doc"
-#define KEYWORD_DOC_LEN (sizeof(KEYWORD_DOC) - 1)
-
 #define KEYWORD_THIS "this"
-#define KEYWORD_THIS_LEN (sizeof(KEYWORD_THIS) - 1)
+#define KEYWORD_THIS_LEN (STR_LEN(KEYWORD_THIS))
 
 #define KEYWORD_BASE "base"
 #define KEYWORD_ERROR "error"
+
+#define SP_METHOD_CTOR ctor
+#define SP_METHOD_TO_STR to_str
+#define SP_METHOD_LEN len
+#define SP_METHOD_HAS has
+#define SP_METHOD_GET __get
+#define SP_METHOD_SET __set
+#define SP_METHOD_DEL __del
+#define SP_METHOD_GETSLICE __get_slice
+#define SP_METHOD_SETSLICE __set_slice
+#define SP_METHOD_DELSLICE __del_slice
+#define SP_PROP_NAME __name
+#define SP_PROP_DOC __doc
+#define SP_PROP_FILE_PATH __file_path
+#define SP_PROP_MODULE_NAME __module_name
 
 // Holds the state of a stack frame.
 // Represents a single ongoing function call.
@@ -44,14 +44,26 @@ typedef struct {
 } CallFrame;
 
 typedef enum {
-  WORD_CTOR,
-  WORD_NAME,
-  WORD_MODULE_NAME,
-  WORD_FILE_PATH,
-  WORD_DOC,
+  // Methods that are commonly used in the VM and need to be accessed quickly.
+  SPECIAL_METHOD_CTOR,    // ctor
+  SPECIAL_METHOD_TO_STR,  // to_str
+  SPECIAL_METHOD_LEN,     // len
+  SPECIAL_METHOD_HAS,     // has
 
-  WORD_MAX,
-} CachedWords;
+  SPECIAL_METHOD_GET,       // __get
+  SPECIAL_METHOD_SET,       // __set
+  SPECIAL_METHOD_DEL,       // __del
+  SPECIAL_METHOD_GETSLICE,  // __get_slice
+  SPECIAL_METHOD_SETSLICE,  // __set_slice
+  SPECIAL_METHOD_DELSLICE,  // __del_slice
+
+  SPECIAL_PROP_NAME,         // __name
+  SPECIAL_PROP_DOC,          // __doc
+  SPECIAL_PROP_FILE_PATH,    // __file_path   (Only used for modules)
+  SPECIAL_PROP_MODULE_NAME,  // __module_name (Only used for modules)
+
+  SPECIAL_FIELD_MAX,
+} SpecialFieldNames;
 
 // The virtual machine.
 // Contains all the state the Vm requires to execute code.
@@ -81,8 +93,8 @@ typedef struct {
   ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // The function class
   ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // The class class
 
-  ObjObject* builtin;                 // The builtin (builtin things) object instance
-  ObjString* cached_words[WORD_MAX];  // Cached words for quick access
+  ObjObject* builtin;                                 // The builtin (builtin things) object instance
+  ObjString* special_field_names[SPECIAL_FIELD_MAX];  // Special field names for quick access
 
   size_t bytes_allocated;
   size_t next_gc;

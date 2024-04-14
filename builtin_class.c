@@ -5,34 +5,33 @@
 
 void register_builtin_class_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_CLASS, TYPENAME_OBJ);
-  BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, __ctor, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, to_str, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_CTOR, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_TO_STR, 0);
 }
 
 // Built-in class constructor
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_CLASS,
-    /* Name        */ __ctor,
+    /* Name        */ SP_METHOD_CTOR,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_CLASS,
     /* Description */
     "Returns " STR(TYPENAME_CLASS) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_CLASS, __ctor) {
-  BUILTIN_ARGC_EXACTLY(0)
+BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_CTOR) {
+  UNUSED(argc);
   UNUSED(argv);
-
-  runtime_error("Cannot instantiate a class via " STR(TYPENAME_CLASS) " " KEYWORD_CONSTRUCTOR ".");
+  runtime_error("Cannot instantiate a class via " STR(TYPENAME_CLASS) "." STR(SP_METHOD_CTOR) ".");
   return NIL_VAL;
 }
 
 // Built-in method to convert a class to a string
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_CLASS,
-    /* Name        */ to_str,
+    /* Name        */ SP_METHOD_TO_STR,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of " STR(TYPENAME_CLASS) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_CLASS, to_str) {
+BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_TO_STR) {
   BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(CLASS)
 

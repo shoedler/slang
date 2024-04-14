@@ -348,7 +348,7 @@
 // let Range = std.Range
 // let Monad = std.Monad
 
-// // let rng = Range.__ctor(0, 10) // Does not work, because __ctor is not bound to Range if you call it like this
+// // let rng = Range.ctor(0, 10) // Does not work, because ctor is not bound to Range if you call it like this
 // let rng = Range(0, 5)
 
 // let iter = rng.__iter() // Create a new iterator
@@ -406,7 +406,7 @@
 // fn sample_fn { ret 10; }
 
 // print Sample.__name
-// print Sample.__ctor
+// print Sample.ctor
 
 // let values = [0, nil, true, [], fn->1, clock, Sample]
 // for let i = 0 ; i < values.len(); i++ ; {
@@ -419,12 +419,12 @@
 // print cwd()
 // print std.__file_path
 
-// print Nil.__ctor.__doc
-// print Bool.__ctor.__doc
-// print Num.__ctor.__doc
-// print Str.__ctor.__doc
-// print Seq.__ctor.__doc
-// print Obj.__ctor.__doc
+// print Nil.ctor.__doc
+// print Bool.ctor.__doc
+// print Num.ctor.__doc
+// print Str.ctor.__doc
+// print Seq.ctor.__doc
+// print Obj.ctor.__doc
 
 // // These have no docstrings:
 // print "".to_str.__doc

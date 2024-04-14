@@ -7,7 +7,7 @@
 #include "common.h"
 
 #define SLANG_EXTENSION ".sl"
-#define SLANG_EXTENSION_LEN (sizeof(SLANG_EXTENSION) - 1)
+#define SLANG_EXTENSION_LEN (STR_LEN(SLANG_EXTENSION))
 
 // Checks if a file exists.
 bool file_exists(const char* path);

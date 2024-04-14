@@ -18,7 +18,12 @@ print {} is Seq      // [Expect] false
 
 print {} is Obj      // [Expect] true
 print {1: 2} is Obj  // [Expect] true
-print [] is Obj      // [Expect] false
+print [] is Obj      // [Expect] true
+
+// Actually, everything is an object.
+print 0 is Obj       // [Expect] true
+print true is Obj    // [Expect] true
+print nil is Obj     // [Expect] true
 
 print "str" is Str   // [Expect] true
 print 1 is Str       // [Expect] false
@@ -28,7 +33,7 @@ cls X { ctor {} fn x -> 1 }
 
 print (fn -> 1) is Fn  // [Expect] true
 print test is Fn       // [Expect] true
-print X.__ctor is Fn   // [Expect] true
+print X.ctor is Fn     // [Expect] true
 print X().x is Fn      // [Expect] true
 
 print X is Class       // [Expect] true

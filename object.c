@@ -22,15 +22,13 @@ static Obj* allocate_object(size_t size, ObjType type) {
                                          // isn't referenced by anything yet -> not reachable by GC
   object->type      = type;
   object->is_marked = false;
-  object->hash =
-      (uint32_t)((intptr_t)(object) >> 4 | (intptr_t)(object) << 28);  // Get a better distribution of hash
+  object->hash      = (uint32_t)((intptr_t)(object) >> 4 | (intptr_t)(object) << 28);  // Get a better distribution of hash
                                                                        // values, by shifting the address
   object->next = vm.objects;
   vm.objects   = object;
 
 #ifdef DEBUG_LOG_GC_ALLOCATIONS
-  printf(ANSI_RED_STR("[GC] ") ANSI_MAGENTA_STR("[ALLOC] ") "%p allocate %zu for type %d\n", (void*)object,
-         size, type);
+  printf(ANSI_RED_STR("[GC] ") ANSI_MAGENTA_STR("[ALLOC] ") "%p allocate %zu for type %d\n", (void*)object, size, type);
 #endif
 
   return object;

@@ -28,6 +28,6 @@ print typeof(X)             // [Expect] <Class Class>
 let x = X()
 print typeof(x)             // [Expect] <Class X>
 
-print typeof(X.__ctor)      // [Expect] <Class Fn>
+print typeof(X.ctor)        // [Expect] <Class Fn>
 print typeof(0.to_str)      // [Expect] <Class Fn>
 print typeof(x.y)           // [Expect] <Class Fn>

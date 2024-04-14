@@ -5,9 +5,9 @@
 
 void register_builtin_str_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_STRING, TYPENAME_OBJ);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, __ctor, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, to_str, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, len, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_CTOR, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_TO_STR, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_LEN, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
 }
@@ -15,16 +15,16 @@ void register_builtin_str_class() {
 // Built-in string constructor
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ __ctor,
+    /* Name        */ SP_METHOD_CTOR,
     /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
     /* Return Type */ TYPENAME_STRING,
     /* Description */
     "Converts the first argument to a " STR(TYPENAME_STRING) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, __ctor) {
+BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_CTOR) {
   BUILTIN_ARGC_EXACTLY(1);
   // Execute the to_str method on the argument
   push(argv[1]);  // Push the receiver for to_str, which is the ctors' argument
-  Value result = exec_fn((Obj*)copy_string("to_str", 6), 0);  // Convert to string
+  Value result = exec_fn((Obj*)vm.special_field_names[SPECIAL_METHOD_TO_STR], 0);  // Convert to string
   if (vm.flags & VM_FLAG_HAS_ERROR) {
     return NIL_VAL;
   }
@@ -35,11 +35,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, __ctor) {
 // Built-in method to convert a string to a string
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ to_str,
+    /* Name        */ SP_METHOD_TO_STR,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_STRING) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, to_str) {
+BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_TO_STR) {
   BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(STRING)
 
@@ -49,11 +49,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, to_str) {
 // Built-in method to retrieve the length of a string
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ len,
+    /* Name        */ SP_METHOD_LEN,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */ "Returns the length of a " STR(TYPENAME_STRING) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, len) {
+BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_LEN) {
   BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(STRING)
 
@@ -67,8 +67,7 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ DOC_ARG("sep", TYPENAME_STRING),
     /* Return Type */ TYPENAME_SEQ,
     /* Description */
-    "Splits a " STR(TYPENAME_STRING) " into a " STR(
-        TYPENAME_SEQ) " of substrings, using 'sep' as the delimiter.");
+    "Splits a " STR(TYPENAME_STRING) " into a " STR(TYPENAME_SEQ) " of substrings, using 'sep' as the delimiter.");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
   BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(STRING)
