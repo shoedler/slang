@@ -18,12 +18,13 @@
 
 #define SP_METHOD_CTOR ctor
 #define SP_METHOD_TO_STR to_str
-#define SP_METHOD_LEN len
 #define SP_METHOD_HAS has
 #define SP_METHOD_GET __get
 #define SP_METHOD_SET __set
 #define SP_METHOD_GETSLICE __get_slice
 #define SP_METHOD_SETSLICE __set_slice
+
+#define SP_PROP_LEN len
 #define SP_PROP_NAME __name
 #define SP_PROP_DOC __doc
 #define SP_PROP_FILE_PATH __file_path
@@ -45,7 +46,6 @@ typedef enum {
   // Methods that are commonly used in the VM and need to be accessed quickly.
   SPECIAL_METHOD_CTOR,    // ctor
   SPECIAL_METHOD_TO_STR,  // to_str
-  SPECIAL_METHOD_LEN,     // len
   SPECIAL_METHOD_HAS,     // has
 
   SPECIAL_METHOD_GET,       // __get
@@ -53,13 +53,18 @@ typedef enum {
   SPECIAL_METHOD_GETSLICE,  // __get_slice
   SPECIAL_METHOD_SETSLICE,  // __set_slice
 
-  SPECIAL_PROP_NAME,         // __name
-  SPECIAL_PROP_DOC,          // __doc
-  SPECIAL_PROP_FILE_PATH,    // __file_path   (Only used for modules)
-  SPECIAL_PROP_MODULE_NAME,  // __module_name (Only used for modules)
+  SPECIAL_METHOD_MAX,
+} SpecialMethodNames;
 
-  SPECIAL_FIELD_MAX,
-} SpecialFieldNames;
+typedef enum {
+  SPECIAL_PROP_LEN,
+  SPECIAL_PROP_NAME,
+  SPECIAL_PROP_DOC,
+  SPECIAL_PROP_FILE_PATH,
+  SPECIAL_PROP_MODULE_NAME,
+
+  SPECIAL_PROP_MAX,
+} SpecialPropNames;
 
 // The virtual machine.
 // Contains all the state the Vm requires to execute code.
@@ -89,8 +94,9 @@ typedef struct {
   ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // The function class
   ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // The class class
 
-  ObjObject* builtin;                                 // The builtin (builtin things) object instance
-  ObjString* special_field_names[SPECIAL_FIELD_MAX];  // Special field names for quick access
+  ObjObject* builtin;                                   // The builtin (builtin things) object instance
+  ObjString* special_method_names[SPECIAL_METHOD_MAX];  // Special method names for quick access
+  ObjString* special_prop_names[SPECIAL_PROP_MAX];      // Special prop names for quick access
 
   size_t bytes_allocated;
   size_t next_gc;

@@ -280,14 +280,14 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
       // toplevel function has the same name as the module. This is useful for debugging and for stacktraces -
       // it let's us easily determine if a frames function is a toplevel function or not.
       Value module_name;
-      if (hashtable_get_by_string(&vm.module->fields, vm.special_field_names[SPECIAL_PROP_MODULE_NAME], &module_name)) {
+      if (hashtable_get_by_string(&vm.module->fields, vm.special_prop_names[SPECIAL_PROP_MODULE_NAME], &module_name)) {
         current->function->name = AS_STRING(module_name);
         break;
       }
       INTERNAL_ERROR("Module name not found in module's fields (" STR(SP_PROP_MODULE_NAME) ").");
     }
     case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("__anon", 6); break;
-    case TYPE_CONSTRUCTOR: current->function->name = vm.special_field_names[SPECIAL_METHOD_CTOR]; break;
+    case TYPE_CONSTRUCTOR: current->function->name = vm.special_method_names[SPECIAL_METHOD_CTOR]; break;
     default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }
 

@@ -245,8 +245,13 @@ static void mark_roots() {
   mark_obj((Obj*)vm.builtin);
 
   // And the reserved field names
-  for (int i = 0; i < SPECIAL_FIELD_MAX; i++) {
-    mark_obj((Obj*)(vm.special_field_names[i]));
+  for (int i = 0; i < SPECIAL_METHOD_MAX; i++) {
+    mark_obj((Obj*)(vm.special_method_names[i]));
+  }
+
+  // And the special prop names
+  for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
+    mark_obj((Obj*)(vm.special_prop_names[i]));
   }
 
 // And the base classes

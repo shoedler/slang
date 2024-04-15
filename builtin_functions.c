@@ -40,7 +40,7 @@ BUILTIN_FN_IMPL(cwd) {
   }
 
   Value cwd;
-  if (!hashtable_get_by_string(&vm.module->fields, vm.special_field_names[SPECIAL_PROP_FILE_PATH], &cwd)) {
+  if (!hashtable_get_by_string(&vm.module->fields, vm.special_prop_names[SPECIAL_PROP_FILE_PATH], &cwd)) {
     return NIL_VAL;
   }
 

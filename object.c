@@ -67,33 +67,59 @@ ObjClass* new_class(ObjString* name, ObjClass* base) {
 }
 
 void finalize_new_class(ObjClass* klass) {
-  struct TypeMap {
+  struct MethodMap {
     Obj** field;
-    SpecialFieldNames index;
+    SpecialMethodNames index;
   };
 
-  struct TypeMap specials[] = {
+  struct PropMap {
+    Obj** field;
+    SpecialPropNames index;
+  };
+
+  struct MethodMap specials[] = {
       {&klass->__ctor, SPECIAL_METHOD_CTOR},
       {&klass->__get, SPECIAL_METHOD_GET},
       {&klass->__set, SPECIAL_METHOD_SET},
-      {&klass->__len, SPECIAL_METHOD_LEN},
       {&klass->__to_str, SPECIAL_METHOD_TO_STR},
       {&klass->__has, SPECIAL_METHOD_HAS},
       {&klass->__get_slice, SPECIAL_METHOD_GETSLICE},
       {&klass->__set_slice, SPECIAL_METHOD_SETSLICE},
+      {NULL, SPECIAL_METHOD_MAX},
+  };
+
+  struct PropMap props[] = {
+      {&klass->__len, SPECIAL_PROP_LEN},
       {&klass->__name, SPECIAL_PROP_NAME},
       {&klass->__doc, SPECIAL_PROP_DOC},
       {&klass->__file_path, SPECIAL_PROP_FILE_PATH},
       {&klass->__module_name, SPECIAL_PROP_MODULE_NAME},
-      {NULL, SPECIAL_FIELD_MAX},
+      {NULL, SPECIAL_PROP_MAX},
   };
 
-  Value temp;
-  for (struct TypeMap* entry = specials; entry->field != NULL; entry++) {
+  Value temp = NIL_VAL;
+  for (struct MethodMap* entry = specials; entry->field != NULL; entry++) {
     // Try to populate the field from the class itself, or any of its base classes
     ObjClass* base = klass;
     while (base != NULL) {
-      if (hashtable_get_by_string(&base->methods, vm.special_field_names[entry->index], &temp)) {
+      if (hashtable_get_by_string(&base->methods, vm.special_method_names[entry->index], &temp)) {
+        break;
+      }
+      base = base->base;
+    }
+
+    if (base != NULL && IS_CALLABLE(temp)) {
+      *entry->field = AS_OBJ(temp);
+    } else {
+      *entry->field = NULL;
+    }
+  }
+
+  for (struct PropMap* entry = props; entry->field != NULL; entry++) {
+    // Try to populate the field from the class itself, or any of its base classes
+    ObjClass* base = klass;
+    while (base != NULL) {
+      if (hashtable_get_by_string(&base->methods, vm.special_prop_names[entry->index], &temp)) {
         break;
       }
       base = base->base;

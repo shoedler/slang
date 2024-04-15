@@ -624,3 +624,5 @@ cls LatencyBench : BenchBase {
 let l = LatencyBench("test")
 l.exec(fn -> 1)
 print l
+
+print [].every.__doc

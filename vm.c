@@ -55,7 +55,7 @@ void dump_stacktrace() {
     fprintf(stderr, "  at line %d ", function->chunk.lines[instruction]);
 
     Value module_name;
-    if (!hashtable_get_by_string(&function->globals_context->fields, vm.special_field_names[SPECIAL_PROP_MODULE_NAME],
+    if (!hashtable_get_by_string(&function->globals_context->fields, vm.special_prop_names[SPECIAL_PROP_MODULE_NAME],
                                  &module_name)) {
       fprintf(stderr, "in \"%s\"\n", function->name->chars);
       break;
@@ -186,19 +186,21 @@ void init_vm() {
   init_hashtable(&vm.modules);
 
   // Build the reserved words lookup table
-  memset(vm.special_field_names, 0, sizeof(vm.special_field_names));
-  vm.special_field_names[SPECIAL_METHOD_CTOR]      = copy_string(STR(SP_METHOD_CTOR), STR_LEN(STR(SP_METHOD_CTOR)));
-  vm.special_field_names[SPECIAL_METHOD_GET]       = copy_string(STR(SP_METHOD_GET), STR_LEN(STR(SP_METHOD_GET)));
-  vm.special_field_names[SPECIAL_METHOD_SET]       = copy_string(STR(SP_METHOD_SET), STR_LEN(STR(SP_METHOD_SET)));
-  vm.special_field_names[SPECIAL_METHOD_LEN]       = copy_string(STR(SP_METHOD_LEN), STR_LEN(STR(SP_METHOD_LEN)));
-  vm.special_field_names[SPECIAL_METHOD_TO_STR]    = copy_string(STR(SP_METHOD_TO_STR), STR_LEN(STR(SP_METHOD_TO_STR)));
-  vm.special_field_names[SPECIAL_METHOD_HAS]       = copy_string(STR(SP_METHOD_HAS), STR_LEN(STR(SP_METHOD_HAS)));
-  vm.special_field_names[SPECIAL_METHOD_GETSLICE]  = copy_string(STR(SP_METHOD_GETSLICE), STR_LEN(STR(SP_METHOD_GETSLICE)));
-  vm.special_field_names[SPECIAL_METHOD_SETSLICE]  = copy_string(STR(SP_METHOD_SETSLICE), STR_LEN(STR(SP_METHOD_SETSLICE)));
-  vm.special_field_names[SPECIAL_PROP_NAME]        = copy_string(STR(SP_PROP_NAME), STR_LEN(STR(SP_PROP_NAME)));
-  vm.special_field_names[SPECIAL_PROP_DOC]         = copy_string(STR(SP_PROP_DOC), STR_LEN(STR(SP_PROP_DOC)));
-  vm.special_field_names[SPECIAL_PROP_FILE_PATH]   = copy_string(STR(SP_PROP_FILE_PATH), STR_LEN(STR(SP_PROP_FILE_PATH)));
-  vm.special_field_names[SPECIAL_PROP_MODULE_NAME] = copy_string(STR(SP_PROP_MODULE_NAME), STR_LEN(STR(SP_PROP_MODULE_NAME)));
+  memset(vm.special_method_names, 0, sizeof(vm.special_method_names));
+  vm.special_method_names[SPECIAL_METHOD_CTOR]     = copy_string(STR(SP_METHOD_CTOR), STR_LEN(STR(SP_METHOD_CTOR)));
+  vm.special_method_names[SPECIAL_METHOD_TO_STR]   = copy_string(STR(SP_METHOD_TO_STR), STR_LEN(STR(SP_METHOD_TO_STR)));
+  vm.special_method_names[SPECIAL_METHOD_HAS]      = copy_string(STR(SP_METHOD_HAS), STR_LEN(STR(SP_METHOD_HAS)));
+  vm.special_method_names[SPECIAL_METHOD_GET]      = copy_string(STR(SP_METHOD_GET), STR_LEN(STR(SP_METHOD_GET)));
+  vm.special_method_names[SPECIAL_METHOD_SET]      = copy_string(STR(SP_METHOD_SET), STR_LEN(STR(SP_METHOD_SET)));
+  vm.special_method_names[SPECIAL_METHOD_GETSLICE] = copy_string(STR(SP_METHOD_GETSLICE), STR_LEN(STR(SP_METHOD_GETSLICE)));
+  vm.special_method_names[SPECIAL_METHOD_SETSLICE] = copy_string(STR(SP_METHOD_SETSLICE), STR_LEN(STR(SP_METHOD_SETSLICE)));
+
+  memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
+  vm.special_prop_names[SPECIAL_PROP_LEN]         = copy_string(STR(SP_PROP_LEN), STR_LEN(STR(SP_PROP_LEN)));
+  vm.special_prop_names[SPECIAL_PROP_NAME]        = copy_string(STR(SP_PROP_NAME), STR_LEN(STR(SP_PROP_NAME)));
+  vm.special_prop_names[SPECIAL_PROP_DOC]         = copy_string(STR(SP_PROP_DOC), STR_LEN(STR(SP_PROP_DOC)));
+  vm.special_prop_names[SPECIAL_PROP_FILE_PATH]   = copy_string(STR(SP_PROP_FILE_PATH), STR_LEN(STR(SP_PROP_FILE_PATH)));
+  vm.special_prop_names[SPECIAL_PROP_MODULE_NAME] = copy_string(STR(SP_PROP_MODULE_NAME), STR_LEN(STR(SP_PROP_MODULE_NAME)));
 
   // Register the built-in classes, starting with the obj class, which is the base class for all objects.
   register_builtin_obj_class();
@@ -231,7 +233,8 @@ void init_vm() {
 void free_vm() {
   free_hashtable(&vm.strings);
   free_hashtable(&vm.modules);
-  memset(vm.special_field_names, 0, sizeof(vm.special_field_names));
+  memset(vm.special_method_names, 0, sizeof(vm.special_method_names));
+  memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
   free_objects();
 }
 
@@ -359,7 +362,7 @@ static CallResult call_value(Value callable, int arg_count) {
         // method. It's perfectly valid to have no ctor - you'll also end up with a valid instance on the
         // stack.
         Value ctor;
-        if (hashtable_get_by_string(&klass->methods, vm.special_field_names[SPECIAL_METHOD_CTOR], &ctor)) {
+        if (hashtable_get_by_string(&klass->methods, vm.special_method_names[SPECIAL_METHOD_CTOR], &ctor)) {
           switch (AS_OBJ(ctor)->type) {
             case OBJ_CLOSURE: return call_managed(AS_CLOSURE(ctor), arg_count);
             case OBJ_NATIVE: return call_native(AS_NATIVE(ctor), arg_count);
@@ -548,7 +551,7 @@ static void define_method(ObjString* name, FunctionType type) {
 
   switch (type) {
     case TYPE_METHOD: hashtable_set(&klass->methods, OBJ_VAL(name), method); break;
-    case TYPE_CONSTRUCTOR: hashtable_set(&klass->methods, OBJ_VAL(vm.special_field_names[SPECIAL_METHOD_CTOR]), method); break;
+    case TYPE_CONSTRUCTOR: hashtable_set(&klass->methods, OBJ_VAL(vm.special_method_names[SPECIAL_METHOD_CTOR]), method); break;
     case TYPE_METHOD_STATIC: hashtable_set(&klass->static_methods, OBJ_VAL(name), method); break;
     default: {
       INTERNAL_ERROR("Unknown method FunctionType %d", type);
@@ -985,12 +988,12 @@ static Value run() {
               // - static methods
               case OBJ_CLASS: {
                 ObjClass* klass = AS_CLASS(obj);
-                if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.special_field_names[SPECIAL_PROP_NAME]))) {
+                if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.special_prop_names[SPECIAL_PROP_NAME]))) {
                   // Name is a special case, because it is a reserved word
                   pop();  // Pop the class
                   push(OBJ_VAL(klass->name));
                   goto done_getting_property;
-                } else if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.special_field_names[SPECIAL_METHOD_CTOR]))) {
+                } else if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.special_method_names[SPECIAL_METHOD_CTOR]))) {
                   // Ctor is a special case, because it is a reserved word.
                   // Either we have a ctor, or we don't, in any case - we're done.
                   pop();  // Pop the class
@@ -1041,7 +1044,7 @@ static Value run() {
         // It could be a __doc property, which is a special case.
         // TODO (optimize): We could just make this a method like to_str. Kinda silly having it here as a
         // property.
-        if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.special_field_names[SPECIAL_PROP_DOC]))) {
+        if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.special_prop_names[SPECIAL_PROP_DOC]))) {
           Value doc_str = doc(obj);
           pop();  // Pop the object
           push(doc_str);
@@ -1066,9 +1069,9 @@ static Value run() {
               case OBJ_OBJECT: {
                 ObjObject* object = AS_OBJECT(obj);
 
-                // Check if it is a reserved word.
-                for (int i = 0; i < SPECIAL_FIELD_MAX; i++) {
-                  if (strcmp(name->chars, vm.special_field_names[i]->chars) == 0) {
+                // Check if it is a reserved property.
+                for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
+                  if (strcmp(name->chars, vm.special_prop_names[i]->chars) == 0) {
                     runtime_error("Cannot set reserved field '%s'.", name->chars);
                     goto finish_error;
                   }
@@ -1376,7 +1379,7 @@ ObjObject* make_module(const char* source_path, const char* module_name) {
 
   // Add a reference to the file path of the module, if available
   if (source_path == NULL) {
-    hashtable_set(&module->fields, OBJ_VAL(vm.special_field_names[SPECIAL_PROP_FILE_PATH]), NIL_VAL);
+    hashtable_set(&module->fields, OBJ_VAL(vm.special_method_names[SPECIAL_PROP_FILE_PATH]), NIL_VAL);
   } else {
     char* base_dir_path = base(source_path);
     define_obj(&module->fields, STR(SP_PROP_FILE_PATH), (Obj*)(copy_string(base_dir_path, (int)strlen(base_dir_path))));
