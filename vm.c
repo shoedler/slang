@@ -319,9 +319,6 @@ static CallResult call_native(ObjNative* native, int arg_count) {
   vm.stack_top -= arg_count + 1;  // Remove args + fn or receiver
   push(result);
 
-  // Since the call is done, we can remove the active native again.
-  vm.frames[vm.frame_count - 1].current_native = NULL;
-
   return CALL_RETURNED;
 }
 
@@ -1189,6 +1186,32 @@ static Value run() {
         }
 
         push(BOOL_VAL(result));
+        break;
+      }
+      case OP_IN: {
+        Value in_target = peek(0);
+        Value value     = peek(1);
+
+        ObjClass* target_type = typeof(in_target);
+
+        push(in_target);  // Receiver
+        push(value);      // Argument
+        Value result = exec_fn(target_type->__has, 1);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          goto finish_error;
+        }
+
+        // Since users can override this, we should that we got a bool back.
+        // Could also just use is_falses, to be less strict - but for now I like this better.
+        if (!IS_BOOL(result)) {
+          runtime_error("Method '" STR(SP_METHOD_HAS) "' on type %s must return a " STR(TYPENAME_BOOL) ", but got %s.",
+                        target_type->name->chars, typeof(result)->name->chars);
+          goto finish_error;
+        }
+
+        pop();
+        pop();
+        push(result);
         break;
       }
       case OP_METHOD: {

@@ -12,6 +12,7 @@ void register_builtin_class_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_CLASS, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_CTOR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_TO_STR, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_HAS, 1);
   vm.__builtin_Class_class->prop_getter  = prop_getter;
   vm.__builtin_Class_class->prop_setter  = prop_setter;
   vm.__builtin_Class_class->index_getter = index_getter;
@@ -36,6 +37,7 @@ static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* resul
     return ACCESSOR_RESULT_OK;
   }
 
+  // TODO: Check methods here (bind method)
   return ACCESSOR_RESULT_PASS;
 }
 
@@ -83,8 +85,8 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of " STR(TYPENAME_CLASS) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_TO_STR) {
-  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(CLASS)
+  BUILTIN_ARGC_EXACTLY(0)
 
   ObjClass* klass = AS_CLASS(argv[0]);
   ObjString* name = klass->name;
@@ -103,4 +105,33 @@ BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_TO_STR) {
   free(chars);
   pop();  // Name str
   return OBJ_VAL(str_obj);
+}
+
+// Built-in method to check if a class has a method
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_CLASS,
+    /* Name        */ SP_METHOD_HAS,
+    /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
+    /* Return Type */ TYPENAME_BOOL,
+    /* Description */
+    "Returns " STR(TYPENAME_TRUE) " if the class has a method or static method with the given name, " STR(
+        TYPENAME_FALSE) " otherwise.");
+BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_HAS) {
+  BUILTIN_CHECK_RECEIVER(CLASS)
+  BUILTIN_ARGC_EXACTLY(1)
+  BUILTIN_CHECK_ARG_AT(1, STRING)
+
+  ObjString* name = AS_STRING(argv[1]);
+  ObjClass* klass = AS_CLASS(argv[0]);
+  Value result;
+
+  // Should align with prop_getter
+  if (hashtable_get_by_string(&klass->methods, name, &result)) {
+    return BOOL_VAL(true);
+  }
+  if (hashtable_get_by_string(&klass->static_methods, name, &result)) {
+    return BOOL_VAL(true);
+  }
+
+  return BOOL_VAL(false);
 }

@@ -231,7 +231,7 @@ BUILTIN_METHOD_DOC_OVERLOAD(
     /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
     /* Return Type */ TYPENAME_BOOL,
     /* Description */
-    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_SEQ) " contains an item for which 'pred' evaulates to " VALUE_STR_TRUE ".");
+    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_SEQ) " contains an item for which 'pred' evaluates to " VALUE_STR_TRUE ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_HAS) {
   BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)

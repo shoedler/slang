@@ -27,7 +27,7 @@ typedef enum {
   PREC_OR,          // or
   PREC_AND,         // and
   PREC_EQUALITY,    // == !=
-  PREC_COMPARISON,  // < > <= >= is
+  PREC_COMPARISON,  // < > <= >= is in
   PREC_TERM,        // + -
   PREC_FACTOR,      // * / %
   PREC_UNARY,       // ! -
@@ -901,12 +901,19 @@ static void ternary(bool can_assign) {
   patch_jump(end_jump);
 }
 
-// Compiles an is expression. The is keyword has already been consumed and is referenced by the previous
+// Compiles an 'is' expression. The 'is' keyword has already been consumed and is referenced by the previous
 // token.
 static void is_(bool can_assign) {
   UNUSED(can_assign);
   expression();
   emit_one(OP_IS);
+}
+
+// Compiles an 'in' expression. The 'in' keyword has already been consumed and is referenced by the previous token.
+static void in_(bool can_assign) {
+  UNUSED(can_assign);
+  expression();
+  emit_one(OP_IN);
 }
 
 // Compiles a 'this' expression.
@@ -969,6 +976,7 @@ ParseRule rules[] = {
     [TOKEN_CATCH]   = {NULL, NULL, PREC_NONE},
     [TOKEN_THROW]   = {NULL, NULL, PREC_NONE},
     [TOKEN_IS]      = {NULL, is_, PREC_COMPARISON},
+    [TOKEN_IN]      = {NULL, in_, PREC_COMPARISON},
     [TOKEN_THIS]    = {this_, NULL, PREC_NONE},
     [TOKEN_TRUE]    = {literal, NULL, PREC_NONE},
     [TOKEN_LET]     = {NULL, NULL, PREC_NONE},

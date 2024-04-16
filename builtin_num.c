@@ -11,6 +11,7 @@ void register_builtin_num_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_NUMBER, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, SP_METHOD_TO_STR, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, SP_METHOD_HAS, 1);
   vm.__builtin_Num_class->prop_getter  = prop_getter;
   vm.__builtin_Num_class->prop_setter  = prop_setter;
   vm.__builtin_Num_class->index_getter = index_getter;
@@ -108,4 +109,19 @@ BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, SP_METHOD_TO_STR) {
 
   ObjString* str_obj = copy_string(buffer, len);
   return OBJ_VAL(str_obj);
+}
+
+// Built-in method to check if a value has a property
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_NUMBER,
+    /* Name        */ SP_METHOD_HAS,
+    /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
+    /* Return Type */ TYPENAME_NUMBER,
+    /* Description */
+    "<Not supported>");
+BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, SP_METHOD_HAS) {
+  BUILTIN_ARGC_EXACTLY(1)
+  // Should align with prop_getter
+  runtime_error("Type " STR(TYPENAME_NUMBER) " does not support '" STR(SP_METHOD_HAS) "'.");
+  return NIL_VAL;
 }

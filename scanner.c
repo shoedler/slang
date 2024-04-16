@@ -163,6 +163,7 @@ static TokenType identifier_type() {
           case 'f': return check_keyword(2, 0, "", TOKEN_IF);
           case 's': return check_keyword(2, 0, "", TOKEN_IS);
           case 'm': return check_keyword(2, 4, "port", TOKEN_IMPORT);
+          case 'n': return check_keyword(2, 0, "", TOKEN_IN);
         }
       }
       break;
@@ -226,8 +227,7 @@ static Token number(char c) {
       // Check literal length - this does not account for the actual value that results when parsing the
       // literal
       if (num_digits <= 0 || num_digits > MAX_HEX_DIGITS) {
-        return error_token("Hexadecimal number literal must have at least one digit/letter and at most " STR(
-            MAX_HEX_DIGITS) ".");
+        return error_token("Hexadecimal number literal must have at least one digit/letter and at most " STR(MAX_HEX_DIGITS) ".");
       }
       return make_token(TOKEN_NUMBER);
     } else if (kind == 'b' || kind == 'B') {
@@ -241,8 +241,7 @@ static Token number(char c) {
       // Check literal length - this does not account for the actual value that results when parsing the
       // literal
       if (num_digits <= 0 || num_digits > MAX_BINARY_DIGITS) {
-        return error_token(
-            "Binary number literal must have at least one digit and at most " STR(MAX_BINARY_DIGITS) ".");
+        return error_token("Binary number literal must have at least one digit and at most " STR(MAX_BINARY_DIGITS) ".");
       }
       return make_token(TOKEN_NUMBER);
     } else if (kind == 'o' || kind == 'O') {
@@ -256,8 +255,7 @@ static Token number(char c) {
       // Check literal length - this does not account for the actual value that results when parsing the
       // literal
       if (num_digits <= 0 || num_digits > MAX_OCTAL_DIGITS) {
-        return error_token(
-            "Octal number literal must have at least one digit and at most " STR(MAX_OCTAL_DIGITS) ".");
+        return error_token("Octal number literal must have at least one digit and at most " STR(MAX_OCTAL_DIGITS) ".");
       }
       return make_token(TOKEN_NUMBER);
     }

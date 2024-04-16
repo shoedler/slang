@@ -44,6 +44,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
+- [ ] Add a mapping to builtin classes `Seq`, `Class`, `Fn` which maps `ObjString` to some function `GetterFn(Obj)`. Use this in `prop_getter` and `has`, to make sure they are always aligned.
 - [ ] Use something else instead of `rint`, because it's not very precise. See _num-to-str.spec.sl_ for an example.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.

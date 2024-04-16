@@ -21,6 +21,7 @@ void register_builtin_obj_class() {
 
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_CTOR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_TO_STR, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_HAS, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, hash, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, entries, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
@@ -74,23 +75,14 @@ BUILTIN_METHOD_DOC(
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_CTOR) {
   UNUSED(argv);
   BUILTIN_ARGC_EXACTLY(0)
+  // This is a base implementation, all objects which don't have a custom implementation will use this one.
+  // Works nicely for all classes, because instances are ObjObjects. Any other value type, like primitives, are handled internally
+  // and have their own constructors.
 
   HashTable fields;
   init_hashtable(&fields);
   ObjObject* object = take_object(&fields);
   return OBJ_VAL(object);
-}
-
-// Built-in method to return the hash of an object.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ hash,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the hash of the " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
-  BUILTIN_ARGC_EXACTLY(0)
-  return NUMBER_VAL(hash_value(argv[0]));
 }
 
 static Value instance_object_to_str(int argc, Value* argv) {
@@ -195,7 +187,8 @@ BUILTIN_METHOD_DOC(
     /* Description */ "Returns a string representation of the " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
   BUILTIN_ARGC_EXACTLY(0)
-  // BUILTIN_CHECK_RECEIVER(OBJ) // This should accept any value
+  // This is a base implementation, all objects which don't have a custom implementation will use this one.
+  // So we don't check the receiver, because this implementation should accept any value.
 
   // Handle anonymous objects and instance objects differently
   if (IS_OBJECT(argv[0])) {
@@ -223,6 +216,57 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
 
   free(chars);
   return OBJ_VAL(str_obj);
+}
+
+// Built-in method to check if an object contains a value
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_OBJ,
+    /* Name        */ SP_METHOD_HAS,
+    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
+    /* Return Type */ TYPENAME_BOOL,
+    /* Description */
+    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_OBJ) " contains a key which equals 'value'.")
+BUILTIN_METHOD_DOC_OVERLOAD(
+    /* Receiver    */ TYPENAME_OBJ,
+    /* Name        */ SP_METHOD_HAS,
+    /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
+    /* Return Type */ TYPENAME_BOOL,
+    /* Description */
+    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_OBJ) " contains a key for which 'pred' evaluates to " VALUE_STR_TRUE ".");
+BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_HAS) {
+  BUILTIN_ARGC_EXACTLY(1)
+  BUILTIN_CHECK_RECEIVER(OBJ)
+
+  // This is a base implementation, all objects which don't have a custom implementation will use this one.
+
+  // Execute the 'keys' method on the receiver
+  push(argv[0]);  // Receiver
+  Value seq = exec_fn((Obj*)copy_string("keys", 4), 0);
+  if (vm.flags & VM_FLAG_HAS_ERROR) {
+    return NIL_VAL;
+  }
+
+  // Execute the 'has' method on the seq
+  push(seq);      // Receiver
+  push(argv[1]);  // Argument
+  Value result = exec_fn(typeof(seq)->__has, 1);
+  if (vm.flags & VM_FLAG_HAS_ERROR) {
+    return NIL_VAL;
+  }
+
+  return result;
+}
+
+// Built-in method to return the hash of an object.
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_OBJ,
+    /* Name        */ hash,
+    /* Arguments   */ "",
+    /* Return Type */ TYPENAME_NUMBER,
+    /* Description */ "Returns the hash of the " STR(TYPENAME_OBJ) ".");
+BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
+  BUILTIN_ARGC_EXACTLY(0)
+  return NUMBER_VAL(hash_value(argv[0]));
 }
 
 // Built-in method to retrieve all entries of an object.

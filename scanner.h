@@ -81,6 +81,7 @@ typedef enum {
   TOKEN_THROW,   // 'throw'
   TOKEN_CATCH,   // 'catch'
   TOKEN_IS,      // 'is'
+  TOKEN_IN,      // 'in'
 
   TOKEN_ID,      // [a-zA-Z_] [a-zA-Z_0-9]*
   TOKEN_NUMBER,  // [0-9]+  or [0-9]+ '.' [0-9]* | '.' [0-9]+

@@ -12,6 +12,7 @@ void register_builtin_str_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_STRING, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_TO_STR, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_HAS, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
   vm.__builtin_Str_class->prop_getter  = prop_getter;
@@ -183,4 +184,37 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, trim) {
 
   ObjString* trimmed = copy_string(str->chars + start, end - start + 1);
   return OBJ_VAL(trimmed);
+}
+
+// Built-in method to check if a value has a property
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_STRING,
+    /* Name        */ SP_METHOD_HAS,
+    /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
+    /* Return Type */ TYPENAME_STRING,
+    /* Description */
+    "<Not supported>");
+BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_HAS) {
+  BUILTIN_CHECK_RECEIVER(STRING)
+  BUILTIN_ARGC_EXACTLY(1)
+  BUILTIN_CHECK_ARG_AT(1, STRING)
+
+  // Should align with prop_getter
+  ObjString* str    = AS_STRING(argv[0]);
+  ObjString* substr = AS_STRING(argv[1]);
+
+  if (substr->length == 0) {
+    return BOOL_VAL(true);
+  }
+  if (substr->length > str->length) {
+    return BOOL_VAL(false);
+  }
+
+  for (int i = 0; i < str->length - substr->length + 1; i++) {
+    if (strncmp(str->chars + i, substr->chars, substr->length) == 0) {
+      return BOOL_VAL(true);
+    }
+  }
+
+  return BOOL_VAL(false);
 }
