@@ -39,6 +39,9 @@
   static const char* BUILTIN_FN_DOC_STR(name); \
   Value BUILTIN_FN(name)(int argc, Value argv[]);
 
+// Register a built-in accessor in the VM, by setting the built-in class's accessor field.
+#define BUILTIN_REGISTER_ACCESSOR(class_name, field_name) vm.##BUILTIN_CLASS(class_name)->field_name = field_name;
+
 // Register a built-in class in the VM, by adding it to the built-in object's field table.
 #define BUILTIN_REGISTER_CLASS(class_name, base_class)                                                   \
   vm.##BUILTIN_CLASS(class_name) =                                                                       \

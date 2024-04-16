@@ -12,22 +12,21 @@ void register_builtin_class_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_CLASS, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_CTOR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_TO_STR, 0);
-  vm.__builtin_Class_class->prop_getter  = prop_getter;
-  vm.__builtin_Class_class->prop_setter  = prop_setter;
-  vm.__builtin_Class_class->index_getter = index_getter;
-  vm.__builtin_Class_class->index_setter = index_setter;
+  BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_HAS, 1);
+
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_CLASS, prop_getter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_CLASS, prop_setter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_CLASS, index_getter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_CLASS, index_setter);
+
   BUILTIN_FINALIZE_CLASS(TYPENAME_CLASS);
 }
 
+// Internal OP_GET_PROPERTY handler
 static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
   ObjClass* klass = (ObjClass*)self;
   if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
     *result = OBJ_VAL(klass->name);
-    return ACCESSOR_RESULT_OK;
-  }
-
-  if (name == vm.special_method_names[SPECIAL_METHOD_CTOR]) {
-    *result = OBJ_VAL(klass->__ctor);
     return ACCESSOR_RESULT_OK;
   }
 
@@ -36,9 +35,16 @@ static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* resul
     return ACCESSOR_RESULT_OK;
   }
 
+  // Also, don't bind the method here, because we don't have an instance.
+  // But it should still be possible to retrieve the method.
+  if (hashtable_get_by_string(&klass->methods, name, result)) {
+    return ACCESSOR_RESULT_OK;
+  }
+
   return ACCESSOR_RESULT_PASS;
 }
 
+// Internal OP_SET_PROPERTY handler
 static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
   UNUSED(self);
   UNUSED(name);
@@ -46,6 +52,7 @@ static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value)
   return ACCESSOR_RESULT_PASS;
 }
 
+// Internal OP_GET_INDEX handler
 static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
   UNUSED(self);
   UNUSED(index);
@@ -53,6 +60,7 @@ static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) 
   return ACCESSOR_RESULT_PASS;
 }
 
+// Internal OP_SET_INDEX handler
 static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
   UNUSED(self);
   UNUSED(index);
@@ -83,8 +91,8 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of " STR(TYPENAME_CLASS) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_TO_STR) {
-  BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(CLASS)
+  BUILTIN_ARGC_EXACTLY(0)
 
   ObjClass* klass = AS_CLASS(argv[0]);
   ObjString* name = klass->name;
@@ -103,4 +111,33 @@ BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_TO_STR) {
   free(chars);
   pop();  // Name str
   return OBJ_VAL(str_obj);
+}
+
+// Built-in method to check if a class has a method
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_CLASS,
+    /* Name        */ SP_METHOD_HAS,
+    /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
+    /* Return Type */ TYPENAME_BOOL,
+    /* Description */
+    "Returns " STR(TYPENAME_TRUE) " if the class has a method or static method with the given name, " STR(
+        TYPENAME_FALSE) " otherwise.");
+BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_HAS) {
+  BUILTIN_CHECK_RECEIVER(CLASS)
+  BUILTIN_ARGC_EXACTLY(1)
+  BUILTIN_CHECK_ARG_AT(1, STRING)
+
+  ObjString* name = AS_STRING(argv[1]);
+  ObjClass* klass = AS_CLASS(argv[0]);
+  Value result;
+
+  // Should align with prop_getter
+  if (hashtable_get_by_string(&klass->methods, name, &result)) {
+    return BOOL_VAL(true);
+  }
+  if (hashtable_get_by_string(&klass->static_methods, name, &result)) {
+    return BOOL_VAL(true);
+  }
+
+  return BOOL_VAL(false);
 }

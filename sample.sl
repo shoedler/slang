@@ -561,23 +561,24 @@
 // print try (0 is 1) else error // Type must be a class. Was Num.
 // print 0 is typeof(1)         // true
 
-
-
-
-// print typeof(1) == Num
-// if 1 is Num print "1 is Num"
-
-// cls Test {
-//   static fn assert() {
-//     ret Test();
-//   }
+// print "--------------------------------------------------------------------------------"
+// print "Fn.bind"
+// print "--------------------------------------------------------------------------------"
+// cls Lol {
+//   ctor { this.y = 1 }
+//   fn x -> this.y
+//   static fn y -> 2
 // }
 
-// let t = Test.assert()
-// print t is Test
-// print Test.assert
+// let new = {}
+// let construct = Lol.ctor.bind(new)
+// let get_x = Lol.x.bind(new)
 
-// import Perf
+// print construct()
+// print get_x()
+
+
+
 
 // cls BenchBase {
 //   ctor (name, type) { 
@@ -622,22 +623,23 @@
 // }
 
 // // let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
-
 // let l = LatencyBench("test")
 // l.exec(fn -> 1)
 // print l
 
-// print [].every.__doc
+// print "foo" in { "foo": 1 } // [Expect] true
 
 
-let a = [1,2,3,"hi"]
 
-// Non-integer
-let sqrt_of_3 = 1.73205
-let almost_3 = sqrt_of_3 * sqrt_of_3
-print almost_3                           // [Expect] 2.999997
-print try (a[almost_3] = "?") else error // [Expect] Index must be an integer, but got a float.
-print a[3]                               // [Expect] hi
+cls Lol {
+  ctor { this.y = 1 }
+  fn x -> this.y
+  static fn y -> 2
+}
 
-// String
-print try (a["3"] = "?") else error      // [Expect] Seq indices must be Nums, but got Str.
+let new = {}
+let construct = Lol.ctor.bind(new)
+let get_x = Lol.x.bind(new)
+
+print construct()
+print get_x()

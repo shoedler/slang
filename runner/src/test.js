@@ -161,7 +161,7 @@ export const runTests = async (config, signal, updateFiles = false, testNamePatt
       `${chalk.red(finishMessage)} ${chalk.red('Failed tests:')}\n${failedTests
         .map(
           ({ test, errorMessages }) =>
-            `${chalk.red(' █ ')}${getTestName(test)}\n${chalk.red(' │ ')}${errorMessages.join(
+            `${chalk.red(' █ ')}${test}\n${chalk.red(' │ ')}${errorMessages.join(
               `\n${chalk.red(' │ ')}`,
             )}`,
         )

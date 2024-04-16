@@ -58,13 +58,19 @@ ObjBoundMethod* new_bound_method(Value receiver, Obj* method) {
 }
 
 ObjClass* new_class(ObjString* name, ObjClass* base) {
-  ObjClass* klass     = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
-  klass->name         = name;
-  klass->base         = base;
+  ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+  klass->name     = name;
+  klass->base     = base;
+
+  klass->__ctor   = NULL;
+  klass->__to_str = NULL;
+  klass->__has    = NULL;
+
   klass->prop_getter  = NULL;
   klass->prop_setter  = NULL;
   klass->index_getter = NULL;
   klass->index_setter = NULL;
+
   init_hashtable(&klass->methods);
   init_hashtable(&klass->static_methods);
   return klass;

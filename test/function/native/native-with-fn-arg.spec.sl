@@ -15,4 +15,5 @@ print ({"a": A(), "b": A() }).to_str()
 // [ExpectRuntimeError]   at line 6 in native "each"
 // [ExpectRuntimeError]   at line 6 in "check" in module "main"
 // [ExpectRuntimeError]   at line 4 in "to_str" in module "main"
+// [ExpectRuntimeError]   at line 10 in native "to_str"
 // [ExpectRuntimeError]   at line 10 at the toplevel of module "main"
