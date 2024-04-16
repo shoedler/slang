@@ -187,13 +187,9 @@ void init_vm() {
 
   // Build the reserved words lookup table
   memset(vm.special_method_names, 0, sizeof(vm.special_method_names));
-  vm.special_method_names[SPECIAL_METHOD_CTOR]     = copy_string(STR(SP_METHOD_CTOR), STR_LEN(STR(SP_METHOD_CTOR)));
-  vm.special_method_names[SPECIAL_METHOD_TO_STR]   = copy_string(STR(SP_METHOD_TO_STR), STR_LEN(STR(SP_METHOD_TO_STR)));
-  vm.special_method_names[SPECIAL_METHOD_HAS]      = copy_string(STR(SP_METHOD_HAS), STR_LEN(STR(SP_METHOD_HAS)));
-  vm.special_method_names[SPECIAL_METHOD_GET]      = copy_string(STR(SP_METHOD_GET), STR_LEN(STR(SP_METHOD_GET)));
-  vm.special_method_names[SPECIAL_METHOD_SET]      = copy_string(STR(SP_METHOD_SET), STR_LEN(STR(SP_METHOD_SET)));
-  vm.special_method_names[SPECIAL_METHOD_GETSLICE] = copy_string(STR(SP_METHOD_GETSLICE), STR_LEN(STR(SP_METHOD_GETSLICE)));
-  vm.special_method_names[SPECIAL_METHOD_SETSLICE] = copy_string(STR(SP_METHOD_SETSLICE), STR_LEN(STR(SP_METHOD_SETSLICE)));
+  vm.special_method_names[SPECIAL_METHOD_CTOR]   = copy_string(STR(SP_METHOD_CTOR), STR_LEN(STR(SP_METHOD_CTOR)));
+  vm.special_method_names[SPECIAL_METHOD_TO_STR] = copy_string(STR(SP_METHOD_TO_STR), STR_LEN(STR(SP_METHOD_TO_STR)));
+  vm.special_method_names[SPECIAL_METHOD_HAS]    = copy_string(STR(SP_METHOD_HAS), STR_LEN(STR(SP_METHOD_HAS)));
 
   memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
   vm.special_prop_names[SPECIAL_PROP_LEN]         = copy_string(STR(SP_PROP_LEN), STR_LEN(STR(SP_PROP_LEN)));

@@ -19,10 +19,6 @@
 #define SP_METHOD_CTOR ctor
 #define SP_METHOD_TO_STR to_str
 #define SP_METHOD_HAS has
-#define SP_METHOD_GET __get
-#define SP_METHOD_SET __set
-#define SP_METHOD_GETSLICE __get_slice
-#define SP_METHOD_SETSLICE __set_slice
 
 #define SP_PROP_LEN len
 #define SP_PROP_NAME __name
