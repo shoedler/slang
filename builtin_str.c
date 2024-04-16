@@ -15,13 +15,16 @@ void register_builtin_str_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_HAS, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
-  vm.__builtin_Str_class->prop_getter  = prop_getter;
-  vm.__builtin_Str_class->prop_setter  = prop_setter;
-  vm.__builtin_Str_class->index_getter = index_getter;
-  vm.__builtin_Str_class->index_setter = index_setter;
+
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, prop_getter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, prop_setter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, index_getter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, index_setter);
+
   BUILTIN_FINALIZE_CLASS(TYPENAME_STRING);
 }
 
+// Internal OP_GET_PROPERTY handler
 static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
   if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
     *result = NUMBER_VAL((double)((ObjString*)self)->length);
@@ -31,6 +34,7 @@ static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* resul
   return ACCESSOR_RESULT_PASS;
 }
 
+// Internal OP_SET_PROPERTY handler
 static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
   UNUSED(self);
   UNUSED(name);
@@ -38,6 +42,7 @@ static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value)
   return ACCESSOR_RESULT_PASS;
 }
 
+// Internal OP_GET_INDEX handler
 static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
   if (!IS_NUMBER(index)) {
     runtime_error(STR(TYPENAME_STRING) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
@@ -62,6 +67,7 @@ static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) 
   return ACCESSOR_RESULT_OK;
 }
 
+// Internal OP_SET_INDEX handler
 static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
   UNUSED(self);
   UNUSED(index);

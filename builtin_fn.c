@@ -3,6 +3,14 @@
 #include "common.h"
 #include "vm.h"
 
+#define BUILTIN_CHECK_RECEIVER_IS_FN()                                                                     \
+  if (!IS_FUNCTION(argv[0]) && !IS_CLOSURE(argv[0]) && !IS_BOUND_METHOD(argv[0]) && !IS_NATIVE(argv[0])) { \
+    runtime_error("Expected receiver of type " STR(TYPENAME_FUNCTION) ", " STR(TYPENAME_CLOSURE) ", " STR( \
+                      TYPENAME_NATIVE) " or " STR(TYPENAME_BOUND_METHOD) ", but got %s.",                  \
+                  typeof(argv[0])->name->chars);                                                           \
+    return NIL_VAL;                                                                                        \
+  }
+
 static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result);
 static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value);
 static NativeAccessorResult index_getter(Obj* self, Value index, Value* result);
@@ -13,13 +21,17 @@ void register_builtin_fn_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_CTOR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_HAS, 1);
-  vm.__builtin_Fn_class->prop_getter  = prop_getter;
-  vm.__builtin_Fn_class->prop_setter  = prop_setter;
-  vm.__builtin_Fn_class->index_getter = index_getter;
-  vm.__builtin_Fn_class->index_setter = index_setter;
+  BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, bind, 1);
+
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_FUNCTION, prop_getter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_FUNCTION, prop_setter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_FUNCTION, index_getter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_FUNCTION, index_setter);
+
   BUILTIN_FINALIZE_CLASS(TYPENAME_FUNCTION);
 }
 
+// Internal OP_GET_PROPERTY handler
 static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
   if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
     switch (self->type) {
@@ -36,6 +48,7 @@ static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* resul
   return ACCESSOR_RESULT_PASS;
 }
 
+// Internal OP_SET_PROPERTY handler
 static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
   UNUSED(self);
   UNUSED(name);
@@ -43,6 +56,7 @@ static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value)
   return ACCESSOR_RESULT_PASS;
 }
 
+// Internal OP_GET_INDEX handler
 static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
   UNUSED(self);
   UNUSED(index);
@@ -50,6 +64,7 @@ static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) 
   return ACCESSOR_RESULT_PASS;
 }
 
+// Internal OP_SET_INDEX handler
 static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
   UNUSED(self);
   UNUSED(index);
@@ -80,15 +95,8 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of " STR(TYPENAME_FUNCTION) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_TO_STR) {
+  BUILTIN_CHECK_RECEIVER_IS_FN()
   BUILTIN_ARGC_EXACTLY(0)
-  // BUILTIN_CHECK_RECEIVER(FUNCTION) Doesn't work here, because we need to check multiple types
-
-  if (!IS_FUNCTION(argv[0]) && !IS_CLOSURE(argv[0]) && !IS_BOUND_METHOD(argv[0]) && !IS_NATIVE(argv[0])) {
-    runtime_error("Expected receiver of type " STR(TYPENAME_FUNCTION) ", " STR(TYPENAME_CLOSURE) ", " STR(
-                      TYPENAME_NATIVE) " or " STR(TYPENAME_BOUND_METHOD) ", but got %s.",
-                  typeof(argv[0])->name->chars);
-    return NIL_VAL;
-  }
 
   Value fn = argv[0];
 
@@ -137,15 +145,8 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "<Not supported>");
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_HAS) {
+  BUILTIN_CHECK_RECEIVER_IS_FN()
   BUILTIN_ARGC_EXACTLY(1)
-  BUILTIN_CHECK_ARG_AT(1, STRING)
-  // BUILTIN_CHECK_RECEIVER(FUNCTION) Doesn't work here, because we need to check multiple types
-  if (!IS_FUNCTION(argv[0]) && !IS_CLOSURE(argv[0]) && !IS_BOUND_METHOD(argv[0]) && !IS_NATIVE(argv[0])) {
-    runtime_error("Expected receiver of type " STR(TYPENAME_FUNCTION) ", " STR(TYPENAME_CLOSURE) ", " STR(
-                      TYPENAME_NATIVE) " or " STR(TYPENAME_BOUND_METHOD) ", but got %s.",
-                  typeof(argv[0])->name->chars);
-    return NIL_VAL;
-  }
 
   // Should align with prop_getter
   if (AS_STRING(argv[1]) == vm.special_prop_names[SPECIAL_PROP_NAME]) {
@@ -153,4 +154,25 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_HAS) {
   }
 
   return BOOL_VAL(false);
+}
+
+// Built-in method to bind a function to a receiver
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_FUNCTION,
+    /* Name        */ bind,
+    /* Arguments   */ DOC_ARG("bind_target", TYPENAME_OBJ),
+    /* Return Type */ TYPENAME_BOUND_METHOD,
+    /* Description */
+    "Returns a new " STR(TYPENAME_BOUND_METHOD) " with the given bind_target (receiver) bound to the function.");
+BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, bind) {
+  BUILTIN_CHECK_RECEIVER_IS_FN()
+  BUILTIN_ARGC_EXACTLY(1)
+
+  Value bind_target = argv[1];
+  if (!IS_OBJ(bind_target)) {
+    runtime_error("Expected bind_target to be an object, but got %s.", typeof(bind_target)->name->chars);
+    return NIL_VAL;
+  }
+
+  return OBJ_VAL(new_bound_method(bind_target, AS_OBJ(argv[0])));
 }

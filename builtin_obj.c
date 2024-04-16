@@ -26,13 +26,16 @@ void register_builtin_obj_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, entries, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, keys, 0);
-  vm.__builtin_Obj_class->prop_getter  = prop_getter;
-  vm.__builtin_Obj_class->prop_setter  = prop_setter;
-  vm.__builtin_Obj_class->index_getter = index_getter;
-  vm.__builtin_Obj_class->index_setter = index_setter;
+
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, prop_getter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, prop_setter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, index_getter);
+  BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, index_setter);
+
   BUILTIN_FINALIZE_CLASS(TYPENAME_OBJ);
 }
 
+// Internal OP_GET_PROPERTY handler
 static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
   ObjObject* object = (ObjObject*)self;
   if (hashtable_get_by_string(&object->fields, name, result)) {
@@ -45,12 +48,14 @@ static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* resul
   return ACCESSOR_RESULT_PASS;
 }
 
+// Internal OP_SET_PROPERTY handler
 static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
   ObjObject* object = (ObjObject*)self;
   hashtable_set(&object->fields, OBJ_VAL(name), value);
   return ACCESSOR_RESULT_OK;
 }
 
+// Internal OP_GET_INDEX handler
 static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
   ObjObject* object = (ObjObject*)self;
   if (!hashtable_get(&object->fields, index, result)) {
@@ -59,6 +64,7 @@ static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) 
   return ACCESSOR_RESULT_OK;
 }
 
+// Internal OP_SET_INDEX handler
 static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
   ObjObject* object = (ObjObject*)self;
   hashtable_set(&object->fields, index, value);

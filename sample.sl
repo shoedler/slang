@@ -561,23 +561,24 @@
 // print try (0 is 1) else error // Type must be a class. Was Num.
 // print 0 is typeof(1)         // true
 
-
-
-
-// print typeof(1) == Num
-// if 1 is Num print "1 is Num"
-
-// cls Test {
-//   static fn assert() {
-//     ret Test();
-//   }
+// print "--------------------------------------------------------------------------------"
+// print "Fn.bind"
+// print "--------------------------------------------------------------------------------"
+// cls Lol {
+//   ctor { this.y = 1 }
+//   fn x -> this.y
+//   static fn y -> 2
 // }
 
-// let t = Test.assert()
-// print t is Test
-// print Test.assert
+// let new = {}
+// let construct = Lol.ctor.bind(new)
+// let get_x = Lol.x.bind(new)
 
-// import Perf
+// print construct()
+// print get_x()
+
+
+
 
 // cls BenchBase {
 //   ctor (name, type) { 
@@ -631,10 +632,14 @@
 
 
 cls Lol {
-  fn x -> 1
+  ctor { this.y = 1 }
+  fn x -> this.y
   static fn y -> 2
 }
 
-print "x" in Lol // [Expect] true
-print "y" in Lol // [Expect] true
-print "z" in Lol // [Expect] false
+let new = {}
+let construct = Lol.ctor.bind(new)
+let get_x = Lol.x.bind(new)
+
+print construct()
+print get_x()
