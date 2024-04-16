@@ -48,11 +48,6 @@ typedef enum {
   SPECIAL_METHOD_TO_STR,  // to_str
   SPECIAL_METHOD_HAS,     // has
 
-  SPECIAL_METHOD_GET,       // __get
-  SPECIAL_METHOD_SET,       // __set
-  SPECIAL_METHOD_GETSLICE,  // __get_slice
-  SPECIAL_METHOD_SETSLICE,  // __set_slice
-
   SPECIAL_METHOD_MAX,
 } SpecialMethodNames;
 

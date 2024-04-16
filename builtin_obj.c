@@ -4,6 +4,11 @@
 #include "common.h"
 #include "vm.h"
 
+static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result);
+static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value);
+static NativeAccessorResult index_getter(Obj* self, Value index, Value* result);
+static NativeAccessorResult index_setter(Obj* self, Value index, Value value);
+
 void register_builtin_obj_class() {
   // Create the object class
   vm.__builtin_Obj_class = new_class(copy_string(STR(TYPENAME_OBJ), STR_LEN(STR(TYPENAME_OBJ))), NULL);
@@ -21,7 +26,39 @@ void register_builtin_obj_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, entries, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, keys, 0);
+  vm.__builtin_Obj_class->prop_getter  = prop_getter;
+  vm.__builtin_Obj_class->prop_setter  = prop_setter;
+  vm.__builtin_Obj_class->index_getter = index_getter;
+  vm.__builtin_Obj_class->index_setter = index_setter;
   BUILTIN_FINALIZE_CLASS(TYPENAME_OBJ);
+}
+
+static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
+  ObjObject* object = (ObjObject*)self;
+  if (hashtable_get_by_string(&object->fields, name, result)) {
+    return ACCESSOR_RESULT_OK;
+  }
+  return ACCESSOR_RESULT_PASS;
+}
+
+static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
+  ObjObject* object = (ObjObject*)self;
+  hashtable_set(&object->fields, OBJ_VAL(name), value);
+  return ACCESSOR_RESULT_OK;
+}
+
+static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
+  ObjObject* object = (ObjObject*)self;
+  if (!hashtable_get(&object->fields, index, result)) {
+    *result = NIL_VAL;
+  }
+  return ACCESSOR_RESULT_OK;
+}
+
+static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
+  ObjObject* object = (ObjObject*)self;
+  hashtable_set(&object->fields, index, value);
+  return ACCESSOR_RESULT_OK;
 }
 
 // Built-in obj constructor

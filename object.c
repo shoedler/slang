@@ -58,9 +58,13 @@ ObjBoundMethod* new_bound_method(Value receiver, Obj* method) {
 }
 
 ObjClass* new_class(ObjString* name, ObjClass* base) {
-  ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
-  klass->name     = name;
-  klass->base     = base;
+  ObjClass* klass     = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+  klass->name         = name;
+  klass->base         = base;
+  klass->prop_getter  = NULL;
+  klass->prop_setter  = NULL;
+  klass->index_getter = NULL;
+  klass->index_setter = NULL;
   init_hashtable(&klass->methods);
   init_hashtable(&klass->static_methods);
   return klass;
@@ -72,29 +76,11 @@ void finalize_new_class(ObjClass* klass) {
     SpecialMethodNames index;
   };
 
-  struct PropMap {
-    Obj** field;
-    SpecialPropNames index;
-  };
-
   struct MethodMap specials[] = {
       {&klass->__ctor, SPECIAL_METHOD_CTOR},
-      {&klass->__get, SPECIAL_METHOD_GET},
-      {&klass->__set, SPECIAL_METHOD_SET},
       {&klass->__to_str, SPECIAL_METHOD_TO_STR},
       {&klass->__has, SPECIAL_METHOD_HAS},
-      {&klass->__get_slice, SPECIAL_METHOD_GETSLICE},
-      {&klass->__set_slice, SPECIAL_METHOD_SETSLICE},
       {NULL, SPECIAL_METHOD_MAX},
-  };
-
-  struct PropMap props[] = {
-      {&klass->__len, SPECIAL_PROP_LEN},
-      {&klass->__name, SPECIAL_PROP_NAME},
-      {&klass->__doc, SPECIAL_PROP_DOC},
-      {&klass->__file_path, SPECIAL_PROP_FILE_PATH},
-      {&klass->__module_name, SPECIAL_PROP_MODULE_NAME},
-      {NULL, SPECIAL_PROP_MAX},
   };
 
   Value temp = NIL_VAL;
@@ -115,21 +101,29 @@ void finalize_new_class(ObjClass* klass) {
     }
   }
 
-  for (struct PropMap* entry = props; entry->field != NULL; entry++) {
-    // Try to populate the field from the class itself, or any of its base classes
-    ObjClass* base = klass;
-    while (base != NULL) {
-      if (hashtable_get_by_string(&base->methods, vm.special_prop_names[entry->index], &temp)) {
-        break;
-      }
-      base = base->base;
+  // Populate the getters and setters from the closest base class that has them.
+  // Builtin classes should have them, so we don't want to override if they're already set.
+  ObjClass* base = klass;
+  while (base != NULL && (klass->prop_getter == NULL || klass->prop_setter == NULL || klass->index_getter == NULL ||
+                          klass->index_setter == NULL)) {
+    if (klass->prop_getter == NULL) {
+      klass->prop_getter = base->prop_getter;
     }
+    if (klass->prop_setter == NULL) {
+      klass->prop_setter = base->prop_setter;
+    }
+    if (klass->index_getter == NULL) {
+      klass->index_getter = base->index_getter;
+    }
+    if (klass->index_setter == NULL) {
+      klass->index_setter = base->index_setter;
+    }
+    base = base->base;
+  }
 
-    if (base != NULL && IS_CALLABLE(temp)) {
-      *entry->field = AS_OBJ(temp);
-    } else {
-      *entry->field = NULL;
-    }
+  // If we still don't have them, we have an internal error
+  if (klass->prop_getter == NULL || klass->prop_setter == NULL || klass->index_getter == NULL || klass->index_setter == NULL) {
+    INTERNAL_ERROR("Invalid class definition. Missing property getter/setter or index getter/setter.");
   }
 }
 

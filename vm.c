@@ -864,234 +864,101 @@ static Value run() {
         break;
       }
       case OP_GET_INDEX: {
-        // We don't trigger the GC in this block, so we can just pop the stuff
-        Value index   = pop();
-        Value indexee = pop();
+        Value value    = NIL_VAL;
+        Value index    = peek(0);
+        Value indexee  = peek(1);
+        ObjClass* type = typeof(indexee);
 
-        if (IS_STRING(indexee)) {
-          if (!IS_NUMBER(index)) {
-            runtime_error(STR(TYPENAME_STRING) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.",
-                          typeof(index)->name->chars);
+        switch (type->index_getter(AS_OBJ(indexee), index, &value)) {
+          case ACCESSOR_RESULT_ERROR: goto finish_error;
+          case ACCESSOR_RESULT_PASS: {
+            runtime_error("Value of type %s cannot be get-indexed.", type->name->chars);
             goto finish_error;
           }
-
-          double i_raw = AS_NUMBER(index);
-          long long i;
-          if (!is_int(i_raw, &i)) {
-            push(NIL_VAL);
-            break;
-          }
-
-          ObjString* string = AS_STRING(indexee);
-          if (i < 0 || i >= string->length) {
-            runtime_error("Index out of bounds.");
-            goto finish_error;
-          }
-
-          ObjString* char_str = copy_string(AS_CSTRING(indexee) + i, 1);
-          push(OBJ_VAL(char_str));
-          break;
-        } else if (IS_SEQ(indexee)) {
-          if (!IS_NUMBER(index)) {
-            runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.",
-                          typeof(index)->name->chars);
-            goto finish_error;
-          }
-
-          double i_raw = AS_NUMBER(index);
-          long long i;
-          if (!is_int(i_raw, &i)) {
-            push(NIL_VAL);
-            break;
-          }
-
-          ObjSeq* seq = AS_SEQ(indexee);
-          if (i < 0 || i >= seq->items.count) {
-            runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
-            goto finish_error;
-          }
-
-          push(seq->items.values[i]);
-        } else if (IS_OBJECT(indexee)) {
-          ObjObject* object = AS_OBJECT(indexee);
-          Value value;
-          if (hashtable_get(&object->fields, index, &value)) {
+          case ACCESSOR_RESULT_OK: {
+            pop();  // Pop the index
+            pop();  // Pop the indexee
             push(value);
-          } else {
-            push(NIL_VAL);
+            break;
           }
-        } else {
-          runtime_error("%s cannot be get-indexed.", typeof(indexee)->name->chars);
-          goto finish_error;
         }
         break;
       }
       case OP_SET_INDEX: {
-        // Some of the code in this block might trigger the GC, so we need to peek
-        Value assignee = peek(2);  // Peek(0) is the value, Peek(1) is the index, Peek(2) is the assignee
+        Value value    = peek(0);
+        Value index    = peek(1);
+        Value assignee = peek(2);
+        ObjClass* type = typeof(assignee);
 
-        if (IS_SEQ(assignee)) {
-          // We can pop, bc we don't trigger the GC in this block
-          Value value = pop();  // value
-          Value index = pop();  // index
-          pop();                // assignee
-
-          if (!IS_NUMBER(index)) {
-            runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.",
-                          typeof(index)->name->chars);
+        switch (type->index_setter(AS_OBJ(assignee), index, value)) {
+          case ACCESSOR_RESULT_ERROR: goto finish_error;
+          case ACCESSOR_RESULT_PASS: {
+            runtime_error("Value of type %s cannot be set-indexed.", type->name->chars);
             goto finish_error;
           }
-
-          double i_raw = AS_NUMBER(index);
-          long long i;
-          if (!is_int(i_raw, &i)) {
-            push(NIL_VAL);
+          case ACCESSOR_RESULT_OK: {
+            pop();        // Pop the value
+            pop();        // Pop the index
+            pop();        // Pop the assignee
+            push(value);  // Push the value back onto the stack, because assignment is an expression
             break;
           }
-
-          ObjSeq* seq = AS_SEQ(assignee);
-
-          if (i < 0 || i >= seq->items.count) {
-            runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
-            goto finish_error;
-          }
-
-          seq->items.values[i] = value;
-          push(value);
-        } else if (IS_OBJECT(assignee)) {
-          // We peek, because we might trigger the GC
-          Value value = peek(0);  // value
-          Value index = peek(1);  // index
-
-          ObjObject* object = AS_OBJECT(assignee);
-          hashtable_set(&object->fields, index, value);
-          pop();        // value
-          pop();        // index
-          pop();        // assignee
-          push(value);  // Push back onto the stack, because assignment is an expression
-        } else {
-          runtime_error("%s cannot be set-indexed.", typeof(assignee)->name->chars);
-          goto finish_error;
         }
         break;
       }
       case OP_GET_PROPERTY: {
+        Value value     = NIL_VAL;
         Value obj       = peek(0);
         ObjString* name = READ_STRING();
+        ObjClass* type  = typeof(obj);
 
-        switch (obj.type) {
-          case VAL_OBJ: {
-            switch (OBJ_TYPE(obj)) {
-              // You can get properties of a class, namely:
-              // - the name
-              // - the constructor
-              // - static methods
-              case OBJ_CLASS: {
-                ObjClass* klass = AS_CLASS(obj);
-                if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.special_prop_names[SPECIAL_PROP_NAME]))) {
-                  // Name is a special case, because it is a reserved word
-                  pop();  // Pop the class
-                  push(OBJ_VAL(klass->name));
-                  goto done_getting_property;
-                } else if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.special_method_names[SPECIAL_METHOD_CTOR]))) {
-                  // Ctor is a special case, because it is a reserved word.
-                  // Either we have a ctor, or we don't, in any case - we're done.
-                  pop();  // Pop the class
-                  Value ctor;
-                  if (hashtable_get_by_string(&klass->methods, name, &ctor)) {
-                    push(ctor);
-                  } else {
-                    push(NIL_VAL);
-                  }
-                  goto done_getting_property;
-                }
-
-                // We do not bind the method, because it's a static method.
-                Value static_method;
-                if (hashtable_get_by_string(&klass->static_methods, name, &static_method)) {
-                  pop();  // Pop the class
-                  push(static_method);
-                  goto done_getting_property;
-                }
-
-                break;
-              }
-              // For objects/class instances, you can get
-              // - their fields
-              // - their class methods
-              case OBJ_OBJECT: {
-                ObjObject* object = AS_OBJECT(obj);
-                Value value;
-                if (hashtable_get_by_string(&object->fields, name, &value)) {
-                  pop();  // Object.
-                  push(value);
-                  goto done_getting_property;
-                }
-                break;
-              }
+        switch (type->prop_getter(AS_OBJ(obj), name, &value)) {
+          case ACCESSOR_RESULT_ERROR: goto finish_error;
+          case ACCESSOR_RESULT_PASS: {
+            // It could be a method of the objs class. This catches many of the cases where we map a builtin class
+            // to primitive types, e.g. Num.to_str()
+            if (bind_method(type, name)) {
+              break;
             }
+
+            runtime_error("Property '%s' does not exist on type %s.", name->chars, type->name->chars);
+            goto finish_error;
+          }
+          case ACCESSOR_RESULT_OK: {
+            pop();  // Pop the object
+            push(value);
             break;
           }
         }
-
-        // It could be a method of the objs class. This catches many of the cases where we map a builtin class
-        // to primitive types, e.g. Num.to_str()
-        ObjClass* klass = typeof(obj);
-        if (bind_method(klass, name)) {
-          goto done_getting_property;
-        }
-
-        // It could be a __doc property, which is a special case.
-        // TODO (optimize): We could just make this a method like to_str. Kinda silly having it here as a
-        // property.
-        if (values_equal(OBJ_VAL(name), OBJ_VAL(vm.special_prop_names[SPECIAL_PROP_DOC]))) {
-          Value doc_str = doc(obj);
-          pop();  // Pop the object
-          push(doc_str);
-          goto done_getting_property;
-        }
-
-        runtime_error("Property '%s' does not exist on type %s.", name->chars, typeof(obj)->name->chars);
-        goto finish_error;
-
-      done_getting_property:
         break;
       }
       case OP_SET_PROPERTY: {
+        Value value     = peek(0);
         Value obj       = peek(1);
         ObjString* name = READ_STRING();
+        ObjClass* type  = typeof(obj);
 
-        switch (obj.type) {
-          case VAL_OBJ: {
-            switch (OBJ_TYPE(obj)) {
-              // On objects/class instances, you can set:
-              // - their fields
-              case OBJ_OBJECT: {
-                ObjObject* object = AS_OBJECT(obj);
-
-                // Check if it is a reserved property.
-                for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
-                  if (strcmp(name->chars, vm.special_prop_names[i]->chars) == 0) {
-                    runtime_error("Cannot set reserved field '%s'.", name->chars);
-                    goto finish_error;
-                  }
-                }
-
-                hashtable_set(&object->fields, OBJ_VAL(name), peek(0));  // Create or update
-                Value value = pop();
-                pop();
-                push(value);
-                goto done_setting_property;
-              }
-            }
-            break;
+        // Check if it is a reserved property.
+        for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
+          if (strcmp(name->chars, vm.special_prop_names[i]->chars) == 0) {
+            runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, type->name->chars);
+            goto finish_error;
           }
         }
 
-        runtime_error("Cannot set field '%s' on value of type %s.", name->chars, typeof(obj)->name->chars);
-        goto finish_error;
-
-      done_setting_property:
+        switch (type->prop_setter(AS_OBJ(obj), name, value)) {
+          case ACCESSOR_RESULT_ERROR: goto finish_error;
+          case ACCESSOR_RESULT_PASS: {
+            runtime_error("Cannot set property '%s' on value of type %s.", name->chars, type->name->chars);
+            goto finish_error;
+          }
+          case ACCESSOR_RESULT_OK: {
+            pop();        // Pop the value
+            pop();        // Pop the object
+            push(value);  // Push the value back onto the stack, because assignment is an expression
+            break;
+          }
+        }
         break;
       }
       case OP_IMPORT_FROM: {

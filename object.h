@@ -148,6 +148,17 @@ typedef struct {
   int upvalue_count;
 } ObjClosure;
 
+typedef enum {
+  ACCESSOR_RESULT_OK,
+  ACCESSOR_RESULT_PASS,
+  ACCESSOR_RESULT_ERROR,
+} NativeAccessorResult;
+
+typedef NativeAccessorResult (*NativePropGetter)(Obj* self, ObjString* name, Value* result);
+typedef NativeAccessorResult (*NativePropSetter)(Obj* self, ObjString* name, Value value);
+typedef NativeAccessorResult (*NativeIndexGetter)(Obj* self, Value index, Value* result);
+typedef NativeAccessorResult (*NativeIndexSetter)(Obj* self, Value index, Value value);
+
 typedef struct ObjClass {
   Obj obj;
   ObjString* name;
@@ -155,19 +166,15 @@ typedef struct ObjClass {
   HashTable static_methods;
   struct ObjClass* base;
 
-  // Special methods and properties for quick access.
-  Obj* __ctor;  // Constructor
-  Obj* __get;
-  Obj* __set;
-  Obj* __len;
-  Obj* __to_str;
+  // Special methods for quick access.
+  Obj* __ctor;
   Obj* __has;
-  Obj* __get_slice;
-  Obj* __set_slice;
-  Obj* __name;
-  Obj* __doc;
-  Obj* __file_path;    // Only used for modules
-  Obj* __module_name;  // Only used for modules
+  Obj* __to_str;
+
+  NativePropGetter prop_getter;
+  NativePropSetter prop_setter;
+  NativeIndexGetter index_getter;
+  NativeIndexSetter index_setter;
 } ObjClass;
 
 typedef struct ObjObject {

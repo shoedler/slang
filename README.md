@@ -62,9 +62,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 ### Optimizations
 
 - [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
-- [ ] Add methods which are used frequently as props on `ObjClass` e.g. `method_to_str` etc.
-- [ ] Add `get` and `set` methods to `ObjClass` to reduce the number of lookups.
-- [ ] Add more words to `vm.cached_words` to reduce the number of lookups and string allocations.
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
 - [ ] Constant time global variable lookup. (**_See Challenge 21.2_**)
@@ -72,6 +69,9 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
 - [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
 - [ ] (Unsure) Differentiate between fields and methods textually. Use an array for lookup. Low prio. Would be nice to allow field-inheritance - this could be a major rewrite though. (**_See Challenge 28.3_**)
+- [x] Add methods which are used frequently as props on `ObjClass` e.g. `method_to_str` etc.
+- [x] Add `get` and `set` methods to `ObjClass` to reduce the number of lookups.
+- [x] Add more words to `vm.cached_words` to reduce the number of lookups and string allocations.
 
 ## Ideas
 
