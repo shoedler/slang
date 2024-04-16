@@ -40,14 +40,14 @@ static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* resul
   UNUSED(self);
   UNUSED(name);
   UNUSED(result);
-  return ACCESSOR_RESULT_PASS;  // Still allow to bind methods
+  return ACCESSOR_RESULT_PASS;
 }
 
 static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
   UNUSED(self);
+  UNUSED(name);
   UNUSED(value);
-  runtime_error("Cannot set property '%s' on a " STR(TYPENAME_SEQ) ".", name->chars);
-  return ACCESSOR_RESULT_ERROR;
+  return ACCESSOR_RESULT_PASS;
 }
 
 static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
@@ -59,8 +59,8 @@ static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) 
   double i_raw = AS_NUMBER(index);
   long long i;
   if (!is_int(i_raw, &i)) {
-    *result = NIL_VAL;
-    return ACCESSOR_RESULT_OK;
+    runtime_error("Index must be an integer, but got a float.");
+    return ACCESSOR_RESULT_ERROR;
   }
 
   ObjSeq* seq = (ObjSeq*)self;
@@ -70,6 +70,7 @@ static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) 
   }
 
   *result = seq->items.values[i];
+  return ACCESSOR_RESULT_OK;
 }
 
 static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
@@ -81,7 +82,8 @@ static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
   double i_raw = AS_NUMBER(index);
   long long i;
   if (!is_int(i_raw, &i)) {
-    return ACCESSOR_RESULT_OK;
+    runtime_error("Index must be an integer, but got a float.");
+    return ACCESSOR_RESULT_ERROR;
   }
 
   ObjSeq* seq = (ObjSeq*)self;
@@ -92,6 +94,7 @@ static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
   }
 
   seq->items.values[i] = value;
+  return ACCESSOR_RESULT_OK;
 }
 
 // Built-in seq constructor

@@ -26,6 +26,11 @@ static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* resul
     return ACCESSOR_RESULT_OK;
   }
 
+  if (name == vm.special_method_names[SPECIAL_METHOD_CTOR]) {
+    *result = OBJ_VAL(klass->__ctor);
+    return ACCESSOR_RESULT_OK;
+  }
+
   // We do not bind the method, because it's a static method.
   if (hashtable_get_by_string(&klass->static_methods, name, result)) {
     return ACCESSOR_RESULT_OK;
@@ -36,25 +41,23 @@ static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* resul
 
 static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
   UNUSED(self);
+  UNUSED(name);
   UNUSED(value);
-  runtime_error("Cannot set property '%s' on a " STR(TYPENAME_CLASS) ".", name->chars);
-  return ACCESSOR_RESULT_ERROR;
+  return ACCESSOR_RESULT_PASS;
 }
 
 static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
   UNUSED(self);
   UNUSED(index);
   UNUSED(result);
-  runtime_error("Cannot get index on a " STR(TYPENAME_CLASS) ".");
-  return ACCESSOR_RESULT_ERROR;
+  return ACCESSOR_RESULT_PASS;
 }
 
 static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
   UNUSED(self);
   UNUSED(index);
   UNUSED(value);
-  runtime_error("Cannot set index on a " STR(TYPENAME_CLASS) ".");
-  return ACCESSOR_RESULT_ERROR;
+  return ACCESSOR_RESULT_PASS;
 }
 
 // Built-in class constructor

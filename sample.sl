@@ -562,67 +562,82 @@
 // print 0 is typeof(1)         // true
 
 
-print typeof(1) == Num
-if 1 is Num print "1 is Num"
 
-cls Test {
-  static fn assert() {
-    ret Test();
-  }
-}
 
-let t = Test.assert()
-print t is Test
-print Test.assert
+// print typeof(1) == Num
+// if 1 is Num print "1 is Num"
 
-import Perf
+// cls Test {
+//   static fn assert() {
+//     ret Test();
+//   }
+// }
 
-cls BenchBase {
-  ctor (name, type) { 
-    if !(name is Str) throw "Name must be a string"
-    if !(type is Str) throw "Type must be a string"
+// let t = Test.assert()
+// print t is Test
+// print Test.assert
 
-    this.type = type
-    this.name = name
-    this.result = nil
-  }
+// import Perf
 
-  // Should be overridden
-  fn map_result(result) -> result
+// cls BenchBase {
+//   ctor (name, type) { 
+//     if !(name is Str) throw "Name must be a string"
+//     if !(type is Str) throw "Type must be a string"
 
-  fn exec(bench) {
-    if !(bench is Fn) throw "Provided argument is not a function"
+//     this.type = type
+//     this.name = name
+//     this.result = nil
+//   }
+
+//   // Should be overridden
+//   fn map_result(result) -> result
+
+//   fn exec(bench) {
+//     if !(bench is Fn) throw "Provided argument is not a function"
     
-    let start = Perf.now()
-    let result = bench()
-    this.time = Perf.now() - start
+//     let start = Perf.now()
+//     let result = bench()
+//     this.time = Perf.now() - start
 
-    result = this.map_result(result)
-    this.result = result
-  }
+//     result = this.map_result(result)
+//     this.result = result
+//   }
 
-  fn to_json {
-    ret {
-      "name": this.name,
-      "type": this.type,
-      "result": this.result,
-      "time": this.time
-    };
-  }
-}
+//   fn to_json {
+//     ret {
+//       "name": this.name,
+//       "type": this.type,
+//       "result": this.result,
+//       "time": this.time
+//     };
+//   }
+// }
 
-cls LatencyBench : BenchBase {
-  ctor (name) { 
-    base(name, "LatencyBenchmark")
-  }
+// cls LatencyBench : BenchBase {
+//   ctor (name) { 
+//     base(name, "LatencyBenchmark")
+//   }
 
-  fn to_str -> base.to_json().to_str()
-}
+//   fn to_str -> base.to_json().to_str()
+// }
 
-// let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
+// // let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
 
-let l = LatencyBench("test")
-l.exec(fn -> 1)
-print l
+// let l = LatencyBench("test")
+// l.exec(fn -> 1)
+// print l
 
-print [].every.__doc
+// print [].every.__doc
+
+
+let a = [1,2,3,"hi"]
+
+// Non-integer
+let sqrt_of_3 = 1.73205
+let almost_3 = sqrt_of_3 * sqrt_of_3
+print almost_3                           // [Expect] 2.999997
+print try (a[almost_3] = "?") else error // [Expect] Index must be an integer, but got a float.
+print a[3]                               // [Expect] hi
+
+// String
+print try (a["3"] = "?") else error      // [Expect] Seq indices must be Nums, but got Str.

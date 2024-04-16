@@ -325,7 +325,7 @@ static CallResult call_native(ObjNative* native, int arg_count) {
   return CALL_RETURNED;
 }
 
-// Calls a callable managed or native value (function, method, class (__ctor), etc.) with the given number of
+// Calls a callable managed or native value (function, method, class (ctor), etc.) with the given number of
 // arguments on the stack.
 // `Stack: ...[callable][arg0][arg1]...[argN]`.
 // Not used for invocation of methods (no receiver). But it can handle bound methods and constructors - in

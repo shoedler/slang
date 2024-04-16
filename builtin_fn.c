@@ -37,25 +37,23 @@ static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* resul
 
 static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
   UNUSED(self);
+  UNUSED(name);
   UNUSED(value);
-  runtime_error("Cannot set property '%s' on a " STR(TYPENAME_FUNCTION) ".", name->chars);
-  return ACCESSOR_RESULT_ERROR;
+  return ACCESSOR_RESULT_PASS;
 }
 
 static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
   UNUSED(self);
   UNUSED(index);
   UNUSED(result);
-  runtime_error("Cannot get index on a " STR(TYPENAME_FUNCTION) ".");
-  return ACCESSOR_RESULT_ERROR;
+  return ACCESSOR_RESULT_PASS;
 }
 
 static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
   UNUSED(self);
   UNUSED(index);
   UNUSED(value);
-  runtime_error("Cannot set index on a " STR(TYPENAME_FUNCTION) ".");
-  return ACCESSOR_RESULT_ERROR;
+  return ACCESSOR_RESULT_PASS;
 }
 
 // Built-in fn constructor

@@ -102,7 +102,7 @@ void finalize_new_class(ObjClass* klass) {
   }
 
   // Populate the getters and setters from the closest base class that has them.
-  // Builtin classes should have them, so we don't want to override if they're already set.
+  // Builtin classes should all have them, so we don't want to override if they're already set.
   ObjClass* base = klass;
   while (base != NULL && (klass->prop_getter == NULL || klass->prop_setter == NULL || klass->index_getter == NULL ||
                           klass->index_setter == NULL)) {
