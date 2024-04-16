@@ -580,66 +580,53 @@
 
 
 
-// cls BenchBase {
-//   ctor (name, type) { 
-//     if !(name is Str) throw "Name must be a string"
-//     if !(type is Str) throw "Type must be a string"
+import Perf
 
-//     this.type = type
-//     this.name = name
-//     this.result = nil
-//   }
+cls BenchBase {
+  ctor (name, type) { 
+    if !(name is Str) throw "Name must be a string"
+    if !(type is Str) throw "Type must be a string"
 
-//   // Should be overridden
-//   fn map_result(result) -> result
+    this.type = type
+    this.name = name
+    this.result = nil
+  }
 
-//   fn exec(bench) {
-//     if !(bench is Fn) throw "Provided argument is not a function"
+  // Should be overridden
+  fn map_result(result) -> result
+
+  fn exec(bench) {
+    if !(bench is Fn) throw "Provided argument is not a function"
     
-//     let start = Perf.now()
-//     let result = bench()
-//     this.time = Perf.now() - start
+    let start = Perf.now()
+    let result = bench()
+    this.time = Perf.now() - start
 
-//     result = this.map_result(result)
-//     this.result = result
-//   }
+    result = this.map_result(result)
+    this.result = result
+  }
 
-//   fn to_json {
-//     ret {
-//       "name": this.name,
-//       "type": this.type,
-//       "result": this.result,
-//       "time": this.time
-//     };
-//   }
-// }
-
-// cls LatencyBench : BenchBase {
-//   ctor (name) { 
-//     base(name, "LatencyBenchmark")
-//   }
-
-//   fn to_str -> base.to_json().to_str()
-// }
-
-// // let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
-// let l = LatencyBench("test")
-// l.exec(fn -> 1)
-// print l
-
-// print "foo" in { "foo": 1 } // [Expect] true
-
-
-
-cls Lol {
-  ctor { this.y = 1 }
-  fn x -> this.y
-  static fn y -> 2
+  fn to_json {
+    let indent = "  "
+    fn wrap(obj) -> "\"" + obj.to_str() + "\""
+    ret "{\n" +
+      indent + wrap("name")   + ": " + wrap(this.name)      + ",\n" +
+      indent + wrap("type")   + ": " + wrap(this.type)      + ",\n" +
+      indent + wrap("result") + ": " + this.result.to_str() + ",\n" +
+      indent + wrap("time")   + ": " + this.time.to_str()   + "\n" +
+    "}";
+  }
 }
 
-let new = {}
-let construct = Lol.ctor.bind(new)
-let get_x = Lol.x.bind(new)
+cls LatencyBench : BenchBase {
+  ctor (name) { 
+    base(name, "LatencyBenchmark")
+  }
 
-print construct()
-print get_x()
+  fn to_str -> base.to_json()
+}
+
+let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
+let l = LatencyBench("fib(35)")
+l.exec(fn -> fib(35))
+print l

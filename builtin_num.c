@@ -126,6 +126,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "<Not supported>");
 BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, SP_METHOD_HAS) {
+  UNUSED(argv);
   BUILTIN_ARGC_EXACTLY(1)
   // Should align with prop_getter
   runtime_error("Type " STR(TYPENAME_NUMBER) " does not support '" STR(SP_METHOD_HAS) "'.");
