@@ -85,9 +85,9 @@ bool hashtable_get_by_string(HashTable* table, ObjString* key, Value* value) {
   if (table->count == 0) {
     return false;
   }
+
   int capacity   = table->capacity;
   uint32_t index = key->obj.hash & (capacity - 1);
-
   for (;;) {
     Entry* entry = &table->entries[index];
 
@@ -101,7 +101,6 @@ bool hashtable_get_by_string(HashTable* table, ObjString* key, Value* value) {
     }
     index = (index + 1) & (capacity - 1);
   }
-  return false;
 }
 
 void hashtable_preallocate(HashTable* table, int target_count) {

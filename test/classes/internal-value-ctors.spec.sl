@@ -77,7 +77,7 @@ print Obj()                           // [Expect] {}
 // print Obj({"key": "value"})           // Error
 
 // Cannot instantiate a Fn directly
-print try Fn() else error                // [Expect] Cannot instantiate a function via Fn __ctor.
+print try Fn() else error                // [Expect] Cannot instantiate a function via Fn.ctor.
 
 // Cannot instantiate a Class
-print try Class() else error             // [Expect] Cannot instantiate a class via Class __ctor.
+print try Class() else error             // [Expect] Cannot instantiate a class via Class.ctor.

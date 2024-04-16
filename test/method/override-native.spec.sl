@@ -10,7 +10,7 @@ cls List {
   }
 
   fn to_str {
-    ret "List with " + this.list.len().to_str() + " elements: " + this.list.to_str();
+    ret "List with " + this.list.len.to_str() + " elements: " + this.list.to_str();
   }
 }
 

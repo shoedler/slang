@@ -22,15 +22,13 @@ static Obj* allocate_object(size_t size, ObjType type) {
                                          // isn't referenced by anything yet -> not reachable by GC
   object->type      = type;
   object->is_marked = false;
-  object->hash =
-      (uint32_t)((intptr_t)(object) >> 4 | (intptr_t)(object) << 28);  // Get a better distribution of hash
-                                                                       // values, by shifting the address
+  object->hash      = (uint32_t)((intptr_t)(object) >> 4 | (intptr_t)(object) << 28);  // Get a better distribution of hash
+                                                                                       // values, by shifting the address
   object->next = vm.objects;
   vm.objects   = object;
 
 #ifdef DEBUG_LOG_GC_ALLOCATIONS
-  printf(ANSI_RED_STR("[GC] ") ANSI_MAGENTA_STR("[ALLOC] ") "%p allocate %zu for type %d\n", (void*)object,
-         size, type);
+  printf(ANSI_RED_STR("[GC] ") ANSI_MAGENTA_STR("[ALLOC] ") "%p allocate %zu for type %d\n", (void*)object, size, type);
 #endif
 
   return object;
@@ -60,12 +58,73 @@ ObjBoundMethod* new_bound_method(Value receiver, Obj* method) {
 }
 
 ObjClass* new_class(ObjString* name, ObjClass* base) {
-  ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
-  klass->name     = name;
-  klass->base     = base;
+  ObjClass* klass     = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+  klass->name         = name;
+  klass->base         = base;
+  klass->prop_getter  = NULL;
+  klass->prop_setter  = NULL;
+  klass->index_getter = NULL;
+  klass->index_setter = NULL;
   init_hashtable(&klass->methods);
   init_hashtable(&klass->static_methods);
   return klass;
+}
+
+void finalize_new_class(ObjClass* klass) {
+  struct MethodMap {
+    Obj** field;
+    SpecialMethodNames index;
+  };
+
+  struct MethodMap specials[] = {
+      {&klass->__ctor, SPECIAL_METHOD_CTOR},
+      {&klass->__to_str, SPECIAL_METHOD_TO_STR},
+      {&klass->__has, SPECIAL_METHOD_HAS},
+      {NULL, SPECIAL_METHOD_MAX},
+  };
+
+  Value temp = NIL_VAL;
+  for (struct MethodMap* entry = specials; entry->field != NULL; entry++) {
+    // Try to populate the field from the class itself, or any of its base classes
+    ObjClass* base = klass;
+    while (base != NULL) {
+      if (hashtable_get_by_string(&base->methods, vm.special_method_names[entry->index], &temp)) {
+        break;
+      }
+      base = base->base;
+    }
+
+    if (base != NULL && IS_CALLABLE(temp)) {
+      *entry->field = AS_OBJ(temp);
+    } else {
+      *entry->field = NULL;
+    }
+  }
+
+  // Populate the getters and setters from the closest base class that has them.
+  // Builtin classes should all have them, so we don't want to override if they're already set.
+  ObjClass* base = klass;
+  while (base != NULL && (klass->prop_getter == NULL || klass->prop_setter == NULL || klass->index_getter == NULL ||
+                          klass->index_setter == NULL)) {
+    if (klass->prop_getter == NULL) {
+      klass->prop_getter = base->prop_getter;
+    }
+    if (klass->prop_setter == NULL) {
+      klass->prop_setter = base->prop_setter;
+    }
+    if (klass->index_getter == NULL) {
+      klass->index_getter = base->index_getter;
+    }
+    if (klass->index_setter == NULL) {
+      klass->index_setter = base->index_setter;
+    }
+    base = base->base;
+  }
+
+  // If we still don't have them, we have an internal error
+  if (klass->prop_getter == NULL || klass->prop_setter == NULL || klass->index_getter == NULL || klass->index_setter == NULL) {
+    INTERNAL_ERROR("Invalid class definition. Missing property getter/setter or index getter/setter.");
+  }
 }
 
 ObjObject* new_instance(ObjClass* klass) {

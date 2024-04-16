@@ -35,15 +35,15 @@ cls List {
       ret nil;
     }
 
-    let out = List(this.data.len())
-    for let i = 0 ; i < this.data.len() ; i = i + 1 ; {
+    let out = List(this.data.len)
+    for let i = 0 ; i < this.data.len ; i = i + 1 ; {
       out.data[i] = f(this.data[i], i)
     }
     ret out;
   }
 
   fn to_str() {
-    ret "List of " + this.data.len().to_str() + " elements. Items: " + this.data.to_str();
+    ret "List of " + this.data.len.to_str() + " elements. Items: " + this.data.to_str();
   }
 }
 

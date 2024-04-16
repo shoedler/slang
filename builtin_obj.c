@@ -4,9 +4,14 @@
 #include "common.h"
 #include "vm.h"
 
+static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result);
+static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value);
+static NativeAccessorResult index_getter(Obj* self, Value index, Value* result);
+static NativeAccessorResult index_setter(Obj* self, Value index, Value value);
+
 void register_builtin_obj_class() {
   // Create the object class
-  vm.__builtin_Obj_class = new_class(copy_string(STR(TYPENAME_OBJ), sizeof(STR(TYPENAME_OBJ)) - 1), NULL);
+  vm.__builtin_Obj_class = new_class(copy_string(STR(TYPENAME_OBJ), STR_LEN(STR(TYPENAME_OBJ))), NULL);
 
   // Create the builtin obj instance
   vm.builtin = new_instance(vm.__builtin_Obj_class);
@@ -14,23 +19,59 @@ void register_builtin_obj_class() {
   define_obj(&vm.builtin->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
   define_obj(&vm.builtin->fields, STR(TYPENAME_OBJ), (Obj*)vm.__builtin_Obj_class);
 
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, __ctor, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, to_str, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_CTOR, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, hash, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, len, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, entries, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, keys, 0);
+  vm.__builtin_Obj_class->prop_getter  = prop_getter;
+  vm.__builtin_Obj_class->prop_setter  = prop_setter;
+  vm.__builtin_Obj_class->index_getter = index_getter;
+  vm.__builtin_Obj_class->index_setter = index_setter;
+  BUILTIN_FINALIZE_CLASS(TYPENAME_OBJ);
+}
+
+static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
+  ObjObject* object = (ObjObject*)self;
+  if (hashtable_get_by_string(&object->fields, name, result)) {
+    return ACCESSOR_RESULT_OK;
+  }
+  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+    *result = NUMBER_VAL(object->fields.count);
+    return ACCESSOR_RESULT_OK;
+  }
+  return ACCESSOR_RESULT_PASS;
+}
+
+static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
+  ObjObject* object = (ObjObject*)self;
+  hashtable_set(&object->fields, OBJ_VAL(name), value);
+  return ACCESSOR_RESULT_OK;
+}
+
+static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
+  ObjObject* object = (ObjObject*)self;
+  if (!hashtable_get(&object->fields, index, result)) {
+    *result = NIL_VAL;
+  }
+  return ACCESSOR_RESULT_OK;
+}
+
+static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
+  ObjObject* object = (ObjObject*)self;
+  hashtable_set(&object->fields, index, value);
+  return ACCESSOR_RESULT_OK;
 }
 
 // Built-in obj constructor
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ __ctor,
+    /* Name        */ SP_METHOD_CTOR,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_OBJ,
     /* Description */ "Returns a new empty " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, __ctor) {
+BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_CTOR) {
   UNUSED(argv);
   BUILTIN_ARGC_EXACTLY(0)
 
@@ -91,7 +132,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the key
     push(object->fields.entries[i].key);  // Push the receiver (key at i) for to_str
-    ObjString* key_str = AS_STRING(exec_fn((Obj*)copy_string("to_str", 6), 0));
+    ObjString* key_str = AS_STRING(exec_fn(typeof(object->fields.entries[i].key)->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -100,7 +141,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the value
     push(object->fields.entries[i].value);  // Push the receiver (value at i) for to_str
-    ObjString* value_str = AS_STRING(exec_fn((Obj*)copy_string("to_str", 6), 0));
+    ObjString* value_str = AS_STRING(exec_fn(typeof(object->fields.entries[i].value)->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -109,11 +150,11 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Expand chars to fit the separator, delimiter plus the next key and value
     size_t new_buf_size = strlen(chars) + strlen(key_str->chars) + strlen(value_str->chars) +
-                          (sizeof(VALUE_STR_OBJECT_SEPARATOR) - 1) + (sizeof(VALUE_STR_OBJECT_DELIM) - 1) +
-                          (sizeof(VALUE_STR_OBJECT_END) - 1);  // Consider the closing bracket -
-                                                               // if we're done after this
-                                                               // iteration we won't need to
-                                                               // expand and can just slap it on there
+                          (STR_LEN(VALUE_STR_OBJECT_SEPARATOR) - 1) + (sizeof(VALUE_STR_OBJECT_DELIM)) +
+                          (STR_LEN(VALUE_STR_OBJECT_END));  // Consider the closing bracket -
+                                                            // if we're done after this
+                                                            // iteration we won't need to
+                                                            // expand and can just slap it on there
 
     // Expand if necessary
     if (new_buf_size > buf_size) {
@@ -135,11 +176,11 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
   // Intuitively, you'd expect to use take_string here, but we don't know where malloc
   // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(
-      chars,
-      (int)strlen(chars));  // TODO (optimize): Use buf_size here, but
-                            // we need to make sure that the string is
-                            // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
+  ObjString* str_obj =
+      copy_string(chars,
+                  (int)strlen(chars));  // TODO (optimize): Use buf_size here, but
+                                        // we need to make sure that the string is
+                                        // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
   free(chars);
   return OBJ_VAL(str_obj);
 }
@@ -148,13 +189,13 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 // there's no abstraction over it. This is why we have some special cases here for our internal types.
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ to_str,
+    /* Name        */ SP_METHOD_TO_STR,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of the " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, to_str) {
+BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
   BUILTIN_ARGC_EXACTLY(0)
-  BUILTIN_CHECK_RECEIVER(OBJ)
+  // BUILTIN_CHECK_RECEIVER(OBJ) // This should accept any value
 
   // Handle anonymous objects and instance objects differently
   if (IS_OBJECT(argv[0])) {
@@ -184,21 +225,6 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, to_str) {
   return OBJ_VAL(str_obj);
 }
 
-// Built-in method to retrieve the length of an object.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ len,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the length of a " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, len) {
-  BUILTIN_ARGC_EXACTLY(0)
-  BUILTIN_CHECK_RECEIVER(OBJ)
-
-  int length = AS_OBJECT(argv[0])->fields.count;
-  return NUMBER_VAL(length);
-}
-
 // Built-in method to retrieve all entries of an object.
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_OBJ,
@@ -206,8 +232,8 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_SEQ,
     /* Description */
-    "Returns a " STR(TYPENAME_SEQ) " of key-value pairs (which are " STR(
-        TYPENAME_SEQ) "s of length 2 ) of a " STR(TYPENAME_OBJ) ", containing all entries.");
+    "Returns a " STR(TYPENAME_SEQ) " of key-value pairs (which are " STR(TYPENAME_SEQ) "s of length 2 ) of a " STR(
+        TYPENAME_OBJ) ", containing all entries.");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
   BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(OBJ)

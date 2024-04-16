@@ -148,12 +148,33 @@ typedef struct {
   int upvalue_count;
 } ObjClosure;
 
+typedef enum {
+  ACCESSOR_RESULT_OK,
+  ACCESSOR_RESULT_PASS,
+  ACCESSOR_RESULT_ERROR,
+} NativeAccessorResult;
+
+typedef NativeAccessorResult (*NativePropGetter)(Obj* self, ObjString* name, Value* result);
+typedef NativeAccessorResult (*NativePropSetter)(Obj* self, ObjString* name, Value value);
+typedef NativeAccessorResult (*NativeIndexGetter)(Obj* self, Value index, Value* result);
+typedef NativeAccessorResult (*NativeIndexSetter)(Obj* self, Value index, Value value);
+
 typedef struct ObjClass {
   Obj obj;
   ObjString* name;
   HashTable methods;
   HashTable static_methods;
   struct ObjClass* base;
+
+  // Special methods for quick access.
+  Obj* __ctor;
+  Obj* __has;
+  Obj* __to_str;
+
+  NativePropGetter prop_getter;
+  NativePropSetter prop_setter;
+  NativeIndexGetter index_getter;
+  NativeIndexSetter index_setter;
 } ObjClass;
 
 typedef struct ObjObject {
@@ -177,8 +198,12 @@ ObjBoundMethod* new_bound_method(Value receiver, Obj* method);
 ObjObject* new_instance(ObjClass* klass);
 
 // Creates, initializes and allocates a new class object. Might trigger garbage
-// collection.
+// collection. Must be finalized with finalize_new_class at some point.
 ObjClass* new_class(ObjString* name, ObjClass* base);
+
+// Finalizes a new class object. This is used to set up the special methods and properties for quick access.
+// Also ensures that the class inherits the special methods and properties from its base class.
+void finalize_new_class(ObjClass* klass);
 
 // Creates, initializes and allocates a new closure object. Might trigger
 // garbage collection.

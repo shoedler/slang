@@ -14,7 +14,7 @@ fn to_calibration_value(line) {
 
 fn substr(s, start, end) {
   let res = ""
-  for let i = start; i < end and i < s.len(); i++; {
+  for let i = start; i < end and i < s.len; i++; {
     res = res + s[i]
   }
   ret res;
@@ -24,7 +24,7 @@ fn to_calibration_value_2(line) {
   let arr = line.split("")
   let new = []
 
-  for let i = 0; i < arr.len(); i++; {
+  for let i = 0; i < arr.len; i++; {
     if is_digit(arr[i]) { 
       new.push(arr[i])
     }

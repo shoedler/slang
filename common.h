@@ -20,8 +20,7 @@
 #define ANSI_MAGENTA_STR(str) ANSI_COLOR_MAGENTA##str##ANSI_COLOR_RESET
 #define ANSI_CYAN_STR(str) ANSI_COLOR_CYAN##str##ANSI_COLOR_RESET
 
-#define PRINT_ERROR_HEADER(type) \
-  fprintf(stderr, ##ANSI_RED_STR(type) " at "##ANSI_YELLOW_STR("%s(%u): "), __FILE__, __LINE__);
+#define PRINT_ERROR_HEADER(type) fprintf(stderr, ##ANSI_RED_STR(type) " at "##ANSI_YELLOW_STR("%s(%u): "), __FILE__, __LINE__);
 
 #define INTERNAL_ERROR(format_literal, ...)              \
   do {                                                   \
@@ -40,6 +39,7 @@
 #define ___STRINGIFY(x) #x
 // Stringification Macro, wraps the argument in quotes
 #define STR(x) ___STRINGIFY(x)
+#define STR_LEN(x) (sizeof(x) - 1)
 
 // Suppress unused parameter macro
 #define UNUSED(x) (void)(x)

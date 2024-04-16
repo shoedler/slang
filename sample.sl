@@ -348,7 +348,7 @@
 // let Range = std.Range
 // let Monad = std.Monad
 
-// // let rng = Range.__ctor(0, 10) // Does not work, because __ctor is not bound to Range if you call it like this
+// // let rng = Range.ctor(0, 10) // Does not work, because ctor is not bound to Range if you call it like this
 // let rng = Range(0, 5)
 
 // let iter = rng.__iter() // Create a new iterator
@@ -387,7 +387,7 @@
 //   }
 
 //   fn to_str {
-//     ret "List with " + this.list.len().to_str() + " elements: " + this.list.to_str();
+//     ret "List with " + this.list.len.to_str() + " elements: " + this.list.to_str();
 //   }
 // }
 
@@ -395,7 +395,7 @@
 // print List().to_str()
 
 // let l = List()
-// log("Hello", [1,2,3], clock(), typeof(nil), l.list.len(), typeof(l.list))
+// log("Hello", [1,2,3], clock(), typeof(nil), l.list.len, typeof(l.list))
 
 // print "--------------------------------------------------------------------------------"
 // print "Builtin stuff"
@@ -406,10 +406,10 @@
 // fn sample_fn { ret 10; }
 
 // print Sample.__name
-// print Sample.__ctor
+// print Sample.ctor
 
 // let values = [0, nil, true, [], fn->1, clock, Sample]
-// for let i = 0 ; i < values.len(); i++ ; {
+// for let i = 0 ; i < values.len; i++ ; {
 //   log("---")
 //   log("typeof:   ", typeof(values[i]))
 //   log("to_str:    ", values[i].to_str())
@@ -419,12 +419,12 @@
 // print cwd()
 // print std.__file_path
 
-// print Nil.__ctor.__doc
-// print Bool.__ctor.__doc
-// print Num.__ctor.__doc
-// print Str.__ctor.__doc
-// print Seq.__ctor.__doc
-// print Obj.__ctor.__doc
+// print Nil.ctor.__doc
+// print Bool.ctor.__doc
+// print Num.ctor.__doc
+// print Str.ctor.__doc
+// print Seq.ctor.__doc
+// print Obj.ctor.__doc
 
 // // These have no docstrings:
 // print "".to_str.__doc
@@ -487,7 +487,7 @@
 // let start = Perf.now()
 
 // let lines = File.read(cwd() + "sample.sl").split("\n")
-// let code = lines.filter(fn (line) -> line.len() > 2 and line[0] != "/" and line[1] != "/")
+// let code = lines.filter(fn (line) -> line.len > 2 and line[0] != "/" and line[1] != "/")
 // let time = Perf.now() - start
 
 
@@ -562,65 +562,82 @@
 // print 0 is typeof(1)         // true
 
 
-print typeof(1) == Num
-if 1 is Num print "1 is Num"
 
-cls Test {
-  static fn assert() {
-    ret Test();
-  }
-}
 
-let t = Test.assert()
-print t is Test
-print Test.assert
+// print typeof(1) == Num
+// if 1 is Num print "1 is Num"
 
-import Perf
+// cls Test {
+//   static fn assert() {
+//     ret Test();
+//   }
+// }
 
-cls BenchBase {
-  ctor (name, type) { 
-    if !(name is Str) throw "Name must be a string"
-    if !(type is Str) throw "Type must be a string"
+// let t = Test.assert()
+// print t is Test
+// print Test.assert
 
-    this.type = type
-    this.name = name
-    this.result = nil
-  }
+// import Perf
 
-  // Should be overridden
-  fn map_result(result) -> result
+// cls BenchBase {
+//   ctor (name, type) { 
+//     if !(name is Str) throw "Name must be a string"
+//     if !(type is Str) throw "Type must be a string"
 
-  fn exec(bench) {
-    if !(bench is Fn) throw "Provided argument is not a function"
+//     this.type = type
+//     this.name = name
+//     this.result = nil
+//   }
+
+//   // Should be overridden
+//   fn map_result(result) -> result
+
+//   fn exec(bench) {
+//     if !(bench is Fn) throw "Provided argument is not a function"
     
-    let start = Perf.now()
-    let result = bench()
-    this.time = Perf.now() - start
+//     let start = Perf.now()
+//     let result = bench()
+//     this.time = Perf.now() - start
 
-    result = this.map_result(result)
-    this.result = result
-  }
+//     result = this.map_result(result)
+//     this.result = result
+//   }
 
-  fn to_json {
-    ret {
-      "name": this.name,
-      "type": this.type,
-      "result": this.result,
-      "time": this.time
-    };
-  }
-}
+//   fn to_json {
+//     ret {
+//       "name": this.name,
+//       "type": this.type,
+//       "result": this.result,
+//       "time": this.time
+//     };
+//   }
+// }
 
-cls LatencyBench : BenchBase {
-  ctor (name) { 
-    base(name, "LatencyBenchmark")
-  }
+// cls LatencyBench : BenchBase {
+//   ctor (name) { 
+//     base(name, "LatencyBenchmark")
+//   }
 
-  fn to_str -> base.to_json().to_str()
-}
+//   fn to_str -> base.to_json().to_str()
+// }
 
-// let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
+// // let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
 
-let l = LatencyBench("test")
-l.exec(fn -> 1)
-print l
+// let l = LatencyBench("test")
+// l.exec(fn -> 1)
+// print l
+
+// print [].every.__doc
+
+
+let a = [1,2,3,"hi"]
+
+// Non-integer
+let sqrt_of_3 = 1.73205
+let almost_3 = sqrt_of_3 * sqrt_of_3
+print almost_3                           // [Expect] 2.999997
+print try (a[almost_3] = "?") else error // [Expect] Index must be an integer, but got a float.
+print a[3]                               // [Expect] hi
+
+// String
+print try (a["3"] = "?") else error      // [Expect] Seq indices must be Nums, but got Str.

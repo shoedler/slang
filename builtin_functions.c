@@ -40,7 +40,7 @@ BUILTIN_FN_IMPL(cwd) {
   }
 
   Value cwd;
-  if (!hashtable_get_by_string(&vm.module->fields, vm.cached_words[WORD_FILE_PATH], &cwd)) {
+  if (!hashtable_get_by_string(&vm.module->fields, vm.special_prop_names[SPECIAL_PROP_FILE_PATH], &cwd)) {
     return NIL_VAL;
   }
 
@@ -59,7 +59,7 @@ BUILTIN_FN_IMPL(log) {
   for (int i = 1; i <= argc; i++) {
     // Execute the to_str method on the receiver
     push(argv[i]);  // Load the receiver onto the stack
-    ObjString* str = AS_STRING(exec_fn((Obj*)copy_string("to_str", 6), 0));
+    ObjString* str = AS_STRING(exec_fn(typeof(argv[i])->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }

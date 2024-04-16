@@ -1,3 +1,4 @@
 {
-  "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Chromium, ColumnLimit: 110, AlignConsecutiveAssignments: true, AllowShortCaseLabelsOnASingleLine: true }",
+  "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Chromium, ColumnLimit: 130, AlignConsecutiveAssignments: true, AllowShortCaseLabelsOnASingleLine: true, AllowShortEnumsOnASingleLine: false, BraceWrapping: { AfterEnum: true } }",
+  // Note: `AllowShortEnumsOnASingleLine: false` and `BraceWrapping: { AfterEnum: true }` are to put each enum value on a new line
 }

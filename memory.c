@@ -244,9 +244,14 @@ static void mark_roots() {
   // And the builtin object.
   mark_obj((Obj*)vm.builtin);
 
-  // And the reserved names.
-  for (int i = 0; i < WORD_MAX; i++) {
-    mark_obj((Obj*)(vm.cached_words[i]));
+  // And the reserved field names
+  for (int i = 0; i < SPECIAL_METHOD_MAX; i++) {
+    mark_obj((Obj*)(vm.special_method_names[i]));
+  }
+
+  // And the special prop names
+  for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
+    mark_obj((Obj*)(vm.special_prop_names[i]));
   }
 
 // And the base classes
@@ -332,8 +337,8 @@ void collect_garbage() {
   }
 
 #ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") "Done. collected %zu bytes (from %zu to %zu) next at %zu\n",
-         before - vm.bytes_allocated, before, vm.bytes_allocated, vm.next_gc);
+  printf(ANSI_RED_STR("[GC] ") "Done. collected %zu bytes (from %zu to %zu) next at %zu\n", before - vm.bytes_allocated, before,
+         vm.bytes_allocated, vm.next_gc);
   printf("== Gc end collect ==\n");
 #endif
 }

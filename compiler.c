@@ -280,14 +280,14 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
       // toplevel function has the same name as the module. This is useful for debugging and for stacktraces -
       // it let's us easily determine if a frames function is a toplevel function or not.
       Value module_name;
-      if (hashtable_get_by_string(&vm.module->fields, vm.cached_words[WORD_MODULE_NAME], &module_name)) {
+      if (hashtable_get_by_string(&vm.module->fields, vm.special_prop_names[SPECIAL_PROP_MODULE_NAME], &module_name)) {
         current->function->name = AS_STRING(module_name);
         break;
       }
-      INTERNAL_ERROR("Module name not found in module's fields (" KEYWORD_MODULE_NAME ").");
+      INTERNAL_ERROR("Module name not found in module's fields (" STR(SP_PROP_MODULE_NAME) ").");
     }
     case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("__anon", 6); break;
-    case TYPE_CONSTRUCTOR: current->function->name = vm.cached_words[WORD_CTOR]; break;
+    case TYPE_CONSTRUCTOR: current->function->name = vm.special_method_names[SPECIAL_METHOD_CTOR]; break;
     default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }
 
@@ -371,8 +371,8 @@ static void try_(bool can_assign);
 
 // Checks if the current token is a compound assigment token.
 static bool match_compound_assignment() {
-  return match(TOKEN_PLUS_ASSIGN) || match(TOKEN_MINUS_ASSIGN) || match(TOKEN_MULT_ASSIGN) ||
-         match(TOKEN_DIV_ASSIGN) || match(TOKEN_MOD_ASSIGN);
+  return match(TOKEN_PLUS_ASSIGN) || match(TOKEN_MINUS_ASSIGN) || match(TOKEN_MULT_ASSIGN) || match(TOKEN_DIV_ASSIGN) ||
+         match(TOKEN_MOD_ASSIGN);
 }
 
 // Checks if the current token is an inc/dec token.
@@ -744,7 +744,7 @@ static void base_(bool can_assign) {
 
   Token method_name;
   if (check(TOKEN_OPAR)) {
-    method_name = synthetic_token(KEYWORD_CONSTRUCTOR);
+    method_name = synthetic_token(STR(SP_METHOD_CTOR));
   } else {
     consume(TOKEN_DOT, "Expecting '.' after '" KEYWORD_BASE "'.");
     consume(TOKEN_ID, "Expecting base class method name.");
@@ -841,7 +841,7 @@ static void method() {
 
 static void constructor() {
   consume(TOKEN_CTOR, "Expecting constructor.");
-  Token ctor        = synthetic_token(KEYWORD_CONSTRUCTOR);
+  Token ctor        = synthetic_token(STR(SP_METHOD_CTOR));
   uint16_t constant = string_constant(&ctor);
 
   function(false /* does not matter */, TYPE_CONSTRUCTOR);
@@ -1439,8 +1439,7 @@ static void statement_skip() {
   }
 
   // Discard any locals created in the loop body.
-  for (int i = current->local_count - 1;
-       i >= 0 && current->locals[i].depth > current->innermost_loop_scope_depth; i--) {
+  for (int i = current->local_count - 1; i >= 0 && current->locals[i].depth > current->innermost_loop_scope_depth; i--) {
     emit_one(OP_POP);
   }
 
@@ -1459,13 +1458,11 @@ static void statement_break() {
   if (SHOULD_GROW(current->brakes_count + 1, current->brakes_capacity)) {
     int old_capacity         = current->brakes_capacity;
     current->brakes_capacity = GROW_CAPACITY(old_capacity);
-    current->brake_jumps =
-        RESIZE_ARRAY(int, current->brake_jumps, current->brakes_count, current->brakes_capacity);
+    current->brake_jumps     = RESIZE_ARRAY(int, current->brake_jumps, current->brakes_count, current->brakes_capacity);
   }
 
   // Discard any locals created in the loop body.
-  for (int i = current->local_count - 1;
-       i >= 0 && current->locals[i].depth > current->innermost_loop_scope_depth; i--) {
+  for (int i = current->local_count - 1; i >= 0 && current->locals[i].depth > current->innermost_loop_scope_depth; i--) {
     emit_one(OP_POP);
   }
 
@@ -1483,9 +1480,8 @@ static void statement_import() {
 
   if (match(TOKEN_FROM)) {
     consume(TOKEN_STRING, "Expecting file name.");
-    uint16_t file_constant =
-        make_constant(OBJ_VAL(copy_string(parser.previous.start + 1,
-                                          parser.previous.length - 2)));  // +1 and -2 to strip the quotes
+    uint16_t file_constant = make_constant(OBJ_VAL(copy_string(parser.previous.start + 1,
+                                                               parser.previous.length - 2)));  // +1 and -2 to strip the quotes
     emit_two(OP_IMPORT_FROM, name_constant);
     emit_one(file_constant);
   } else {
@@ -1616,7 +1612,7 @@ static void declaration_class() {
     }
   }
   consume(TOKEN_CBRACE, "Expecting '}' after class body.");
-  emit_one(OP_POP);
+  emit_one(OP_FINALIZE);  // Finalize the class & pop it from the stack.
 
   if (class_compiler.has_baseclass) {
     end_scope();

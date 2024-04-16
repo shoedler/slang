@@ -51,6 +51,7 @@ typedef enum {
   OP_RETURN,
   OP_CLASS,
   OP_INHERIT,
+  OP_FINALIZE,
   OP_METHOD,
   OP_IMPORT,
   OP_IMPORT_FROM,

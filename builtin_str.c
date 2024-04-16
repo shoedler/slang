@@ -3,28 +3,85 @@
 #include "common.h"
 #include "vm.h"
 
+static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result);
+static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value);
+static NativeAccessorResult index_getter(Obj* self, Value index, Value* result);
+static NativeAccessorResult index_setter(Obj* self, Value index, Value value);
+
 void register_builtin_str_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_STRING, TYPENAME_OBJ);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, __ctor, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, to_str, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, len, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_CTOR, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
+  vm.__builtin_Str_class->prop_getter  = prop_getter;
+  vm.__builtin_Str_class->prop_setter  = prop_setter;
+  vm.__builtin_Str_class->index_getter = index_getter;
+  vm.__builtin_Str_class->index_setter = index_setter;
+  BUILTIN_FINALIZE_CLASS(TYPENAME_STRING);
+}
+
+static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
+  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+    *result = NUMBER_VAL((double)((ObjString*)self)->length);
+    return ACCESSOR_RESULT_OK;
+  }
+
+  return ACCESSOR_RESULT_PASS;
+}
+
+static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
+  UNUSED(self);
+  UNUSED(name);
+  UNUSED(value);
+  return ACCESSOR_RESULT_PASS;
+}
+
+static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
+  if (!IS_NUMBER(index)) {
+    runtime_error(STR(TYPENAME_STRING) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
+    return ACCESSOR_RESULT_ERROR;
+  }
+
+  double i_raw = AS_NUMBER(index);
+  long long i;
+  if (!is_int(i_raw, &i)) {
+    *result = NIL_VAL;
+    return ACCESSOR_RESULT_OK;
+  }
+
+  ObjString* string = (ObjString*)self;
+  if (i < 0 || i >= string->length) {
+    runtime_error("Index out of bounds.");
+    return ACCESSOR_RESULT_ERROR;
+  }
+
+  ObjString* char_str = copy_string(string->chars + i, 1);
+  *result             = OBJ_VAL(char_str);
+  return ACCESSOR_RESULT_OK;
+}
+
+static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
+  UNUSED(self);
+  UNUSED(index);
+  UNUSED(value);
+  runtime_error("Cannot set index on a " STR(TYPENAME_STRING) ".");
+  return ACCESSOR_RESULT_ERROR;
 }
 
 // Built-in string constructor
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ __ctor,
+    /* Name        */ SP_METHOD_CTOR,
     /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
     /* Return Type */ TYPENAME_STRING,
     /* Description */
     "Converts the first argument to a " STR(TYPENAME_STRING) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, __ctor) {
+BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_CTOR) {
   BUILTIN_ARGC_EXACTLY(1);
   // Execute the to_str method on the argument
-  push(argv[1]);  // Push the receiver for to_str, which is the ctors' argument
-  Value result = exec_fn((Obj*)copy_string("to_str", 6), 0);  // Convert to string
+  push(argv[1]);                                         // Push the receiver for to_str, which is the ctors' argument
+  Value result = exec_fn(typeof(argv[1])->__to_str, 0);  // Convert to string
   if (vm.flags & VM_FLAG_HAS_ERROR) {
     return NIL_VAL;
   }
@@ -35,30 +92,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, __ctor) {
 // Built-in method to convert a string to a string
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ to_str,
+    /* Name        */ SP_METHOD_TO_STR,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_STRING) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, to_str) {
+BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_TO_STR) {
   BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(STRING)
 
   return argv[0];
-}
-
-// Built-in method to retrieve the length of a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ len,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the length of a " STR(TYPENAME_STRING) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, len) {
-  BUILTIN_ARGC_EXACTLY(0)
-  BUILTIN_CHECK_RECEIVER(STRING)
-
-  int length = AS_STRING(argv[0])->length;
-  return NUMBER_VAL(length);
 }
 
 BUILTIN_METHOD_DOC(
@@ -67,8 +109,7 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ DOC_ARG("sep", TYPENAME_STRING),
     /* Return Type */ TYPENAME_SEQ,
     /* Description */
-    "Splits a " STR(TYPENAME_STRING) " into a " STR(
-        TYPENAME_SEQ) " of substrings, using 'sep' as the delimiter.");
+    "Splits a " STR(TYPENAME_STRING) " into a " STR(TYPENAME_SEQ) " of substrings, using 'sep' as the delimiter.");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
   BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(STRING)

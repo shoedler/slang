@@ -4,14 +4,18 @@
 #include "common.h"
 #include "vm.h"
 
+static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result);
+static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value);
+static NativeAccessorResult index_getter(Obj* self, Value index, Value* result);
+static NativeAccessorResult index_setter(Obj* self, Value index, Value value);
+
 void register_builtin_seq_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_SEQ, TYPENAME_OBJ);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, __ctor, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, to_str, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, len, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_CTOR, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_TO_STR, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_HAS, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, push, -1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, pop, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, has, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, first, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, last, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, each, 1);
@@ -24,17 +28,85 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, reduce, 2);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, count, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, concat, 1);
+  vm.__builtin_Seq_class->prop_getter  = prop_getter;
+  vm.__builtin_Seq_class->prop_setter  = prop_setter;
+  vm.__builtin_Seq_class->index_getter = index_getter;
+  vm.__builtin_Seq_class->index_setter = index_setter;
+  BUILTIN_FINALIZE_CLASS(TYPENAME_SEQ);
+}
+
+static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
+  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+    *result = NUMBER_VAL(((ObjSeq*)self)->items.count);
+    return ACCESSOR_RESULT_OK;
+  }
+
+  return ACCESSOR_RESULT_PASS;
+}
+
+static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
+  UNUSED(self);
+  UNUSED(name);
+  UNUSED(value);
+  return ACCESSOR_RESULT_PASS;
+}
+
+static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
+  if (!IS_NUMBER(index)) {
+    runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
+    return ACCESSOR_RESULT_ERROR;
+  }
+
+  double i_raw = AS_NUMBER(index);
+  long long i;
+  if (!is_int(i_raw, &i)) {
+    runtime_error("Index must be an integer, but got a float.");
+    return ACCESSOR_RESULT_ERROR;
+  }
+
+  ObjSeq* seq = (ObjSeq*)self;
+  if (i < 0 || i >= seq->items.count) {
+    runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
+    return ACCESSOR_RESULT_ERROR;
+  }
+
+  *result = seq->items.values[i];
+  return ACCESSOR_RESULT_OK;
+}
+
+static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
+  if (!IS_NUMBER(index)) {
+    runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
+    return ACCESSOR_RESULT_ERROR;
+  }
+
+  double i_raw = AS_NUMBER(index);
+  long long i;
+  if (!is_int(i_raw, &i)) {
+    runtime_error("Index must be an integer, but got a float.");
+    return ACCESSOR_RESULT_ERROR;
+  }
+
+  ObjSeq* seq = (ObjSeq*)self;
+
+  if (i < 0 || i >= seq->items.count) {
+    runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
+    return ACCESSOR_RESULT_ERROR;
+  }
+
+  seq->items.values[i] = value;
+  return ACCESSOR_RESULT_OK;
 }
 
 // Built-in seq constructor
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ __ctor,
+    /* Name        */ SP_METHOD_CTOR,
     /* Arguments   */ DOC_ARG("len", TYPENAME_NUMBER),
     /* Return Type */ TYPENAME_SEQ,
     /* Description */
     "Creates a new " STR(TYPENAME_NIL) "-initialized " STR(TYPENAME_SEQ) " of length 'len'.");
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, __ctor) {
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_CTOR) {
   BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_ARG_AT(1, NUMBER)
 
@@ -55,11 +127,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, __ctor) {
 // Built-in method to convert a sequence to a string
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ to_str,
+    /* Name        */ SP_METHOD_TO_STR,
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_SEQ,
     /* Description */ "Returns a " STR(TYPENAME_STRING) " representation of a " STR(TYPENAME_SEQ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_TO_STR) {
   BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(SEQ)
 
@@ -71,16 +143,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
   for (int i = 0; i < seq->items.count; i++) {
     // Execute the to_str method on the item
     push(seq->items.values[i]);  // Push the receiver (item at i) for to_str
-    ObjString* item_str = AS_STRING(exec_fn((Obj*)copy_string("to_str", 6), 0));
+    ObjString* item_str = AS_STRING(exec_fn(typeof(seq->items.values[i])->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
 
     // Expand chars to fit the separator plus the next item
-    size_t new_buf_size =
-        strlen(chars) + item_str->length + (sizeof(VALUE_STR_SEQ_DELIM) - 1) +
-        (sizeof(VALUE_STR_SEQ_END) - 1);  // Consider the closing bracket -  if we're done after this
-                                          // iteration we won't need to expand and can just slap it on there
+    size_t new_buf_size = strlen(chars) + item_str->length + (STR_LEN(VALUE_STR_SEQ_DELIM)) +
+                          (STR_LEN(VALUE_STR_SEQ_END));  // Consider the closing bracket -  if we're done after this
+                                                         // iteration we won't need to expand and can just slap it on there
 
     // Expand if necessary
     if (new_buf_size > buf_size) {
@@ -99,28 +170,13 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, to_str) {
 
   // Intuitively, you'd expect to use take_string here, but we don't know where malloc
   // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(
-      chars,
-      (int)strlen(chars));  // TODO (optimize): Use buf_size here, but
-                            // we need to make sure that the string is
-                            // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
+  ObjString* str_obj =
+      copy_string(chars,
+                  (int)strlen(chars));  // TODO (optimize): Use buf_size here, but
+                                        // we need to make sure that the string is
+                                        // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
   free(chars);
   return OBJ_VAL(str_obj);
-}
-
-// Built-in method to retrieve the length of a sequence
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ len,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the length of a " STR(TYPENAME_SEQ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, len) {
-  BUILTIN_ARGC_EXACTLY(0)
-  BUILTIN_CHECK_RECEIVER(SEQ)
-
-  int length = AS_SEQ(argv[0])->items.count;
-  return NUMBER_VAL(length);
 }
 
 // Built-in method to push an arbitrary amount of values onto a sequence
@@ -148,8 +204,7 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_OBJ,
     /* Description */
-    "Pops and returns the last item of a " STR(TYPENAME_SEQ) ". Returns " STR(
-        TYPENAME_NIL) " if it is empty.");
+    "Pops and returns the last item of a " STR(TYPENAME_SEQ) ". Returns " STR(TYPENAME_NIL) " if it is empty.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
   BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(SEQ)
@@ -165,20 +220,19 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
 // Built-in method to check if a sequence contains a value
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ has,
+    /* Name        */ SP_METHOD_HAS,
     /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
     /* Return Type */ TYPENAME_BOOL,
     /* Description */
     "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_SEQ) " contains an item which equals 'value'.")
 BUILTIN_METHOD_DOC_OVERLOAD(
     /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ has,
+    /* Name        */ SP_METHOD_HAS,
     /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
     /* Return Type */ TYPENAME_BOOL,
     /* Description */
-    "Returns " VALUE_STR_TRUE
-    " if the " STR(TYPENAME_SEQ) " contains an item for which 'pred' evaulates to " VALUE_STR_TRUE ".");
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, has) {
+    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_SEQ) " contains an item for which 'pred' evaulates to " VALUE_STR_TRUE ".");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_HAS) {
   BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
 
@@ -224,10 +278,8 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
     /* Return Type */ TYPENAME_OBJ,
     /* Description */
-    "Returns the first item of a " STR(
-        TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE
-                      ". Returns " STR(TYPENAME_NIL) " if the " STR(
-                          TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
+    "Returns the first item of a " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE ". Returns " STR(
+        TYPENAME_NIL) " if the " STR(TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, first) {
   BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
@@ -266,10 +318,8 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
     /* Return Type */ TYPENAME_OBJ,
     /* Description */
-    "Returns the last item of a " STR(
-        TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE
-                      ". Returns " STR(TYPENAME_NIL) " if the " STR(
-                          TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
+    "Returns the last item of a " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE ". Returns " STR(
+        TYPENAME_NIL) " if the " STR(TYPENAME_SEQ) " is empty or no item satisfies the predicate.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, last) {
   BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
@@ -318,7 +368,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
 
   ObjSeq* seq  = AS_SEQ(argv[0]);
   int fn_arity = get_arity(AS_OBJ(argv[1]));
-  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+  int count    = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
   switch (fn_arity) {
@@ -371,9 +421,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, map) {
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
-  ObjSeq* seq  = AS_SEQ(argv[0]);
-  int fn_arity = get_arity(AS_OBJ(argv[1]));
-  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+  ObjSeq* seq        = AS_SEQ(argv[0]);
+  int fn_arity       = get_arity(AS_OBJ(argv[1]));
+  int count          = seq->items.count;  // We need to store this, because the sequence might change during the loop
   ObjSeq* mapped_seq = prealloc_seq(count);
 
   push(OBJ_VAL(mapped_seq));  // GC Protection
@@ -437,9 +487,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
-  ObjSeq* seq  = AS_SEQ(argv[0]);
-  int fn_arity = get_arity(AS_OBJ(argv[1]));
-  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+  ObjSeq* seq          = AS_SEQ(argv[0]);
+  int fn_arity         = get_arity(AS_OBJ(argv[1]));
+  int count            = seq->items.count;  // We need to store this, because the sequence might change during the loop
   ObjSeq* filtered_seq = new_seq();
 
   push(OBJ_VAL(filtered_seq));  // GC Protection
@@ -482,8 +532,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
       break;
     }
     default: {
-      runtime_error("Function passed to \"" STR(filter) "\" must take 1 or 2 arguments, but got %d.",
-                    fn_arity);
+      runtime_error("Function passed to \"" STR(filter) "\" must take 1 or 2 arguments, but got %d.", fn_arity);
       return NIL_VAL;
     }
   }
@@ -517,7 +566,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, join) {
     if (!IS_STRING(seq->items.values[i])) {
       // Execute the to_str method on the item
       push(seq->items.values[i]);  // Push the receiver (item at i) for to_str, or
-      item_str = AS_STRING(exec_fn((Obj*)copy_string("to_str", 6), 0));
+      item_str = AS_STRING(exec_fn(typeof(seq->items.values[i])->__to_str, 0));
       if (vm.flags & VM_FLAG_HAS_ERROR) {
         return NIL_VAL;
       }
@@ -555,8 +604,7 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_SEQ,
     /* Description */
-    "Reverses the items of a " STR(TYPENAME_SEQ) ". Returns a new " STR(
-        TYPENAME_SEQ) " with the items in reverse order.");
+    "Reverses the items of a " STR(TYPENAME_SEQ) ". Returns a new " STR(TYPENAME_SEQ) " with the items in reverse order.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reverse) {
   BUILTIN_ARGC_EXACTLY(0)
   BUILTIN_CHECK_RECEIVER(SEQ)
@@ -591,7 +639,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, every) {
 
   ObjSeq* seq  = AS_SEQ(argv[0]);
   int fn_arity = get_arity(AS_OBJ(argv[1]));
-  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+  int count    = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
   switch (fn_arity) {
@@ -631,8 +679,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, every) {
       break;
     }
     default: {
-      runtime_error("Function passed to \"" STR(every) "\" must take 1 or 2 arguments, but got %d.",
-                    fn_arity);
+      runtime_error("Function passed to \"" STR(every) "\" must take 1 or 2 arguments, but got %d.", fn_arity);
       return NIL_VAL;
     }
   }
@@ -661,7 +708,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, some) {
 
   ObjSeq* seq  = AS_SEQ(argv[0]);
   int fn_arity = get_arity(AS_OBJ(argv[1]));
-  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+  int count    = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
   switch (fn_arity) {
@@ -726,7 +773,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
   ObjSeq* seq       = AS_SEQ(argv[0]);
   Value accumulator = argv[1];
   int fn_arity      = get_arity(AS_OBJ(argv[2]));
-  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+  int count         = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
   switch (fn_arity) {
@@ -758,8 +805,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
       break;
     }
     default: {
-      runtime_error("Function passed to \"" STR(reduce) "\" must take 2 or 3 arguments, but got %d.",
-                    fn_arity);
+      runtime_error("Function passed to \"" STR(reduce) "\" must take 2 or 3 arguments, but got %d.", fn_arity);
       return NIL_VAL;
     }
   }
@@ -781,8 +827,7 @@ BUILTIN_METHOD_DOC_OVERLOAD(
     /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */
-    "Returns the number of items in the " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE
-                                                            ".");
+    "Returns the number of items in the " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
   BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
@@ -792,7 +837,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
     return NUMBER_VAL(0);
   }
 
-  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+  int count       = seq->items.count;  // We need to store this, because the sequence might change during the loop
   int occurrences = 0;
 
   if (IS_CALLABLE(argv[1])) {

@@ -11,7 +11,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] Implement `in` operator. E.g. `item in Seq` (Check if item is in Seq), `item in Set` (Check if item is in Set), `key in Obj` (Check if key is in Obj), `string in Str` (Check if char / substr is in Str)
-- [ ] Remove `Seq.has()` in favor of the `in` operator.
 - [ ] Implement `Json` module
 - [ ] Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`
 - [ ] Implement `Set` class
@@ -48,7 +47,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Use something else instead of `rint`, because it's not very precise. See _num-to-str.spec.sl_ for an example.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
-- [ ] Make `len` a property instead of a function?
 - [ ] Add `error` to the reserved words
 - [ ] Make sure managed code classes do not override internal classes.
 - [ ] Move exit codes to `common.h` and replace all magic numbers with them
@@ -57,14 +55,12 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add tests for `to_str`
 - [ ] Allow return stats without suffixed `;`
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
+- [x] Make `len` a property instead of a function?
 - [x] Rename `typeof` to `typeof`
 
 ### Optimizations
 
 - [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
-- [ ] Add methods which are used frequently as props on `ObjClass` e.g. `method_to_str` etc.
-- [ ] Add `get` and `set` methods to `ObjClass` to reduce the number of lookups.
-- [ ] Add more words to `vm.cached_words` to reduce the number of lookups and string allocations.
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
 - [ ] Constant time global variable lookup. (**_See Challenge 21.2_**)
@@ -72,6 +68,9 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
 - [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
 - [ ] (Unsure) Differentiate between fields and methods textually. Use an array for lookup. Low prio. Would be nice to allow field-inheritance - this could be a major rewrite though. (**_See Challenge 28.3_**)
+- [x] Add methods which are used frequently as props on `ObjClass` e.g. `method_to_str` etc.
+- [x] Add `get` and `set` methods to `ObjClass` to reduce the number of lookups.
+- [x] Add more words to `vm.cached_words` to reduce the number of lookups and string allocations.
 
 ## Ideas
 
