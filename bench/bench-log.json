@@ -1106,5 +1106,73 @@
       "value": "162000000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-04-16T15:54:06.639Z",
+    "commit": {
+      "date": "2024-04-16 17:46:09 +0200",
+      "hash": "dfe1e5ead10b839a370844958ef3642c148935da",
+      "message": "Fixes broken tests due to new accessors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "7.39"
+    }
+  },
+  {
+    "date": "2024-04-16T15:54:06.639Z",
+    "commit": {
+      "date": "2024-04-16 17:46:09 +0200",
+      "hash": "dfe1e5ead10b839a370844958ef3642c148935da",
+      "message": "Fixes broken tests due to new accessors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.923"
+    }
+  },
+  {
+    "date": "2024-04-16T15:54:06.639Z",
+    "commit": {
+      "date": "2024-04-16 17:46:09 +0200",
+      "hash": "dfe1e5ead10b839a370844958ef3642c148935da",
+      "message": "Fixes broken tests due to new accessors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "280",
+      "value": "16800000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-04-16T15:54:06.639Z",
+    "commit": {
+      "date": "2024-04-16 17:46:09 +0200",
+      "hash": "dfe1e5ead10b839a370844958ef3642c148935da",
+      "message": "Fixes broken tests due to new accessors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "2644",
+      "value": "158640000",
+      "durationInSecs": "5"
+    }
   }
 ]

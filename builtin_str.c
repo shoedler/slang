@@ -12,7 +12,6 @@ void register_builtin_str_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_STRING, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_TO_STR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_PROP_LEN, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
   vm.__builtin_Str_class->prop_getter  = prop_getter;
@@ -23,9 +22,11 @@ void register_builtin_str_class() {
 }
 
 static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
-  UNUSED(self);
-  UNUSED(name);
-  UNUSED(result);
+  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+    *result = NUMBER_VAL((double)((ObjString*)self)->length);
+    return ACCESSOR_RESULT_OK;
+  }
+
   return ACCESSOR_RESULT_PASS;
 }
 
@@ -100,21 +101,6 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_TO_STR) {
   BUILTIN_CHECK_RECEIVER(STRING)
 
   return argv[0];
-}
-
-// Built-in method to retrieve the length of a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ SP_PROP_LEN,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the length of a " STR(TYPENAME_STRING) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_PROP_LEN) {
-  BUILTIN_ARGC_EXACTLY(0)
-  BUILTIN_CHECK_RECEIVER(STRING)
-
-  int length = AS_STRING(argv[0])->length;
-  return NUMBER_VAL(length);
 }
 
 BUILTIN_METHOD_DOC(

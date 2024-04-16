@@ -11,7 +11,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] Implement `in` operator. E.g. `item in Seq` (Check if item is in Seq), `item in Set` (Check if item is in Set), `key in Obj` (Check if key is in Obj), `string in Str` (Check if char / substr is in Str)
-- [ ] Remove `Seq.has()` in favor of the `in` operator.
 - [ ] Implement `Json` module
 - [ ] Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`
 - [ ] Implement `Set` class
@@ -48,7 +47,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Use something else instead of `rint`, because it's not very precise. See _num-to-str.spec.sl_ for an example.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
-- [ ] Make `len` a property instead of a function?
 - [ ] Add `error` to the reserved words
 - [ ] Make sure managed code classes do not override internal classes.
 - [ ] Move exit codes to `common.h` and replace all magic numbers with them
@@ -57,6 +55,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add tests for `to_str`
 - [ ] Allow return stats without suffixed `;`
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
+- [x] Make `len` a property instead of a function?
 - [x] Rename `typeof` to `typeof`
 
 ### Optimizations

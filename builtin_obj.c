@@ -21,7 +21,6 @@ void register_builtin_obj_class() {
 
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_CTOR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_TO_STR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_PROP_LEN, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, hash, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, entries, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
@@ -36,6 +35,10 @@ void register_builtin_obj_class() {
 static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
   ObjObject* object = (ObjObject*)self;
   if (hashtable_get_by_string(&object->fields, name, result)) {
+    return ACCESSOR_RESULT_OK;
+  }
+  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+    *result = NUMBER_VAL(object->fields.count);
     return ACCESSOR_RESULT_OK;
   }
   return ACCESSOR_RESULT_PASS;
@@ -220,21 +223,6 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
 
   free(chars);
   return OBJ_VAL(str_obj);
-}
-
-// Built-in method to retrieve the length of an object.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ SP_PROP_LEN,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the length of a " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_PROP_LEN) {
-  BUILTIN_ARGC_EXACTLY(0)
-  BUILTIN_CHECK_RECEIVER(OBJ)
-
-  int length = AS_OBJECT(argv[0])->fields.count;
-  return NUMBER_VAL(length);
 }
 
 // Built-in method to retrieve all entries of an object.

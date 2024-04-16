@@ -1,6 +1,6 @@
-print "".trim().len()           // [Expect] 0
-print " ".trim().len()          // [Expect] 0
-print "          ".trim().len() // [Expect] 0
+print "".trim().len           // [Expect] 0
+print " ".trim().len          // [Expect] 0
+print "          ".trim().len // [Expect] 0
 print "    h ".trim() + "ello"  // [Expect] hello
 
 print "right ".trim() + 

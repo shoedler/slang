@@ -28,10 +28,10 @@ print a["hello"] // [Expect] world
 // ... so we can't really test the order of the keys
 
 let entries = a.entries()
-print entries.filter(fn(x) -> (x[0] is Nil)).len()  // [Expect] 1
-print entries.filter(fn(x) -> (x[0] is Bool)).len() // [Expect] 1
-print entries.filter(fn(x) -> (x[0] is Num)).len()  // [Expect] 1
-print entries.filter(fn(x) -> (x[0] is Str)).len()  // [Expect] 1
-print entries.filter(fn(x) -> (x[0] is Seq)).len()  // [Expect] 2
-print entries.filter(fn(x) -> (x[0] is Fn)).len()   // [Expect] 2
-print entries.filter(fn(x) -> (x[0] is Obj)).len()  // [Expect] 10
+print entries.filter(fn(x) -> (x[0] is Nil)).len  // [Expect] 1
+print entries.filter(fn(x) -> (x[0] is Bool)).len // [Expect] 1
+print entries.filter(fn(x) -> (x[0] is Num)).len  // [Expect] 1
+print entries.filter(fn(x) -> (x[0] is Str)).len  // [Expect] 1
+print entries.filter(fn(x) -> (x[0] is Seq)).len  // [Expect] 2
+print entries.filter(fn(x) -> (x[0] is Fn)).len   // [Expect] 2
+print entries.filter(fn(x) -> (x[0] is Obj)).len  // [Expect] 10

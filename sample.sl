@@ -387,7 +387,7 @@
 //   }
 
 //   fn to_str {
-//     ret "List with " + this.list.len().to_str() + " elements: " + this.list.to_str();
+//     ret "List with " + this.list.len.to_str() + " elements: " + this.list.to_str();
 //   }
 // }
 
@@ -395,7 +395,7 @@
 // print List().to_str()
 
 // let l = List()
-// log("Hello", [1,2,3], clock(), typeof(nil), l.list.len(), typeof(l.list))
+// log("Hello", [1,2,3], clock(), typeof(nil), l.list.len, typeof(l.list))
 
 // print "--------------------------------------------------------------------------------"
 // print "Builtin stuff"
@@ -409,7 +409,7 @@
 // print Sample.ctor
 
 // let values = [0, nil, true, [], fn->1, clock, Sample]
-// for let i = 0 ; i < values.len(); i++ ; {
+// for let i = 0 ; i < values.len; i++ ; {
 //   log("---")
 //   log("typeof:   ", typeof(values[i]))
 //   log("to_str:    ", values[i].to_str())
@@ -487,7 +487,7 @@
 // let start = Perf.now()
 
 // let lines = File.read(cwd() + "sample.sl").split("\n")
-// let code = lines.filter(fn (line) -> line.len() > 2 and line[0] != "/" and line[1] != "/")
+// let code = lines.filter(fn (line) -> line.len > 2 and line[0] != "/" and line[1] != "/")
 // let time = Perf.now() - start
 
 

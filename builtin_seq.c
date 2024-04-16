@@ -13,7 +13,6 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_SEQ, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_TO_STR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_PROP_LEN, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_HAS, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, push, -1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, pop, 0);
@@ -37,9 +36,11 @@ void register_builtin_seq_class() {
 }
 
 static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
-  UNUSED(self);
-  UNUSED(name);
-  UNUSED(result);
+  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+    *result = NUMBER_VAL(((ObjSeq*)self)->items.count);
+    return ACCESSOR_RESULT_OK;
+  }
+
   return ACCESSOR_RESULT_PASS;
 }
 
@@ -176,21 +177,6 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_TO_STR) {
                                         // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
   free(chars);
   return OBJ_VAL(str_obj);
-}
-
-// Built-in method to retrieve the length of a sequence
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ SP_PROP_LEN,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
-    /* Description */ "Returns the length of a " STR(TYPENAME_SEQ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_PROP_LEN) {
-  BUILTIN_ARGC_EXACTLY(0)
-  BUILTIN_CHECK_RECEIVER(SEQ)
-
-  int length = AS_SEQ(argv[0])->items.count;
-  return NUMBER_VAL(length);
 }
 
 // Built-in method to push an arbitrary amount of values onto a sequence
