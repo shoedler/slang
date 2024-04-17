@@ -580,53 +580,59 @@
 
 
 
-import Perf
+// import Perf
 
-cls BenchBase {
-  ctor (name, type) { 
-    if !(name is Str) throw "Name must be a string"
-    if !(type is Str) throw "Type must be a string"
+// cls BenchBase {
+//   ctor (name, type) { 
+//     if !(name is Str) throw "Name must be a string"
+//     if !(type is Str) throw "Type must be a string"
 
-    this.type = type
-    this.name = name
-    this.result = nil
-  }
+//     this.type = type
+//     this.name = name
+//     this.result = nil
+//   }
 
-  // Should be overridden
-  fn map_result(result) -> result
+//   // Should be overridden
+//   fn map_result(result) -> result
 
-  fn exec(bench) {
-    if !(bench is Fn) throw "Provided argument is not a function"
+//   fn exec(bench) {
+//     if !(bench is Fn) throw "Provided argument is not a function"
     
-    let start = Perf.now()
-    let result = bench()
-    this.time = Perf.now() - start
+//     let start = Perf.now()
+//     let result = bench()
+//     this.time = Perf.now() - start
 
-    result = this.map_result(result)
-    this.result = result
-  }
+//     result = this.map_result(result)
+//     this.result = result
+//   }
 
-  fn to_json {
-    let indent = "  "
-    fn wrap(obj) -> "\"" + obj.to_str() + "\""
-    ret "{\n" +
-      indent + wrap("name")   + ": " + wrap(this.name)      + ",\n" +
-      indent + wrap("type")   + ": " + wrap(this.type)      + ",\n" +
-      indent + wrap("result") + ": " + this.result.to_str() + ",\n" +
-      indent + wrap("time")   + ": " + this.time.to_str()   + "\n" +
-    "}";
-  }
-}
+//   fn to_json {
+//     let indent = "  "
+//     fn wrap(obj) -> "\"" + obj.to_str() + "\""
+//     ret "{\n" +
+//       indent + wrap("name")   + ": " + wrap(this.name)      + ",\n" +
+//       indent + wrap("type")   + ": " + wrap(this.type)      + ",\n" +
+//       indent + wrap("result") + ": " + this.result.to_str() + ",\n" +
+//       indent + wrap("time")   + ": " + this.time.to_str()   + "\n" +
+//     "}";
+//   }
+// }
 
-cls LatencyBench : BenchBase {
-  ctor (name) { 
-    base(name, "LatencyBenchmark")
-  }
+// cls LatencyBench : BenchBase {
+//   ctor (name) { 
+//     base(name, "LatencyBenchmark")
+//   }
 
-  fn to_str -> base.to_json()
-}
+//   fn to_str -> base.to_json()
+// }
 
-let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
-let l = LatencyBench("fib(35)")
-l.exec(fn -> fib(35))
-print l
+// let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
+// let l = LatencyBench("fib(35)")
+// l.exec(fn -> fib(35))
+// print l
+
+let [a, b, c, ...d] = [1]
+print a
+print b
+print c
+print d

@@ -333,7 +333,7 @@ Token scan_token() {
     case '}': return make_token(TOKEN_CBRACE);
     case '[': return make_token(TOKEN_OBRACK);
     case ']': return make_token(TOKEN_CBRACK);
-    case '.': return make_token(TOKEN_DOT);
+    case '.': return make_token(match('.') ? match('.') ? TOKEN_DOTDOTDOT : TOKEN_DOTDOT : TOKEN_DOT);
     case ':': return make_token(TOKEN_COLON);
     case ';': return make_token(TOKEN_SCOLON);
     case ',': return make_token(TOKEN_COMMA);

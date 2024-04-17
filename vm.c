@@ -1214,6 +1214,38 @@ static Value run() {
         push(result);
         break;
       }
+      case OP_GET_SLICE: {
+        Value vindex  = peek(0);
+        Value indexee = peek(1);
+        if (!IS_SEQ(indexee)) {
+          runtime_error("Value of type %s cannot be sliced.", typeof(indexee)->name->chars);
+          goto finish_error;
+        }
+        if (!IS_NUMBER(vindex)) {
+          runtime_error("Slice Index must be a number. Was %s.", typeof(vindex)->name->chars);
+          goto finish_error;
+        }
+        ObjSeq* seq = AS_SEQ(indexee);
+        int index   = (int)AS_NUMBER(vindex);
+        if (index < 0) {
+          index = seq->items.count + index;
+        }
+        if (index < 0 || index >= seq->items.count) {
+          runtime_error("Index %d out of bounds for sequence of length %d.", index, seq->items.count);
+          goto finish_error;
+        }
+
+        ObjSeq* new_sq = new_seq();
+        for (int i = index; i < seq->items.count; i++) {
+          write_value_array(&new_sq->items, seq->items.values[i]);
+        }
+
+        pop();  // Pop the index
+        pop();  // Pop the indexee
+        push(OBJ_VAL(new_sq));
+
+        break;
+      }
       case OP_METHOD: {
         ObjString* name   = READ_STRING();
         FunctionType type = (FunctionType)READ_ONE();  // We trust the compiler that this is either a method, or a static method

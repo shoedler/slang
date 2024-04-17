@@ -29,6 +29,18 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `Gc stats() -> Obj` as a builtin
 - [ ] Implement Obj destructuring `let { a } = { a: 1 } // a == 1`
 - [ ] Implement Seq destructuring `let [ a ] = [ 1 ] // a == 1`
+      <br> `let [a, b]       = [1, 2, 3]       // a == 1, b == 2`
+      <br> Resolves to `let a = [1, 2, 3][0], b = [1, 2, 3][1]`
+      <br> `let [a, ...b]    = [1, 2, 3]       // a == 1, b == [2, 3]`
+      <br> Resolves to `let a = [1, 2, 3][0], b = [1, 2, 3].from(1)`
+      <br> `let [a, b, ...c] = [1, 2, 3, 4, 5] // a == 1, b == 2, c == [3, 4, 5]`
+      <br> Resolves to `let a = [1, 2, 3, 4, 5][0], b = [1, 2, 3, 4, 5][1], c = [1, 2, 3, 4, 5].from(2)`
+      <br> `let [a, b, ...c] = [1, 2, 3]       // a == 1, b == 2, c == [3]`
+      <br> Resolves to `let a = [1, 2, 3][0], b = [1, 2, 3][1], c = [1, 2, 3].from(2)`
+      <br> `let [...a, b]    = [1, 2, 3]       // a == [1, 2], b == 3`
+      <br> Resolves to `let a = [1, 2, 3].to(-1), b = [1, 2, 3][-1]`
+      <br> `let [a, ...b, c]    = [1, 2, 3, 4] // a == 1, b == [2, 3], c == 4`
+      <br> Resolves to `let a = [1, 2, 3, 4][0], b = [1, 2, 3, 4].slice(1, -1), c = [1, 2, 3, 4][-1]`
 - [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
 - [ ] Implement `nameof` keyword. E.g. `nameof(foo)` returns `"foo"`. (**_See Challenge 22.1_**)
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
@@ -44,6 +56,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
+- [ ] Maybe make `Str`, `Nil`, `Bool` and `Num` not inherit from `Obj`?. Then we can just check if e.g. `prop_getter` is `NULL` (and also special methods like `to_str`). This would allow us to just omit these implementations. Currently, these functions are implemented just to throw an error, bc if they were omitted, they'd be inherited from `Obj` trough `finalize_new_class`...
 - [ ] Add a mapping to builtin classes `Seq`, `Class`, `Fn` which maps `ObjString` to some function `GetterFn(Obj)`. Use this in `prop_getter` and `has`, to make sure they are always aligned.
 - [ ] Use something else instead of `rint`, because it's not very precise. See _num-to-str.spec.sl_ for an example.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)

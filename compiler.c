@@ -464,14 +464,14 @@ static void indexing(bool can_assign) {
     expression();  // The new value.
     emit_one(OP_SET_INDEX);
   } else if (can_assign && match_inc_dec()) {
-    emit_two(OP_DUPE, 1);  // Duplicate the object.
-    emit_two(OP_DUPE, 1);  // Duplicate the index.
+    emit_two(OP_DUPE, 1);  // Duplicate the indexee: [indexee][index] -> [indexee][index][indexee]
+    emit_two(OP_DUPE, 1);  // Duplicate the index:   [indexee][index][indexee] -> [indexee][index][indexee][index]
     emit_one(OP_GET_INDEX);
     inc_dec();
     emit_one(OP_SET_INDEX);
   } else if (can_assign && match_compound_assignment()) {
-    emit_two(OP_DUPE, 1);  // Duplicate the object.
-    emit_two(OP_DUPE, 1);  // Duplicate the index.
+    emit_two(OP_DUPE, 1);  // Duplicate the indexee: [indexee][index] -> [indexee][index][indexee]
+    emit_two(OP_DUPE, 1);  // Duplicate the index:  [indexee][index][indexee] -> [indexee][index][indexee][index]
     emit_one(OP_GET_INDEX);
     compound_assignment();
     emit_one(OP_SET_INDEX);
@@ -1539,18 +1539,78 @@ static void statement() {
   }
 }
 
+// Compiles a destructuring sequence assignment.
+// The opening bracket has already been consumed at this point.
+static void destructuring_seq_assignment() {
+  uint16_t vars[MAX_FN_ARGS];  // Max number of variables in a destructuring assignment.
+  int var_count = 0;
+  bool has_rest = false;
+
+  while (!check(TOKEN_CBRACK) && !check(TOKEN_EOF)) {
+    if (match(TOKEN_DOTDOTDOT)) {
+      uint16_t var    = parse_variable("Expecting identifier after '...'.");
+      vars[var_count] = var;
+      has_rest        = true;
+
+      if (!check(TOKEN_CBRACK)) {
+        error("Rest parameter must be last in destructuring assignment.");
+      }
+
+      break;
+    }
+
+    uint16_t var      = parse_variable("Expecting identifier in destructuring assignment.");
+    vars[var_count++] = var;
+    if (!match(TOKEN_COMMA)) {
+      break;
+    }
+  }
+
+  consume(TOKEN_CBRACK, "Expecting ']' after destructuring pattern.");
+  consume(TOKEN_ASSIGN, "Expecting '=' in destructuring assignment.");  // Even Js does this.
+  expression();                                                         // rhs
+
+  // Emit code to destructure the sequence
+  for (int i = 0; i < var_count; i++) {
+    emit_two(OP_DUPE, 0);  // Duplicate the sequence: [Seq] -> [Seq][Seq]
+
+    // Get the value at the current index.
+    emit_constant(NUMBER_VAL((double)i));  // [Seq][Seq] -> [Seq][Seq][i]
+    emit_one(OP_GET_INDEX);                // [Seq][Seq][i] -> [Seq][value]
+
+    // Define the variable.
+    define_variable(vars[i]);
+  }
+
+  if (has_rest) {
+    emit_two(OP_DUPE, 0);  // Duplicate the sequence: [Seq] -> [Seq][Seq]
+
+    // Get the slice of the sequence.
+    emit_constant(NUMBER_VAL((double)var_count));  // [Seq][Seq] -> [Seq][Seq][var_count]
+    emit_one(OP_GET_SLICE);                        // [Seq][Seq][var_count] -> [Seq][slice]
+
+    // Define the rest variable.
+    define_variable(vars[var_count]);
+  }
+  emit_one(OP_POP);  // Discard the value.
+}
+
 // Compiles a let declaration.
 // The let keyword has already been consumed at this point.
 static void declaration_let() {
-  uint16_t global = parse_variable("Expecting variable name.");
-
-  if (match(TOKEN_ASSIGN)) {
-    expression();
+  if (match(TOKEN_OBRACK)) {
+    destructuring_seq_assignment();
   } else {
-    emit_one(OP_NIL);
-  }
+    uint16_t global = parse_variable("Expecting variable name.");
 
-  define_variable(global);
+    if (match(TOKEN_ASSIGN)) {
+      expression();
+    } else {
+      emit_one(OP_NIL);
+    }
+
+    define_variable(global);
+  }
 }
 
 // Compiles a function declaration.
