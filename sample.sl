@@ -631,12 +631,8 @@
 // l.exec(fn -> fib(35))
 // print l
 
-// let [a, b, c, ...d] = [1]
-// print a
-// print b
-// print c
-// print d
-
-
-print try (true.has(true)) else error // [Expect] Expected argument 0 of type Str but got Num
-print "to_str" in true // true
+let [a, b, c, ...d] = "Hello World"
+print a
+print b
+print c
+print d

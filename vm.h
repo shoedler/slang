@@ -19,6 +19,7 @@
 #define SP_METHOD_CTOR ctor
 #define SP_METHOD_TO_STR to_str
 #define SP_METHOD_HAS has
+#define SP_METHOD_SLICE slice
 
 #define SP_PROP_LEN len
 #define SP_PROP_NAME __name
@@ -41,8 +42,9 @@ typedef struct {
 typedef enum {
   // Methods that are commonly used in the VM and need to be accessed quickly.
   SPECIAL_METHOD_CTOR,    // ctor
-  SPECIAL_METHOD_TO_STR,  // to_str
-  SPECIAL_METHOD_HAS,     // has
+  SPECIAL_METHOD_TO_STR,  // to_str  Implicitly used by the string interpolation and print functions
+  SPECIAL_METHOD_HAS,     // has     Impllicitly used by the 'in' operator
+  SPECIAL_METHOD_SLICE,   // slice   Implicitly used by the slice operator and destructuring
 
   SPECIAL_METHOD_MAX,
 } SpecialMethodNames;

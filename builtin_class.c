@@ -4,9 +4,6 @@
 #include "vm.h"
 
 static bool prop_getter(Obj* self, ObjString* name, Value* result);
-static bool prop_setter(Obj* self, ObjString* name, Value value);
-static bool index_getter(Obj* self, Value index, Value* result);
-static bool index_setter(Obj* self, Value index, Value value);
 
 void register_builtin_class_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_CLASS, TYPENAME_OBJ);
@@ -15,9 +12,6 @@ void register_builtin_class_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_HAS, 1);
 
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_CLASS, prop_getter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_CLASS, prop_setter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_CLASS, index_getter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_CLASS, index_setter);
 
   BUILTIN_FINALIZE_CLASS(TYPENAME_CLASS);
 }
@@ -41,30 +35,6 @@ static bool prop_getter(Obj* self, ObjString* name, Value* result) {
     return true;
   }
 
-  return false;
-}
-
-// Internal OP_SET_PROPERTY handler
-static bool prop_setter(Obj* self, ObjString* name, Value value) {
-  UNUSED(self);
-  UNUSED(name);
-  UNUSED(value);
-  return false;
-}
-
-// Internal OP_GET_INDEX handler
-static bool index_getter(Obj* self, Value index, Value* result) {
-  UNUSED(self);
-  UNUSED(index);
-  UNUSED(result);
-  return false;
-}
-
-// Internal OP_SET_INDEX handler
-static bool index_setter(Obj* self, Value index, Value value) {
-  UNUSED(self);
-  UNUSED(index);
-  UNUSED(value);
   return false;
 }
 

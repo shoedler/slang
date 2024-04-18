@@ -1585,8 +1585,9 @@ static void destructuring_seq_assignment() {
   if (has_rest) {
     emit_two(OP_DUPE, 0);  // Duplicate the sequence: [Seq] -> [Seq][Seq]
 
-    // Get the slice of the sequence.
+    // Get the slice of the sequence, starting at var_count. Up to the end, indicated by nil.
     emit_constant(NUMBER_VAL((double)var_count));  // [Seq][Seq] -> [Seq][Seq][var_count]
+    emit_constant(NIL_VAL);                        // [Seq][Seq][var_count] -> [Seq][Seq][var_count][nil]
     emit_one(OP_GET_SLICE);                        // [Seq][Seq][var_count] -> [Seq][slice]
 
     // Define the rest variable.

@@ -190,6 +190,7 @@ void init_vm() {
   vm.special_method_names[SPECIAL_METHOD_CTOR]   = copy_string(STR(SP_METHOD_CTOR), STR_LEN(STR(SP_METHOD_CTOR)));
   vm.special_method_names[SPECIAL_METHOD_TO_STR] = copy_string(STR(SP_METHOD_TO_STR), STR_LEN(STR(SP_METHOD_TO_STR)));
   vm.special_method_names[SPECIAL_METHOD_HAS]    = copy_string(STR(SP_METHOD_HAS), STR_LEN(STR(SP_METHOD_HAS)));
+  vm.special_method_names[SPECIAL_METHOD_SLICE]  = copy_string(STR(SP_METHOD_SLICE), STR_LEN(STR(SP_METHOD_SLICE)));
 
   memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
   vm.special_prop_names[SPECIAL_PROP_LEN]         = copy_string(STR(SP_PROP_LEN), STR_LEN(STR(SP_PROP_LEN)));
@@ -1232,34 +1233,19 @@ static Value run() {
         break;
       }
       case OP_GET_SLICE: {
-        Value vindex  = peek(0);
-        Value indexee = peek(1);
-        if (!IS_SEQ(indexee)) {
-          runtime_error("Value of type %s cannot be sliced.", typeof(indexee)->name->chars);
-          goto finish_error;
-        }
-        if (!IS_NUMBER(vindex)) {
-          runtime_error("Slice Index must be a number. Was %s.", typeof(vindex)->name->chars);
-          goto finish_error;
-        }
-        ObjSeq* seq = AS_SEQ(indexee);
-        int index   = (int)AS_NUMBER(vindex);
-        if (index < 0) {
-          index = seq->items.count + index;
-        }
-        if (index < 0 || index >= seq->items.count) {
-          runtime_error("Index %d out of bounds for sequence of length %d.", index, seq->items.count);
+        // [receiver][start][end] is on the stack
+        ObjClass* type = typeof(peek(2));
+        if (type->__slice == NULL) {
+          runtime_error("Type %s does not support slicing. It must implement '" STR(SP_METHOD_SLICE) "'.", type->name->chars);
           goto finish_error;
         }
 
-        ObjSeq* new_sq = new_seq();
-        for (int i = index; i < seq->items.count; i++) {
-          write_value_array(&new_sq->items, seq->items.values[i]);
+        Value result = exec_fn(type->__slice, 2);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          goto finish_error;
         }
 
-        pop();  // Pop the index
-        pop();  // Pop the indexee
-        push(OBJ_VAL(new_sq));
+        push(result);
 
         break;
       }

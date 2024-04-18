@@ -86,6 +86,7 @@ void finalize_new_class(ObjClass* klass) {
       {&klass->__ctor, SPECIAL_METHOD_CTOR},
       {&klass->__to_str, SPECIAL_METHOD_TO_STR},
       {&klass->__has, SPECIAL_METHOD_HAS},
+      {&klass->__slice, SPECIAL_METHOD_SLICE},
       {NULL, SPECIAL_METHOD_MAX},
   };
 

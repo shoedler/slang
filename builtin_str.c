@@ -13,6 +13,7 @@ void register_builtin_str_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_HAS, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_SLICE, 2);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
 
@@ -226,4 +227,66 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_HAS) {
   }
 
   return BOOL_VAL(false);
+}
+
+// Builtin method to slice a string
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_STRING,
+    /* Name        */ SP_METHOD_SLICE,
+    /* Arguments   */ DOC_ARG("start", TYPENAME_NUMBER) DOC_ARG_SEP DOC_ARG("end", TYPENAME_NUMBER | TYPENAME_NIL),
+    /* Return Type */ TYPENAME_STRING,
+    /* Description */
+    "Returns a new " STR(TYPENAME_STRING) " containing the items from 'start' to 'end' ('end' is exclusive)."
+    " 'end' can be negative to count from the end of the " STR(TYPENAME_STRING) ". If 'start' is greater than or equal to 'end', an empty "
+    STR(TYPENAME_STRING) " is returned. If 'end' is " STR(TYPENAME_NIL) ", all items from 'start' to the end of the " STR(
+        TYPENAME_STRING) " are included.");
+BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
+  BUILTIN_ARGC_EXACTLY(2)
+  BUILTIN_CHECK_RECEIVER(STRING)
+  BUILTIN_CHECK_ARG_AT(1, NUMBER)
+  if (IS_NIL(argv[2])) {
+    argv[2] = NUMBER_VAL(AS_STRING(argv[0])->length);
+  }
+  BUILTIN_CHECK_ARG_AT(2, NUMBER)
+
+  ObjString* str = AS_STRING(argv[0]);
+  int count      = str->length;
+
+  if (count == 0) {
+    return OBJ_VAL(copy_string("", 0));
+  }
+
+  double start_raw = AS_NUMBER(argv[1]);
+  double end_raw   = AS_NUMBER(argv[2]);
+
+  long long start;
+  long long end;
+
+  if (!is_int(start_raw, &start) || !is_int(end_raw, &end)) {
+    runtime_error("Indices must be integers, but got floats.");
+    return NIL_VAL;
+  }
+
+  if (start < 0) {
+    start = count + start;
+  }
+  if (end < 0) {
+    end = count + end;
+  }
+
+  if (start < 0 || start >= count || end < 0 || end > count) {
+    runtime_error(
+        "Slice indices out of bounds. Start resolved to %d and end to %d, but this " STR(TYPENAME_STRING) " has length %d.",
+        start, end, count);
+    return NIL_VAL;
+  }
+
+  if (start >= end) {
+    return OBJ_VAL(copy_string("", 0));
+  }
+
+  char* start_ptr       = str->chars + start;
+  int length            = end - start;
+  ObjString* sliced_str = copy_string(start_ptr, length);
+  return OBJ_VAL(sliced_str);
 }
