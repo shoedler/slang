@@ -11,10 +11,10 @@
     return NIL_VAL;                                                                                        \
   }
 
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result);
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value);
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result);
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value);
+static bool prop_getter(Obj* self, ObjString* name, Value* result);
+static bool prop_setter(Obj* self, ObjString* name, Value value);
+static bool index_getter(Obj* self, Value index, Value* result);
+static bool index_setter(Obj* self, Value index, Value value);
 
 void register_builtin_fn_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_FUNCTION, TYPENAME_OBJ);
@@ -32,44 +32,42 @@ void register_builtin_fn_class() {
 }
 
 // Internal OP_GET_PROPERTY handler
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
+static bool prop_getter(Obj* self, ObjString* name, Value* result) {
   if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
     switch (self->type) {
-      case OBJ_FUNCTION: *result = OBJ_VAL(((ObjFunction*)self)->name); return ACCESSOR_RESULT_OK;
-      case OBJ_CLOSURE: *result = OBJ_VAL(((ObjClosure*)self)->function->name); return ACCESSOR_RESULT_OK;
-      case OBJ_NATIVE: *result = OBJ_VAL(((ObjNative*)self)->name); return ACCESSOR_RESULT_OK;
+      case OBJ_FUNCTION: *result = OBJ_VAL(((ObjFunction*)self)->name); return true;
+      case OBJ_CLOSURE: *result = OBJ_VAL(((ObjClosure*)self)->function->name); return true;
+      case OBJ_NATIVE: *result = OBJ_VAL(((ObjNative*)self)->name); return true;
       case OBJ_BOUND_METHOD: return prop_getter(((ObjBoundMethod*)self)->method, name, result);
-      default:
-        INTERNAL_ERROR("Invalid object type for " STR(TYPENAME_FUNCTION) " property getter.");
-        return ACCESSOR_RESULT_ERROR;
+      default: INTERNAL_ERROR("Invalid object type for " STR(TYPENAME_FUNCTION) " property getter."); return false;
     }
   }
 
-  return ACCESSOR_RESULT_PASS;
+  return false;
 }
 
 // Internal OP_SET_PROPERTY handler
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
+static bool prop_setter(Obj* self, ObjString* name, Value value) {
   UNUSED(self);
   UNUSED(name);
   UNUSED(value);
-  return ACCESSOR_RESULT_PASS;
+  return false;
 }
 
 // Internal OP_GET_INDEX handler
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
+static bool index_getter(Obj* self, Value index, Value* result) {
   UNUSED(self);
   UNUSED(index);
   UNUSED(result);
-  return ACCESSOR_RESULT_PASS;
+  return false;
 }
 
 // Internal OP_SET_INDEX handler
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
+static bool index_setter(Obj* self, Value index, Value value) {
   UNUSED(self);
   UNUSED(index);
   UNUSED(value);
-  return ACCESSOR_RESULT_PASS;
+  return false;
 }
 
 // Built-in fn constructor

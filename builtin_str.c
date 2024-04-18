@@ -3,10 +3,10 @@
 #include "common.h"
 #include "vm.h"
 
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result);
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value);
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result);
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value);
+static bool prop_getter(Obj* self, ObjString* name, Value* result);
+static bool prop_setter(Obj* self, ObjString* name, Value value);
+static bool index_getter(Obj* self, Value index, Value* result);
+static bool index_setter(Obj* self, Value index, Value value);
 
 void register_builtin_str_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_STRING, TYPENAME_OBJ);
@@ -25,55 +25,58 @@ void register_builtin_str_class() {
 }
 
 // Internal OP_GET_PROPERTY handler
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
+static bool prop_getter(Obj* self, ObjString* name, Value* result) {
   if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
     *result = NUMBER_VAL((double)((ObjString*)self)->length);
-    return ACCESSOR_RESULT_OK;
+    return true;
+  }
+  if (bind_method(vm.__builtin_Str_class, name, result)) {
+    return true;
   }
 
-  return ACCESSOR_RESULT_PASS;
+  return false;
 }
 
 // Internal OP_SET_PROPERTY handler
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
+static bool prop_setter(Obj* self, ObjString* name, Value value) {
   UNUSED(self);
   UNUSED(name);
   UNUSED(value);
-  return ACCESSOR_RESULT_PASS;
+  return false;
 }
 
 // Internal OP_GET_INDEX handler
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
+static bool index_getter(Obj* self, Value index, Value* result) {
   if (!IS_NUMBER(index)) {
     runtime_error(STR(TYPENAME_STRING) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   double i_raw = AS_NUMBER(index);
   long long i;
   if (!is_int(i_raw, &i)) {
     *result = NIL_VAL;
-    return ACCESSOR_RESULT_OK;
+    return true;
   }
 
   ObjString* string = (ObjString*)self;
   if (i < 0 || i >= string->length) {
     runtime_error("Index out of bounds.");
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   ObjString* char_str = copy_string(string->chars + i, 1);
   *result             = OBJ_VAL(char_str);
-  return ACCESSOR_RESULT_OK;
+  return true;
 }
 
 // Internal OP_SET_INDEX handler
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
+static bool index_setter(Obj* self, Value index, Value value) {
   UNUSED(self);
   UNUSED(index);
   UNUSED(value);
   runtime_error("Cannot set index on a " STR(TYPENAME_STRING) ".");
-  return ACCESSOR_RESULT_ERROR;
+  return false;
 }
 
 // Built-in string constructor
@@ -196,10 +199,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, trim) {
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_STRING,
     /* Name        */ SP_METHOD_HAS,
-    /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
+    /* Arguments   */ DOC_ARG("subs", TYPENAME_STRING),
     /* Return Type */ TYPENAME_STRING,
     /* Description */
-    "<Not supported>");
+    "Returns true if the " STR(TYPENAME_STRING) " contains the substring 'subs'.");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_HAS) {
   BUILTIN_CHECK_RECEIVER(STRING)
   BUILTIN_ARGC_EXACTLY(1)

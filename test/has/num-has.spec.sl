@@ -1,3 +1,2 @@
-print 1.has(1) // [ExpectRuntimeError] Uncaught error: Type Num does not support 'has'.
-               // [ExpectRuntimeError]  at line 1 in native "has"
-               // [ExpectRuntimeError]  at line 1 at the toplevel of module "main"
+print try (1.has(1)) else error // [Expect] Expected argument 0 of type Str but got Num.
+print "to_str" in 1 // [Expect] true

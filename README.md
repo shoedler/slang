@@ -74,6 +74,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ### Optimizations
 
+- [ ] Remove `prop_getter`, `prop_setter`, `index_getter`, `index_setter` in favor of macros. E.g. `OBJ_GETTER()`, `SEQ_GETTER` etc. Currently, we always resolve the type with `typeof()` in `OP_GET_*` and `OP_SET_*`, but we have to handle all cases for the internal types anyway, so we can just `switch` on the values type and call the appropriate macro. If we ever decide to make these thing overridable by managed code, we'd ceratinly have to change this.
 - [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Store strings as flexible array members (**_See Challenge 19.1_**)

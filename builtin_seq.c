@@ -4,10 +4,10 @@
 #include "common.h"
 #include "vm.h"
 
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result);
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value);
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result);
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value);
+static bool prop_getter(Obj* self, ObjString* name, Value* result);
+static bool prop_setter(Obj* self, ObjString* name, Value value);
+static bool index_getter(Obj* self, Value index, Value* result);
+static bool index_setter(Obj* self, Value index, Value value);
 
 void register_builtin_seq_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_SEQ, TYPENAME_OBJ);
@@ -38,70 +38,73 @@ void register_builtin_seq_class() {
 }
 
 // Internal OP_GET_PROPERTY handler
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
+static bool prop_getter(Obj* self, ObjString* name, Value* result) {
   if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
     *result = NUMBER_VAL(((ObjSeq*)self)->items.count);
-    return ACCESSOR_RESULT_OK;
+    return true;
+  }
+  if (bind_method(vm.__builtin_Seq_class, name, result)) {
+    return true;
   }
 
-  return ACCESSOR_RESULT_PASS;
+  return false;
 }
 
 // Internal OP_SET_PROPERTY handler
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
+static bool prop_setter(Obj* self, ObjString* name, Value value) {
   UNUSED(self);
   UNUSED(name);
   UNUSED(value);
-  return ACCESSOR_RESULT_PASS;
+  return false;
 }
 
 // Internal OP_GET_INDEX handler
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
+static bool index_getter(Obj* self, Value index, Value* result) {
   if (!IS_NUMBER(index)) {
     runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   double i_raw = AS_NUMBER(index);
   long long i;
   if (!is_int(i_raw, &i)) {
     runtime_error("Index must be an integer, but got a float.");
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   ObjSeq* seq = (ObjSeq*)self;
   if (i < 0 || i >= seq->items.count) {
     runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   *result = seq->items.values[i];
-  return ACCESSOR_RESULT_OK;
+  return true;
 }
 
 // Internal OP_SET_INDEX handler
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
+static bool index_setter(Obj* self, Value index, Value value) {
   if (!IS_NUMBER(index)) {
     runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   double i_raw = AS_NUMBER(index);
   long long i;
   if (!is_int(i_raw, &i)) {
     runtime_error("Index must be an integer, but got a float.");
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   ObjSeq* seq = (ObjSeq*)self;
 
   if (i < 0 || i >= seq->items.count) {
     runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   seq->items.values[i] = value;
-  return ACCESSOR_RESULT_OK;
+  return true;
 }
 
 // Built-in seq constructor

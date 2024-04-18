@@ -1,3 +1,2 @@
-print true.has(true) // [ExpectRuntimeError] Uncaught error: Type Bool does not support 'has'.
-                     // [ExpectRuntimeError]  at line 1 in native "has"
-                     // [ExpectRuntimeError]  at line 1 at the toplevel of module "main"
+print try (true.has(true)) else error // [Expect] Expected argument 0 of type Str but got Bool.
+print "to_str" in true // [Expect] true

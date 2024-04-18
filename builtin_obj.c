@@ -4,10 +4,10 @@
 #include "common.h"
 #include "vm.h"
 
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result);
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value);
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result);
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value);
+static bool prop_getter(Obj* self, ObjString* name, Value* result);
+static bool prop_setter(Obj* self, ObjString* name, Value value);
+static bool index_getter(Obj* self, Value index, Value* result);
+static bool index_setter(Obj* self, Value index, Value value);
 
 void register_builtin_obj_class() {
   // Create the object class
@@ -36,39 +36,44 @@ void register_builtin_obj_class() {
 }
 
 // Internal OP_GET_PROPERTY handler
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
+static bool prop_getter(Obj* self, ObjString* name, Value* result) {
   ObjObject* object = (ObjObject*)self;
   if (hashtable_get_by_string(&object->fields, name, result)) {
-    return ACCESSOR_RESULT_OK;
+    return true;
   }
   if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
     *result = NUMBER_VAL(object->fields.count);
-    return ACCESSOR_RESULT_OK;
+    return true;
   }
-  return ACCESSOR_RESULT_PASS;
+  if (bind_method(object->klass, name, result)) {
+    return true;
+  }
+  return false;
 }
 
 // Internal OP_SET_PROPERTY handler
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
+static bool prop_setter(Obj* self, ObjString* name, Value value) {
   ObjObject* object = (ObjObject*)self;
   hashtable_set(&object->fields, OBJ_VAL(name), value);
-  return ACCESSOR_RESULT_OK;
+  return true;
 }
 
 // Internal OP_GET_INDEX handler
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
+static bool index_getter(Obj* self, Value index, Value* result) {
   ObjObject* object = (ObjObject*)self;
+  // TODO (optimize): Maybe check if it's a string first, then we could use hashtable_get_by_string. Certainly, there's a
+  // threshold where it's faster to check the type first.
   if (!hashtable_get(&object->fields, index, result)) {
     *result = NIL_VAL;
   }
-  return ACCESSOR_RESULT_OK;
+  return true;
 }
 
 // Internal OP_SET_INDEX handler
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
+static bool index_setter(Obj* self, Value index, Value value) {
   ObjObject* object = (ObjObject*)self;
   hashtable_set(&object->fields, index, value);
-  return ACCESSOR_RESULT_OK;
+  return true;
 }
 
 // Built-in obj constructor

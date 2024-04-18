@@ -126,11 +126,6 @@ void finalize_new_class(ObjClass* klass) {
     }
     base = base->base;
   }
-
-  // If we still don't have them, we have an internal error
-  if (klass->prop_getter == NULL || klass->prop_setter == NULL || klass->index_getter == NULL || klass->index_setter == NULL) {
-    INTERNAL_ERROR("Invalid class definition. Missing property getter/setter or index getter/setter.");
-  }
 }
 
 ObjObject* new_instance(ObjClass* klass) {

@@ -11,9 +11,6 @@ print "y" in X // [Expect] true
 
 // See "has" tests for more examples
 
-// Fails if the right-hand side is not a type that supports 'has'
-print try (1 in 1) else error // [Expect] Type Num does not support 'has'.
-
 // Some implementations of 'has' also accept a callable that gets evaluated for each element
 print (fn (x) -> x is Num) in [1,2,3] // [Expect] true
 // or

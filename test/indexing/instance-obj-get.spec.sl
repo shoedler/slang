@@ -7,4 +7,4 @@ let a = A()
 
 // Cannot access methods / static methods via get-indexing.
 print a["x"]                // [Expect] nil
-print try A["y"] else error // [Expect] Value of type Class cannot be get-indexed.
+print try A["y"] else error // [Expect] Index 'y' does not exist on value of type Class.

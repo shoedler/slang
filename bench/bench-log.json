@@ -1174,5 +1174,73 @@
       "value": "158640000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-04-18T13:52:04.047Z",
+    "commit": {
+      "date": "2024-04-17 22:44:50 +0200",
+      "hash": "a4b811e488c8cd7e8f90f4d044eba98cc571cf7f",
+      "message": "Adds a pretty dumb seq destructuring mechanism"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "8.03"
+    }
+  },
+  {
+    "date": "2024-04-18T13:52:04.047Z",
+    "commit": {
+      "date": "2024-04-17 22:44:50 +0200",
+      "hash": "a4b811e488c8cd7e8f90f4d044eba98cc571cf7f",
+      "message": "Adds a pretty dumb seq destructuring mechanism"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.921"
+    }
+  },
+  {
+    "date": "2024-04-18T13:52:04.047Z",
+    "commit": {
+      "date": "2024-04-17 22:44:50 +0200",
+      "hash": "a4b811e488c8cd7e8f90f4d044eba98cc571cf7f",
+      "message": "Adds a pretty dumb seq destructuring mechanism"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "264",
+      "value": "15840000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-04-18T13:52:04.047Z",
+    "commit": {
+      "date": "2024-04-17 22:44:50 +0200",
+      "hash": "a4b811e488c8cd7e8f90f4d044eba98cc571cf7f",
+      "message": "Adds a pretty dumb seq destructuring mechanism"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "2548",
+      "value": "152880000",
+      "durationInSecs": "5"
+    }
   }
 ]

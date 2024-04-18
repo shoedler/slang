@@ -1,3 +1,2 @@
-print nil.has(nil) // [ExpectRuntimeError] Uncaught error: Type Nil does not support 'has'.
-                   // [ExpectRuntimeError]  at line 1 in native "has"
-                   // [ExpectRuntimeError]  at line 1 at the toplevel of module "main"
+print try (nil.has(nil)) else error // [Expect] Expected argument 0 of type Str but got Nil.
+print "to_str" in nil // [Expect] true

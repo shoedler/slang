@@ -175,4 +175,8 @@ bool is_falsey(Value value);
 // batch-copy them into the value_array?
 void make_seq(int count);
 
+// Binds a method to an instance by creating a new bound method object from the instance and the method name.
+// The stack is unchanged.
+bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method);
+
 #endif
