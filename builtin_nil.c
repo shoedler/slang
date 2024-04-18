@@ -31,10 +31,11 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_NIL,
     /* Description */
-    "Returns " STR(TYPENAME_NIL) ".");
+    "<Not supported>");
 BUILTIN_METHOD_IMPL(TYPENAME_NIL, SP_METHOD_CTOR) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   UNUSED(argv);
+  runtime_error("Cannot instantiate " VALUE_STR_NIL " via " STR(TYPENAME_NIL) "." STR(SP_METHOD_CTOR) ".");
   return NIL_VAL;
 }
 

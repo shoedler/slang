@@ -77,15 +77,16 @@ typedef struct {
   ObjObject* module;  // The current module
   int exit_on_frame;  // Index of the frame to exit on
 
-  ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);       // The class of all objects
-  ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);    // The module class
-  ObjClass* BUILTIN_CLASS(TYPENAME_STRING);    // The string class
-  ObjClass* BUILTIN_CLASS(TYPENAME_NUMBER);    // The number class
-  ObjClass* BUILTIN_CLASS(TYPENAME_BOOL);      // The bool class
-  ObjClass* BUILTIN_CLASS(TYPENAME_NIL);       // The nil class
-  ObjClass* BUILTIN_CLASS(TYPENAME_SEQ);       // The sequence class
-  ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // The function class
-  ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // The class class
+  ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);       // Base class: The obj class
+  ObjClass* BUILTIN_CLASS(TYPENAME_NUMBER);    // Base class: The number class
+  ObjClass* BUILTIN_CLASS(TYPENAME_BOOL);      // Base class: The bool class
+  ObjClass* BUILTIN_CLASS(TYPENAME_NIL);       // Base class: The nil class
+  ObjClass* BUILTIN_CLASS(TYPENAME_SEQ);       // Special class: The sequence class
+  ObjClass* BUILTIN_CLASS(TYPENAME_STRING);    // Special class: The string class
+  ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // Special class: The function class
+  ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // Special class: The class class
+
+  ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);  // The module class
 
   ObjObject* builtin;                                   // The builtin (builtin things) object instance
   ObjString* special_method_names[SPECIAL_METHOD_MAX];  // Special method names for quick access
