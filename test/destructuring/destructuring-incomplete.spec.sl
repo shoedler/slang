@@ -1,0 +1,1 @@
+let [a, b,  = [1, 2, 3] // [ExpectCompileError] Compile error at line 1 at '=': Expecting identifier in destructuring assignment.

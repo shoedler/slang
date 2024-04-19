@@ -1082,7 +1082,6 @@ static int resolve_upvalue(Compiler* compiler, Token* name) {
 }
 
 // Adds a local variable to the current compiler's local variables array.
-// Logs a compile error if the local variable count exceeds the maximum.
 static void add_local(Token name) {
   if (current->local_count == (UINT32_MAX - 1)) {
     error("Too many local variables in this scope.");
@@ -1125,12 +1124,10 @@ static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
 // are late bound.
 // This function is the only place where the compiler records the existence
 // of a local variable.
-static void declare_local() {
+static void declare_local(Token* name) {
   if (current->scope_depth == 0) {
     return;
   }
-
-  Token* name = &parser.previous;
 
   for (int i = current->local_count - 1; i >= 0; i--) {
     Local* local = &current->locals[i];
@@ -1151,7 +1148,7 @@ static void declare_local() {
 static uint16_t parse_variable(const char* error_message) {
   consume(TOKEN_ID, error_message);
 
-  declare_local();
+  declare_local(&parser.previous);
   if (current->scope_depth > 0) {
     return 0;
   }
@@ -1159,6 +1156,9 @@ static uint16_t parse_variable(const char* error_message) {
   return string_constant(&parser.previous);
 }
 
+// Marks a local variable as initialized by setting its depth to the current scope depth.
+// Locals are first created with a depth of -1, which means they are not yet initialized.
+// If we're in global scope, nothing happens.
 static void mark_initialized() {
   if (current->scope_depth == 0) {
     return;
@@ -1166,8 +1166,8 @@ static void mark_initialized() {
   current->locals[current->local_count - 1].depth = current->scope_depth;
 }
 
-// Emits a define-global instruction if we are not in a local scope.
-// The variables index in the constant pool represents the operand of the
+// Emits a define-global instruction (if we are not in a local scope) for the most recent local.
+// The variables' index in the constant pool represents the operand of the
 // instruction.
 static void define_variable(uint16_t global) {
   if (current->scope_depth > 0) {
@@ -1187,7 +1187,7 @@ static uint16_t argument_list() {
     do {
       expression();
       if (arg_count == MAX_FN_ARGS) {
-        error("Can't have more than MAX_FN_ARGS arguments.");
+        error("Can't have more than " STR(MAX_FN_ARGS) " arguments.");
       }
       arg_count++;
     } while (match(TOKEN_COMMA));
@@ -1219,7 +1219,7 @@ static void synchronize() {
   }
 }
 
-// Compiles a single expression into bytecode.
+// Compiles a single expression into bytecode. An expression leaves a value on the stack.
 static void expression() {
   parse_precedence(PREC_ASSIGN);
 }
@@ -1484,7 +1484,7 @@ static void statement_import() {
   consume(TOKEN_ID, "Expecting module name.");
 
   uint16_t name_constant = string_constant(&parser.previous);
-  declare_local();
+  declare_local(&parser.previous);
 
   if (match(TOKEN_FROM)) {
     consume(TOKEN_STRING, "Expecting file name.");
@@ -1542,25 +1542,38 @@ static void statement() {
 // Compiles a destructuring sequence assignment.
 // The opening bracket has already been consumed at this point.
 static void destructuring_seq_assignment() {
-  uint16_t vars[MAX_FN_ARGS];  // Max number of variables in a destructuring assignment.
-  int var_count = 0;
+  uint16_t globals[MAX_FN_ARGS];
+  uint16_t locals[MAX_FN_ARGS];
+  int count     = 0;
   bool has_rest = false;
 
   while (!check(TOKEN_CBRACK) && !check(TOKEN_EOF)) {
     if (match(TOKEN_DOTDOTDOT)) {
-      uint16_t var    = parse_variable("Expecting identifier after '...'.");
-      vars[var_count] = var;
-      has_rest        = true;
+      globals[count] = parse_variable("Expecting identifier after ellipsis in destructuring assignment.");
+      locals[count]  = current->local_count - 1;  // It's just the one on the top.
 
-      if (!check(TOKEN_CBRACK)) {
-        error("Rest parameter must be last in destructuring assignment.");
-      }
+      emit_one(OP_NIL);  // Define the variable.
+      define_variable(globals[count]);
+
+      has_rest = true;
 
       break;
     }
 
-    uint16_t var      = parse_variable("Expecting identifier in destructuring assignment.");
-    vars[var_count++] = var;
+    if (has_rest) {
+      error("Rest parameter must be last in destructuring assignment.");
+    }
+
+    globals[count] = parse_variable("Expecting identifier in destructuring assignment.");
+    locals[count]  = current->local_count - 1;  // It's just the one on the top.
+
+    emit_one(OP_NIL);  // Define the variable.
+    define_variable(globals[count]);
+
+    if (++count > MAX_FN_ARGS) {
+      error("Can't have more than " STR(MAX_FN_ARGS) " variables in destructuring assignment.");
+    }
+
     if (!match(TOKEN_COMMA)) {
       break;
     }
@@ -1568,10 +1581,11 @@ static void destructuring_seq_assignment() {
 
   consume(TOKEN_CBRACK, "Expecting ']' after destructuring pattern.");
   consume(TOKEN_ASSIGN, "Expecting '=' in destructuring assignment.");  // Even Js does this.
-  expression();                                                         // rhs
+
+  expression();  // rhs
 
   // Emit code to destructure the sequence
-  for (int i = 0; i < var_count; i++) {
+  for (int i = 0; i < count; i++) {
     emit_two(OP_DUPE, 0);  // Duplicate the sequence: [Seq] -> [Seq][Seq]
 
     // Get the value at the current index.
@@ -1579,19 +1593,29 @@ static void destructuring_seq_assignment() {
     emit_one(OP_GET_INDEX);                // [Seq][Seq][i] -> [Seq][value]
 
     // Define the variable.
-    define_variable(vars[i]);
+    if (current->scope_depth > 0) {
+      emit_two(OP_SET_LOCAL, (uint16_t)(locals[i]));
+      emit_one(OP_POP);  // Discard the value.
+    } else {
+      emit_two(OP_DEFINE_GLOBAL, globals[i]);  // Also pops the value.
+    }
   }
 
   if (has_rest) {
     emit_two(OP_DUPE, 0);  // Duplicate the sequence: [Seq] -> [Seq][Seq]
 
-    // Get the slice of the sequence, starting at var_count. Up to the end, indicated by nil.
-    emit_constant(NUMBER_VAL((double)var_count));  // [Seq][Seq] -> [Seq][Seq][var_count]
-    emit_constant(NIL_VAL);                        // [Seq][Seq][var_count] -> [Seq][Seq][var_count][nil]
-    emit_one(OP_GET_SLICE);                        // [Seq][Seq][var_count] -> [Seq][slice]
+    // Get the slice of the sequence, starting at count. Up to the end, indicated by nil.
+    emit_constant(NUMBER_VAL((double)count));  // [Seq][Seq] -> [Seq][Seq][count]
+    emit_one(OP_NIL);                          // [Seq][Seq][count] -> [Seq][Seq][count][nil]
+    emit_one(OP_GET_SLICE);                    // [Seq][Seq][count] -> [Seq][slice]
 
-    // Define the rest variable.
-    define_variable(vars[var_count]);
+    // Define the variable.
+    if (current->scope_depth > 0) {
+      emit_two(OP_SET_LOCAL, (uint16_t)(locals[count]));
+      emit_one(OP_POP);  // Discard the value.
+    } else {
+      emit_two(OP_DEFINE_GLOBAL, globals[count]);
+    }
   }
   emit_one(OP_POP);  // Discard the value.
 }
@@ -1632,7 +1656,7 @@ static void declaration_class() {
   consume(TOKEN_ID, "Expecting class name.");
   Token class_name       = parser.previous;
   uint16_t name_constant = string_constant(&parser.previous);
-  declare_local();
+  declare_local(&parser.previous);
 
   emit_two(OP_CLASS, name_constant);
 

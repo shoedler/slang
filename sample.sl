@@ -631,12 +631,19 @@
 // l.exec(fn -> fib(35))
 // print l
 
-let [a, b, c, ...d] = "Hello World"
-print a
-print b
-print c
-print d
+  let [c, d] = [1, 2]
+  print c // [Expect] 1
+  print d // [Expect] undefined
 
-cls Foo {}
-Foo.bar = "value" // [ExpectRuntimeError] Uncaught error: Cannot set property 'bar' on value of type Class.
-                  // [ExpectRuntimeError] at line 2 at the toplevel of module "main"
+try {
+  let x = "x"
+  let y = "y"
+  let z = "z"
+
+  let [c, d] = [1, 2]
+  print c // [Expect] 1
+  print d // [Expect] undefined
+
+} catch { 
+  print error // [Expect] 
+}
