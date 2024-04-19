@@ -1568,19 +1568,23 @@ static void destructuring_assignment(DestructureType type) {
     if (has_rest) {
       error("Rest parameter must be last in destructuring assignment.");
     }
+    has_rest = match(TOKEN_DOTDOTDOT);
+    if (has_rest && type == DESTRUCTURE_OBJ) {
+      error("Rest parameter is not allowed in " STR(TYPENAME_OBJ) " destructuring assignment.");
+    }
 
     // A variable is parsed just like in a normal let declaration. But, because the rhs is not yet compiled,
     // we need to first declare the variables. In a local scope, we emit OP_NIL to define the variable, in global scope, that
     // doesn't matter yet (will be declared later with OP_DEFINE_GLOBAL) We don't want to mark the variables as initialized yet,
     // so we don't use define_variable(global) here. We just emit OP_NIL (if in local scope) to create a placeholder value on the
     // stack for the local.
-    variables[current_index].is_rest = has_rest = match(TOKEN_DOTDOTDOT);
-    variables[current_index].global             = has_rest
-                                                      ? parse_variable("Expecting identifier after ellipsis in destructuring assignment.")
-                                                      : parse_variable("Expecting identifier in destructuring assignment.");
-    variables[current_index].local              = current->local_count - 1;  // It's just the one on the top.
-    variables[current_index].index              = current_index;
-    variables[current_index].name               = parser.previous;  // Used for object destructuring.
+    variables[current_index].is_rest = has_rest;
+    variables[current_index].global  = has_rest
+                                           ? parse_variable("Expecting identifier after ellipsis in destructuring assignment.")
+                                           : parse_variable("Expecting identifier in destructuring assignment.");
+    variables[current_index].local   = current->local_count - 1;  // It's just the one on the top.
+    variables[current_index].index   = current_index;
+    variables[current_index].name    = parser.previous;  // Used for object destructuring.
 
     // Emit a placeholder value for the variable if we're in a local scope, because locals live on the stack.
     if (local_scope) {
@@ -1592,9 +1596,6 @@ static void destructuring_assignment(DestructureType type) {
     }
 
     if (has_rest) {
-      if (type == DESTRUCTURE_OBJ) {
-        error("Rest parameter is not allowed in object destructuring assignment.");
-      }
       break;
     }
 
@@ -1603,7 +1604,9 @@ static void destructuring_assignment(DestructureType type) {
     }
   }
 
-  consume(closing, "Expecting ']' after destructuring pattern.");
+  if (!match(closing)) {
+    has_rest ? error("Rest parameter must be last in destructuring assignment.") : error("Unterminated destructuring pattern.");
+  }
   consume(TOKEN_ASSIGN, "Expecting '=' in destructuring assignment.");  // Even Js does this.
 
   expression();  // rhs

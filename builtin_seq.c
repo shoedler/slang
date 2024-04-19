@@ -65,7 +65,7 @@ static bool index_getter(Obj* self, Value index, Value* result) {
 
   ObjSeq* seq = (ObjSeq*)self;
   if (i < 0 || i >= seq->items.count) {
-    runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
+    runtime_error("Index out of bounds. Was %lld, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
     return false;
   }
 

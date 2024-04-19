@@ -27,7 +27,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `Gc` module
 - [ ] Implement `Gc collect() -> Nil` as a builtin
 - [ ] Implement `Gc stats() -> Obj` as a builtin
-- [ ] Implement Obj destructuring `let { a } = { a: 1 } // a == 1`
 - [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
 - [ ] Implement `nameof` keyword. E.g. `nameof(foo)` returns `"foo"`. (**_See Challenge 22.1_**)
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
@@ -38,6 +37,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
       <br>`each i in seq while i > 10 { }` -> essentially a normal `for` loop.
       <br>`each i in seq { }` -> essentially a normal `foreach` loop.
       <br>`while i > 10 { }` -> essentially a normal `while` loop.
+- [x] ~~Implement Obj destructuring `let { a } = { a: 1 } // a == 1`~~ (Done. Only for let-declarations and only non-nested. Assignments (`let a = nil <newline> {a} = {a: 1}`) do not work and probably will never work, because they are parsed as obj-literals. The pratt parser does not handle stuff like this nicely - and it would be a pain to implement. Also, rest parameters are not supported.)
 - [x] ~~Implement Seq destructuring `let [ a ] = [ 1 ] // a == 1`~~ (Done. Only for let-declarations and only non-nested. Assignments (`let a = nil <newline> [a] = [1]`) do not work and probably will never work, because they are parsed as seq-literals. The pratt parser does not handle stuff like this nicely - and it would be a pain to implement.)
 - [x] Implement `static fn foo -> nil` syntax for static methods. They are just another hashtable on the class object. Only accessible trough dot notation.
 - [x] Implement `in` operator. E.g. `item in Seq` (Check if item is in Seq), `item in Set` (Check if item is in Set), `key in Obj` (Check if key is in Obj), `string in Str` (Check if char / substr is in Str)

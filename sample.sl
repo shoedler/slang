@@ -631,9 +631,9 @@
 // l.exec(fn -> fib(35))
 // print l
 
-  let [c, d] = [1, 2]
-  print c // [Expect] 1
-  print d // [Expect] undefined
+let [c, d] = [1, 2]
+print c // [Expect] 1
+print d // [Expect] undefined
 
 try {
   let x = "x"

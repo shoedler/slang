@@ -62,7 +62,7 @@ static bool index_getter(Obj* self, Value index, Value* result) {
 
   ObjString* string = (ObjString*)self;
   if (i < 0 || i >= string->length) {
-    runtime_error("Index out of bounds.");
+    runtime_error("Index out of bounds. Was %lld, but this " STR(TYPENAME_STRING) " has length %d.", i, string->length);
     return false;
   }
 

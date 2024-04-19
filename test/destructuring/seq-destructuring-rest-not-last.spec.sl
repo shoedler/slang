@@ -1,1 +1,1 @@
-let [a, ...b, c] = [1, 2, 3, 4] // [ExpectCompileError] Compile error at line 1 at ',': Expecting ']' after destructuring pattern.
+let [a, ...b, c] = [1, 2, 3, 4] // [ExpectCompileError] Compile error at line 1 at 'b': Rest parameter must be last in destructuring assignment.
