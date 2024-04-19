@@ -1542,36 +1542,39 @@ static void statement() {
 // Compiles a destructuring sequence assignment.
 // The opening bracket has already been consumed at this point.
 static void destructuring_seq_assignment() {
-  uint16_t globals[MAX_FN_ARGS];
-  uint16_t locals[MAX_FN_ARGS];
+  typedef struct {
+    uint16_t global;
+    uint16_t local;
+    bool is_rest;
+    int index;
+    int nested_indicies[MAX_FN_ARGS];
+    int nested_indicies_count;
+  } DestructuringVariable;
+
+  DestructuringVariable variables[MAX_FN_ARGS];
   int count     = 0;
   bool has_rest = false;
 
   while (!check(TOKEN_CBRACK) && !check(TOKEN_EOF)) {
-    if (match(TOKEN_DOTDOTDOT)) {
-      globals[count] = parse_variable("Expecting identifier after ellipsis in destructuring assignment.");
-      locals[count]  = current->local_count - 1;  // It's just the one on the top.
-
-      emit_one(OP_NIL);  // Define the variable.
-      define_variable(globals[count]);
-
-      has_rest = true;
-
-      break;
-    }
-
     if (has_rest) {
       error("Rest parameter must be last in destructuring assignment.");
     }
 
-    globals[count] = parse_variable("Expecting identifier in destructuring assignment.");
-    locals[count]  = current->local_count - 1;  // It's just the one on the top.
+    variables[count].is_rest = has_rest = match(TOKEN_DOTDOTDOT);
+    variables[count].global = has_rest ? parse_variable("Expecting identifier after ellipsis in destructuring assignment.")
+                                       : parse_variable("Expecting identifier in destructuring assignment.");
+    variables[count].local  = current->local_count - 1;  // It's just the one on the top.
+    variables[count].index  = count;
 
     emit_one(OP_NIL);  // Define the variable.
-    define_variable(globals[count]);
+    define_variable(variables[count].global);
 
     if (++count > MAX_FN_ARGS) {
       error("Can't have more than " STR(MAX_FN_ARGS) " variables in destructuring assignment.");
+    }
+
+    if (has_rest) {
+      break;
     }
 
     if (!match(TOKEN_COMMA)) {
@@ -1586,37 +1589,29 @@ static void destructuring_seq_assignment() {
 
   // Emit code to destructure the sequence
   for (int i = 0; i < count; i++) {
+    DestructuringVariable* var = &variables[i];
+
     emit_two(OP_DUPE, 0);  // Duplicate the sequence: [Seq] -> [Seq][Seq]
 
     // Get the value at the current index.
-    emit_constant(NUMBER_VAL((double)i));  // [Seq][Seq] -> [Seq][Seq][i]
-    emit_one(OP_GET_INDEX);                // [Seq][Seq][i] -> [Seq][value]
+    if (var->is_rest) {
+      emit_constant(NUMBER_VAL((double)count - 1));  // [Seq][Seq] -> [Seq][Seq][count]
+      emit_one(OP_NIL);                              // [Seq][Seq][count] -> [Seq][Seq][count][nil]
+      emit_one(OP_GET_SLICE);                        // [Seq][Seq][count] -> [Seq][slice]
+    } else {
+      emit_constant(NUMBER_VAL((double)var->index));  // [Seq][Seq] -> [Seq][Seq][i]
+      emit_one(OP_GET_INDEX);                         // [Seq][Seq][i] -> [Seq][value]
+    }
 
     // Define the variable.
     if (current->scope_depth > 0) {
-      emit_two(OP_SET_LOCAL, (uint16_t)(locals[i]));
+      emit_two(OP_SET_LOCAL, (uint16_t)(var->local));
       emit_one(OP_POP);  // Discard the value.
     } else {
-      emit_two(OP_DEFINE_GLOBAL, globals[i]);  // Also pops the value.
+      emit_two(OP_DEFINE_GLOBAL, var->global);  // Also pops the value.
     }
   }
 
-  if (has_rest) {
-    emit_two(OP_DUPE, 0);  // Duplicate the sequence: [Seq] -> [Seq][Seq]
-
-    // Get the slice of the sequence, starting at count. Up to the end, indicated by nil.
-    emit_constant(NUMBER_VAL((double)count));  // [Seq][Seq] -> [Seq][Seq][count]
-    emit_one(OP_NIL);                          // [Seq][Seq][count] -> [Seq][Seq][count][nil]
-    emit_one(OP_GET_SLICE);                    // [Seq][Seq][count] -> [Seq][slice]
-
-    // Define the variable.
-    if (current->scope_depth > 0) {
-      emit_two(OP_SET_LOCAL, (uint16_t)(locals[count]));
-      emit_one(OP_POP);  // Discard the value.
-    } else {
-      emit_two(OP_DEFINE_GLOBAL, globals[count]);
-    }
-  }
   emit_one(OP_POP);  // Discard the value.
 }
 
