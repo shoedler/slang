@@ -4,10 +4,11 @@
 
 A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), garbage-collected and object-oriented programming language with a syntax that is inspired by C#, JavaScript and Python.
 
-## Roadmap
+## Roadmap for Version 1.0
 
 ### Syntax & Language Features
 
+- [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] Implement `Json` module
@@ -15,8 +16,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `Set` class
 - [ ] Implement `Set.add(Obj) -> Nil` as a builtin
 - [ ] Implement `Set.del(Obj) -> Nil` as a builtin
-- [ ] Implement `Set.has(Obj) -> Bool` as a builtin
-- [ ] Implement `Set.len -> Num` as a builtin
 - [ ] Implement `Seq(Set)` constructor
 - [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
 - [ ] Implement `Seq.slice(Num?, Num?) -> Seq` as a builtin
@@ -31,21 +30,13 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `nameof` keyword. E.g. `nameof(foo)` returns `"foo"`. (**_See Challenge 22.1_**)
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
 - [ ] Implement a way to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing. Maybe attributes? (e.g. `@doc "This is a doc string"`)
-- [ ] Implement iterators
+- [ ] Implement iterators. Maybe a new builtin class. They should initialize these fields/methods: `__has_next`, `__next()`. They should use the `Obj`s prop_getter, \_setter and index_getter, \_setter functions. (Maybe they shouldn't return the internal fields though).
 - [ ] Implement `for ... in ...;` loops
-- [ ] Rething notation for `for` and `while` loops. More like `each i in seq while i > 10` then you could do:
-      <br>`each i in seq while i > 10 { }` -> essentially a normal `for` loop.
-      <br>`each i in seq { }` -> essentially a normal `foreach` loop.
-      <br>`while i > 10 { }` -> essentially a normal `while` loop.
-- [x] ~~Implement Obj destructuring `let { a } = { a: 1 } // a == 1`~~ (Done. Only for let-declarations and only non-nested. Assignments (`let a = nil <newline> {a} = {a: 1}`) do not work and probably will never work, because they are parsed as obj-literals. The pratt parser does not handle stuff like this nicely - and it would be a pain to implement. Also, rest parameters are not supported.)
-- [x] ~~Implement Seq destructuring `let [ a ] = [ 1 ] // a == 1`~~ (Done. Only for let-declarations and only non-nested. Assignments (`let a = nil <newline> [a] = [1]`) do not work and probably will never work, because they are parsed as seq-literals. The pratt parser does not handle stuff like this nicely - and it would be a pain to implement.)
-- [x] Implement `static fn foo -> nil` syntax for static methods. They are just another hashtable on the class object. Only accessible trough dot notation.
-- [x] Implement `in` operator. E.g. `item in Seq` (Check if item is in Seq), `item in Set` (Check if item is in Set), `key in Obj` (Check if key is in Obj), `string in Str` (Check if char / substr is in Str)
 
 ## Improvements
 
-- [ ] Maybe make `Str`, `Nil`, `Bool` and `Num` not inherit from `Obj`?. Then we can just check if e.g. `prop_getter` is `NULL` (and also special methods like `to_str`). This would allow us to just omit these implementations. Currently, these functions are implemented just to throw an error, bc if they were omitted, they'd be inherited from `Obj` trough `finalize_new_class`...
-- [ ] Add a mapping to builtin classes `Seq`, `Class`, `Fn` which maps `ObjString` to some function `GetterFn(Obj)`. Use this in `prop_getter` and `has`, to make sure they are always aligned.
+- [ ] Remove bounds checks for seq/str indexing. Just return `NIL_VAL` if out of bounds. At least for get-access. Set-access should still throw an error.
+- [ ] Add an iterator to builtin classes `Class` and `Fn` which holds all the things you can 'get'. Use this in their `has` and `prop_getter` functions to make sure they are always in sync.
 - [ ] Use something else instead of `rint`, because it's not very precise. See _num-to-str.spec.sl_ for an example.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
@@ -56,9 +47,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
 - [ ] Allow return stats without suffixed `;`
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
-- [x] Add tests for `to_str`
-- [x] Make `len` a property instead of a function?
-- [x] Rename `typeof` to `typeof`
 
 ### Optimizations
 
@@ -72,9 +60,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
 - [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
 - [ ] (Unsure) Differentiate between fields and methods textually. Use an array for lookup. Low prio. Would be nice to allow field-inheritance - this could be a major rewrite though. (**_See Challenge 28.3_**)
-- [x] Add methods which are used frequently as props on `ObjClass` e.g. `method_to_str` etc.
-- [x] Add `get` and `set` methods to `ObjClass` to reduce the number of lookups.
-- [x] Add more words to `vm.cached_words` to reduce the number of lookups and string allocations.
 
 ## Ideas
 
