@@ -1539,41 +1539,62 @@ static void statement() {
   }
 }
 
-// Compiles a destructuring sequence assignment.
-// The opening bracket has already been consumed at this point.
-static void destructuring_seq_assignment() {
+// Different types of destructuring assignments.
+typedef enum {
+  DESTRUCTURE_SEQ,
+  DESTRUCTURE_OBJ,
+} DestructureType;
+
+// Compiles a destructuring assignment.
+// The opening token has already been consumed at this point.
+static void destructuring_assignment(DestructureType type) {
   typedef struct {
-    uint16_t global;
-    uint16_t local;
-    bool is_rest;
-    int index;
-    int nested_indicies[MAX_FN_ARGS];
-    int nested_indicies_count;
+    Token name;       // The variable name, used for object destructuring.
+    uint16_t global;  // The global index of the variable - used if we're in global scope.
+    uint16_t local;   // The local index (stack slot index) of the variable - used if we're in local scope.
+    bool is_rest;     // Denotes whether the variable is a rest parameter.
+    int index;        // The index of the variable in the destructuring pattern.
   } DestructuringVariable;
 
-  DestructuringVariable variables[MAX_FN_ARGS];
-  int count     = 0;
-  bool has_rest = false;
+  TokenType closing = type == DESTRUCTURE_OBJ ? TOKEN_CBRACE : TOKEN_CBRACK;
 
-  while (!check(TOKEN_CBRACK) && !check(TOKEN_EOF)) {
+  DestructuringVariable variables[MAX_FN_ARGS];
+  int current_index = 0;
+  bool has_rest     = false;
+  bool local_scope  = current->scope_depth > 0;
+
+  // Parse the left-hand side of the assignment, e.g. the variables.
+  while (!check(closing) && !check(TOKEN_EOF)) {
     if (has_rest) {
       error("Rest parameter must be last in destructuring assignment.");
     }
 
-    variables[count].is_rest = has_rest = match(TOKEN_DOTDOTDOT);
-    variables[count].global = has_rest ? parse_variable("Expecting identifier after ellipsis in destructuring assignment.")
-                                       : parse_variable("Expecting identifier in destructuring assignment.");
-    variables[count].local  = current->local_count - 1;  // It's just the one on the top.
-    variables[count].index  = count;
+    // A variable is parsed just like in a normal let declaration. But, because the rhs is not yet compiled,
+    // we need to first declare the variables. In a local scope, we emit OP_NIL to define the variable, in global scope, that
+    // doesn't matter yet (will be declared later with OP_DEFINE_GLOBAL) We don't want to mark the variables as initialized yet,
+    // so we don't use define_variable(global) here. We just emit OP_NIL (if in local scope) to create a placeholder value on the
+    // stack for the local.
+    variables[current_index].is_rest = has_rest = match(TOKEN_DOTDOTDOT);
+    variables[current_index].global             = has_rest
+                                                      ? parse_variable("Expecting identifier after ellipsis in destructuring assignment.")
+                                                      : parse_variable("Expecting identifier in destructuring assignment.");
+    variables[current_index].local              = current->local_count - 1;  // It's just the one on the top.
+    variables[current_index].index              = current_index;
+    variables[current_index].name               = parser.previous;  // Used for object destructuring.
 
-    emit_one(OP_NIL);  // Define the variable.
-    define_variable(variables[count].global);
+    // Emit a placeholder value for the variable if we're in a local scope, because locals live on the stack.
+    if (local_scope) {
+      emit_one(OP_NIL);  // Define the variable.
+    }
 
-    if (++count > MAX_FN_ARGS) {
+    if (++current_index > MAX_FN_ARGS) {
       error("Can't have more than " STR(MAX_FN_ARGS) " variables in destructuring assignment.");
     }
 
     if (has_rest) {
+      if (type == DESTRUCTURE_OBJ) {
+        error("Rest parameter is not allowed in object destructuring assignment.");
+      }
       break;
     }
 
@@ -1582,29 +1603,35 @@ static void destructuring_seq_assignment() {
     }
   }
 
-  consume(TOKEN_CBRACK, "Expecting ']' after destructuring pattern.");
+  consume(closing, "Expecting ']' after destructuring pattern.");
   consume(TOKEN_ASSIGN, "Expecting '=' in destructuring assignment.");  // Even Js does this.
 
   expression();  // rhs
 
-  // Emit code to destructure the sequence
-  for (int i = 0; i < count; i++) {
+  // Emit code to destructure the rhs value
+  for (int i = 0; i < current_index; i++) {
     DestructuringVariable* var = &variables[i];
 
-    emit_two(OP_DUPE, 0);  // Duplicate the sequence: [Seq] -> [Seq][Seq]
+    emit_two(OP_DUPE, 0);  // Duplicate the rhs value: [RhsVal] -> [RhsVal][RhsVal]
 
-    // Get the value at the current index.
+    // Emit code to get the index from the rhs. For objs, we use the variable name as the operand for OP_GET_INDEX. For seqs, we
+    // use the variables index.
+    Value payload =
+        type == DESTRUCTURE_OBJ ? OBJ_VAL(copy_string(var->name.start, var->name.length)) : NUMBER_VAL((double)var->index);
     if (var->is_rest) {
-      emit_constant(NUMBER_VAL((double)count - 1));  // [Seq][Seq] -> [Seq][Seq][count]
-      emit_one(OP_NIL);                              // [Seq][Seq][count] -> [Seq][Seq][count][nil]
-      emit_one(OP_GET_SLICE);                        // [Seq][Seq][count] -> [Seq][slice]
+      emit_constant(payload);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][current_index]
+      emit_one(OP_NIL);        // [RhsVal][RhsVal][current_index] -> [RhsVal][RhsVal][current_index][nil]
+      emit_one(OP_GET_SLICE);  // [RhsVal][RhsVal][current_index] -> [RhsVal][slice]
     } else {
-      emit_constant(NUMBER_VAL((double)var->index));  // [Seq][Seq] -> [Seq][Seq][i]
-      emit_one(OP_GET_INDEX);                         // [Seq][Seq][i] -> [Seq][value]
+      emit_constant(payload);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][i]
+      emit_one(OP_GET_INDEX);  // [RhsVal][RhsVal][i] -> [RhsVal][value]
     }
 
-    // Define the variable.
-    if (current->scope_depth > 0) {
+    // Define the variable. We need to emit different opcodes depending on whether we're in a local or global scope.
+    if (local_scope) {
+      // Mark the variable as initialized. We cannot use mark_initialized() here, because that would just mark the most recent
+      // local. So we need to do it manually.
+      current->locals[var->local].depth = current->scope_depth;
       emit_two(OP_SET_LOCAL, (uint16_t)(var->local));
       emit_one(OP_POP);  // Discard the value.
     } else {
@@ -1619,7 +1646,9 @@ static void destructuring_seq_assignment() {
 // The let keyword has already been consumed at this point.
 static void declaration_let() {
   if (match(TOKEN_OBRACK)) {
-    destructuring_seq_assignment();
+    destructuring_assignment(DESTRUCTURE_SEQ);
+  } else if (match(TOKEN_OBRACE)) {
+    destructuring_assignment(DESTRUCTURE_OBJ);
   } else {
     uint16_t global = parse_variable("Expecting variable name.");
 
