@@ -631,34 +631,12 @@
 // l.exec(fn -> fib(35))
 // print l
 
-let [c, d] = [1, 2]
-print c // [Expect] 1
-print d // [Expect] undefined
+let a = [1,2,3,4,5]
 
-try {
-  let x = "x"
-  let y = "y"
-  let z = "z"
+print a[2..] // [3, 4, 5] this one is special and kinda doesn't align with the syntax
+print a[0..2] // [1, 2] Just like in Python
+print a[..2] // [1, 2] Just like in Python
+print a[..-1] // [1, 2, 3, 4] Just like in Python
+print a[-10]
 
-  let [c, d] = [1, 2]
-  print c // [Expect] 1
-  print d // [Expect] undefined
-
-} catch { 
-  print error // [Expect] 
-}
-
-let a = {
-    "a": 1,
-    "b": 2,
-    "c": 3
-}
-
-print a["d"] // [Expect] nil
-
-// Stack check. Only the toplevel fn should be in the stack at this point.
-// Added this bc there were some bugs in value_get_property, value_set_property, value_get_index and value_set_index
-import Debug
-let stack = Debug.stack()
-if stack.len != 1 throw "Stack should only contain the toplevel function"
-if !(stack[0] is Fn) or !(stack[0].__name == "main") throw "Stack should only contain the toplevel function"
+// `Assert.that(expected, Is.equal_to(actual))`

@@ -202,6 +202,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
     return NIL_VAL;
   }
 
+  // Handle negative indices
   if (start < 0) {
     start = count + start;
   }
@@ -209,10 +210,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
     end = count + end;
   }
 
-  if (start < 0 || start >= count || end < 0 || end > count) {
-    return OBJ_VAL(copy_string("", 0));
+  // Clamp out-of-bounds indices
+  if (start < 0) {
+    start = 0;
+  }
+  if (end > count) {
+    end = count;
   }
 
+  // Handle invalid or 0 length ranges
   if (start >= end) {
     return OBJ_VAL(copy_string("", 0));
   }

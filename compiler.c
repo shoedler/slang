@@ -457,7 +457,42 @@ static void dot(bool can_assign) {
 // The opening bracket has already been consumed and is referenced by the
 // previous token.
 static void indexing(bool can_assign) {
-  expression();
+  bool slice_started = false;
+
+  // Since the first number in a slice is optional, we need to check if the indexing starts with a '..'
+  if (match(TOKEN_DOTDOT)) {
+    slice_started = true;
+    emit_constant(NUMBER_VAL(0));  // Start index.
+  }
+
+  // Either the index or the slice end.
+  if (slice_started && check(TOKEN_CBRACK)) {
+    emit_one(OP_NIL);  // Signals that we want to slice until the end.
+  } else {
+    expression();
+  }
+
+  // Handle slices
+  if (slice_started || match(TOKEN_DOTDOT)) {
+    // If the slice already started, we already have emitted the end aswell.
+    if (!slice_started) {
+      // The end of the slice is optional too.
+      if (check(TOKEN_CBRACK)) {
+        emit_one(OP_NIL);  // Signals that we want to slice until the end.
+      } else {
+        expression();
+      }
+    }
+
+    consume(TOKEN_CBRACK, "Expecting ']' after slice.");
+    emit_one(OP_GET_SLICE);
+
+    if (match(TOKEN_ASSIGN)) {
+      error("Slices can't be assigned to.");
+    }
+    return;
+  }
+
   consume(TOKEN_CBRACK, "Expecting ']' after index.");
 
   if (can_assign && match(TOKEN_ASSIGN)) {

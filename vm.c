@@ -834,7 +834,16 @@ bool value_get_index() {
           goto done_getting_index;
         }
 
-        if (i < 0 || i >= seq->items.count) {
+        if (i >= seq->items.count) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        // Negative index
+        if (i < 0) {
+          i += seq->items.count;
+        }
+        if (i < 0) {
           result = NIL_VAL;
           goto done_getting_index;
         }
@@ -856,7 +865,16 @@ bool value_get_index() {
           goto done_getting_index;
         }
 
-        if (i < 0 || i >= string->length) {
+        if (i >= string->length) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        // Negative index
+        if (i < 0) {
+          i += string->length;
+        }
+        if (i < 0) {
           result = NIL_VAL;
           goto done_getting_index;
         }

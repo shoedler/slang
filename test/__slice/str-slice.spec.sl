@@ -26,9 +26,9 @@ print quotify("123".slice(2,nil)) // [Expect] "3"
 print quotify("123".slice(1,0)) // [Expect] ""
 print quotify("123".slice(2,1)) // [Expect] ""
 
-// If any of the indices are out of bounds, it should return an empty str.
-print quotify("123".slice(0,5))    // [Expect] ""
-print quotify("123".slice(-4,nil)) // [Expect] ""
+// If any of the indices are out of bounds, it should clamp to the bounds.
+print quotify("123".slice(0,5))    // [Expect] "123"
+print quotify("123".slice(-4,nil)) // [Expect] "123"
 
 // If you try to slice an empty str, it should return an empty str.
 print quotify("".slice(0,0)) // [Expect] ""
