@@ -4,8 +4,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool index_setter(Obj* self, Value index, Value value);
-
 void register_builtin_seq_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_SEQ, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_CTOR, 1);
@@ -27,34 +25,7 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, count, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, concat, 1);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_SEQ, index_setter);
-
   BUILTIN_FINALIZE_CLASS(TYPENAME_SEQ);
-}
-
-// Internal OP_SET_INDEX handler
-static bool index_setter(Obj* self, Value index, Value value) {
-  if (!IS_NUMBER(index)) {
-    runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
-    return false;
-  }
-
-  double i_raw = AS_NUMBER(index);
-  long long i;
-  if (!is_int(i_raw, &i)) {
-    runtime_error("Index must be an integer, but got a float.");
-    return false;
-  }
-
-  ObjSeq* seq = (ObjSeq*)self;
-
-  if (i < 0 || i >= seq->items.count) {
-    runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
-    return false;
-  }
-
-  seq->items.values[i] = value;
-  return true;
 }
 
 // Built-in seq constructor

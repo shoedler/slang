@@ -3,8 +3,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool index_setter(Obj* self, Value index, Value value);
-
 void register_builtin_str_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_STRING, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_CTOR, 1);
@@ -14,18 +12,7 @@ void register_builtin_str_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, index_setter);
-
   BUILTIN_FINALIZE_CLASS(TYPENAME_STRING);
-}
-
-// Internal OP_SET_INDEX handler
-static bool index_setter(Obj* self, Value index, Value value) {
-  UNUSED(self);
-  UNUSED(index);
-  UNUSED(value);
-  runtime_error("Cannot set index on a " STR(TYPENAME_STRING) ".");
-  return false;
 }
 
 // Built-in string constructor

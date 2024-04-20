@@ -4,8 +4,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool index_setter(Obj* self, Value index, Value value);
-
 void register_builtin_obj_class() {
   // Create the object class
   vm.__builtin_Obj_class = new_class(copy_string(STR(TYPENAME_OBJ), STR_LEN(STR(TYPENAME_OBJ))), NULL);
@@ -24,16 +22,7 @@ void register_builtin_obj_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, keys, 0);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, index_setter);
-
   BUILTIN_FINALIZE_CLASS(TYPENAME_OBJ);
-}
-
-// Internal OP_SET_INDEX handler
-static bool index_setter(Obj* self, Value index, Value value) {
-  ObjObject* object = (ObjObject*)self;
-  hashtable_set(&object->fields, index, value);
-  return true;
 }
 
 // Built-in obj constructor

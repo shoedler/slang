@@ -793,10 +793,15 @@ static bool value_set_property(ObjString* name) {
   if (IS_OBJECT(receiver)) {
     ObjObject* object = AS_OBJECT(receiver);
     hashtable_set(&object->fields, OBJ_VAL(name), value);
-    return true;
+    goto done_setting_property;
   }
 
   return false;
+
+done_setting_property:
+  pop();        // Pop value
+  pop();        // Pop receiver
+  push(value);  // Push the value back onto the stack, because assignment is an expression
 }
 
 // Tries to resolve and push an index of a value onto the stack. If the index is not found, it returns
@@ -875,6 +880,53 @@ done_getting_index:
   pop();  // Pop index (or receiver, if it got swapped)
   push(result);
   return true;
+}
+
+static bool value_set_index() {
+  Value receiver = peek(2);
+  Value index    = peek(1);
+  Value value    = peek(0);
+
+  if (IS_OBJ(receiver)) {
+    switch (AS_OBJ(receiver)->type) {
+      case OBJ_OBJECT: {
+        ObjObject* object = AS_OBJECT(receiver);
+        hashtable_set(&object->fields, index, value);
+        goto done_setting_index;
+      }
+      case OBJ_SEQ: {
+        if (!IS_NUMBER(index)) {
+          runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
+          return false;
+        }
+
+        double i_raw = AS_NUMBER(index);
+        long long i;
+        if (!is_int(i_raw, &i)) {
+          runtime_error("Index must be an integer, but got a float.");
+          return false;
+        }
+
+        ObjSeq* seq = AS_SEQ(receiver);
+
+        if (i < 0 || i >= seq->items.count) {
+          runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
+          return false;
+        }
+
+        seq->items.values[i] = value;
+        goto done_setting_index;
+      }
+    }
+  }
+
+  return false;
+
+done_setting_index:
+  pop();        // Pop value
+  pop();        // Pop index
+  pop();        // Pop receiver
+  push(value);  // Push the value back onto the stack, because assignment is an expression
 }
 
 // Handles errors in the virtual machine.
@@ -1054,30 +1106,14 @@ static Value run() {
         goto finish_error;
       }
       case OP_SET_INDEX: {
-        Value value    = peek(0);
-        Value index    = peek(1);
-        Value assignee = peek(2);
-        ObjClass* type = typeof(assignee);
-
-        if (type->index_setter == NULL) {
-          runtime_error("Type %s does not support set-indexing.", type->name->chars);
-          goto finish_error;
-        }
-
-        if (type->index_setter(AS_OBJ(assignee), index, value)) {
-          pop();        // Pop the value
-          pop();        // Pop the index
-          pop();        // Pop the assignee
-          push(value);  // Push the value back onto the stack, because assignment is an expression
+        if (value_set_index()) {
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {
+        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_set_index set an error
           goto finish_error;
         }
-
-        push(index);  // Receiver
-        ObjString* index_str = AS_STRING(exec_fn(typeof(index)->__to_str, 0));
-        runtime_error("Cannot set index '%s' on value of type %s.", index_str->chars, type->name->chars);
+        runtime_error("Type %s does not support set-indexing with %s.", typeof(peek(2))->name->chars,
+                      typeof(peek(1))->name->chars);
         goto finish_error;
       }
       case OP_GET_PROPERTY: {

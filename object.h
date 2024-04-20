@@ -148,11 +148,6 @@ typedef struct {
   int upvalue_count;
 } ObjClosure;
 
-typedef bool (*NativePropGetter)(Obj* self, ObjString* name, Value* result);
-typedef bool (*NativePropSetter)(Obj* self, ObjString* name, Value value);
-typedef bool (*NativeIndexGetter)(Obj* self, Value index, Value* result);
-typedef bool (*NativeIndexSetter)(Obj* self, Value index, Value value);
-
 typedef struct ObjClass {
   Obj obj;
   ObjString* name;
@@ -165,8 +160,6 @@ typedef struct ObjClass {
   Obj* __has;
   Obj* __to_str;
   Obj* __slice;
-
-  NativeIndexSetter index_setter;
 } ObjClass;
 
 typedef struct ObjObject {

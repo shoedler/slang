@@ -52,7 +52,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 - [ ] Inline `push()`, `peek()` and `pop()` in the Vm.
 - [ ] Make a `BUILTIN_METHOD_RUNTIME_ERROR(class_name, method_name)` macro, which throws a runtime error with a nice prefix and always returns `NIL_VAL`. Use this in all `BUILTIN_METHOD_IMPL` functions.
-- [ ] Remove `prop_getter`, `prop_setter`, `index_getter`, `index_setter` in favor of macros. E.g. `OBJ_GETTER()`, `SEQ_GETTER` etc. Currently, we always resolve the type with `typeof()` in `OP_GET_*` and `OP_SET_*`, but we have to handle all cases for the internal types anyway, so we can just `switch` on the values type and call the appropriate macro. If we ever decide to make these thing overridable by managed code, we'd ceratinly have to change this. Or maybe just inline them in the `OP_GET_*` and `OP_SET_*` functions, as it was before - cuz it's faster.
 - [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
@@ -61,6 +60,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
 - [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
 - [ ] (Unsure) Differentiate between fields and methods textually. Use an array for lookup. Low prio. Would be nice to allow field-inheritance - this could be a major rewrite though. (**_See Challenge 28.3_**)
+- [x] Remove `prop_getter`, `prop_setter`, `index_getter`, `index_setter` in favor of macros. E.g. `OBJ_GETTER()`, `SEQ_GETTER` etc. Currently, we always resolve the type with `typeof()` in `OP_GET_*` and `OP_SET_*`, but we have to handle all cases for the internal types anyway, so we can just `switch` on the values type and call the appropriate macro. If we ever decide to make these thing overridable by managed code, we'd ceratinly have to change this. Or maybe just inline them in the `OP_GET_*` and `OP_SET_*` functions, as it was before - cuz it's faster.
 
 ## Ideas
 
