@@ -205,6 +205,7 @@ int disassemble_instruction(Chunk* chunk, int offset) {
     case OP_THROW: return simple_instruction(STR(OP_THROW), offset);
     case OP_IS: return simple_instruction(STR(OP_IS), offset);
     case OP_IN: return simple_instruction(STR(OP_IN), offset);
+    case OP_GET_SLICE: return byte_instruction(STR(OP_GET_SLICE), chunk, offset);
     default: INTERNAL_ERROR("Unhandled opcode: %d\n", instruction); return offset + 1;
   }
 }

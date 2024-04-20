@@ -148,16 +148,10 @@ typedef struct {
   int upvalue_count;
 } ObjClosure;
 
-typedef enum {
-  ACCESSOR_RESULT_OK,
-  ACCESSOR_RESULT_PASS,
-  ACCESSOR_RESULT_ERROR,
-} NativeAccessorResult;
-
-typedef NativeAccessorResult (*NativePropGetter)(Obj* self, ObjString* name, Value* result);
-typedef NativeAccessorResult (*NativePropSetter)(Obj* self, ObjString* name, Value value);
-typedef NativeAccessorResult (*NativeIndexGetter)(Obj* self, Value index, Value* result);
-typedef NativeAccessorResult (*NativeIndexSetter)(Obj* self, Value index, Value value);
+typedef bool (*NativePropGetter)(Obj* self, ObjString* name, Value* result);
+typedef bool (*NativePropSetter)(Obj* self, ObjString* name, Value value);
+typedef bool (*NativeIndexGetter)(Obj* self, Value index, Value* result);
+typedef bool (*NativeIndexSetter)(Obj* self, Value index, Value value);
 
 typedef struct ObjClass {
   Obj obj;
@@ -170,6 +164,7 @@ typedef struct ObjClass {
   Obj* __ctor;
   Obj* __has;
   Obj* __to_str;
+  Obj* __slice;
 
   NativePropGetter prop_getter;
   NativePropSetter prop_setter;

@@ -19,6 +19,7 @@
 #define SP_METHOD_CTOR ctor
 #define SP_METHOD_TO_STR to_str
 #define SP_METHOD_HAS has
+#define SP_METHOD_SLICE slice
 
 #define SP_PROP_LEN len
 #define SP_PROP_NAME __name
@@ -41,8 +42,9 @@ typedef struct {
 typedef enum {
   // Methods that are commonly used in the VM and need to be accessed quickly.
   SPECIAL_METHOD_CTOR,    // ctor
-  SPECIAL_METHOD_TO_STR,  // to_str
-  SPECIAL_METHOD_HAS,     // has
+  SPECIAL_METHOD_TO_STR,  // to_str  Implicitly used by the string interpolation and print functions
+  SPECIAL_METHOD_HAS,     // has     Impllicitly used by the 'in' operator
+  SPECIAL_METHOD_SLICE,   // slice   Implicitly used by the slice operator and destructuring
 
   SPECIAL_METHOD_MAX,
 } SpecialMethodNames;
@@ -75,15 +77,16 @@ typedef struct {
   ObjObject* module;  // The current module
   int exit_on_frame;  // Index of the frame to exit on
 
-  ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);       // The class of all objects
-  ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);    // The module class
-  ObjClass* BUILTIN_CLASS(TYPENAME_STRING);    // The string class
-  ObjClass* BUILTIN_CLASS(TYPENAME_NUMBER);    // The number class
-  ObjClass* BUILTIN_CLASS(TYPENAME_BOOL);      // The bool class
-  ObjClass* BUILTIN_CLASS(TYPENAME_NIL);       // The nil class
-  ObjClass* BUILTIN_CLASS(TYPENAME_SEQ);       // The sequence class
-  ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // The function class
-  ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // The class class
+  ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);       // Base class: The obj class
+  ObjClass* BUILTIN_CLASS(TYPENAME_NUMBER);    // Base class: The number class
+  ObjClass* BUILTIN_CLASS(TYPENAME_BOOL);      // Base class: The bool class
+  ObjClass* BUILTIN_CLASS(TYPENAME_NIL);       // Base class: The nil class
+  ObjClass* BUILTIN_CLASS(TYPENAME_SEQ);       // Special class: The sequence class
+  ObjClass* BUILTIN_CLASS(TYPENAME_STRING);    // Special class: The string class
+  ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // Special class: The function class
+  ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // Special class: The class class
+
+  ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);  // The module class
 
   ObjObject* builtin;                                   // The builtin (builtin things) object instance
   ObjString* special_method_names[SPECIAL_METHOD_MAX];  // Special method names for quick access
@@ -174,5 +177,9 @@ bool is_falsey(Value value);
 // TODO (optimize): This is mainly used for OP_SEQ_LITERAL, where all items are on the stack, maybe we could
 // batch-copy them into the value_array?
 void make_seq(int count);
+
+// Binds a method to an instance by creating a new bound method object from the instance and the method name.
+// The stack is unchanged.
+bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method);
 
 #endif

@@ -4,16 +4,16 @@
 #include "common.h"
 #include "vm.h"
 
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result);
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value);
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result);
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value);
+static bool prop_getter(Obj* self, ObjString* name, Value* result);
+static bool index_getter(Obj* self, Value index, Value* result);
+static bool index_setter(Obj* self, Value index, Value value);
 
 void register_builtin_seq_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_SEQ, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_HAS, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_SLICE, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, push, -1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, pop, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, first, 1);
@@ -30,7 +30,6 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, concat, 1);
 
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_SEQ, prop_getter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_SEQ, prop_setter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_SEQ, index_getter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_SEQ, index_setter);
 
@@ -38,70 +37,65 @@ void register_builtin_seq_class() {
 }
 
 // Internal OP_GET_PROPERTY handler
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
+static bool prop_getter(Obj* self, ObjString* name, Value* result) {
   if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
     *result = NUMBER_VAL(((ObjSeq*)self)->items.count);
-    return ACCESSOR_RESULT_OK;
+    return true;
+  }
+  if (bind_method(vm.__builtin_Seq_class, name, result)) {
+    return true;
   }
 
-  return ACCESSOR_RESULT_PASS;
-}
-
-// Internal OP_SET_PROPERTY handler
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
-  UNUSED(self);
-  UNUSED(name);
-  UNUSED(value);
-  return ACCESSOR_RESULT_PASS;
+  return false;
 }
 
 // Internal OP_GET_INDEX handler
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
+static bool index_getter(Obj* self, Value index, Value* result) {
   if (!IS_NUMBER(index)) {
     runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   double i_raw = AS_NUMBER(index);
   long long i;
   if (!is_int(i_raw, &i)) {
     runtime_error("Index must be an integer, but got a float.");
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   ObjSeq* seq = (ObjSeq*)self;
   if (i < 0 || i >= seq->items.count) {
-    runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
-    return ACCESSOR_RESULT_ERROR;
+    runtime_error("Index out of bounds. Was %lld, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
+    return false;
   }
 
   *result = seq->items.values[i];
-  return ACCESSOR_RESULT_OK;
+  return true;
 }
 
 // Internal OP_SET_INDEX handler
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
+static bool index_setter(Obj* self, Value index, Value value) {
   if (!IS_NUMBER(index)) {
     runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   double i_raw = AS_NUMBER(index);
   long long i;
   if (!is_int(i_raw, &i)) {
     runtime_error("Index must be an integer, but got a float.");
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   ObjSeq* seq = (ObjSeq*)self;
 
   if (i < 0 || i >= seq->items.count) {
     runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
-    return ACCESSOR_RESULT_ERROR;
+    return false;
   }
 
   seq->items.values[i] = value;
-  return ACCESSOR_RESULT_OK;
+  return true;
 }
 
 // Built-in seq constructor
@@ -275,6 +269,70 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_HAS) {
   }
 
   return BOOL_VAL(false);
+}
+
+// Builtin method to slice a sequence
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ SP_METHOD_SLICE,
+    /* Arguments   */ DOC_ARG("start", TYPENAME_NUMBER) DOC_ARG_SEP DOC_ARG("end", TYPENAME_NUMBER | TYPENAME_NIL),
+    /* Return Type */ TYPENAME_SEQ,
+    /* Description */
+    "Returns a new " STR(TYPENAME_SEQ) " containing the items from 'start' to 'end' ('end' is exclusive)."
+    " 'end' can be negative to count from the end of the " STR(TYPENAME_SEQ) ". If 'start' is greater than or equal to 'end', an empty "
+    STR(TYPENAME_SEQ) " is returned. If 'end' is " STR(TYPENAME_NIL) ", all items from 'start' to the end of the " STR(
+        TYPENAME_SEQ) " are included.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_SLICE) {
+  BUILTIN_ARGC_EXACTLY(2)
+  BUILTIN_CHECK_RECEIVER(SEQ)
+  BUILTIN_CHECK_ARG_AT(1, NUMBER)
+  if (IS_NIL(argv[2])) {
+    argv[2] = NUMBER_VAL(AS_SEQ(argv[0])->items.count);
+  }
+  BUILTIN_CHECK_ARG_AT(2, NUMBER)
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+  int count   = seq->items.count;
+
+  if (count == 0) {
+    return OBJ_VAL(new_seq());
+  }
+
+  double start_raw = AS_NUMBER(argv[1]);
+  double end_raw   = AS_NUMBER(argv[2]);
+
+  long long start;
+  long long end;
+
+  if (!is_int(start_raw, &start) || !is_int(end_raw, &end)) {
+    runtime_error("Indices must be integers, but got floats.");
+    return NIL_VAL;
+  }
+
+  if (start < 0) {
+    start = count + start;
+  }
+  if (end < 0) {
+    end = count + end;
+  }
+
+  if (start < 0 || start >= count || end < 0 || end > count) {
+    runtime_error(
+        "Slice indices out of bounds. Start resolved to %d and end to %d, but this " STR(TYPENAME_SEQ) " has length %d.", start,
+        end, count);
+    return NIL_VAL;
+  }
+
+  if (start >= end) {
+    return OBJ_VAL(new_seq());
+  }
+
+  ObjSeq* sliced_seq = prealloc_seq(end - start);
+  for (int i = start; i < end; i++) {
+    sliced_seq->items.values[i - start] = seq->items.values[i];
+  }
+
+  return OBJ_VAL(sliced_seq);
 }
 
 // Built-in method to retrieve the first item of a sequence

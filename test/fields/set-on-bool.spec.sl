@@ -1,2 +1,2 @@
-true.foo = "value" // [ExpectRuntimeError] Uncaught error: Cannot set property 'foo' on value of type Bool.
+true.foo = "value" // [ExpectRuntimeError] Uncaught error: Type Bool does not support property-set access.
                    // [ExpectRuntimeError] at line 1 at the toplevel of module "main"

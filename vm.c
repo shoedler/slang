@@ -190,6 +190,7 @@ void init_vm() {
   vm.special_method_names[SPECIAL_METHOD_CTOR]   = copy_string(STR(SP_METHOD_CTOR), STR_LEN(STR(SP_METHOD_CTOR)));
   vm.special_method_names[SPECIAL_METHOD_TO_STR] = copy_string(STR(SP_METHOD_TO_STR), STR_LEN(STR(SP_METHOD_TO_STR)));
   vm.special_method_names[SPECIAL_METHOD_HAS]    = copy_string(STR(SP_METHOD_HAS), STR_LEN(STR(SP_METHOD_HAS)));
+  vm.special_method_names[SPECIAL_METHOD_SLICE]  = copy_string(STR(SP_METHOD_SLICE), STR_LEN(STR(SP_METHOD_SLICE)));
 
   memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
   vm.special_prop_names[SPECIAL_PROP_LEN]         = copy_string(STR(SP_PROP_LEN), STR_LEN(STR(SP_PROP_LEN)));
@@ -360,7 +361,7 @@ static CallResult call_value(Value callable, int arg_count) {
             case OBJ_CLOSURE: return call_managed(AS_CLOSURE(ctor), arg_count);
             case OBJ_NATIVE: return call_native(AS_NATIVE(ctor), arg_count);
             default: {
-              runtime_error("Cannot invoke ctor of type '%s'", typeof(ctor)->name->chars);
+              runtime_error("Cannot invoke ctor of type %s", typeof(ctor)->name->chars);
               return CALL_FAILED;
             }
           }
@@ -395,7 +396,7 @@ static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_co
     case OBJ_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
     case OBJ_NATIVE: return call_native(AS_NATIVE(method), arg_count);
     default: {
-      runtime_error("Cannot invoke method of type '%s' on class", typeof(method)->name->chars);
+      runtime_error("Cannot invoke method of type %s on class", typeof(method)->name->chars);
       return CALL_FAILED;
     }
   }
@@ -477,17 +478,15 @@ Value exec_fn(Obj* callable, int arg_count) {
   return NIL_VAL;
 }
 
-// Binds a method to an instance by creating a new bound method object and
-// pushing it onto the stack.
-static bool bind_method(ObjClass* klass, ObjString* name) {
+bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method) {
   Value method = find_method_in_inheritance_chain(klass, name);
   if (IS_NIL(method)) {
+    *bound_method = NIL_VAL;
     return false;
   }
 
   ObjBoundMethod* bound = new_bound_method(peek(0), AS_OBJ(method));
-  pop();
-  push(OBJ_VAL(bound));
+  *bound_method         = OBJ_VAL(bound);
   return true;
 }
 
@@ -862,20 +861,25 @@ static Value run() {
         Value indexee  = peek(1);
         ObjClass* type = typeof(indexee);
 
-        switch (type->index_getter(AS_OBJ(indexee), index, &value)) {
-          case ACCESSOR_RESULT_ERROR: goto finish_error;
-          case ACCESSOR_RESULT_PASS: {
-            runtime_error("Value of type %s cannot be get-indexed.", type->name->chars);
-            goto finish_error;
-          }
-          case ACCESSOR_RESULT_OK: {
-            pop();  // Pop the index
-            pop();  // Pop the indexee
-            push(value);
-            break;
-          }
+        if (type->index_getter == NULL) {
+          runtime_error("Type %s does not support get-indexing.", type->name->chars);
+          goto finish_error;
         }
-        break;
+
+        if (type->index_getter(AS_OBJ(indexee), index, &value)) {
+          pop();  // Pop the index
+          pop();  // Pop the indexee
+          push(value);
+          break;
+        }
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          goto finish_error;
+        }
+
+        push(index);  // Receiver
+        ObjString* index_str = AS_STRING(exec_fn(typeof(index)->__to_str, 0));
+        runtime_error("Index '%s' does not exist on value of type %s.", index_str->chars, type->name->chars);
+        goto finish_error;
       }
       case OP_SET_INDEX: {
         Value value    = peek(0);
@@ -883,21 +887,26 @@ static Value run() {
         Value assignee = peek(2);
         ObjClass* type = typeof(assignee);
 
-        switch (type->index_setter(AS_OBJ(assignee), index, value)) {
-          case ACCESSOR_RESULT_ERROR: goto finish_error;
-          case ACCESSOR_RESULT_PASS: {
-            runtime_error("Value of type %s cannot be set-indexed.", type->name->chars);
-            goto finish_error;
-          }
-          case ACCESSOR_RESULT_OK: {
-            pop();        // Pop the value
-            pop();        // Pop the index
-            pop();        // Pop the assignee
-            push(value);  // Push the value back onto the stack, because assignment is an expression
-            break;
-          }
+        if (type->index_setter == NULL) {
+          runtime_error("Type %s does not support set-indexing.", type->name->chars);
+          goto finish_error;
         }
-        break;
+
+        if (type->index_setter(AS_OBJ(assignee), index, value)) {
+          pop();        // Pop the value
+          pop();        // Pop the index
+          pop();        // Pop the assignee
+          push(value);  // Push the value back onto the stack, because assignment is an expression
+          break;
+        }
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          goto finish_error;
+        }
+
+        push(index);  // Receiver
+        ObjString* index_str = AS_STRING(exec_fn(typeof(index)->__to_str, 0));
+        runtime_error("Cannot set index '%s' on value of type %s.", index_str->chars, type->name->chars);
+        goto finish_error;
       }
       case OP_GET_PROPERTY: {
         Value value     = NIL_VAL;
@@ -905,31 +914,34 @@ static Value run() {
         ObjString* name = READ_STRING();
         ObjClass* type  = typeof(obj);
 
-        switch (type->prop_getter(AS_OBJ(obj), name, &value)) {
-          case ACCESSOR_RESULT_ERROR: goto finish_error;
-          case ACCESSOR_RESULT_PASS: {
-            // It could be a method of the objs class. This catches many of the cases where we map a builtin class
-            // to primitive types, e.g. Num.to_str()
-            if (bind_method(type, name)) {
-              break;
-            }
+        // We can safely omit the check for NULL, because every object has a prop_getter
+        // if (type->prop_getter == NULL) {
+        //   runtime_error("Type %s does not support property-get access.", type->name->chars);
+        //   goto finish_error;
+        // }
 
-            runtime_error("Property '%s' does not exist on type %s.", name->chars, type->name->chars);
-            goto finish_error;
-          }
-          case ACCESSOR_RESULT_OK: {
-            pop();  // Pop the object
-            push(value);
-            break;
-          }
+        if (type->prop_getter(AS_OBJ(obj), name, &value)) {
+          pop();  // Pop the object
+          push(value);
+          break;
         }
-        break;
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          goto finish_error;
+        }
+
+        runtime_error("Property '%s' does not exist on value of type %s.", name->chars, type->name->chars);
+        goto finish_error;
       }
       case OP_SET_PROPERTY: {
         Value value     = peek(0);
         Value obj       = peek(1);
         ObjString* name = READ_STRING();
         ObjClass* type  = typeof(obj);
+
+        if (type->prop_setter == NULL) {
+          runtime_error("Type %s does not support property-set access.", type->name->chars);
+          goto finish_error;
+        }
 
         // Check if it is a reserved property.
         for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
@@ -939,20 +951,18 @@ static Value run() {
           }
         }
 
-        switch (type->prop_setter(AS_OBJ(obj), name, value)) {
-          case ACCESSOR_RESULT_ERROR: goto finish_error;
-          case ACCESSOR_RESULT_PASS: {
-            runtime_error("Cannot set property '%s' on value of type %s.", name->chars, type->name->chars);
-            goto finish_error;
-          }
-          case ACCESSOR_RESULT_OK: {
-            pop();        // Pop the value
-            pop();        // Pop the object
-            push(value);  // Push the value back onto the stack, because assignment is an expression
-            break;
-          }
+        if (type->prop_setter(AS_OBJ(obj), name, value)) {
+          pop();        // Pop the value
+          pop();        // Pop the object
+          push(value);  // Push the value back onto the stack, because assignment is an expression
+          break;
         }
-        break;
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          goto finish_error;
+        }
+
+        runtime_error("Cannot set property '%s' on value of type %s.", name->chars, type->name->chars);
+        goto finish_error;
       }
       case OP_IMPORT_FROM: {
         ObjString* name = READ_STRING();
@@ -973,10 +983,13 @@ static Value run() {
         ObjString* name     = READ_STRING();
         ObjClass* baseclass = AS_CLASS(pop());
 
-        if (!bind_method(baseclass, name)) {
+        Value bound_method;
+        if (!bind_method(baseclass, name, &bound_method)) {
           runtime_error("Method '%s' does not exist in '%s'.", name->chars, baseclass->name->chars);
           goto finish_error;
         }
+        pop();
+        push(bound_method);
         break;
       }
       case OP_EQ: {
@@ -1196,6 +1209,11 @@ static Value run() {
 
         push(in_target);  // Receiver
         push(value);      // Argument
+        if (target_type->__has == NULL) {
+          runtime_error("Type %s does not support the 'in' operator. It must implement '" STR(SP_METHOD_HAS) "'.",
+                        target_type->name->chars);
+          goto finish_error;
+        }
         Value result = exec_fn(target_type->__has, 1);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           goto finish_error;
@@ -1212,6 +1230,23 @@ static Value run() {
         pop();
         pop();
         push(result);
+        break;
+      }
+      case OP_GET_SLICE: {
+        // [receiver][start][end] is on the stack
+        ObjClass* type = typeof(peek(2));
+        if (type->__slice == NULL) {
+          runtime_error("Type %s does not support slicing. It must implement '" STR(SP_METHOD_SLICE) "'.", type->name->chars);
+          goto finish_error;
+        }
+
+        Value result = exec_fn(type->__slice, 2);
+        if (vm.flags & VM_FLAG_HAS_ERROR) {
+          goto finish_error;
+        }
+
+        push(result);
+
         break;
       }
       case OP_METHOD: {

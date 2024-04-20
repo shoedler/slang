@@ -24,10 +24,11 @@ print {} is Seq      // [Expect] false
 print {} is Obj      // [Expect] true
 print {1: 2} is Obj  // [Expect] true
 print [] is Obj      // [Expect] true
-// Maybe nil, num, bool should not inherit from Obj, because now everything is an object:
-print nil is Obj     // [Expect] true
-print 0 is Obj       // [Expect] true
-print true is Obj    // [Expect] true
+print "" is Obj      // [Expect] true
+// Maybe nil, num, bool do not inherit from Obj:
+print nil is Obj     // [Expect] false
+print 0 is Obj       // [Expect] false
+print true is Obj    // [Expect] false
 
 // is Str
 print "str" is Str   // [Expect] true

@@ -2,55 +2,26 @@
 #include "common.h"
 #include "vm.h"
 
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result);
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value);
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result);
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value);
+static bool prop_getter(Obj* self, ObjString* name, Value* result);
 
 void register_builtin_num_class() {
-  BUILTIN_REGISTER_CLASS(TYPENAME_NUMBER, TYPENAME_OBJ);
+  BUILTIN_REGISTER_BASE_CLASS(TYPENAME_NUMBER);
   BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_NUMBER, SP_METHOD_HAS, 1);
 
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_NUMBER, prop_getter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_NUMBER, prop_setter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_NUMBER, index_getter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_NUMBER, index_setter);
 
   BUILTIN_FINALIZE_CLASS(TYPENAME_NUMBER);
 }
 
 // Internal OP_GET_PROPERTY handler
-static NativeAccessorResult prop_getter(Obj* self, ObjString* name, Value* result) {
+static bool prop_getter(Obj* self, ObjString* name, Value* result) {
   UNUSED(self);
-  UNUSED(name);
-  UNUSED(result);
-  return ACCESSOR_RESULT_PASS;
-}
-
-// Internal OP_SET_PROPERTY handler
-static NativeAccessorResult prop_setter(Obj* self, ObjString* name, Value value) {
-  UNUSED(self);
-  UNUSED(name);
-  UNUSED(value);
-  return ACCESSOR_RESULT_PASS;
-}
-
-// Internal OP_GET_INDEX handler
-static NativeAccessorResult index_getter(Obj* self, Value index, Value* result) {
-  UNUSED(self);
-  UNUSED(index);
-  UNUSED(result);
-  return ACCESSOR_RESULT_PASS;
-}
-
-// Internal OP_SET_INDEX handler
-static NativeAccessorResult index_setter(Obj* self, Value index, Value value) {
-  UNUSED(self);
-  UNUSED(index);
-  UNUSED(value);
-  return ACCESSOR_RESULT_PASS;
+  if (bind_method(vm.__builtin_Num_class, name, result)) {
+    return true;
+  }
+  return false;
 }
 
 // Built-in number constructor
@@ -124,11 +95,19 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
     /* Return Type */ TYPENAME_NUMBER,
     /* Description */
-    "<Not supported>");
+    "Returns " VALUE_STR_TRUE
+    " if the " STR(TYPENAME_NUMBER) " class has a method with the given name, otherwise " VALUE_STR_FALSE ".");
 BUILTIN_METHOD_IMPL(TYPENAME_NUMBER, SP_METHOD_HAS) {
-  UNUSED(argv);
+  BUILTIN_CHECK_RECEIVER(NUMBER)
   BUILTIN_ARGC_EXACTLY(1)
+  BUILTIN_CHECK_ARG_AT(1, STRING)
+
   // Should align with prop_getter
-  runtime_error("Type " STR(TYPENAME_NUMBER) " does not support '" STR(SP_METHOD_HAS) "'.");
-  return NIL_VAL;
+  ObjString* name = AS_STRING(argv[1]);
+  Value discard;
+  if (hashtable_get_by_string(&vm.__builtin_Num_class->methods, name, &discard)) {
+    return BOOL_VAL(true);
+  }
+
+  return BOOL_VAL(false);
 }
