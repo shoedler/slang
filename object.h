@@ -148,11 +148,6 @@ typedef struct {
   int upvalue_count;
 } ObjClosure;
 
-typedef bool (*NativePropGetter)(Obj* self, ObjString* name, Value* result);
-typedef bool (*NativePropSetter)(Obj* self, ObjString* name, Value value);
-typedef bool (*NativeIndexGetter)(Obj* self, Value index, Value* result);
-typedef bool (*NativeIndexSetter)(Obj* self, Value index, Value value);
-
 typedef struct ObjClass {
   Obj obj;
   ObjString* name;
@@ -165,11 +160,6 @@ typedef struct ObjClass {
   Obj* __has;
   Obj* __to_str;
   Obj* __slice;
-
-  NativePropGetter prop_getter;
-  NativePropSetter prop_setter;
-  NativeIndexGetter index_getter;
-  NativeIndexSetter index_setter;
 } ObjClass;
 
 typedef struct ObjObject {
@@ -253,9 +243,10 @@ static inline bool is_obj_type(Value value, ObjType type) {
 static inline bool is_callable(Value value) {
   if (IS_OBJ(value)) {
     switch (OBJ_TYPE(value)) {
+      case OBJ_NATIVE:
+      case OBJ_FUNCTION:
       case OBJ_CLOSURE:
-      case OBJ_BOUND_METHOD:
-      case OBJ_NATIVE: return true;
+      case OBJ_BOUND_METHOD: return true;
       default: break;
     }
   }
@@ -263,11 +254,12 @@ static inline bool is_callable(Value value) {
 }
 
 // Determines the arity of a callable obj. This is used to check how many arguments a function expects.
-static inline int get_arity(Obj* callable) {
+static inline int callable_get_arity(Obj* callable) {
 again:
   switch (callable->type) {
-    case OBJ_CLOSURE: return ((ObjClosure*)callable)->function->arity;
     case OBJ_NATIVE: return ((ObjNative*)callable)->arity;
+    case OBJ_FUNCTION: return ((ObjFunction*)callable)->arity;
+    case OBJ_CLOSURE: return ((ObjClosure*)callable)->function->arity;
     case OBJ_BOUND_METHOD: {
       callable = ((ObjBoundMethod*)callable)->method;
       goto again;
@@ -277,6 +269,23 @@ again:
 
   INTERNAL_ERROR("Value is not callable.");
   return -999;
+}
+
+static inline ObjString* callable_get_name(Obj* callable) {
+again:
+  switch (callable->type) {
+    case OBJ_NATIVE: return ((ObjNative*)callable)->name;
+    case OBJ_FUNCTION: return ((ObjFunction*)callable)->name;
+    case OBJ_CLOSURE: return ((ObjClosure*)callable)->function->name;
+    case OBJ_BOUND_METHOD: {
+      callable = ((ObjBoundMethod*)callable)->method;
+      goto again;
+    };
+    default: break;
+  }
+
+  INTERNAL_ERROR("Value is not callable.");
+  return NULL;
 }
 
 #endif

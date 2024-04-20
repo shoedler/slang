@@ -221,6 +221,7 @@ void init_vm() {
   // Register built-in modules
   register_builtin_file_module();
   register_builtin_perf_module();
+  register_builtin_debug_module();
 
   vm.flags &= ~VM_FLAG_PAUSE_GC;  // Unpause
 
@@ -388,7 +389,7 @@ static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_co
   Value method = find_method_in_inheritance_chain(klass, name);
 
   if (IS_NIL(method)) {
-    runtime_error("Undefined method '%s' in '%s' or any of its parent classes", name->chars, klass->name->chars);
+    runtime_error("Undefined method '%s' in '%s' or any of its parent classes.", name->chars, klass->name->chars);
     return CALL_FAILED;
   }
 
@@ -478,7 +479,9 @@ Value exec_fn(Obj* callable, int arg_count) {
   return NIL_VAL;
 }
 
-bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method) {
+// Binds a method to an instance by creating a new bound method object from the instance and the method name.
+// The stack is unchanged.
+static bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method) {
   Value method = find_method_in_inheritance_chain(klass, name);
   if (IS_NIL(method)) {
     *bound_method = NIL_VAL;
@@ -690,6 +693,255 @@ static Value doc(Value value) {
   return pop();
 }
 
+bool value_get_property(ObjString* name) {
+  Value receiver = peek(0);
+  Value result;
+
+  // Primitive types have no properties, but you can still access the methods of their class.
+  if (IS_OBJ(receiver)) {
+    switch (AS_OBJ(receiver)->type) {
+      case OBJ_OBJECT: {
+        // Can be an instance or a plain object
+        ObjObject* object = AS_OBJECT(receiver);
+        if (hashtable_get_by_string(&object->fields, name, &result)) {
+          goto done_getting_property;
+        }
+        if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+          result = NUMBER_VAL(object->fields.count);
+          goto done_getting_property;
+        }
+        break;
+      }
+      case OBJ_CLASS: {
+        ObjClass* klass = AS_CLASS(receiver);
+        if (hashtable_get_by_string(&klass->static_methods, name, &result)) {
+          goto done_getting_property;
+        }
+        // You can also get a constructor, unbound
+        if (name == vm.special_method_names[SPECIAL_METHOD_CTOR]) {
+          if (!hashtable_get_by_string(&klass->methods, name, &result)) {
+            result = NIL_VAL;
+          }
+          goto done_getting_property;
+        }
+        if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
+          result = OBJ_VAL(klass->name);
+          goto done_getting_property;
+        }
+        break;
+      }
+      case OBJ_FUNCTION:
+      case OBJ_CLOSURE:
+      case OBJ_NATIVE:
+      case OBJ_BOUND_METHOD: {
+        if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
+          result = OBJ_VAL(callable_get_name(AS_OBJECT(receiver)));
+          goto done_getting_property;
+        }
+        break;
+      }
+      case OBJ_SEQ: {
+        ObjSeq* seq = AS_SEQ(receiver);
+        if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+          result = NUMBER_VAL(seq->items.count);
+          goto done_getting_property;
+        }
+        break;
+      }
+      case OBJ_STRING: {
+        ObjString* string = AS_STRING(receiver);
+        if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+          result = NUMBER_VAL(string->length);
+          goto done_getting_property;
+        }
+        break;
+      }
+    }
+  }
+
+  // For every value, you can access it's classes methods
+  if (bind_method(typeof(receiver), name, &result)) {
+    goto done_getting_property;
+  }
+
+  return false;
+
+done_getting_property:
+  pop();  // Pop receiver
+  push(result);
+  return true;
+}
+
+bool value_set_property(ObjString* name) {
+  Value receiver = peek(1);
+  Value value    = peek(0);
+
+  // TODO (optimize): Maybe remove this check for reserved words. We could just allow the user to override these things. This is
+  // tightly bound to the retrieval of properties, because if we check the special props before the fields, they would always
+  // return the internal value. Currently tough, we check the fields first, because most of the time you probably want to get
+  // fields you've defined as a user. So, getting a special property would yield the value the user assigned. This is bad, because
+  // you could override e.g. the length property and cause the vm to segfault.
+
+  // Check if it is a reserved property.
+  for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
+    if (name == vm.special_prop_names[i]) {  // We can just compare pointers, because strings are interned.
+      runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, typeof(receiver)->name->chars);
+      return false;
+    }
+  }
+
+  if (IS_OBJECT(receiver)) {
+    ObjObject* object = AS_OBJECT(receiver);
+    hashtable_set(&object->fields, OBJ_VAL(name), value);
+    goto done_setting_property;
+  }
+
+  return false;
+
+done_setting_property:
+  pop();        // Pop value
+  pop();        // Pop receiver
+  push(value);  // Push the value back onto the stack, because assignment is an expression
+}
+
+bool value_get_index() {
+  Value receiver = peek(1);
+  Value index    = peek(0);
+  Value result;
+
+  if (IS_OBJ(receiver)) {
+    switch (AS_OBJ(receiver)->type) {
+      case OBJ_OBJECT: {
+        // Objects return nil for non-existing indices or the value at the index
+        ObjObject* object = AS_OBJECT(receiver);
+        if (hashtable_get(&object->fields, index, &result)) {
+          goto done_getting_index;
+        }
+        result = NIL_VAL;
+        goto done_getting_index;
+      }
+      case OBJ_SEQ: {
+        ObjSeq* seq = AS_SEQ(receiver);
+
+        if (!IS_NUMBER(index)) {
+          break;  // Maybe it's a string index
+        }
+
+        double i_raw = AS_NUMBER(index);
+        long long i;
+        if (!is_int(i_raw, &i)) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        if (i >= seq->items.count) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        // Negative index
+        if (i < 0) {
+          i += seq->items.count;
+        }
+        if (i < 0) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        result = seq->items.values[i];
+        goto done_getting_index;
+      }
+      case OBJ_STRING: {
+        ObjString* string = AS_STRING(receiver);
+
+        if (!IS_NUMBER(index)) {
+          break;  // Maybe it's a string index
+        }
+
+        double i_raw = AS_NUMBER(index);
+        long long i;
+        if (!is_int(i_raw, &i)) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        if (i >= string->length) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        // Negative index
+        if (i < 0) {
+          i += string->length;
+        }
+        if (i < 0) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        ObjString* char_str = copy_string(string->chars + i, 1);
+        result              = OBJ_VAL(char_str);
+        goto done_getting_index;
+      }
+    }
+  }
+
+  return false;
+
+done_getting_index:
+  pop();  // Pop receiver (or index, if it got swapped)
+  pop();  // Pop index (or receiver, if it got swapped)
+  push(result);
+  return true;
+}
+
+bool value_set_index() {
+  Value receiver = peek(2);
+  Value index    = peek(1);
+  Value value    = peek(0);
+
+  if (IS_OBJ(receiver)) {
+    switch (AS_OBJ(receiver)->type) {
+      case OBJ_OBJECT: {
+        ObjObject* object = AS_OBJECT(receiver);
+        hashtable_set(&object->fields, index, value);
+        goto done_setting_index;
+      }
+      case OBJ_SEQ: {
+        if (!IS_NUMBER(index)) {
+          runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
+          return false;
+        }
+
+        double i_raw = AS_NUMBER(index);
+        long long i;
+        if (!is_int(i_raw, &i)) {
+          runtime_error("Index must be an integer, but got a float.");
+          return false;
+        }
+
+        ObjSeq* seq = AS_SEQ(receiver);
+
+        if (i < 0 || i >= seq->items.count) {
+          runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
+          return false;
+        }
+
+        seq->items.values[i] = value;
+        goto done_setting_index;
+      }
+    }
+  }
+
+  return false;
+
+done_setting_index:
+  pop();        // Pop value
+  pop();        // Pop index
+  pop();        // Pop receiver
+  push(value);  // Push the value back onto the stack, because assignment is an expression
+}
+
 // Handles errors in the virtual machine.
 // This function is responsible for handling errors that occur during the execution of the virtual machine.
 // It searches for the nearest error handler in the call stack and resets the virtual machine state to that
@@ -856,112 +1108,47 @@ static Value run() {
         break;
       }
       case OP_GET_INDEX: {
-        Value value    = NIL_VAL;
-        Value index    = peek(0);
-        Value indexee  = peek(1);
-        ObjClass* type = typeof(indexee);
-
-        if (type->index_getter == NULL) {
-          runtime_error("Type %s does not support get-indexing.", type->name->chars);
-          goto finish_error;
-        }
-
-        if (type->index_getter(AS_OBJ(indexee), index, &value)) {
-          pop();  // Pop the index
-          pop();  // Pop the indexee
-          push(value);
+        if (value_get_index()) {
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {
+        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_get_index set an error
           goto finish_error;
         }
-
-        push(index);  // Receiver
-        ObjString* index_str = AS_STRING(exec_fn(typeof(index)->__to_str, 0));
-        runtime_error("Index '%s' does not exist on value of type %s.", index_str->chars, type->name->chars);
+        runtime_error("Type %s does not support get-indexing with %s.", typeof(peek(1))->name->chars,
+                      typeof(peek(0))->name->chars);
         goto finish_error;
       }
       case OP_SET_INDEX: {
-        Value value    = peek(0);
-        Value index    = peek(1);
-        Value assignee = peek(2);
-        ObjClass* type = typeof(assignee);
-
-        if (type->index_setter == NULL) {
-          runtime_error("Type %s does not support set-indexing.", type->name->chars);
-          goto finish_error;
-        }
-
-        if (type->index_setter(AS_OBJ(assignee), index, value)) {
-          pop();        // Pop the value
-          pop();        // Pop the index
-          pop();        // Pop the assignee
-          push(value);  // Push the value back onto the stack, because assignment is an expression
+        if (value_set_index()) {
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {
+        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_set_index set an error
           goto finish_error;
         }
-
-        push(index);  // Receiver
-        ObjString* index_str = AS_STRING(exec_fn(typeof(index)->__to_str, 0));
-        runtime_error("Cannot set index '%s' on value of type %s.", index_str->chars, type->name->chars);
+        runtime_error("Type %s does not support set-indexing with %s.", typeof(peek(2))->name->chars,
+                      typeof(peek(1))->name->chars);
         goto finish_error;
       }
       case OP_GET_PROPERTY: {
-        Value value     = NIL_VAL;
-        Value obj       = peek(0);
         ObjString* name = READ_STRING();
-        ObjClass* type  = typeof(obj);
-
-        // We can safely omit the check for NULL, because every object has a prop_getter
-        // if (type->prop_getter == NULL) {
-        //   runtime_error("Type %s does not support property-get access.", type->name->chars);
-        //   goto finish_error;
-        // }
-
-        if (type->prop_getter(AS_OBJ(obj), name, &value)) {
-          pop();  // Pop the object
-          push(value);
+        if (value_get_property(name)) {
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {
+        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Will never happen: value_get_property never sets an error. Just a precaution.
           goto finish_error;
         }
-
-        runtime_error("Property '%s' does not exist on value of type %s.", name->chars, type->name->chars);
+        runtime_error("Property '%s' does not exist on value of type %s.", name->chars, typeof(peek(0))->name->chars);
         goto finish_error;
       }
       case OP_SET_PROPERTY: {
-        Value value     = peek(0);
-        Value obj       = peek(1);
         ObjString* name = READ_STRING();
-        ObjClass* type  = typeof(obj);
-
-        if (type->prop_setter == NULL) {
-          runtime_error("Type %s does not support property-set access.", type->name->chars);
-          goto finish_error;
-        }
-
-        // Check if it is a reserved property.
-        for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
-          if (strcmp(name->chars, vm.special_prop_names[i]->chars) == 0) {
-            runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, type->name->chars);
-            goto finish_error;
-          }
-        }
-
-        if (type->prop_setter(AS_OBJ(obj), name, value)) {
-          pop();        // Pop the value
-          pop();        // Pop the object
-          push(value);  // Push the value back onto the stack, because assignment is an expression
+        if (value_set_property(name)) {
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {
+        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_set_property set an error
           goto finish_error;
         }
-
-        runtime_error("Cannot set property '%s' on value of type %s.", name->chars, type->name->chars);
+        runtime_error("Type %s does not support property-set access.", typeof(peek(1))->name->chars);
         goto finish_error;
       }
       case OP_IMPORT_FROM: {

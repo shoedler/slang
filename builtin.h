@@ -38,6 +38,9 @@ extern void register_builtin_file_module();
 // Registers the built-in perf module
 extern void register_builtin_perf_module();
 
+// Registers the built-in debug module
+extern void register_builtin_debug_module();
+
 //
 // Built-in function-, method- and class-declarations
 //
@@ -71,17 +74,14 @@ BUILTIN_DECLARE_METHOD(TYPENAME_CLASS, SP_METHOD_HAS)
 // Bool built-in methods
 BUILTIN_DECLARE_METHOD(TYPENAME_BOOL, SP_METHOD_CTOR)
 BUILTIN_DECLARE_METHOD(TYPENAME_BOOL, SP_METHOD_TO_STR)
-BUILTIN_DECLARE_METHOD(TYPENAME_BOOL, SP_METHOD_HAS)
 
 // Nil built-in methods
 BUILTIN_DECLARE_METHOD(TYPENAME_NIL, SP_METHOD_CTOR)
 BUILTIN_DECLARE_METHOD(TYPENAME_NIL, SP_METHOD_TO_STR)
-BUILTIN_DECLARE_METHOD(TYPENAME_NIL, SP_METHOD_HAS)
 
 // Number built-in methods
 BUILTIN_DECLARE_METHOD(TYPENAME_NUMBER, SP_METHOD_CTOR)
 BUILTIN_DECLARE_METHOD(TYPENAME_NUMBER, SP_METHOD_TO_STR)
-BUILTIN_DECLARE_METHOD(TYPENAME_NUMBER, SP_METHOD_HAS)
 
 // String built-in methods
 BUILTIN_DECLARE_METHOD(TYPENAME_STRING, SP_METHOD_CTOR)

@@ -66,11 +66,6 @@ ObjClass* new_class(ObjString* name, ObjClass* base) {
   klass->__to_str = NULL;
   klass->__has    = NULL;
 
-  klass->prop_getter  = NULL;
-  klass->prop_setter  = NULL;
-  klass->index_getter = NULL;
-  klass->index_setter = NULL;
-
   init_hashtable(&klass->methods);
   init_hashtable(&klass->static_methods);
   return klass;
@@ -107,23 +102,6 @@ void finalize_new_class(ObjClass* klass) {
       *entry->field = NULL;
     }
   }
-
-  // Populate the getters and setters from the base class.
-  // Builtin classes should all have them - we don't want to override them, even if they don't have them already.
-  if (klass == vm.__builtin_Obj_class || klass == vm.__builtin_Str_class || klass == vm.__builtin_Num_class ||
-      klass == vm.__builtin_Bool_class || klass == vm.__builtin_Nil_class || klass == vm.__builtin_Seq_class ||
-      klass == vm.__builtin_Fn_class || klass == vm.__builtin_Class_class) {
-    return;
-  }
-
-  if (klass->base == NULL) {
-    return;
-  }
-
-  klass->prop_getter  = klass->base->prop_getter;
-  klass->prop_setter  = klass->base->prop_setter;
-  klass->index_getter = klass->base->index_getter;
-  klass->index_setter = klass->base->index_setter;
 }
 
 ObjObject* new_instance(ObjClass* klass) {

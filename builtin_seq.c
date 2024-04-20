@@ -4,10 +4,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool prop_getter(Obj* self, ObjString* name, Value* result);
-static bool index_getter(Obj* self, Value index, Value* result);
-static bool index_setter(Obj* self, Value index, Value value);
-
 void register_builtin_seq_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_SEQ, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_CTOR, 1);
@@ -29,73 +25,7 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, count, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, concat, 1);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_SEQ, prop_getter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_SEQ, index_getter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_SEQ, index_setter);
-
   BUILTIN_FINALIZE_CLASS(TYPENAME_SEQ);
-}
-
-// Internal OP_GET_PROPERTY handler
-static bool prop_getter(Obj* self, ObjString* name, Value* result) {
-  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-    *result = NUMBER_VAL(((ObjSeq*)self)->items.count);
-    return true;
-  }
-  if (bind_method(vm.__builtin_Seq_class, name, result)) {
-    return true;
-  }
-
-  return false;
-}
-
-// Internal OP_GET_INDEX handler
-static bool index_getter(Obj* self, Value index, Value* result) {
-  if (!IS_NUMBER(index)) {
-    runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
-    return false;
-  }
-
-  double i_raw = AS_NUMBER(index);
-  long long i;
-  if (!is_int(i_raw, &i)) {
-    runtime_error("Index must be an integer, but got a float.");
-    return false;
-  }
-
-  ObjSeq* seq = (ObjSeq*)self;
-  if (i < 0 || i >= seq->items.count) {
-    runtime_error("Index out of bounds. Was %lld, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
-    return false;
-  }
-
-  *result = seq->items.values[i];
-  return true;
-}
-
-// Internal OP_SET_INDEX handler
-static bool index_setter(Obj* self, Value index, Value value) {
-  if (!IS_NUMBER(index)) {
-    runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
-    return false;
-  }
-
-  double i_raw = AS_NUMBER(index);
-  long long i;
-  if (!is_int(i_raw, &i)) {
-    runtime_error("Index must be an integer, but got a float.");
-    return false;
-  }
-
-  ObjSeq* seq = (ObjSeq*)self;
-
-  if (i < 0 || i >= seq->items.count) {
-    runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
-    return false;
-  }
-
-  seq->items.values[i] = value;
-  return true;
 }
 
 // Built-in seq constructor
@@ -309,6 +239,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_SLICE) {
     return NIL_VAL;
   }
 
+  // Handle negative indices
   if (start < 0) {
     start = count + start;
   }
@@ -316,13 +247,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_SLICE) {
     end = count + end;
   }
 
-  if (start < 0 || start >= count || end < 0 || end > count) {
-    runtime_error(
-        "Slice indices out of bounds. Start resolved to %d and end to %d, but this " STR(TYPENAME_SEQ) " has length %d.", start,
-        end, count);
-    return NIL_VAL;
+  // Clamp out-of-bounds indices
+  if (start < 0) {
+    start = 0;
+  }
+  if (end > count) {
+    end = count;
   }
 
+  // Handle invalid or 0 length ranges
   if (start >= end) {
     return OBJ_VAL(new_seq());
   }
@@ -431,7 +364,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq  = AS_SEQ(argv[0]);
-  int fn_arity = get_arity(AS_OBJ(argv[1]));
+  int fn_arity = callable_get_arity(AS_OBJ(argv[1]));
   int count    = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
@@ -486,7 +419,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, map) {
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq        = AS_SEQ(argv[0]);
-  int fn_arity       = get_arity(AS_OBJ(argv[1]));
+  int fn_arity       = callable_get_arity(AS_OBJ(argv[1]));
   int count          = seq->items.count;  // We need to store this, because the sequence might change during the loop
   ObjSeq* mapped_seq = prealloc_seq(count);
 
@@ -552,7 +485,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq          = AS_SEQ(argv[0]);
-  int fn_arity         = get_arity(AS_OBJ(argv[1]));
+  int fn_arity         = callable_get_arity(AS_OBJ(argv[1]));
   int count            = seq->items.count;  // We need to store this, because the sequence might change during the loop
   ObjSeq* filtered_seq = new_seq();
 
@@ -702,7 +635,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, every) {
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq  = AS_SEQ(argv[0]);
-  int fn_arity = get_arity(AS_OBJ(argv[1]));
+  int fn_arity = callable_get_arity(AS_OBJ(argv[1]));
   int count    = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
@@ -771,7 +704,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, some) {
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq  = AS_SEQ(argv[0]);
-  int fn_arity = get_arity(AS_OBJ(argv[1]));
+  int fn_arity = callable_get_arity(AS_OBJ(argv[1]));
   int count    = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
@@ -836,7 +769,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
 
   ObjSeq* seq       = AS_SEQ(argv[0]);
   Value accumulator = argv[1];
-  int fn_arity      = get_arity(AS_OBJ(argv[2]));
+  int fn_arity      = callable_get_arity(AS_OBJ(argv[2]));
   int count         = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
@@ -905,7 +838,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
   int occurrences = 0;
 
   if (IS_CALLABLE(argv[1])) {
-    int fn_arity = get_arity(AS_OBJ(argv[1]));
+    int fn_arity = callable_get_arity(AS_OBJ(argv[1]));
     if (fn_arity != 1) {
       runtime_error("Function passed to \"" STR(count) "\" must take 1 argument, but got %d.", fn_arity);
       return NIL_VAL;

@@ -4,14 +4,12 @@
 #include "vm.h"
 
 #define BUILTIN_CHECK_RECEIVER_IS_FN()                                                                     \
-  if (!IS_FUNCTION(argv[0]) && !IS_CLOSURE(argv[0]) && !IS_BOUND_METHOD(argv[0]) && !IS_NATIVE(argv[0])) { \
+  if (!is_callable(argv[0])) {                                                                             \
     runtime_error("Expected receiver of type " STR(TYPENAME_FUNCTION) ", " STR(TYPENAME_CLOSURE) ", " STR( \
                       TYPENAME_NATIVE) " or " STR(TYPENAME_BOUND_METHOD) ", but got %s.",                  \
                   typeof(argv[0])->name->chars);                                                           \
     return NIL_VAL;                                                                                        \
   }
-
-static bool prop_getter(Obj* self, ObjString* name, Value* result);
 
 void register_builtin_fn_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_FUNCTION, TYPENAME_OBJ);
@@ -20,24 +18,7 @@ void register_builtin_fn_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_HAS, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, bind, 1);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_FUNCTION, prop_getter);
-
   BUILTIN_FINALIZE_CLASS(TYPENAME_FUNCTION);
-}
-
-// Internal OP_GET_PROPERTY handler
-static bool prop_getter(Obj* self, ObjString* name, Value* result) {
-  if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
-    switch (self->type) {
-      case OBJ_FUNCTION: *result = OBJ_VAL(((ObjFunction*)self)->name); return true;
-      case OBJ_CLOSURE: *result = OBJ_VAL(((ObjClosure*)self)->function->name); return true;
-      case OBJ_NATIVE: *result = OBJ_VAL(((ObjNative*)self)->name); return true;
-      case OBJ_BOUND_METHOD: return prop_getter(((ObjBoundMethod*)self)->method, name, result);
-      default: INTERNAL_ERROR("Invalid object type for " STR(TYPENAME_FUNCTION) " property getter."); return false;
-    }
-  }
-
-  return false;
 }
 
 // Built-in fn constructor
@@ -111,16 +92,27 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
     /* Return Type */ TYPENAME_FUNCTION,
     /* Description */
-    "<Not supported>");
+    "Returns " STR(TYPENAME_TRUE) " if the fn has a property with the given name, " STR(TYPENAME_FALSE) " otherwise.");
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_HAS) {
   BUILTIN_CHECK_RECEIVER_IS_FN()
   BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_ARG_AT(1, STRING)
 
-  // Should align with prop_getter
-  if (AS_STRING(argv[1]) == vm.special_prop_names[SPECIAL_PROP_NAME]) {
+  ObjString* name = AS_STRING(argv[1]);
+  Obj* fn         = AS_OBJ(argv[0]);
+
+  // Execute the value_get_property function to see if the fn has the thing. We use this approach to make sure the two are
+  // aligned and return the same result.
+  push(OBJ_VAL(fn));
+  if (value_get_property(name)) {
+    pop();  // The result
     return BOOL_VAL(true);
   }
+  if (vm.flags & VM_FLAG_HAS_ERROR) {
+    return NIL_VAL;
+  }
+
+  pop();  // The fn
 
   return BOOL_VAL(false);
 }

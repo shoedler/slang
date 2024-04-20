@@ -24,9 +24,9 @@ print [1,2,3].slice(2,nil) // [Expect] [3]
 print [1,2,3].slice(1,0) // [Expect] []
 print [1,2,3].slice(2,1) // [Expect] []
 
-// If any of the indices are out of bounds, it should throw an error.
-print try [1,2,3].slice(0,5) else error // [Expect] Slice indices out of bounds. Start resolved to 0 and end to 5, but this Seq has length 3.
-print try [1,2,3].slice(-4,nil) else error // [Expect] Slice indices out of bounds. Start resolved to -1 and end to 3, but this Seq has length 3.
+// If any of the indices are out of bounds, it should clamp to the bounds.
+print [1,2,3].slice(0,5)    // [Expect] [1, 2, 3]
+print [1,2,3].slice(-4,nil) // [Expect] [1, 2, 3]
 
 // If you try to slice an empty array, it should return an empty array.
 print [].slice(0,0) // [Expect] []

@@ -10,7 +10,7 @@ try {
   print b // [Expect] 2
 } 
 
-// Even works if you declare more variables than there are properties
+// Destructuring with more variables than values assigns nil to the variables without a value
 let {a, b, c} = {"a": 1, "b": 2}
 print a // [Expect] 1
 print b // [Expect] 2

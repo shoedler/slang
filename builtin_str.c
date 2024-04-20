@@ -3,11 +3,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool prop_getter(Obj* self, ObjString* name, Value* result);
-static bool prop_setter(Obj* self, ObjString* name, Value value);
-static bool index_getter(Obj* self, Value index, Value* result);
-static bool index_setter(Obj* self, Value index, Value value);
-
 void register_builtin_str_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_STRING, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_CTOR, 1);
@@ -17,67 +12,7 @@ void register_builtin_str_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, prop_getter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, prop_setter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, index_getter);
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, index_setter);
-
   BUILTIN_FINALIZE_CLASS(TYPENAME_STRING);
-}
-
-// Internal OP_GET_PROPERTY handler
-static bool prop_getter(Obj* self, ObjString* name, Value* result) {
-  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-    *result = NUMBER_VAL((double)((ObjString*)self)->length);
-    return true;
-  }
-  if (bind_method(vm.__builtin_Str_class, name, result)) {
-    return true;
-  }
-
-  return false;
-}
-
-// Internal OP_SET_PROPERTY handler
-static bool prop_setter(Obj* self, ObjString* name, Value value) {
-  UNUSED(self);
-  UNUSED(name);
-  UNUSED(value);
-  return false;
-}
-
-// Internal OP_GET_INDEX handler
-static bool index_getter(Obj* self, Value index, Value* result) {
-  if (!IS_NUMBER(index)) {
-    runtime_error(STR(TYPENAME_STRING) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
-    return false;
-  }
-
-  double i_raw = AS_NUMBER(index);
-  long long i;
-  if (!is_int(i_raw, &i)) {
-    *result = NIL_VAL;
-    return true;
-  }
-
-  ObjString* string = (ObjString*)self;
-  if (i < 0 || i >= string->length) {
-    runtime_error("Index out of bounds. Was %lld, but this " STR(TYPENAME_STRING) " has length %d.", i, string->length);
-    return false;
-  }
-
-  ObjString* char_str = copy_string(string->chars + i, 1);
-  *result             = OBJ_VAL(char_str);
-  return true;
-}
-
-// Internal OP_SET_INDEX handler
-static bool index_setter(Obj* self, Value index, Value value) {
-  UNUSED(self);
-  UNUSED(index);
-  UNUSED(value);
-  runtime_error("Cannot set index on a " STR(TYPENAME_STRING) ".");
-  return false;
 }
 
 // Built-in string constructor
@@ -267,6 +202,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
     return NIL_VAL;
   }
 
+  // Handle negative indices
   if (start < 0) {
     start = count + start;
   }
@@ -274,13 +210,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
     end = count + end;
   }
 
-  if (start < 0 || start >= count || end < 0 || end > count) {
-    runtime_error(
-        "Slice indices out of bounds. Start resolved to %d and end to %d, but this " STR(TYPENAME_STRING) " has length %d.",
-        start, end, count);
-    return NIL_VAL;
+  // Clamp out-of-bounds indices
+  if (start < 0) {
+    start = 0;
+  }
+  if (end > count) {
+    end = count;
   }
 
+  // Handle invalid or 0 length ranges
   if (start >= end) {
     return OBJ_VAL(copy_string("", 0));
   }

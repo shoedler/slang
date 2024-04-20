@@ -631,19 +631,12 @@
 // l.exec(fn -> fib(35))
 // print l
 
-let [c, d] = [1, 2]
-print c // [Expect] 1
-print d // [Expect] undefined
+let a = [1,2,3,4,5]
 
-try {
-  let x = "x"
-  let y = "y"
-  let z = "z"
+print a[2..] // [3, 4, 5] this one is special and kinda doesn't align with the syntax
+print a[0..2] // [1, 2] Just like in Python
+print a[..2] // [1, 2] Just like in Python
+print a[..-1] // [1, 2, 3, 4] Just like in Python
+print a[-10]
 
-  let [c, d] = [1, 2]
-  print c // [Expect] 1
-  print d // [Expect] undefined
-
-} catch { 
-  print error // [Expect] 
-}
+// `Assert.that(expected, Is.equal_to(actual))`
