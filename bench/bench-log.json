@@ -1310,5 +1310,73 @@
       "value": "167100000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-04-20T21:11:59.534Z",
+    "commit": {
+      "date": "2024-04-20 23:11:36 +0200",
+      "hash": "5be31895707211600e344986909115ad01f16d50",
+      "message": "Adds slice operator ([..]). Also, allows for negative indicies in indexing"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "7.263"
+    }
+  },
+  {
+    "date": "2024-04-20T21:11:59.534Z",
+    "commit": {
+      "date": "2024-04-20 23:11:36 +0200",
+      "hash": "5be31895707211600e344986909115ad01f16d50",
+      "message": "Adds slice operator ([..]). Also, allows for negative indicies in indexing"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.901"
+    }
+  },
+  {
+    "date": "2024-04-20T21:11:59.534Z",
+    "commit": {
+      "date": "2024-04-20 23:11:36 +0200",
+      "hash": "5be31895707211600e344986909115ad01f16d50",
+      "message": "Adds slice operator ([..]). Also, allows for negative indicies in indexing"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "278",
+      "value": "16680000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-04-20T21:11:59.534Z",
+    "commit": {
+      "date": "2024-04-20 23:11:36 +0200",
+      "hash": "5be31895707211600e344986909115ad01f16d50",
+      "message": "Adds slice operator ([..]). Also, allows for negative indicies in indexing"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "2621",
+      "value": "157260000",
+      "durationInSecs": "5"
+    }
   }
 ]
