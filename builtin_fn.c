@@ -11,8 +11,6 @@
     return NIL_VAL;                                                                                        \
   }
 
-static bool prop_getter(Obj* self, ObjString* name, Value* result);
-
 void register_builtin_fn_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_FUNCTION, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_CTOR, 0);
@@ -20,24 +18,7 @@ void register_builtin_fn_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_HAS, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, bind, 1);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_FUNCTION, prop_getter);
-
   BUILTIN_FINALIZE_CLASS(TYPENAME_FUNCTION);
-}
-
-// Internal OP_GET_PROPERTY handler
-static bool prop_getter(Obj* self, ObjString* name, Value* result) {
-  if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
-    switch (self->type) {
-      case OBJ_FUNCTION: *result = OBJ_VAL(((ObjFunction*)self)->name); return true;
-      case OBJ_CLOSURE: *result = OBJ_VAL(((ObjClosure*)self)->function->name); return true;
-      case OBJ_NATIVE: *result = OBJ_VAL(((ObjNative*)self)->name); return true;
-      case OBJ_BOUND_METHOD: return prop_getter(((ObjBoundMethod*)self)->method, name, result);
-      default: INTERNAL_ERROR("Invalid object type for " STR(TYPENAME_FUNCTION) " property getter."); return false;
-    }
-  }
-
-  return false;
 }
 
 // Built-in fn constructor

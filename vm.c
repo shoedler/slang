@@ -478,7 +478,9 @@ Value exec_fn(Obj* callable, int arg_count) {
   return NIL_VAL;
 }
 
-bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method) {
+// Binds a method to an instance by creating a new bound method object from the instance and the method name.
+// The stack is unchanged.
+static bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method) {
   Value method = find_method_in_inheritance_chain(klass, name);
   if (IS_NIL(method)) {
     *bound_method = NIL_VAL;
@@ -688,6 +690,80 @@ static Value doc(Value value) {
 
   concatenate();
   return pop();
+}
+
+// Tries to resolve and push a property of an object onto the stack. If the property is not found, it returns
+// false and does not push anything onto the stack.
+// `Stack: ...[object][property_name]`
+// After the call:
+// `Stack: ...[value]` or `Stack: ...[object][property_name]` if the property was not found
+static bool value_get_property(ObjString* name) {
+  Value receiver = peek(0);
+  Value result;
+
+  // Primitive types have no properties, but you can still access the methods of their class.
+  if (IS_OBJ(receiver)) {
+    switch (AS_OBJ(receiver)->type) {
+      case OBJ_OBJECT: {
+        // Can be an instance or a plain object
+        ObjObject* object = AS_OBJECT(receiver);
+        if (hashtable_get_by_string(&object->fields, name, &result)) {
+          goto done_getting_property;
+        }
+        if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+          result = NUMBER_VAL(object->fields.count);
+          goto done_getting_property;
+        }
+        break;
+      }
+      case OBJ_CLASS: {
+        ObjClass* klass = AS_CLASS(receiver);
+        if (hashtable_get_by_string(&klass->static_methods, name, &result)) {
+          goto done_getting_property;
+        }
+        // You can also get a constructor, unbound
+        if (name == vm.special_method_names[SPECIAL_METHOD_CTOR]) {
+          if (!hashtable_get_by_string(&klass->methods, name, &result)) {
+            result = NIL_VAL;
+          }
+          goto done_getting_property;
+        }
+        if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
+          result = OBJ_VAL(klass->name);
+          goto done_getting_property;
+        }
+        break;
+      }
+      case OBJ_SEQ: {
+        ObjSeq* seq = AS_SEQ(receiver);
+        if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+          result = NUMBER_VAL(seq->items.count);
+          goto done_getting_property;
+        }
+        break;
+      }
+      case OBJ_STRING: {
+        ObjString* string = AS_STRING(receiver);
+        if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+          result = NUMBER_VAL(string->length);
+          goto done_getting_property;
+        }
+        break;
+      }
+    }
+  }
+
+  // For every value, you can access it's classes methods
+  if (bind_method(typeof(receiver), name, &result)) {
+    goto done_getting_property;
+  }
+
+  return false;
+
+done_getting_property:
+  pop();  // Pop receiver
+  push(result);
+  return true;
 }
 
 // Handles errors in the virtual machine.
@@ -909,27 +985,11 @@ static Value run() {
         goto finish_error;
       }
       case OP_GET_PROPERTY: {
-        Value value     = NIL_VAL;
-        Value obj       = peek(0);
         ObjString* name = READ_STRING();
-        ObjClass* type  = typeof(obj);
-
-        // We can safely omit the check for NULL, because every object has a prop_getter
-        // if (type->prop_getter == NULL) {
-        //   runtime_error("Type %s does not support property-get access.", type->name->chars);
-        //   goto finish_error;
-        // }
-
-        if (type->prop_getter(AS_OBJ(obj), name, &value)) {
-          pop();  // Pop the object
-          push(value);
+        if (value_get_property(name)) {
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {
-          goto finish_error;
-        }
-
-        runtime_error("Property '%s' does not exist on value of type %s.", name->chars, type->name->chars);
+        runtime_error("Property '%s' does not exist on value of type %s.", name->chars, typeof(peek(0))->name->chars);
         goto finish_error;
       }
       case OP_SET_PROPERTY: {

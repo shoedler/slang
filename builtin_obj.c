@@ -4,7 +4,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool prop_getter(Obj* self, ObjString* name, Value* result);
 static bool prop_setter(Obj* self, ObjString* name, Value value);
 static bool index_getter(Obj* self, Value index, Value* result);
 static bool index_setter(Obj* self, Value index, Value value);
@@ -27,28 +26,11 @@ void register_builtin_obj_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, keys, 0);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, prop_getter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, prop_setter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, index_getter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, index_setter);
 
   BUILTIN_FINALIZE_CLASS(TYPENAME_OBJ);
-}
-
-// Internal OP_GET_PROPERTY handler
-static bool prop_getter(Obj* self, ObjString* name, Value* result) {
-  ObjObject* object = (ObjObject*)self;
-  if (hashtable_get_by_string(&object->fields, name, result)) {
-    return true;
-  }
-  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-    *result = NUMBER_VAL(object->fields.count);
-    return true;
-  }
-  if (bind_method(object->klass, name, result)) {
-    return true;
-  }
-  return false;
 }
 
 // Internal OP_SET_PROPERTY handler

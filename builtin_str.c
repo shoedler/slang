@@ -3,7 +3,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool prop_getter(Obj* self, ObjString* name, Value* result);
 static bool prop_setter(Obj* self, ObjString* name, Value value);
 static bool index_getter(Obj* self, Value index, Value* result);
 static bool index_setter(Obj* self, Value index, Value value);
@@ -17,25 +16,11 @@ void register_builtin_str_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, prop_getter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, prop_setter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, index_getter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, index_setter);
 
   BUILTIN_FINALIZE_CLASS(TYPENAME_STRING);
-}
-
-// Internal OP_GET_PROPERTY handler
-static bool prop_getter(Obj* self, ObjString* name, Value* result) {
-  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-    *result = NUMBER_VAL((double)((ObjString*)self)->length);
-    return true;
-  }
-  if (bind_method(vm.__builtin_Str_class, name, result)) {
-    return true;
-  }
-
-  return false;
 }
 
 // Internal OP_SET_PROPERTY handler

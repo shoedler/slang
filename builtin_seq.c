@@ -4,7 +4,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool prop_getter(Obj* self, ObjString* name, Value* result);
 static bool index_getter(Obj* self, Value index, Value* result);
 static bool index_setter(Obj* self, Value index, Value value);
 
@@ -29,24 +28,10 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, count, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, concat, 1);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_SEQ, prop_getter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_SEQ, index_getter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_SEQ, index_setter);
 
   BUILTIN_FINALIZE_CLASS(TYPENAME_SEQ);
-}
-
-// Internal OP_GET_PROPERTY handler
-static bool prop_getter(Obj* self, ObjString* name, Value* result) {
-  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-    *result = NUMBER_VAL(((ObjSeq*)self)->items.count);
-    return true;
-  }
-  if (bind_method(vm.__builtin_Seq_class, name, result)) {
-    return true;
-  }
-
-  return false;
 }
 
 // Internal OP_GET_INDEX handler

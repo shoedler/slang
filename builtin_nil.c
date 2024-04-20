@@ -2,26 +2,13 @@
 #include "common.h"
 #include "vm.h"
 
-static bool prop_getter(Obj* self, ObjString* name, Value* result);
-
 void register_builtin_nil_class() {
   BUILTIN_REGISTER_BASE_CLASS(TYPENAME_NIL);
   BUILTIN_REGISTER_METHOD(TYPENAME_NIL, SP_METHOD_CTOR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_NIL, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_NIL, SP_METHOD_HAS, 1);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_NIL, prop_getter);
-
   BUILTIN_FINALIZE_CLASS(TYPENAME_NIL);
-}
-
-// Internal OP_GET_PROPERTY handler
-static bool prop_getter(Obj* self, ObjString* name, Value* result) {
-  UNUSED(self);
-  if (bind_method(vm.__builtin_Nil_class, name, result)) {
-    return true;
-  }
-  return false;
 }
 
 // Built-in nil constructor

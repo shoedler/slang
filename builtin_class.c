@@ -3,39 +3,13 @@
 #include "common.h"
 #include "vm.h"
 
-static bool prop_getter(Obj* self, ObjString* name, Value* result);
-
 void register_builtin_class_class() {
   BUILTIN_REGISTER_CLASS(TYPENAME_CLASS, TYPENAME_OBJ);
   BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_CTOR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_HAS, 1);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_CLASS, prop_getter);
-
   BUILTIN_FINALIZE_CLASS(TYPENAME_CLASS);
-}
-
-// Internal OP_GET_PROPERTY handler
-static bool prop_getter(Obj* self, ObjString* name, Value* result) {
-  ObjClass* klass = (ObjClass*)self;
-  if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
-    *result = OBJ_VAL(klass->name);
-    return true;
-  }
-
-  // We do not bind the method, because it's a static method.
-  if (hashtable_get_by_string(&klass->static_methods, name, result)) {
-    return true;
-  }
-
-  // Also, don't bind the method here, because we don't have an instance.
-  // But it should still be possible to retrieve the method.
-  if (hashtable_get_by_string(&klass->methods, name, result)) {
-    return true;
-  }
-
-  return false;
 }
 
 // Built-in class constructor
