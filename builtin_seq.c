@@ -361,7 +361,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq  = AS_SEQ(argv[0]);
-  int fn_arity = get_arity(AS_OBJ(argv[1]));
+  int fn_arity = callable_get_arity(AS_OBJ(argv[1]));
   int count    = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
@@ -416,7 +416,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, map) {
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq        = AS_SEQ(argv[0]);
-  int fn_arity       = get_arity(AS_OBJ(argv[1]));
+  int fn_arity       = callable_get_arity(AS_OBJ(argv[1]));
   int count          = seq->items.count;  // We need to store this, because the sequence might change during the loop
   ObjSeq* mapped_seq = prealloc_seq(count);
 
@@ -482,7 +482,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq          = AS_SEQ(argv[0]);
-  int fn_arity         = get_arity(AS_OBJ(argv[1]));
+  int fn_arity         = callable_get_arity(AS_OBJ(argv[1]));
   int count            = seq->items.count;  // We need to store this, because the sequence might change during the loop
   ObjSeq* filtered_seq = new_seq();
 
@@ -632,7 +632,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, every) {
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq  = AS_SEQ(argv[0]);
-  int fn_arity = get_arity(AS_OBJ(argv[1]));
+  int fn_arity = callable_get_arity(AS_OBJ(argv[1]));
   int count    = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
@@ -701,7 +701,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, some) {
   BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)
 
   ObjSeq* seq  = AS_SEQ(argv[0]);
-  int fn_arity = get_arity(AS_OBJ(argv[1]));
+  int fn_arity = callable_get_arity(AS_OBJ(argv[1]));
   int count    = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
@@ -766,7 +766,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
 
   ObjSeq* seq       = AS_SEQ(argv[0]);
   Value accumulator = argv[1];
-  int fn_arity      = get_arity(AS_OBJ(argv[2]));
+  int fn_arity      = callable_get_arity(AS_OBJ(argv[2]));
   int count         = seq->items.count;  // We need to store this, because the sequence might change during the loop
 
   // Loops are duplicated to avoid the overhead of checking the arity on each iteration
@@ -835,7 +835,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
   int occurrences = 0;
 
   if (IS_CALLABLE(argv[1])) {
-    int fn_arity = get_arity(AS_OBJ(argv[1]));
+    int fn_arity = callable_get_arity(AS_OBJ(argv[1]));
     if (fn_arity != 1) {
       runtime_error("Function passed to \"" STR(count) "\" must take 1 argument, but got %d.", fn_arity);
       return NIL_VAL;

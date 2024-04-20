@@ -76,6 +76,9 @@
     <ClCompile Include="builtin_module_perf.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="builtin_module_debug.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="hashtable.c">
       <Filter>Source Files</Filter>
     </ClCompile>

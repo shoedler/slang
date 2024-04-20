@@ -38,6 +38,9 @@ extern void register_builtin_file_module();
 // Registers the built-in perf module
 extern void register_builtin_perf_module();
 
+// Registers the built-in debug module
+extern void register_builtin_debug_module();
+
 //
 // Built-in function-, method- and class-declarations
 //

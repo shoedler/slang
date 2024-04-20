@@ -221,6 +221,7 @@ void init_vm() {
   // Register built-in modules
   register_builtin_file_module();
   register_builtin_perf_module();
+  register_builtin_debug_module();
 
   vm.flags &= ~VM_FLAG_PAUSE_GC;  // Unpause
 
@@ -730,6 +731,16 @@ static bool value_get_property(ObjString* name) {
         }
         if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
           result = OBJ_VAL(klass->name);
+          goto done_getting_property;
+        }
+        break;
+      }
+      case OBJ_FUNCTION:
+      case OBJ_CLOSURE:
+      case OBJ_NATIVE:
+      case OBJ_BOUND_METHOD: {
+        if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
+          result = OBJ_VAL(callable_get_name(AS_OBJECT(receiver)));
           goto done_getting_property;
         }
         break;

@@ -160,6 +160,7 @@
     <ClCompile Include="builtin_class.c" />
     <ClCompile Include="builtin_module_file.c" />
     <ClCompile Include="builtin_module_perf.c" />
+    <ClCompile Include="builtin_module_debug.c" />
     <ClCompile Include="scanner.c" />
     <ClCompile Include="value.c" />
     <ClCompile Include="vm.c" />
