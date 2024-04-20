@@ -166,8 +166,6 @@ typedef struct ObjClass {
   Obj* __to_str;
   Obj* __slice;
 
-  NativePropGetter prop_getter;
-  NativePropSetter prop_setter;
   NativeIndexGetter index_getter;
   NativeIndexSetter index_setter;
 } ObjClass;

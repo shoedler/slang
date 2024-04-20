@@ -4,7 +4,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool prop_setter(Obj* self, ObjString* name, Value value);
 static bool index_getter(Obj* self, Value index, Value* result);
 static bool index_setter(Obj* self, Value index, Value value);
 
@@ -26,18 +25,10 @@ void register_builtin_obj_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, keys, 0);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, prop_setter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, index_getter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, index_setter);
 
   BUILTIN_FINALIZE_CLASS(TYPENAME_OBJ);
-}
-
-// Internal OP_SET_PROPERTY handler
-static bool prop_setter(Obj* self, ObjString* name, Value value) {
-  ObjObject* object = (ObjObject*)self;
-  hashtable_set(&object->fields, OBJ_VAL(name), value);
-  return true;
 }
 
 // Internal OP_GET_INDEX handler

@@ -692,11 +692,11 @@ static Value doc(Value value) {
   return pop();
 }
 
-// Tries to resolve and push a property of an object onto the stack. If the property is not found, it returns
+// Tries to resolve and push a property of a value onto the stack. If the property is not found, it returns
 // false and does not push anything onto the stack.
-// `Stack: ...[object][property_name]`
+// `Stack: ...[object]` (Property name is in the constant table)
 // After the call:
-// `Stack: ...[value]` or `Stack: ...[object][property_name]` if the property was not found
+// `Stack: ...[result]` or `Stack: ...[object]` if the property was not found
 static bool value_get_property(ObjString* name) {
   Value receiver = peek(0);
   Value result;
@@ -764,6 +764,37 @@ done_getting_property:
   pop();  // Pop receiver
   push(result);
   return true;
+}
+
+// Tries to set a property of a value. If the property is not found, it is created.
+// Returns true for object, because it'll always work. Returns false in case of an error, or for every other type, because the
+// value does not support setting properties. `Stack: ...[object][value]` (Property name is in the constant table) After the call:
+// `Stack: ...[result]` or `Stack: ...[object][value]` if the property was not found
+static bool value_set_property(ObjString* name) {
+  Value receiver = peek(1);
+  Value value    = peek(0);
+
+  // TODO (optimize): Maybe remove this check for reserved words. We could just allow the user to override these things. This is
+  // tightly bound to the retrieval of properties, because if we check the special props before the fields, they would always
+  // return the internal value. Currently tough, we check the fields first, because most of the time you probably want to get
+  // fields you've defined as a user. So, getting a special property would yield the value the user assigned. This is bad, because
+  // you could override e.g. the length property and cause the vm to segfault.
+
+  // Check if it is a reserved property.
+  for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
+    if (name == vm.special_prop_names[i]) {  // We can just compare pointers, because strings are interned.
+      runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, typeof(receiver)->name->chars);
+      return false;
+    }
+  }
+
+  if (IS_OBJECT(receiver)) {
+    ObjObject* object = AS_OBJECT(receiver);
+    hashtable_set(&object->fields, OBJ_VAL(name), value);
+    return true;
+  }
+
+  return false;
 }
 
 // Handles errors in the virtual machine.
@@ -993,35 +1024,14 @@ static Value run() {
         goto finish_error;
       }
       case OP_SET_PROPERTY: {
-        Value value     = peek(0);
-        Value obj       = peek(1);
         ObjString* name = READ_STRING();
-        ObjClass* type  = typeof(obj);
-
-        if (type->prop_setter == NULL) {
-          runtime_error("Type %s does not support property-set access.", type->name->chars);
-          goto finish_error;
-        }
-
-        // Check if it is a reserved property.
-        for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
-          if (strcmp(name->chars, vm.special_prop_names[i]->chars) == 0) {
-            runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, type->name->chars);
-            goto finish_error;
-          }
-        }
-
-        if (type->prop_setter(AS_OBJ(obj), name, value)) {
-          pop();        // Pop the value
-          pop();        // Pop the object
-          push(value);  // Push the value back onto the stack, because assignment is an expression
+        if (value_set_property(name)) {
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {
+        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_set_property set an error
           goto finish_error;
         }
-
-        runtime_error("Cannot set property '%s' on value of type %s.", name->chars, type->name->chars);
+        runtime_error("Type %s does not support property-set access.", typeof(peek(1))->name->chars);
         goto finish_error;
       }
       case OP_IMPORT_FROM: {

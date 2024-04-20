@@ -66,8 +66,6 @@ ObjClass* new_class(ObjString* name, ObjClass* base) {
   klass->__to_str = NULL;
   klass->__has    = NULL;
 
-  klass->prop_getter  = NULL;
-  klass->prop_setter  = NULL;
   klass->index_getter = NULL;
   klass->index_setter = NULL;
 
@@ -120,8 +118,6 @@ void finalize_new_class(ObjClass* klass) {
     return;
   }
 
-  klass->prop_getter  = klass->base->prop_getter;
-  klass->prop_setter  = klass->base->prop_setter;
   klass->index_getter = klass->base->index_getter;
   klass->index_setter = klass->base->index_setter;
 }

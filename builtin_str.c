@@ -3,7 +3,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool prop_setter(Obj* self, ObjString* name, Value value);
 static bool index_getter(Obj* self, Value index, Value* result);
 static bool index_setter(Obj* self, Value index, Value value);
 
@@ -16,19 +15,10 @@ void register_builtin_str_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, prop_setter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, index_getter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, index_setter);
 
   BUILTIN_FINALIZE_CLASS(TYPENAME_STRING);
-}
-
-// Internal OP_SET_PROPERTY handler
-static bool prop_setter(Obj* self, ObjString* name, Value value) {
-  UNUSED(self);
-  UNUSED(name);
-  UNUSED(value);
-  return false;
 }
 
 // Internal OP_GET_INDEX handler
