@@ -5,8 +5,9 @@ print "foo" in { "foo": 1 } // [Expect] true
 
 print "oob" in "foobar" // [Expect] true
 
+// Instance methods are not considered
 cls X { fn x -> 1 static fn y -> 2 }
-print "x" in X // [Expect] true
+print "x" in X // [Expect] false
 print "y" in X // [Expect] true
 
 // See "has" tests for more examples

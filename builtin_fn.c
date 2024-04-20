@@ -92,16 +92,27 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
     /* Return Type */ TYPENAME_FUNCTION,
     /* Description */
-    "<Not supported>");
+    "Returns " STR(TYPENAME_TRUE) " if the fn has a property with the given name, " STR(TYPENAME_FALSE) " otherwise.");
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_HAS) {
   BUILTIN_CHECK_RECEIVER_IS_FN()
   BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_ARG_AT(1, STRING)
 
-  // Should align with prop_getter
-  if (AS_STRING(argv[1]) == vm.special_prop_names[SPECIAL_PROP_NAME]) {
+  ObjString* name = AS_STRING(argv[1]);
+  Obj* fn         = AS_OBJ(argv[0]);
+
+  // Execute the value_get_property function to see if the fn has the thing. We use this approach to make sure the two are
+  // aligned and return the same result.
+  push(OBJ_VAL(fn));
+  if (value_get_property(name)) {
+    pop();  // The result
     return BOOL_VAL(true);
   }
+  if (vm.flags & VM_FLAG_HAS_ERROR) {
+    return NIL_VAL;
+  }
+
+  pop();  // The fn
 
   return BOOL_VAL(false);
 }

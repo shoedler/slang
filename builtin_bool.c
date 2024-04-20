@@ -6,7 +6,6 @@ void register_builtin_bool_class() {
   BUILTIN_REGISTER_BASE_CLASS(TYPENAME_BOOL);
   BUILTIN_REGISTER_METHOD(TYPENAME_BOOL, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_BOOL, SP_METHOD_TO_STR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_BOOL, SP_METHOD_HAS, 1);
 
   BUILTIN_FINALIZE_CLASS(TYPENAME_BOOL);
 }
@@ -47,28 +46,4 @@ BUILTIN_METHOD_IMPL(TYPENAME_BOOL, SP_METHOD_TO_STR) {
     ObjString* str_obj = copy_string(VALUE_STR_FALSE, STR_LEN(VALUE_STR_FALSE));
     return OBJ_VAL(str_obj);
   }
-}
-
-// Built-in method to check if a value has a property
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_BOOL,
-    /* Name        */ SP_METHOD_HAS,
-    /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
-    /* Return Type */ TYPENAME_BOOL,
-    /* Description */
-    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_BOOL) " class has a method with the given name, otherwise " VALUE_STR_FALSE
-                                                            ".");
-BUILTIN_METHOD_IMPL(TYPENAME_BOOL, SP_METHOD_HAS) {
-  BUILTIN_CHECK_RECEIVER(BOOL)
-  BUILTIN_ARGC_EXACTLY(1)
-  BUILTIN_CHECK_ARG_AT(1, STRING)
-
-  // Should align with prop_getter
-  ObjString* name = AS_STRING(argv[1]);
-  Value discard;
-  if (hashtable_get_by_string(&vm.__builtin_Bool_class->methods, name, &discard)) {
-    return BOOL_VAL(true);
-  }
-
-  return BOOL_VAL(false);
 }

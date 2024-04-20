@@ -178,4 +178,37 @@ bool is_falsey(Value value);
 // batch-copy them into the value_array?
 void make_seq(int count);
 
+// Tries to resolve and push a property of a value onto the stack. If the property is not found, it returns
+// false and does not touch the stack.
+// `Stack: ...[receiver]` ('name' is not on the stack)
+// After the call:
+// `Stack: ...[result]` or `Stack: ...[receiver]` if the property was not found.
+bool value_get_property(ObjString* name);
+
+// Tries to set a property of a value and leaves just the value on the stack. If the property is not found, it is created.
+// Returns true for objects, because it'll always work. Returns false in case of an error, because the value does not
+// support setting properties.
+// `Stack: ...[receiver][value]`
+// After the call:
+// `Stack: ...[result]` or `Stack: ...[receiver][value]` if it returned false.
+// You should test if the error flag is set after this function, because it might have set it.
+bool value_set_property(ObjString* name);
+
+// Tries to resolve and push an index of a value onto the stack. If the index is not found, it returns
+// false and does not touch the stack.
+// `Stack: ...[receiver][index]`
+// After the call:
+// `Stack: ...[result]` or `Stack: ...[receiver][index]` if it returned false.
+// You should test if the error flag is set after this function, because it might have set it.
+bool value_get_index();
+
+// Tries to set an index of a value and leaves just the value on the stack.
+// Returns true for objects, because it'll always work. Returns false in case of an error (e.g. bounds-check), or for every other
+// type that does not support set-indexing.
+// `Stack: ...[receiver][index][value]`
+//  After the call:
+// `Stack: ...[result]` or `Stack: ...[receiver][index][value]` if it returned false.
+// You should test if the error flag is set after this function, because it might have set it.
+bool value_set_index();
+
 #endif

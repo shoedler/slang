@@ -64,8 +64,7 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
     /* Return Type */ TYPENAME_BOOL,
     /* Description */
-    "Returns " STR(TYPENAME_TRUE) " if the class has a method or static method with the given name, " STR(
-        TYPENAME_FALSE) " otherwise.");
+    "Returns " STR(TYPENAME_TRUE) " if the class has a property with the given name, " STR(TYPENAME_FALSE) " otherwise.");
 BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_HAS) {
   BUILTIN_CHECK_RECEIVER(CLASS)
   BUILTIN_ARGC_EXACTLY(1)
@@ -73,15 +72,19 @@ BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_HAS) {
 
   ObjString* name = AS_STRING(argv[1]);
   ObjClass* klass = AS_CLASS(argv[0]);
-  Value result;
 
-  // Should align with prop_getter
-  if (hashtable_get_by_string(&klass->methods, name, &result)) {
+  // Execute the value_get_property function to see if the class has the thing. We use this approach to make sure the two are
+  // aligned and return the same result.
+  push(OBJ_VAL(klass));
+  if (value_get_property(name)) {
+    pop();  // The result
     return BOOL_VAL(true);
   }
-  if (hashtable_get_by_string(&klass->static_methods, name, &result)) {
-    return BOOL_VAL(true);
+  if (vm.flags & VM_FLAG_HAS_ERROR) {
+    return NIL_VAL;
   }
+
+  pop();  // The class
 
   return BOOL_VAL(false);
 }

@@ -389,7 +389,7 @@ static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_co
   Value method = find_method_in_inheritance_chain(klass, name);
 
   if (IS_NIL(method)) {
-    runtime_error("Undefined method '%s' in '%s' or any of its parent classes", name->chars, klass->name->chars);
+    runtime_error("Undefined method '%s' in '%s' or any of its parent classes.", name->chars, klass->name->chars);
     return CALL_FAILED;
   }
 
@@ -693,12 +693,7 @@ static Value doc(Value value) {
   return pop();
 }
 
-// Tries to resolve and push a property of a value onto the stack. If the property is not found, it returns
-// false and does not push anything onto the stack.
-// `Stack: ...[receiver]` ('name' is not on the stack)
-// After the call:
-// `Stack: ...[result]` or `Stack: ...[receiver]` if the property was not found
-static bool value_get_property(ObjString* name) {
+bool value_get_property(ObjString* name) {
   Value receiver = peek(0);
   Value result;
 
@@ -777,13 +772,7 @@ done_getting_property:
   return true;
 }
 
-// Tries to set a property of a value and leaves just the value on the stack. If the property is not found, it is created.
-// Returns true for objects, because it'll always work. Returns false in case of an error, or for every other type, because the
-// value does not support setting properties.
-// `Stack: ...[receiver][value]` (Property name is in the constant table)
-// After the call:
-// `Stack: ...[result]` or `Stack: ...[receiver][value]` if the property was not found
-static bool value_set_property(ObjString* name) {
+bool value_set_property(ObjString* name) {
   Value receiver = peek(1);
   Value value    = peek(0);
 
@@ -815,12 +804,7 @@ done_setting_property:
   push(value);  // Push the value back onto the stack, because assignment is an expression
 }
 
-// Tries to resolve and push an index of a value onto the stack. If the index is not found, it returns
-// false and does not push anything onto the stack.
-// `Stack: ...[receiver][index]`
-// After the call:
-// `Stack: ...[result]` or `Stack: ...[receiver][index]` if the index was not found
-static bool value_get_index() {
+bool value_get_index() {
   Value receiver = peek(1);
   Value index    = peek(0);
   Value result;
@@ -893,7 +877,7 @@ done_getting_index:
   return true;
 }
 
-static bool value_set_index() {
+bool value_set_index() {
   Value receiver = peek(2);
   Value index    = peek(1);
   Value value    = peek(0);

@@ -3,7 +3,8 @@ cls Lol {
   static fn y -> 2
 }
 
-print Lol.has("x") // [Expect] true
+// Instance methods are not 'has'able
+print Lol.has("x") // [Expect] false
 print Lol.has("y") // [Expect] true
 print Lol.has("z") // [Expect] false
 

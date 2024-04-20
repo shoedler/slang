@@ -1,2 +1,2 @@
-print try (1.has(1)) else error // [Expect] Expected argument 0 of type Str but got Num.
-print "to_str" in 1 // [Expect] true
+print try (1.has(1)) else error // [Expect] Undefined method 'has' in 'Num' or any of its parent classes.
+print try ("to_str" in 1) else error // [Expect] Type Num does not support the 'in' operator. It must implement 'has'.
