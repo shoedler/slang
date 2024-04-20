@@ -694,9 +694,9 @@ static Value doc(Value value) {
 
 // Tries to resolve and push a property of a value onto the stack. If the property is not found, it returns
 // false and does not push anything onto the stack.
-// `Stack: ...[object]` (Property name is in the constant table)
+// `Stack: ...[receiver]` ('name' is not on the stack)
 // After the call:
-// `Stack: ...[result]` or `Stack: ...[object]` if the property was not found
+// `Stack: ...[result]` or `Stack: ...[receiver]` if the property was not found
 static bool value_get_property(ObjString* name) {
   Value receiver = peek(0);
   Value result;
@@ -766,10 +766,12 @@ done_getting_property:
   return true;
 }
 
-// Tries to set a property of a value. If the property is not found, it is created.
-// Returns true for object, because it'll always work. Returns false in case of an error, or for every other type, because the
-// value does not support setting properties. `Stack: ...[object][value]` (Property name is in the constant table) After the call:
-// `Stack: ...[result]` or `Stack: ...[object][value]` if the property was not found
+// Tries to set a property of a value and leaves just the value on the stack. If the property is not found, it is created.
+// Returns true for objects, because it'll always work. Returns false in case of an error, or for every other type, because the
+// value does not support setting properties.
+// `Stack: ...[receiver][value]` (Property name is in the constant table)
+// After the call:
+// `Stack: ...[result]` or `Stack: ...[receiver][value]` if the property was not found
 static bool value_set_property(ObjString* name) {
   Value receiver = peek(1);
   Value value    = peek(0);
@@ -795,6 +797,84 @@ static bool value_set_property(ObjString* name) {
   }
 
   return false;
+}
+
+// Tries to resolve and push an index of a value onto the stack. If the index is not found, it returns
+// false and does not push anything onto the stack.
+// `Stack: ...[receiver][index]`
+// After the call:
+// `Stack: ...[result]` or `Stack: ...[receiver][index]` if the index was not found
+static bool value_get_index() {
+  Value receiver = peek(1);
+  Value index    = peek(0);
+  Value result;
+
+  if (IS_OBJ(receiver)) {
+    switch (AS_OBJ(receiver)->type) {
+      case OBJ_OBJECT: {
+        // Objects return nil for non-existing indices or the value at the index
+        ObjObject* object = AS_OBJECT(receiver);
+        if (hashtable_get(&object->fields, index, &result)) {
+          goto done_getting_index;
+        }
+        result = NIL_VAL;
+        goto done_getting_index;
+      }
+      case OBJ_SEQ: {
+        ObjSeq* seq = AS_SEQ(receiver);
+
+        if (!IS_NUMBER(index)) {
+          break;  // Maybe it's a string index
+        }
+
+        double i_raw = AS_NUMBER(index);
+        long long i;
+        if (!is_int(i_raw, &i)) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        if (i < 0 || i >= seq->items.count) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        result = seq->items.values[i];
+        goto done_getting_index;
+      }
+      case OBJ_STRING: {
+        ObjString* string = AS_STRING(receiver);
+
+        if (!IS_NUMBER(index)) {
+          break;  // Maybe it's a string index
+        }
+
+        double i_raw = AS_NUMBER(index);
+        long long i;
+        if (!is_int(i_raw, &i)) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        if (i < 0 || i >= string->length) {
+          result = NIL_VAL;
+          goto done_getting_index;
+        }
+
+        ObjString* char_str = copy_string(string->chars + i, 1);
+        result              = OBJ_VAL(char_str);
+        goto done_getting_index;
+      }
+    }
+  }
+
+  return false;
+
+done_getting_index:
+  pop();  // Pop receiver (or index, if it got swapped)
+  pop();  // Pop index (or receiver, if it got swapped)
+  push(result);
+  return true;
 }
 
 // Handles errors in the virtual machine.
@@ -963,29 +1043,14 @@ static Value run() {
         break;
       }
       case OP_GET_INDEX: {
-        Value value    = NIL_VAL;
-        Value index    = peek(0);
-        Value indexee  = peek(1);
-        ObjClass* type = typeof(indexee);
-
-        if (type->index_getter == NULL) {
-          runtime_error("Type %s does not support get-indexing.", type->name->chars);
-          goto finish_error;
-        }
-
-        if (type->index_getter(AS_OBJ(indexee), index, &value)) {
-          pop();  // Pop the index
-          pop();  // Pop the indexee
-          push(value);
+        if (value_get_index()) {
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {
+        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_get_index set an error
           goto finish_error;
         }
-
-        push(index);  // Receiver
-        ObjString* index_str = AS_STRING(exec_fn(typeof(index)->__to_str, 0));
-        runtime_error("Index '%s' does not exist on value of type %s.", index_str->chars, type->name->chars);
+        runtime_error("Type %s does not support get-indexing with %s.", typeof(peek(1))->name->chars,
+                      typeof(peek(0))->name->chars);
         goto finish_error;
       }
       case OP_SET_INDEX: {
@@ -1019,6 +1084,9 @@ static Value run() {
         ObjString* name = READ_STRING();
         if (value_get_property(name)) {
           break;
+        }
+        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Will never happen: value_get_property never sets an error. Just a precaution.
+          goto finish_error;
         }
         runtime_error("Property '%s' does not exist on value of type %s.", name->chars, typeof(peek(0))->name->chars);
         goto finish_error;

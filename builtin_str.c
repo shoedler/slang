@@ -3,7 +3,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool index_getter(Obj* self, Value index, Value* result);
 static bool index_setter(Obj* self, Value index, Value value);
 
 void register_builtin_str_class() {
@@ -15,35 +14,9 @@ void register_builtin_str_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, index_getter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_STRING, index_setter);
 
   BUILTIN_FINALIZE_CLASS(TYPENAME_STRING);
-}
-
-// Internal OP_GET_INDEX handler
-static bool index_getter(Obj* self, Value index, Value* result) {
-  if (!IS_NUMBER(index)) {
-    runtime_error(STR(TYPENAME_STRING) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
-    return false;
-  }
-
-  double i_raw = AS_NUMBER(index);
-  long long i;
-  if (!is_int(i_raw, &i)) {
-    *result = NIL_VAL;
-    return true;
-  }
-
-  ObjString* string = (ObjString*)self;
-  if (i < 0 || i >= string->length) {
-    runtime_error("Index out of bounds. Was %lld, but this " STR(TYPENAME_STRING) " has length %d.", i, string->length);
-    return false;
-  }
-
-  ObjString* char_str = copy_string(string->chars + i, 1);
-  *result             = OBJ_VAL(char_str);
-  return true;
 }
 
 // Internal OP_SET_INDEX handler

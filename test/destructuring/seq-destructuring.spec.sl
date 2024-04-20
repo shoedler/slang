@@ -10,8 +10,11 @@ try {
   print b // [Expect] 2
 } 
 
-// Fails if you declare more variables than there are elements
-try { let [c, d] = [1]} catch { print error } // [Expect] Index out of bounds. Was 1, but this Seq has length 1.
+// Destructuring with only one element assigns nil to the variables without a value
+let [a, b, c] = [1]
+print a // [Expect] 1
+print b // [Expect] nil
+print c // [Expect] nil
 
 // Rest parameters are allowed on the end
 let [e, ...f] = [1, 2, 3]

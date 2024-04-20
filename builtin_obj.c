@@ -4,7 +4,6 @@
 #include "common.h"
 #include "vm.h"
 
-static bool index_getter(Obj* self, Value index, Value* result);
 static bool index_setter(Obj* self, Value index, Value value);
 
 void register_builtin_obj_class() {
@@ -25,21 +24,9 @@ void register_builtin_obj_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, keys, 0);
 
-  BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, index_getter);
   BUILTIN_REGISTER_ACCESSOR(TYPENAME_OBJ, index_setter);
 
   BUILTIN_FINALIZE_CLASS(TYPENAME_OBJ);
-}
-
-// Internal OP_GET_INDEX handler
-static bool index_getter(Obj* self, Value index, Value* result) {
-  ObjObject* object = (ObjObject*)self;
-  // TODO (optimize): Maybe check if it's a string first, then we could use hashtable_get_by_string. Certainly, there's a
-  // threshold where it's faster to check the type first.
-  if (!hashtable_get(&object->fields, index, result)) {
-    *result = NIL_VAL;
-  }
-  return true;
 }
 
 // Internal OP_SET_INDEX handler

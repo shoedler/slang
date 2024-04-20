@@ -66,7 +66,6 @@ ObjClass* new_class(ObjString* name, ObjClass* base) {
   klass->__to_str = NULL;
   klass->__has    = NULL;
 
-  klass->index_getter = NULL;
   klass->index_setter = NULL;
 
   init_hashtable(&klass->methods);
@@ -118,7 +117,6 @@ void finalize_new_class(ObjClass* klass) {
     return;
   }
 
-  klass->index_getter = klass->base->index_getter;
   klass->index_setter = klass->base->index_setter;
 }
 
