@@ -21,8 +21,10 @@ let [e, ...f] = [1, 2, 3]
 print e // [Expect] 1
 print f // [Expect] [2, 3]
 
-// Rest must contain at least one element
-try { let [g, ...h] = [1] } catch { print error } // [Expect] Slice indices out of bounds. Start resolved to 1 and end to 1, but this Seq has length 1.
+// Rest must contain can be empty
+let [g, ...h] = [1]
+print g // [Expect] 1
+print h // [Expect] []
 
 // Also works for strings
 let [i, j] = "ab" 
@@ -35,5 +37,10 @@ print k // [Expect] a
 print l // [Expect] bc
 
 // Same rules apply for strings
-try { let [m, n] = "a" } catch { print error } // [Expect] Index out of bounds. Was 1, but this Str has length 1.
-try { let [m, ...n] = "a" } catch { print error } // [Expect] Slice indices out of bounds. Start resolved to 1 and end to 1, but this Str has length 1.
+let [m, n] = "a"
+print m // [Expect] a
+print n // [Expect] nil
+
+let [o, ...p] = "a"
+print o // [Expect] a
+print "\"" + p + "\"" // [Expect] ""

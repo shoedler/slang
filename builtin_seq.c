@@ -247,10 +247,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_SLICE) {
   }
 
   if (start < 0 || start >= count || end < 0 || end > count) {
-    runtime_error(
-        "Slice indices out of bounds. Start resolved to %d and end to %d, but this " STR(TYPENAME_SEQ) " has length %d.", start,
-        end, count);
-    return NIL_VAL;
+    return OBJ_VAL(new_seq());
   }
 
   if (start >= end) {
