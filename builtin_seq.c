@@ -142,7 +142,6 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
-
   return pop_value_array(&seq->items);  // Does bounds checking
 }
 

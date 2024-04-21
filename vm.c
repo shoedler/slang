@@ -47,11 +47,6 @@ void dump_stacktrace() {
     ObjFunction* function = frame->closure->function;
     size_t instruction    = frame->ip - function->chunk.code - 1;
 
-    // First of all, we process the active native function, if there is one.
-    if (frame->current_native != NULL) {
-      fprintf(stderr, "  at line %d in native \"%s\" \n", function->chunk.lines[instruction], frame->current_native->name->chars);
-    }
-
     fprintf(stderr, "  at line %d ", function->chunk.lines[instruction]);
 
     Value module_name;
@@ -313,9 +308,6 @@ static CallResult call_managed(ObjClosure* closure, int arg_count) {
 // Calls a native function with the given number of arguments (on the stack).
 // `Stack: ...[native|receiver][arg0][arg1]...[argN]`
 static CallResult call_native(ObjNative* native, int arg_count) {
-  // Set the current native function on the frame, so we can show it in the stack trace.
-  vm.frames[vm.frame_count - 1].current_native = native;
-
   Value* args  = vm.stack_top - arg_count - 1;
   Value result = native->function(arg_count, args);
   vm.stack_top -= arg_count + 1;  // Remove args + fn or receiver

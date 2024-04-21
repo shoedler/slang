@@ -33,10 +33,7 @@ typedef struct {
   ObjClosure* closure;
   uint16_t* ip;
   Value* slots;
-  HashTable* globals;         // Global variables
-  ObjNative* current_native;  // The current native function being executed. This is solely used for better
-                              // stack traces. It's not perfect, since natives can call other natives, but
-                              // it's better than nothing.
+  HashTable* globals;  // Global variables
 } CallFrame;
 
 typedef enum {
