@@ -19,4 +19,5 @@ print lol is Fn // [Expect] true
 print bound is Fn // [Expect] true
 print unbound is Fn // [Expect] true
 
-
+// Since a class is callable, it can be passed as a method group.
+print "12345".split("").map(Num) // [Expect] [1, 2, 3, 4, 5]

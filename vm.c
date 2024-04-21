@@ -452,22 +452,12 @@ static Value run_frame() {
 
 Value exec_callable(Obj* callable, int arg_count) {
   CallResult result = CALL_FAILED;
-  switch (callable->type) {
-    case OBJ_CLOSURE: result = call_managed((ObjClosure*)callable, arg_count); break;
-    case OBJ_NATIVE: result = call_native(((ObjNative*)callable), arg_count); break;
-    case OBJ_STRING: {
-      Value receiver  = peek(arg_count);
-      ObjClass* klass = typeof(receiver);
-      result          = invoke_from_class(klass, (ObjString*)callable, arg_count);
-      break;
-    }
-    case OBJ_BOUND_METHOD: {
-      // For bound methods, we need to load the receiver onto the stack just before the arguments, overriding
-      // the bound method on the stack.
-      ObjBoundMethod* bound        = (ObjBoundMethod*)callable;
-      vm.stack_top[-arg_count - 1] = bound->receiver;
-      return exec_fn(bound->method, arg_count);
-    }
+  if (callable->type == OBJ_STRING) {
+    Value receiver  = peek(arg_count);
+    ObjClass* klass = typeof(receiver);
+    result          = invoke_from_class(klass, (ObjString*)callable, arg_count);
+  } else {
+    result = call_value(OBJ_VAL(callable), arg_count);
   }
 
   if (result == CALL_RETURNED) {

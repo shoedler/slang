@@ -1378,5 +1378,73 @@
       "value": "157260000",
       "durationInSecs": "5"
     }
+  },
+  {
+    "date": "2024-04-21T17:08:16.196Z",
+    "commit": {
+      "date": "2024-04-20 23:16:16 +0200",
+      "hash": "b1e40461c821d6fa037f4909ba923787be29c6e2",
+      "message": "Merge pull request #15 from shoedler/feat/refactor-accessors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "7.413"
+    }
+  },
+  {
+    "date": "2024-04-21T17:08:16.196Z",
+    "commit": {
+      "date": "2024-04-20 23:16:16 +0200",
+      "hash": "b1e40461c821d6fa037f4909ba923787be29c6e2",
+      "message": "Merge pull request #15 from shoedler/feat/refactor-accessors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "LatencyBenchmark",
+      "name": "Fib(35)",
+      "expectedValue": "9227465",
+      "value": "9227465",
+      "durationInSecs": "0.879"
+    }
+  },
+  {
+    "date": "2024-04-21T17:08:16.196Z",
+    "commit": {
+      "date": "2024-04-20 23:16:16 +0200",
+      "hash": "b1e40461c821d6fa037f4909ba923787be29c6e2",
+      "message": "Merge pull request #15 from shoedler/feat/refactor-accessors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Debug",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "288",
+      "value": "17280000",
+      "durationInSecs": "5"
+    }
+  },
+  {
+    "date": "2024-04-21T17:08:16.196Z",
+    "commit": {
+      "date": "2024-04-20 23:16:16 +0200",
+      "hash": "b1e40461c821d6fa037f4909ba923787be29c6e2",
+      "message": "Merge pull request #15 from shoedler/feat/refactor-accessors"
+    },
+    "processorName": "13th Gen Intel(R) Core(TM) i7-13700H",
+    "config": "Release",
+    "benchmark": {
+      "benchmarkType": "ThroughputBenchmark",
+      "name": "Zoo",
+      "throughput": "2678",
+      "value": "160680000",
+      "durationInSecs": "5"
+    }
   }
 ]
