@@ -4,7 +4,7 @@
 #include "vm.h"
 
 #define BUILTIN_CHECK_RECEIVER_IS_FN()                                                                     \
-  if (!is_callable(argv[0])) {                                                                             \
+  if (!is_fn(argv[0])) {                                                                                   \
     runtime_error("Expected receiver of type " STR(TYPENAME_FUNCTION) ", " STR(TYPENAME_CLOSURE) ", " STR( \
                       TYPENAME_NATIVE) " or " STR(TYPENAME_BOUND_METHOD) ", but got %s.",                  \
                   typeof(argv[0])->name->chars);                                                           \

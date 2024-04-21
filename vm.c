@@ -450,7 +450,7 @@ static Value run_frame() {
   return result;
 }
 
-Value exec_fn(Obj* callable, int arg_count) {
+Value exec_callable(Obj* callable, int arg_count) {
   CallResult result = CALL_FAILED;
   switch (callable->type) {
     case OBJ_CLOSURE: result = call_managed((ObjClosure*)callable, arg_count); break;
@@ -683,7 +683,7 @@ static Value doc(Value value) {
 
   // Execute the to_str method on the receiver, if it exists
   push(value);  // Load the receiver onto the stack
-  push(exec_fn(typeof(value)->__to_str, 0));
+  push(exec_callable(typeof(value)->__to_str, 0));
   push(OBJ_VAL(copy_string(":\nNo documentation available.\n", 30)));
   if (vm.flags & VM_FLAG_HAS_ERROR) {
     return pop();
@@ -735,7 +735,7 @@ bool value_get_property(ObjString* name) {
       case OBJ_NATIVE:
       case OBJ_BOUND_METHOD: {
         if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
-          result = OBJ_VAL(callable_get_name(AS_OBJECT(receiver)));
+          result = OBJ_VAL(fn_get_name((Obj*)AS_OBJECT(receiver)));
           goto done_getting_property;
         }
         break;
@@ -802,6 +802,7 @@ done_setting_property:
   pop();        // Pop value
   pop();        // Pop receiver
   push(value);  // Push the value back onto the stack, because assignment is an expression
+  return true;
 }
 
 bool value_get_index() {
@@ -940,6 +941,7 @@ done_setting_index:
   pop();        // Pop index
   pop();        // Pop receiver
   push(value);  // Push the value back onto the stack, because assignment is an expression
+  return true;
 }
 
 // Handles errors in the virtual machine.
@@ -1224,7 +1226,7 @@ static Value run() {
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
       case OP_PRINT: {
-        ObjString* str = AS_STRING(exec_fn(typeof(peek(0))->__to_str, 0));
+        ObjString* str = AS_STRING(exec_callable(typeof(peek(0))->__to_str, 0));
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           goto finish_error;
         }
@@ -1401,7 +1403,7 @@ static Value run() {
                         target_type->name->chars);
           goto finish_error;
         }
-        Value result = exec_fn(target_type->__has, 1);
+        Value result = exec_callable(target_type->__has, 1);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           goto finish_error;
         }
@@ -1427,7 +1429,7 @@ static Value run() {
           goto finish_error;
         }
 
-        Value result = exec_fn(type->__slice, 2);
+        Value result = exec_callable(type->__slice, 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           goto finish_error;
         }

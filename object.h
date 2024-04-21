@@ -239,8 +239,8 @@ static inline bool is_obj_type(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
 
-// Determines if a value is callable. This is used to check if a value can be called as a function.
-static inline bool is_callable(Value value) {
+// Determines if a value is a function.
+static inline bool is_fn(Value value) {
   if (IS_OBJ(value)) {
     switch (OBJ_TYPE(value)) {
       case OBJ_NATIVE:
@@ -253,17 +253,29 @@ static inline bool is_callable(Value value) {
   return false;
 }
 
-// Determines the arity of a callable obj. This is used to check how many arguments a function expects.
-static inline int callable_get_arity(Obj* callable) {
+// Determines if a value is callable. This is used to check if a value can be called as a function.
+static inline bool is_callable(Value value) {
+  return is_fn(value) || IS_CLASS(value);
+}
+
+// Determines the arity of a callable. This is used to check how many arguments a callable expects.
+static inline int callable_get_arity(Obj* fn) {
 again:
-  switch (callable->type) {
-    case OBJ_NATIVE: return ((ObjNative*)callable)->arity;
-    case OBJ_FUNCTION: return ((ObjFunction*)callable)->arity;
-    case OBJ_CLOSURE: return ((ObjClosure*)callable)->function->arity;
+  switch (fn->type) {
+    case OBJ_NATIVE: return ((ObjNative*)fn)->arity;
+    case OBJ_FUNCTION: return ((ObjFunction*)fn)->arity;
+    case OBJ_CLOSURE: return ((ObjClosure*)fn)->function->arity;
     case OBJ_BOUND_METHOD: {
-      callable = ((ObjBoundMethod*)callable)->method;
+      fn = ((ObjBoundMethod*)fn)->method;
       goto again;
     };
+    case OBJ_CLASS: {
+      ObjClass* klass = (ObjClass*)fn;
+      if (klass->__ctor != NULL) {
+        return callable_get_arity(klass->__ctor);
+      }
+      return 0;
+    }
     default: break;
   }
 
@@ -271,14 +283,14 @@ again:
   return -999;
 }
 
-static inline ObjString* callable_get_name(Obj* callable) {
+static inline ObjString* fn_get_name(Obj* fn) {
 again:
-  switch (callable->type) {
-    case OBJ_NATIVE: return ((ObjNative*)callable)->name;
-    case OBJ_FUNCTION: return ((ObjFunction*)callable)->name;
-    case OBJ_CLOSURE: return ((ObjClosure*)callable)->function->name;
+  switch (fn->type) {
+    case OBJ_NATIVE: return ((ObjNative*)fn)->name;
+    case OBJ_FUNCTION: return ((ObjFunction*)fn)->name;
+    case OBJ_CLOSURE: return ((ObjClosure*)fn)->function->name;
     case OBJ_BOUND_METHOD: {
-      callable = ((ObjBoundMethod*)callable)->method;
+      fn = ((ObjBoundMethod*)fn)->method;
       goto again;
     };
     default: break;

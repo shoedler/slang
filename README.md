@@ -31,6 +31,9 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
+- [ ] Call `to_str` implicitly when adding a string to a non-string.
+- [ ] Remove in `VALUE_STR_CLASS` (`<Class X>`) the "Class" prefix from class type names.
+- [ ] Refactor `VALUE_STR_NATIVE` to look more like the normale `<Fn "name">` strings.
 - [ ] Remove bounds checks for seq/str indexing. Just return `NIL_VAL` if out of bounds. At least for get-access. Set-access should still throw an error.
 - [ ] Add an iterator to builtin classes `Class` and `Fn` which holds all the things you can 'get'. Use this in their `has` and `prop_getter` functions to make sure they are always in sync.
 - [ ] Use something else instead of `rint`, because it's not very precise. See _num-to-str.spec.sl_ for an example.

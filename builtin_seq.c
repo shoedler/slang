@@ -73,7 +73,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_TO_STR) {
   for (int i = 0; i < seq->items.count; i++) {
     // Execute the to_str method on the item
     push(seq->items.values[i]);  // Push the receiver (item at i) for to_str
-    ObjString* item_str = AS_STRING(exec_fn(typeof(seq->items.values[i])->__to_str, 0));
+    ObjString* item_str = AS_STRING(exec_callable(typeof(seq->items.values[i])->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -179,7 +179,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_HAS) {
       // Execute the provided function on the item
       push(argv[1]);               // Push the function
       push(seq->items.values[i]);  // Push the item
-      Value result = exec_fn(AS_OBJ(argv[1]), 1);
+      Value result = exec_callable(AS_OBJ(argv[1]), 1);
       if (vm.flags & VM_FLAG_HAS_ERROR) {
         return NIL_VAL;  // Propagate the error
       }
@@ -294,7 +294,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, first) {
     // Execute the provided function on the item
     push(argv[1]);               // Push the function
     push(seq->items.values[i]);  // Push the item
-    Value result = exec_fn(AS_OBJ(argv[1]), 1);
+    Value result = exec_callable(AS_OBJ(argv[1]), 1);
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;  // Propagate the error
     }
@@ -334,7 +334,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, last) {
     // Execute the provided function on the item
     push(argv[1]);               // Push the function
     push(seq->items.values[i]);  // Push the item
-    Value result = exec_fn(AS_OBJ(argv[1]), 1);
+    Value result = exec_callable(AS_OBJ(argv[1]), 1);
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;  // Propagate the error
     }
@@ -374,7 +374,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
         // Execute the provided function on the item
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0: Push the item
-        exec_fn(AS_OBJ(argv[1]), 1);
+        exec_callable(AS_OBJ(argv[1]), 1);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -387,7 +387,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
         push(NUMBER_VAL(i));         // arg1 (2): Push the index
-        exec_fn(AS_OBJ(argv[1]), 2);
+        exec_callable(AS_OBJ(argv[1]), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -432,7 +432,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, map) {
         // Execute the provided function on the item
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
-        Value mapped = exec_fn(AS_OBJ(argv[1]), 1);
+        Value mapped = exec_callable(AS_OBJ(argv[1]), 1);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -448,7 +448,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, map) {
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
         push(NUMBER_VAL(i));         // arg1 (2): Push the index
-        Value mapped = exec_fn(AS_OBJ(argv[1]), 2);
+        Value mapped = exec_callable(AS_OBJ(argv[1]), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -498,7 +498,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
         // Execute the provided function on the item
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
-        Value result = exec_fn(AS_OBJ(argv[1]), 1);
+        Value result = exec_callable(AS_OBJ(argv[1]), 1);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -516,7 +516,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
         push(NUMBER_VAL(i));         // arg1 (2): Push the index
-        Value result = exec_fn(AS_OBJ(argv[1]), 2);
+        Value result = exec_callable(AS_OBJ(argv[1]), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -563,7 +563,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, join) {
     if (!IS_STRING(seq->items.values[i])) {
       // Execute the to_str method on the item
       push(seq->items.values[i]);  // Push the receiver (item at i) for to_str, or
-      item_str = AS_STRING(exec_fn(typeof(seq->items.values[i])->__to_str, 0));
+      item_str = AS_STRING(exec_callable(typeof(seq->items.values[i])->__to_str, 0));
       if (vm.flags & VM_FLAG_HAS_ERROR) {
         return NIL_VAL;
       }
@@ -645,7 +645,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, every) {
         // Execute the provided function on the item
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
-        Value result = exec_fn(AS_OBJ(argv[1]), 1);
+        Value result = exec_callable(AS_OBJ(argv[1]), 1);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -663,7 +663,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, every) {
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
         push(NUMBER_VAL(i));         // arg1 (2): Push the index
-        Value result = exec_fn(AS_OBJ(argv[1]), 2);
+        Value result = exec_callable(AS_OBJ(argv[1]), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -714,7 +714,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, some) {
         // Execute the provided function on the item
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
-        Value result = exec_fn(AS_OBJ(argv[1]), 1);
+        Value result = exec_callable(AS_OBJ(argv[1]), 1);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -732,7 +732,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, some) {
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
         push(NUMBER_VAL(i));         // arg1 (2): Push the index
-        Value result = exec_fn(AS_OBJ(argv[1]), 2);
+        Value result = exec_callable(AS_OBJ(argv[1]), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -780,7 +780,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
         push(argv[2]);               // Push the function
         push(accumulator);           // arg0 (1): Push the accumulator
         push(seq->items.values[i]);  // arg1 (2): Push the item
-        accumulator = exec_fn(AS_OBJ(argv[2]), 2);
+        accumulator = exec_callable(AS_OBJ(argv[2]), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -794,7 +794,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
         push(accumulator);           // arg0 (1): Push the accumulator
         push(seq->items.values[i]);  // arg1 (2): Push the item
         push(NUMBER_VAL(i));         // arg2 (3): Push the index
-        accumulator = exec_fn(AS_OBJ(argv[2]), 3);
+        accumulator = exec_callable(AS_OBJ(argv[2]), 3);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
         }
@@ -849,7 +849,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
       // Execute the provided function on the item
       push(argv[1]);               // Push the function
       push(seq->items.values[i]);  // Push the item
-      Value result = exec_fn(AS_OBJ(argv[1]), 1);
+      Value result = exec_callable(AS_OBJ(argv[1]), 1);
       if (vm.flags & VM_FLAG_HAS_ERROR) {
         return NIL_VAL;  // Propagate the error
       }

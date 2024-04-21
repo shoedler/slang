@@ -631,12 +631,91 @@
 // l.exec(fn -> fib(35))
 // print l
 
-let a = [1,2,3,4,5]
-
-print a[2..] // [3, 4, 5] this one is special and kinda doesn't align with the syntax
-print a[0..2] // [1, 2] Just like in Python
-print a[..2] // [1, 2] Just like in Python
-print a[..-1] // [1, 2, 3, 4] Just like in Python
-print a[-10]
 
 // `Assert.that(expected, Is.equal_to(actual))`
+
+cls Is {
+  static fn true_ -> Is(
+    fn (a) -> a == true, 
+    fn (a) -> "Expected actual to be true, but got " + a.to_str() + " instead.")
+
+  static fn false_ -> Is(
+    fn (a) -> a == false, 
+    fn (a) -> "Expected actual to be false, but got " + a.to_str() + " instead.")
+
+  static fn nil_ -> Is(
+    fn (a) -> a == nil, 
+    fn (a) -> "Expected actual to be nil, but got " + a.to_str() + " instead")
+
+  static fn equal_to(e) -> Is(
+    fn (a) -> e == a, 
+    fn (a) -> "Expected actual to be " + e.to_str() + ", but got " + a.to_str() + " instead.")
+
+  static fn not_equal_to(e) -> Is(
+    fn (a) -> e != a, 
+    fn (a) -> "Expected actual to not be " + e.to_str() + ", but it was. (actual: " + a.to_str() + ")")
+
+  ctor (compare_fn, fail_fn) {
+    this.compare_fn = compare_fn
+    this.fail_fn = fail_fn
+  }
+}
+
+cls Does {
+  static fn throw_(e) -> Does(
+    fn (threw, a) -> threw ? e == a : false,
+    fn (a) -> "Expected an error to be thrown with value '" + e.to_str() + "', but got '" + a.to_str() + "' instead.")
+  static fn not_throw -> Does(
+    fn (threw, a) -> !threw,
+    fn (a) -> "Expected no error to be thrown, but got '" + a.to_str() + "' instead.")
+
+
+  ctor (compare_fn, fail_fn) {
+    this.compare_fn = compare_fn
+    this.fail_fn = fail_fn
+  }
+}
+
+
+cls Assert {
+  static fn that(expected, comparer) {
+    if comparer is Is {
+      let { compare_fn, fail_fn } = comparer
+      if !compare_fn(expected) {
+        throw fail_fn(expected)
+      }
+    }
+    else if comparer is Does {
+      if !(expected is Fn) {
+        throw "First argument must be a callable"
+      }
+
+      let obj = {} // Use an object so we know for sure if 'error' was overwritten
+      let err = obj
+
+      try {
+        expected()
+      }
+      catch {
+        err = error      
+      }
+
+      let did_throw = err != obj
+      let { compare_fn, fail_fn } = comparer
+      if !compare_fn(did_throw, err) {
+        throw fail_fn(err)
+      }
+    }
+    else
+      throw "Second argument must be an instance of Is or Does"
+  }
+}
+
+Assert.that(true, Is.true_())
+Assert.that(false, Is.false_())
+Assert.that(nil, Is.nil_())
+Assert.that(1, Is.equal_to(1))
+
+Assert.that(fn {throw "Error"}, Does.throw_("Error"))
+Assert.that(fn {}, Does.not_throw())
+Assert.that(fn {throw "Error"}, Does.not_throw())

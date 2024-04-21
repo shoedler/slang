@@ -84,7 +84,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the key
     push(object->fields.entries[i].key);  // Push the receiver (key at i) for to_str
-    ObjString* key_str = AS_STRING(exec_fn(typeof(object->fields.entries[i].key)->__to_str, 0));
+    ObjString* key_str = AS_STRING(exec_callable(typeof(object->fields.entries[i].key)->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -93,7 +93,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the value
     push(object->fields.entries[i].value);  // Push the receiver (value at i) for to_str
-    ObjString* value_str = AS_STRING(exec_fn(typeof(object->fields.entries[i].value)->__to_str, 0));
+    ObjString* value_str = AS_STRING(exec_callable(typeof(object->fields.entries[i].value)->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -201,7 +201,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_HAS) {
 
   // Execute the 'keys' method on the receiver
   push(argv[0]);  // Receiver
-  Value seq = exec_fn((Obj*)copy_string("keys", 4), 0);
+  Value seq = exec_callable((Obj*)copy_string("keys", 4), 0);
   if (vm.flags & VM_FLAG_HAS_ERROR) {
     return NIL_VAL;
   }
@@ -209,7 +209,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_HAS) {
   // Execute the 'has' method on the seq
   push(seq);      // Receiver
   push(argv[1]);  // Argument
-  Value result = exec_fn(typeof(seq)->__has, 1);
+  Value result = exec_callable(typeof(seq)->__has, 1);
   if (vm.flags & VM_FLAG_HAS_ERROR) {
     return NIL_VAL;
   }

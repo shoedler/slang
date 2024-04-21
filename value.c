@@ -66,8 +66,7 @@ int is_digit(char c) {
 double string_to_double(char* str, int length) {
   double result              = 0.0;
   double decimal_place_value = 1.0;
-  bool found_decimal_place =
-      false;  // This acts as a boolean flag to track if we've encountered a decimal point
+  bool found_decimal_place   = false;  // This acts as a boolean flag to track if we've encountered a decimal point
 
   for (int i = 0; i < length; ++i) {
     if (is_digit(str[i])) {
@@ -108,8 +107,7 @@ bool values_equal(Value a, Value b) {
       return false;
     }
     case VAL_EMPTY_INTERNAL: return true;
-    case VAL_HANDLER:
-      INTERNAL_ERROR("Cannot compare a value to a error handler. Vm has leaked a stack value.");
+    case VAL_HANDLER: INTERNAL_ERROR("Cannot compare a value to a error handler. Vm has leaked a stack value.");
     default: INTERNAL_ERROR("Unhandled comparison type: %d", a.type); return false;
   }
 }
