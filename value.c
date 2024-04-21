@@ -48,6 +48,19 @@ Value pop_value_array(ValueArray* array) {
   return value;
 }
 
+Value remove_at_value_array(ValueArray* array, int index) {
+  if (index < 0 || index >= array->count) {
+    return NIL_VAL;
+  }
+  Value value = array->values[index];
+  array->count--;
+  for (int i = index; i < array->count; i++) {
+    array->values[i] = array->values[i + 1];
+  }
+  ensure_value_array_capacity(array, -1);
+  return value;
+}
+
 void free_value_array(ValueArray* array) {
   FREE_ARRAY(Value, array->values, array->capacity);
   init_value_array(array);

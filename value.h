@@ -154,6 +154,10 @@ void write_value_array(ValueArray* array, Value value);
 // Returns NIL_VAL if the array is empty.
 Value pop_value_array(ValueArray* array);
 
+// Remove a value at a specific index from a value array.
+// Returns NIL_VAL if the index is out of bounds.
+Value remove_at_value_array(ValueArray* array, int index);
+
 // Free a value array.
 void free_value_array(ValueArray* array);
 

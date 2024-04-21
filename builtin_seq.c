@@ -12,6 +12,8 @@ void register_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_SLICE, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, push, -1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, pop, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, remove_at, 1);
+  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, index_of, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, first, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, last, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, each, 1);
@@ -140,11 +142,28 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
-  if (seq->items.count == 0) {
-    return NIL_VAL;
-  }
 
-  return pop_value_array(&seq->items);
+  return pop_value_array(&seq->items);  // Does bounds checking
+}
+
+// Built-in method to remove a value from a sequence at a given index
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ remove_at,
+    /* Arguments   */ DOC_ARG("index", TYPENAME_NUMBER),
+    /* Return Type */ TYPENAME_OBJ,
+    /* Description */
+    "Removes and returns the item at 'index' from a " STR(TYPENAME_SEQ) ". Returns " STR(
+        TYPENAME_NIL) " if 'index' is out of bounds.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, remove_at) {
+  BUILTIN_ARGC_EXACTLY(1)
+  BUILTIN_CHECK_RECEIVER(SEQ)
+  BUILTIN_CHECK_ARG_AT(1, NUMBER)
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+  int index   = (int)AS_NUMBER(argv[1]);
+
+  return remove_at_value_array(&seq->items, index);  // Does bounds checking
 }
 
 // Built-in method to check if a sequence contains a value
@@ -266,6 +285,62 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_SLICE) {
   }
 
   return OBJ_VAL(sliced_seq);
+}
+
+// Built-in method to get the index of a value in a sequence
+BUILTIN_METHOD_DOC(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ index_of,
+    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
+    /* Return Type */ TYPENAME_NUMBER,
+    /* Description */
+    "Returns the index of 'value' in a " STR(TYPENAME_SEQ) ". Returns " VALUE_STR_NIL " if 'value' is not found.")
+BUILTIN_METHOD_DOC_OVERLOAD(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ index_of,
+    /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
+    /* Return Type */ TYPENAME_NUMBER,
+    /* Description */
+    "Returns the index of the first item in a " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE
+                                                                  ". Returns " VALUE_STR_NIL
+                                                                  " if no item satisfies the predicate.");
+BUILTIN_METHOD_IMPL(TYPENAME_SEQ, index_of) {
+  BUILTIN_ARGC_EXACTLY(1)
+  BUILTIN_CHECK_RECEIVER(SEQ)
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+  if (seq->items.count == 0) {
+    return NIL_VAL;
+  }
+
+  int count = seq->items.count;  // We need to store this, because the sequence might change during the loop
+
+  if (IS_CALLABLE(argv[1])) {
+    // Function predicate
+    for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
+      push(argv[1]);               // Push the function
+      push(seq->items.values[i]);  // Push the item
+      Value result = exec_callable(AS_OBJ(argv[1]), 1);
+      if (vm.flags & VM_FLAG_HAS_ERROR) {
+        return NIL_VAL;  // Propagate the error
+      }
+
+      // We don't use is_falsey here, because we want to check for a boolean value.
+      if (IS_BOOL(result) && AS_BOOL(result)) {
+        return NUMBER_VAL(i);
+      }
+    }
+  } else {
+    // Value equality
+    for (int i = 0; i < count; i++) {
+      if (values_equal(argv[1], seq->items.values[i])) {
+        return NUMBER_VAL(i);
+      }
+    }
+  }
+
+  return NIL_VAL;
 }
 
 // Built-in method to retrieve the first item of a sequence
