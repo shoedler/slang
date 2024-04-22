@@ -8,9 +8,10 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ### Syntax & Language Features
 
+- [ ] Add tuples. E.g. `(1, 2, 3)`. They should be immutable and hash to their values.
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
-- [ ] Implement iterators. Maybe a new builtin class. They should initialize these fields/methods: `__has_next`, `__next()`. They should use the `Obj`s prop_getter, \_setter and index_getter, \_setter functions. (Maybe they shouldn't return the internal fields though).
+- [ ] Implement iterators. Maybe a new builtin class. They should initialize these fields/methods: `__has_next`, `__next()`.
 - [ ] Implement `for ... in ...;` loops
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] Add destructuring to module imports.
@@ -33,15 +34,13 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 - [ ] Call `to_str` implicitly when adding a string to a non-string.
 - [ ] Remove in `VALUE_STR_CLASS` (`<Class X>`) the "Class" prefix from class type names.
-- [ ] Refactor `VALUE_STR_NATIVE` to look more like the normale `<Fn "name">` strings.
-- [ ] Remove bounds checks for seq/str indexing. Just return `NIL_VAL` if out of bounds. At least for get-access. Set-access should still throw an error.
-- [ ] Add an iterator to builtin classes `Class` and `Fn` which holds all the things you can 'get'. Use this in their `has` and `prop_getter` functions to make sure they are always in sync.
+- [ ] Refactor `VALUE_STR_NATIVE` to look more like the normal `<Fn "name">` strings.
 - [ ] Use something else instead of `rint`, because it's not very precise. See _num-to-str.spec.sl_ for an example.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Add `error` to the reserved words
 - [ ] Make sure managed code classes do not override internal classes.
-- [ ] Move exit codes to `common.h` and replace all magic numbers with them
+- [ ] Move exit codess to `common.h` and replace all magic numbers with them
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
 - [ ] Allow return stats without suffixed `;`
@@ -71,7 +70,3 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - https://github.com/kuroko-lang/kuroko
 - https://github.com/Janko-dev/yabil/
 - https://luajit.org/luajit.html
-
-```
-
-```

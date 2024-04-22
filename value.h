@@ -12,14 +12,17 @@ typedef struct ObjSeq ObjSeq;
 typedef enum {
   VAL_BOOL,
   VAL_NIL,
-  VAL_NUMBER,
+  VAL_FLOAT,
+  VAL_INT,
   VAL_OBJ,
   VAL_HANDLER,
   VAL_EMPTY_INTERNAL,
 } ValueType;
 
 #define TYPENAME_OBJ Obj
-#define TYPENAME_NUMBER Num
+#define TYPENAME_FLOAT Float
+#define TYPENAME_INT Int
+#define TYPENAME_NUM Num
 #define TYPENAME_STRING Str
 #define TYPENAME_BOOL Bool
 #define TYPENAME_NIL Nil
@@ -36,7 +39,7 @@ typedef enum {
 
 // On windows long long (%lld) is the type to use if you're casting from a double.
 #define VALUE_STR_INT "%lld"
-#define VALUE_STR_FLOAT "%f"
+#define VALUE_STR_FLOAT "%.14f"  // TODO (optimize): Kinda arbitrary, but after .14, there seems to be some floating point errors.
 #define VALUE_STR_TRUE "true"
 #define VALUE_STR_FALSE "false"
 #define VALUE_STR_NIL "nil"
@@ -70,7 +73,8 @@ typedef struct {
   ValueType type;
   union {
     bool boolean;
-    double number;
+    double float_;
+    long long integer;
     uint16_t handler;
     Obj* obj;
   } as;
@@ -82,8 +86,11 @@ typedef struct {
 // Determines whether a value is of type nil.
 #define IS_NIL(value) ((value).type == VAL_NIL)
 
-// Determines whether a value is of type number.
-#define IS_NUMBER(value) ((value).type == VAL_NUMBER)
+// Determines whether a value is of type integer.
+#define IS_INT(value) ((value).type == VAL_INT)
+
+// Determines whether a value is of type float.
+#define IS_FLOAT(value) ((value).type == VAL_FLOAT)
 
 // Determines whether a value is of type object.
 #define IS_OBJ(value) ((value).type == VAL_OBJ)
@@ -100,9 +107,13 @@ typedef struct {
 // Value must be of type bool.
 #define AS_BOOL(value) ((value).as.boolean)
 
+// Unpacks a value into a C long long.
+// Value must be of type Int.
+#define AS_INT(value) ((value).as.integer)
+
 // Unpacks a value into a C double.
-// Value must be of type number.
-#define AS_NUMBER(value) ((value).as.number)
+// Value must be of type Float.
+#define AS_FLOAT(value) ((value).as.float_)
 
 // Unpacks a value into a C object pointer.
 // Value must be of type object.
@@ -116,10 +127,13 @@ typedef struct {
 #define BOOL_VAL(value) ((Value){VAL_BOOL, {.boolean = value}})
 
 // The singleton nil value.
-#define NIL_VAL ((Value){VAL_NIL, {.number = 0}})
+#define NIL_VAL ((Value){VAL_NIL, {.integer = 0, .float_ = 0}})
+
+// Converts a C long long into a value.
+#define INT_VAL(value) ((Value){VAL_INT, {.integer = value}})
 
 // Converts a C double into a value.
-#define NUMBER_VAL(value) ((Value){VAL_NUMBER, {.number = value}})
+#define FLOAT_VAL(value) ((Value){VAL_FLOAT, {.float_ = value}})
 
 // Converts a C object pointer into a value.
 #define OBJ_VAL(object) ((Value){VAL_OBJ, {.obj = (Obj*)object}})
@@ -130,7 +144,7 @@ typedef struct {
 // The singleton empty value.
 // Users will never see this value, it is used internally to represent empty buckets in the
 // hashtable.
-#define EMPTY_INTERNAL_VAL ((Value){VAL_EMPTY_INTERNAL, {.number = 0}})
+#define EMPTY_INTERNAL_VAL ((Value){VAL_EMPTY_INTERNAL, {.integer = 0, .float_ = 0}})
 
 // Dynamic array of values. This represents the constant pool of a chunk.
 // See https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4

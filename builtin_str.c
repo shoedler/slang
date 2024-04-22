@@ -168,7 +168,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_HAS) {
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_STRING,
     /* Name        */ SP_METHOD_SLICE,
-    /* Arguments   */ DOC_ARG("start", TYPENAME_NUMBER) DOC_ARG_SEP DOC_ARG("end", TYPENAME_NUMBER | TYPENAME_NIL),
+    /* Arguments   */ DOC_ARG("start", TYPENAME_INT) DOC_ARG_SEP DOC_ARG("end", TYPENAME_INT | TYPENAME_NIL),
     /* Return Type */ TYPENAME_STRING,
     /* Description */
     "Returns a new " STR(TYPENAME_STRING) " containing the items from 'start' to 'end' ('end' is exclusive)."
@@ -178,11 +178,11 @@ BUILTIN_METHOD_DOC(
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
   BUILTIN_ARGC_EXACTLY(2)
   BUILTIN_CHECK_RECEIVER(STRING)
-  BUILTIN_CHECK_ARG_AT(1, NUMBER)
+  BUILTIN_CHECK_ARG_AT(1, INT)
   if (IS_NIL(argv[2])) {
-    argv[2] = NUMBER_VAL(AS_STRING(argv[0])->length);
+    argv[2] = INT_VAL(AS_STRING(argv[0])->length);
   }
-  BUILTIN_CHECK_ARG_AT(2, NUMBER)
+  BUILTIN_CHECK_ARG_AT(2, INT)
 
   ObjString* str = AS_STRING(argv[0]);
   int count      = str->length;
@@ -191,16 +191,8 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
     return OBJ_VAL(copy_string("", 0));
   }
 
-  double start_raw = AS_NUMBER(argv[1]);
-  double end_raw   = AS_NUMBER(argv[2]);
-
-  long long start;
-  long long end;
-
-  if (!is_int(start_raw, &start) || !is_int(end_raw, &end)) {
-    runtime_error("Indices must be integers, but got floats.");
-    return NIL_VAL;
-  }
+  int start = (int)AS_INT(argv[1]);
+  int end   = (int)AS_INT(argv[2]);
 
   // Handle negative indices
   if (start < 0) {

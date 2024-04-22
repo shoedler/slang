@@ -17,7 +17,7 @@ void register_builtin_perf_module() {
 BUILTIN_FN_DOC(
     /* Fn Name     */ now,
     /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
+    /* Return Type */ TYPENAME_FLOAT,
     /* Description */ "High-precision clock function. Returns the current execution time in seconds.");
 BUILTIN_FN_IMPL(now) {
   BUILTIN_ARGC_EXACTLY(0)
@@ -28,5 +28,5 @@ BUILTIN_FN_IMPL(now) {
   QueryPerformanceFrequency(&frequency);
   QueryPerformanceCounter(&now);
 
-  return NUMBER_VAL((double)now.QuadPart / frequency.QuadPart);
+  return FLOAT_VAL((double)now.QuadPart / frequency.QuadPart);
 }

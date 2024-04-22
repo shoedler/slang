@@ -204,6 +204,8 @@ void init_vm() {
   register_builtin_nil_class();
   register_builtin_bool_class();
   register_builtin_num_class();
+  register_builtin_int_class();
+  register_builtin_float_class();
   register_builtin_seq_class();
   register_builtin_str_class();
   register_builtin_fn_class();
@@ -249,9 +251,10 @@ static Value peek(int distance) {
 ObjClass* typeof(Value value) {
   // Handle primitive and internal types which have a corresponding class
   switch (value.type) {
-    case VAL_NIL: return vm.__builtin_Nil_class;     // This field name was created via macro
-    case VAL_BOOL: return vm.__builtin_Bool_class;   // This field name was created via macro
-    case VAL_NUMBER: return vm.__builtin_Num_class;  // This field name was created via macro
+    case VAL_NIL: return vm.__builtin_Nil_class;      // This field name was created via macro
+    case VAL_BOOL: return vm.__builtin_Bool_class;    // This field name was created via macro
+    case VAL_INT: return vm.__builtin_Int_class;      // This field name was created via macro
+    case VAL_FLOAT: return vm.__builtin_Float_class;  // This field name was created via macro
     case VAL_OBJ: {
       switch (OBJ_TYPE(value)) {
         case OBJ_STRING: return vm.__builtin_Str_class;  // This field name was created via macro
@@ -641,40 +644,6 @@ static void concatenate() {
   push(OBJ_VAL(result));
 }
 
-// Returns the documentation of a value, if available. If not, it returns a default message.
-static Value doc(Value value) {
-  ObjString* doc_str = NULL;
-
-  switch (value.type) {
-    case VAL_OBJ: {
-      switch (AS_OBJ(value)->type) {
-        case OBJ_NATIVE: doc_str = ((ObjNative*)AS_OBJ(value))->doc; break;
-        case OBJ_FUNCTION: doc_str = AS_FUNCTION(value)->doc; break;
-        case OBJ_CLOSURE: doc_str = AS_CLOSURE(value)->function->doc; break;
-        case OBJ_BOUND_METHOD: return doc(OBJ_VAL(AS_BOUND_METHOD(value)->method));
-        default: break;
-      }
-    }
-  }
-
-  if (doc_str != NULL) {
-    return OBJ_VAL(doc_str);
-  }
-
-  // Create a default docstring as a fallback
-
-  // Execute the to_str method on the receiver, if it exists
-  push(value);  // Load the receiver onto the stack
-  push(exec_callable(typeof(value)->__to_str, 0));
-  push(OBJ_VAL(copy_string(":\nNo documentation available.\n", 30)));
-  if (vm.flags & VM_FLAG_HAS_ERROR) {
-    return pop();
-  }
-
-  concatenate();
-  return pop();
-}
-
 bool value_get_property(ObjString* name) {
   Value receiver = peek(0);
   Value result;
@@ -689,7 +658,7 @@ bool value_get_property(ObjString* name) {
           goto done_getting_property;
         }
         if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-          result = NUMBER_VAL(object->fields.count);
+          result = INT_VAL(object->fields.count);
           goto done_getting_property;
         }
         break;
@@ -725,7 +694,7 @@ bool value_get_property(ObjString* name) {
       case OBJ_SEQ: {
         ObjSeq* seq = AS_SEQ(receiver);
         if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-          result = NUMBER_VAL(seq->items.count);
+          result = INT_VAL(seq->items.count);
           goto done_getting_property;
         }
         break;
@@ -733,7 +702,7 @@ bool value_get_property(ObjString* name) {
       case OBJ_STRING: {
         ObjString* string = AS_STRING(receiver);
         if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-          result = NUMBER_VAL(string->length);
+          result = INT_VAL(string->length);
           goto done_getting_property;
         }
         break;
@@ -806,17 +775,11 @@ bool value_get_index() {
       case OBJ_SEQ: {
         ObjSeq* seq = AS_SEQ(receiver);
 
-        if (!IS_NUMBER(index)) {
+        if (!IS_INT(index)) {
           break;  // Maybe it's a string index
         }
 
-        double i_raw = AS_NUMBER(index);
-        long long i;
-        if (!is_int(i_raw, &i)) {
-          result = NIL_VAL;
-          goto done_getting_index;
-        }
-
+        long long i = AS_INT(index);
         if (i >= seq->items.count) {
           result = NIL_VAL;
           goto done_getting_index;
@@ -837,17 +800,11 @@ bool value_get_index() {
       case OBJ_STRING: {
         ObjString* string = AS_STRING(receiver);
 
-        if (!IS_NUMBER(index)) {
+        if (!IS_INT(index)) {
           break;  // Maybe it's a string index
         }
 
-        double i_raw = AS_NUMBER(index);
-        long long i;
-        if (!is_int(i_raw, &i)) {
-          result = NIL_VAL;
-          goto done_getting_index;
-        }
-
+        long long i = AS_INT(index);
         if (i >= string->length) {
           result = NIL_VAL;
           goto done_getting_index;
@@ -891,18 +848,12 @@ bool value_set_index() {
         goto done_setting_index;
       }
       case OBJ_SEQ: {
-        if (!IS_NUMBER(index)) {
-          runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_NUMBER) "s, but got %s.", typeof(index)->name->chars);
+        if (!IS_INT(index)) {
+          runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_INT) "s, but got %s.", typeof(index)->name->chars);
           return false;
         }
 
-        double i_raw = AS_NUMBER(index);
-        long long i;
-        if (!is_int(i_raw, &i)) {
-          runtime_error("Index must be an integer, but got a float.");
-          return false;
-        }
-
+        long long i = AS_INT(index);
         ObjSeq* seq = AS_SEQ(receiver);
 
         if (i < 0 || i >= seq->items.count) {
@@ -1005,18 +956,84 @@ static Value run() {
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 
 // Perform a binary operation on the top two values on the stack. This consumes two pieces of data from the
-// stack, and pushes the result value_type is the type of the result value, op is the operator to use
-#define BINARY_OP(value_type, a_b_op)                                                                     \
-  do {                                                                                                    \
-    if (!IS_NUMBER(peek(0)) || !IS_NUMBER(peek(1))) {                                                     \
-      runtime_error("Operands must be numbers. Left was %s, right was %s.", typeof(peek(1))->name->chars, \
-                    typeof(peek(0))->name->chars);                                                        \
-      goto finish_error;                                                                                  \
-    }                                                                                                     \
-    double b = AS_NUMBER(pop());                                                                          \
-    double a = AS_NUMBER(pop());                                                                          \
-    push(value_type(a_b_op));                                                                             \
-  } while (false)
+// stack, and pushes the result.
+//
+// TODO (optimize): These probably have some potential for optimization.
+#define MAKE_BINARY_OP(operator, b_check)                                                                   \
+  {                                                                                                         \
+    Value b = pop();                                                                                        \
+    Value a = pop();                                                                                        \
+    if (IS_INT(a) && IS_INT(b)) {                                                                           \
+      b_check;                                                                                              \
+      push(INT_VAL(AS_INT(a) operator AS_INT(b)));                                                          \
+      break;                                                                                                \
+    }                                                                                                       \
+    if (IS_FLOAT(a)) {                                                                                      \
+      if (IS_INT(b)) {                                                                                      \
+        b_check;                                                                                            \
+        push(FLOAT_VAL(AS_FLOAT(a) operator(double) AS_INT(b)));                                            \
+        break;                                                                                              \
+      } else if (IS_FLOAT(b)) {                                                                             \
+        b_check;                                                                                            \
+        push(FLOAT_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                                  \
+        break;                                                                                              \
+      }                                                                                                     \
+    } else if (IS_FLOAT(b)) {                                                                               \
+      if (IS_INT(a)) {                                                                                      \
+        b_check;                                                                                            \
+        push(FLOAT_VAL((double)AS_INT(a) operator AS_FLOAT(b)));                                            \
+        break;                                                                                              \
+      }                                                                                                     \
+    }                                                                                                       \
+    runtime_error("Incompatible types for binary operand %s: %s and %s", #operator, typeof(a)->name->chars, \
+                  typeof(b)->name->chars);                                                                  \
+    goto finish_error;                                                                                      \
+  }
+
+#define BIN_ADD MAKE_BINARY_OP(+, (void)0)
+#define BIN_SUB MAKE_BINARY_OP(-, (void)0)
+#define BIN_MUL MAKE_BINARY_OP(*, (void)0)
+#define BIN_DIV                                                                                         \
+  MAKE_BINARY_OP(                                                                                       \
+      /, if ((b.type == VAL_INT && b.as.integer == 0) || (b.type == VAL_FLOAT && b.as.float_ == 0.0)) { \
+          runtime_error("Division by zero.");                                                           \
+          goto finish_error;                                                                            \
+        })
+
+// Perform a comparison operation on the top two values on the stack. This consumes two pieces of data from the
+// stack, and pushes the result.
+//
+// TODO (optimize): These probably have some potential for optimization.
+#define MAKE_COMPARATOR(operator)                                                                    \
+  {                                                                                                  \
+    Value b = pop();                                                                                 \
+    Value a = pop();                                                                                 \
+    if (IS_INT(a) && IS_INT(b)) {                                                                    \
+      push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                  \
+      break;                                                                                         \
+    }                                                                                                \
+    if (IS_FLOAT(a)) {                                                                               \
+      if (IS_INT(b)) {                                                                               \
+        push(BOOL_VAL(AS_FLOAT(a) operator AS_INT(b)));                                              \
+        break;                                                                                       \
+      } else if (IS_FLOAT(b)) {                                                                      \
+        push(BOOL_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                            \
+        break;                                                                                       \
+      }                                                                                              \
+    } else if (IS_FLOAT(b)) {                                                                        \
+      if (IS_INT(a)) {                                                                               \
+        push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                \
+        break;                                                                                       \
+      }                                                                                              \
+    }                                                                                                \
+    runtime_error("Cannot compare types %s and %s", typeof(a)->name->chars, typeof(b)->name->chars); \
+    goto finish_error;                                                                               \
+  }
+
+#define BIN_LT MAKE_COMPARATOR(<)
+#define BIN_GT MAKE_COMPARATOR(>)
+#define BIN_LTEQ MAKE_COMPARATOR(<=)
+#define BIN_GTEQ MAKE_COMPARATOR(>=)
 
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -1175,38 +1192,39 @@ static Value run() {
         push(BOOL_VAL(!values_equal(a, b)));
         break;
       }
-      case OP_GT: BINARY_OP(BOOL_VAL, a > b); break;
-      case OP_LT: BINARY_OP(BOOL_VAL, a < b); break;
-      case OP_GTEQ: BINARY_OP(BOOL_VAL, a >= b); break;
-      case OP_LTEQ: BINARY_OP(BOOL_VAL, a <= b); break;
+      case OP_GT: BIN_GT
+      case OP_LT: BIN_LT
+      case OP_GTEQ: BIN_GTEQ
+      case OP_LTEQ: BIN_LTEQ
       case OP_ADD: {
         if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
           concatenate();
-        } else if (IS_NUMBER(peek(0)) && IS_NUMBER(peek(1))) {
-          double b = AS_NUMBER(pop());
-          double a = AS_NUMBER(pop());
-          push(NUMBER_VAL(a + b));
-        } else {
-          runtime_error(
-              "Operands must be two numbers or two strings. Left was "
-              "%s, right was %s.",
-              typeof(peek(1))->name->chars, typeof(peek(0))->name->chars);
-          goto finish_error;
+          break;
+        } else
+          BIN_ADD
+      }
+      case OP_SUBTRACT: BIN_SUB
+      case OP_MULTIPLY: BIN_MUL
+      case OP_DIVIDE: BIN_DIV
+      case OP_MODULO: {
+        Value b      = pop();
+        Value a      = pop();
+        Value result = NIL_VAL;
+        if (IS_INT(a) && IS_INT(b)) {
+          result = INT_VAL(AS_INT(a) % AS_INT(b));
+        }
+        push(result);
+        break;
+      }
+      case OP_NOT: push(BOOL_VAL(is_falsey(pop()))); break;
+      case OP_NEGATE: {
+        switch (peek(0).type) {
+          case VAL_INT: push(INT_VAL(-AS_INT(pop()))); break;
+          case VAL_FLOAT: push(FLOAT_VAL(-AS_FLOAT(pop()))); break;
+          default: runtime_error("Operand must be a number. Was %s.", typeof(peek(0))->name->chars); goto finish_error;
         }
         break;
       }
-      case OP_SUBTRACT: BINARY_OP(NUMBER_VAL, a - b); break;
-      case OP_MULTIPLY: BINARY_OP(NUMBER_VAL, a * b); break;
-      case OP_DIVIDE: BINARY_OP(NUMBER_VAL, a / b); break;
-      case OP_MODULO: BINARY_OP(NUMBER_VAL, fmod(a, b)); break;
-      case OP_NOT: push(BOOL_VAL(is_falsey(pop()))); break;
-      case OP_NEGATE:
-        if (!IS_NUMBER(peek(0))) {
-          runtime_error("Operand must be a number. Was %s.", typeof(peek(0))->name->chars);
-          goto finish_error;
-        }
-        push(NUMBER_VAL(-AS_NUMBER(pop())));
-        break;
       case OP_PRINT: {
         ObjString* str = AS_STRING(exec_callable(typeof(peek(0))->__to_str, 0));
         if (vm.flags & VM_FLAG_HAS_ERROR) {
@@ -1451,7 +1469,18 @@ static Value run() {
 #undef READ_ONE
 #undef READ_CONSTANT
 #undef READ_STRING
-#undef BINARY_OP
+
+#undef MAKE_BINARY_OP
+#undef BIN_ADD
+#undef BIN_SUB
+#undef BIN_MUL
+#undef BIN_DIV
+
+#undef MAKE_COMPARATOR
+#undef BIN_LT
+#undef BIN_GT
+#undef BIN_LTEQ
+#undef BIN_GTEQ
 }
 
 ObjObject* make_module(const char* source_path, const char* module_name) {

@@ -75,7 +75,9 @@ typedef struct {
   int exit_on_frame;  // Index of the frame to exit on
 
   ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);       // Base class: The obj class
-  ObjClass* BUILTIN_CLASS(TYPENAME_NUMBER);    // Base class: The number class
+  ObjClass* BUILTIN_CLASS(TYPENAME_NUM);       // Base class: The number class
+  ObjClass* BUILTIN_CLASS(TYPENAME_INT);       //  class: The int class
+  ObjClass* BUILTIN_CLASS(TYPENAME_FLOAT);     //  class: The float class
   ObjClass* BUILTIN_CLASS(TYPENAME_BOOL);      // Base class: The bool class
   ObjClass* BUILTIN_CLASS(TYPENAME_NIL);       // Base class: The nil class
   ObjClass* BUILTIN_CLASS(TYPENAME_SEQ);       // Special class: The sequence class
