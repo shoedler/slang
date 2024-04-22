@@ -254,7 +254,7 @@ export const separator = () => console.log(chalk.gray('─'.repeat(80)));
  */
 const prettyPrint = (type, message) => {
   // prettier-ignore
-  const [headerValue, headerStyle, multilineHeaderValue, multilineHeaderStyle] = {
+  const [headerPrefix, headerStyle, multilineHeaderValue, multilineHeaderStyle] = {
     err:   [ '█ Error', chalk.red.bold,           '│      ', chalk.red.bold           ],
     abort: [ '█ Abort', chalk.red.bold,           '│      ', chalk.red.bold           ],
     info:  [ '█ Info ', chalk.gray.bold,          '│      ', chalk.gray.bold          ],
@@ -267,7 +267,7 @@ const prettyPrint = (type, message) => {
 
   const maxWidth = process.stdout.columns - 1;
   const headerSpace = ' ';
-  let availableWidth = maxWidth - headerSpace.length - headerValue.length;
+  let availableWidth = maxWidth - headerSpace.length - headerPrefix.length;
 
   const wrapped = wrapAnsi(message, availableWidth, {
     trim: false,
@@ -279,7 +279,7 @@ const prettyPrint = (type, message) => {
   for (let i = 0; i < wrapped.length; i++) {
     const line = wrapped[i];
     if (i === 0) {
-      console.log(headerStyle(headerValue) + headerSpace + line);
+      console.log(headerStyle(headerPrefix) + headerSpace + line);
     } else {
       console.log(multilineHeaderStyle(multilineHeaderValue) + headerSpace + line);
     }

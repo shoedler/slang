@@ -9,4 +9,4 @@ print  1 == 1  is Bool // [Expect] false
 print (1 == 1) is Bool // [Expect] true
 
 // Precedence is lower than arithmetic operators
-print  1 + Num("2") is Num // [Expect] true
+print  1 + Int("2") is Num // [Expect] true

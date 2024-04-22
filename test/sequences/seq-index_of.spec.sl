@@ -12,13 +12,13 @@ print [1,3,4].index_of(fn(x) -> x == 3) // [Expect] 1
 print [1,3,4].index_of(fn(x) -> x/2 == 2) // [Expect] 2
 
 // Returns the index of the first element that satisfies the condition
-print [1,3,4].index_of(fn(x) -> typeof(x) == Num) // [Expect] 0
+print [1,3,4].index_of(fn(x) -> typeof(x) == Int) // [Expect] 0
 // ... or nil if no element satisfies the condition
 print [true, false].index_of(fn(x) -> x is Num) // [Expect] nil
 
 // Passing a named function
 fn is_num(x) {
-  ret typeof(x) == Num;
+  ret x is Num;
 }
 print [1,3,4].index_of(is_num) // [Expect] 0
 

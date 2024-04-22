@@ -384,7 +384,9 @@ static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_co
   Value method = find_method_in_inheritance_chain(klass, name);
 
   if (IS_NIL(method)) {
-    runtime_error("Undefined method '%s' in '%s' or any of its parent classes.", name->chars, klass->name->chars);
+    bool is_base = klass->base == NULL;
+    runtime_error("Undefined method '%s' in type %s%s.", name->chars, klass->name->chars,
+                  is_base ? "" : " or any of its parent classes");
     return CALL_FAILED;
   }
 
@@ -959,35 +961,35 @@ static Value run() {
 // stack, and pushes the result.
 //
 // TODO (optimize): These probably have some potential for optimization.
-#define MAKE_BINARY_OP(operator, b_check)                                                                   \
-  {                                                                                                         \
-    Value b = pop();                                                                                        \
-    Value a = pop();                                                                                        \
-    if (IS_INT(a) && IS_INT(b)) {                                                                           \
-      b_check;                                                                                              \
-      push(INT_VAL(AS_INT(a) operator AS_INT(b)));                                                          \
-      break;                                                                                                \
-    }                                                                                                       \
-    if (IS_FLOAT(a)) {                                                                                      \
-      if (IS_INT(b)) {                                                                                      \
-        b_check;                                                                                            \
-        push(FLOAT_VAL(AS_FLOAT(a) operator(double) AS_INT(b)));                                            \
-        break;                                                                                              \
-      } else if (IS_FLOAT(b)) {                                                                             \
-        b_check;                                                                                            \
-        push(FLOAT_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                                  \
-        break;                                                                                              \
-      }                                                                                                     \
-    } else if (IS_FLOAT(b)) {                                                                               \
-      if (IS_INT(a)) {                                                                                      \
-        b_check;                                                                                            \
-        push(FLOAT_VAL((double)AS_INT(a) operator AS_FLOAT(b)));                                            \
-        break;                                                                                              \
-      }                                                                                                     \
-    }                                                                                                       \
-    runtime_error("Incompatible types for binary operand %s: %s and %s", #operator, typeof(a)->name->chars, \
-                  typeof(b)->name->chars);                                                                  \
-    goto finish_error;                                                                                      \
+#define MAKE_BINARY_OP(operator, b_check)                                                                                    \
+  {                                                                                                                          \
+    Value b = pop();                                                                                                         \
+    Value a = pop();                                                                                                         \
+    if (IS_INT(a) && IS_INT(b)) {                                                                                            \
+      b_check;                                                                                                               \
+      push(INT_VAL(AS_INT(a) operator AS_INT(b)));                                                                           \
+      break;                                                                                                                 \
+    }                                                                                                                        \
+    if (IS_FLOAT(a)) {                                                                                                       \
+      if (IS_INT(b)) {                                                                                                       \
+        b_check;                                                                                                             \
+        push(FLOAT_VAL(AS_FLOAT(a) operator(double) AS_INT(b)));                                                             \
+        break;                                                                                                               \
+      } else if (IS_FLOAT(b)) {                                                                                              \
+        b_check;                                                                                                             \
+        push(FLOAT_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                                                   \
+        break;                                                                                                               \
+      }                                                                                                                      \
+    } else if (IS_FLOAT(b)) {                                                                                                \
+      if (IS_INT(a)) {                                                                                                       \
+        b_check;                                                                                                             \
+        push(FLOAT_VAL((double)AS_INT(a) operator AS_FLOAT(b)));                                                             \
+        break;                                                                                                               \
+      }                                                                                                                      \
+    }                                                                                                                        \
+    runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", #operator, typeof(a)->name->chars, \
+                  typeof(b)->name->chars);                                                                                   \
+    goto finish_error;                                                                                                       \
   }
 
 #define BIN_ADD MAKE_BINARY_OP(+, (void)0)
@@ -1004,30 +1006,31 @@ static Value run() {
 // stack, and pushes the result.
 //
 // TODO (optimize): These probably have some potential for optimization.
-#define MAKE_COMPARATOR(operator)                                                                    \
-  {                                                                                                  \
-    Value b = pop();                                                                                 \
-    Value a = pop();                                                                                 \
-    if (IS_INT(a) && IS_INT(b)) {                                                                    \
-      push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                  \
-      break;                                                                                         \
-    }                                                                                                \
-    if (IS_FLOAT(a)) {                                                                               \
-      if (IS_INT(b)) {                                                                               \
-        push(BOOL_VAL(AS_FLOAT(a) operator AS_INT(b)));                                              \
-        break;                                                                                       \
-      } else if (IS_FLOAT(b)) {                                                                      \
-        push(BOOL_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                            \
-        break;                                                                                       \
-      }                                                                                              \
-    } else if (IS_FLOAT(b)) {                                                                        \
-      if (IS_INT(a)) {                                                                               \
-        push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                \
-        break;                                                                                       \
-      }                                                                                              \
-    }                                                                                                \
-    runtime_error("Cannot compare types %s and %s", typeof(a)->name->chars, typeof(b)->name->chars); \
-    goto finish_error;                                                                               \
+#define MAKE_COMPARATOR(operator)                                                                                                \
+  {                                                                                                                              \
+    Value b = pop();                                                                                                             \
+    Value a = pop();                                                                                                             \
+    if (IS_INT(a) && IS_INT(b)) {                                                                                                \
+      push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                                              \
+      break;                                                                                                                     \
+    }                                                                                                                            \
+    if (IS_FLOAT(a)) {                                                                                                           \
+      if (IS_INT(b)) {                                                                                                           \
+        push(BOOL_VAL(AS_FLOAT(a) operator AS_INT(b)));                                                                          \
+        break;                                                                                                                   \
+      } else if (IS_FLOAT(b)) {                                                                                                  \
+        push(BOOL_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                                                        \
+        break;                                                                                                                   \
+      }                                                                                                                          \
+    } else if (IS_FLOAT(b)) {                                                                                                    \
+      if (IS_INT(a)) {                                                                                                           \
+        push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                                            \
+        break;                                                                                                                   \
+      }                                                                                                                          \
+    }                                                                                                                            \
+    runtime_error("Incompatible types for comparison operand %s. Left was %s, right was %s.", #operator, typeof(a)->name->chars, \
+                  typeof(b)->name->chars);                                                                                       \
+    goto finish_error;                                                                                                           \
   }
 
 #define BIN_LT MAKE_COMPARATOR(<)
@@ -1207,14 +1210,49 @@ static Value run() {
       case OP_MULTIPLY: BIN_MUL
       case OP_DIVIDE: BIN_DIV
       case OP_MODULO: {
-        Value b      = pop();
-        Value a      = pop();
-        Value result = NIL_VAL;
+        // Pretty much the same as MAKE_BINARY_OP, but expanded bc we use fmod(double, double) for floats
+        Value b = pop();
+        Value a = pop();
+
         if (IS_INT(a) && IS_INT(b)) {
-          result = INT_VAL(AS_INT(a) % AS_INT(b));
+          if (AS_INT(b) == 0) {
+            runtime_error("Modulo by zero.");
+            goto finish_error;
+          }
+          push(INT_VAL(AS_INT(a) % AS_INT(b)));
+          break;
         }
-        push(result);
-        break;
+
+        if (IS_FLOAT(a)) {
+          if (IS_INT(b)) {
+            if (AS_INT(b) == 0) {
+              runtime_error("Modulo by zero.");
+              goto finish_error;
+            }
+            push(FLOAT_VAL(fmod(AS_FLOAT(a), (double)AS_INT(b))));
+            break;
+          } else if (IS_FLOAT(b)) {
+            if (AS_FLOAT(b) == 0) {
+              runtime_error("Modulo by zero.");
+              goto finish_error;
+            }
+            push(FLOAT_VAL(fmod(AS_FLOAT(a), AS_FLOAT(b))));
+            break;
+          }
+        } else if (IS_FLOAT(b)) {
+          if (IS_INT(a)) {
+            if (AS_INT(b) == 0) {
+              runtime_error("Modulo by zero.");
+              goto finish_error;
+            }
+            push(FLOAT_VAL(fmod((double)AS_INT(a), AS_FLOAT(b))));
+            break;
+          }
+        }
+
+        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "\%", typeof(a)->name->chars,
+                      typeof(b)->name->chars);
+        goto finish_error;
       }
       case OP_NOT: push(BOOL_VAL(is_falsey(pop()))); break;
       case OP_NEGATE: {

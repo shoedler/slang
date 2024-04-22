@@ -82,47 +82,42 @@ export const runTests = async (config, signal, updateFiles = false, testNamePatt
     // Evaluate test results
     const errorMessages = [];
     if (exitCode === 65 && !expectedCompileError) {
-      errorMessages.push(chalk.red('Test failed to compile but was not expected to.'));
+      errorMessages.push(chalk.bold('▬ Test failed to compile but was not expected to.'));
     } else if (exitCode === 70 && !expectedRuntimeError) {
-      errorMessages.push(chalk.red('Test encountered an unexpected runtime error.'));
+      errorMessages.push(chalk.bold('▬ Test encountered an unexpected runtime error.'));
     } else if (exitCode !== 0 && !expectedCompileError && !expectedRuntimeError) {
-      errorMessages.push(chalk.red(`Test exited with unexpected non-zero exit code ${exitCode}.`));
+      errorMessages.push(
+        chalk.bold(`▬ Test exited with unexpected non-zero exit code ${chalk.bgRed(exitCode)}.`),
+      );
     }
 
     // Handle diffs
     if (diffs.length > 0) {
-      errorMessages.push(chalk.red('Test has failed assertions:'));
+      errorMessages.push(chalk.bold('▬ Test has failed assertions:'));
       for (const { actual, expected, line } of diffs) {
         errorMessages.push(
-          `${chalk.red(' × Failed assertion. Expected:')} ${expected}\n${chalk.red(
-            '                       Actual:',
-          )} ${actual} ${chalk.blue('Tagged on line:')} ${line}`,
+          `${chalk.red(' × Expected:')} ${expected}\n` +
+            `${chalk.red('     Actual:')} ${actual} ${chalk.blue('Tagged on line:')} ${line}`,
         );
       }
     }
 
     // Handle excess output or expectations
     if (commentMetadata.length > minLen) {
-      errorMessages.push(chalk.red('Test has more expectations than output:'));
+      errorMessages.push(chalk.bold('▬ Test has more expectations than output:'));
       for (let i = minLen; i < commentMetadata.length; i++) {
         const { _, value: expected, line } = commentMetadata[i];
         errorMessages.push(
-          `${chalk.red(
-            ' × Unsatisfied assertion. Expected',
-            chalk.italic(`(expectation index ${i}):`),
-          )} ${expected} ${chalk.blue('Tagged on line:')} ${line}`,
+          `${chalk.red(' × Unsatisfied assertion. Expected: ')} ${expected} ${chalk.blue(
+            'Tagged on line:',
+          )} ${line}`,
         );
       }
     } else if (output.length > minLen) {
-      errorMessages.push(chalk.red('Test has more output than expected:'));
+      errorMessages.push(chalk.bold('▬ Test has more output than expected:'));
       for (let i = minLen; i < output.length; i++) {
         const actual = output[i];
-        errorMessages.push(
-          `${chalk.red(
-            ' × Unhandled output. Actual',
-            chalk.italic(`(output index ${i}):`),
-          )} ${actual}`,
-        );
+        errorMessages.push(`${chalk.red(' × Unhandled output. Actual: ')} ${actual}`);
       }
     }
 
@@ -158,14 +153,14 @@ export const runTests = async (config, signal, updateFiles = false, testNamePatt
     }
 
     fail(
-      `${chalk.red(finishMessage)} ${chalk.red('Failed tests:')}\n${failedTests
-        .map(
-          ({ test, errorMessages }) =>
-            `${chalk.red(' █ ')}${test}\n${chalk.red(' │ ')}${errorMessages.join(
-              `\n${chalk.red(' │ ')}`,
-            )}`,
-        )
-        .join('\n')}`,
+      chalk.red(finishMessage) +
+        ' Failed tests:\n\n' +
+        failedTests
+          .map(
+            ({ test, errorMessages }) =>
+              `${chalk.bgWhite.black(' ' + test + ' ')}\n${errorMessages.join('\n')}\n`,
+          )
+          .join('\n'),
     );
   }
 };
