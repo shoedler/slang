@@ -6,4 +6,4 @@ print  1 == 1  in [true] // [Expect] false
 print (1 == 1) in [true] // [Expect] true
 
 // Precedence is lower than arithmetic operators
-print  1 + Num("2") in [true] // [Expect] false
+print  1 + Int("2") in [true] // [Expect] false

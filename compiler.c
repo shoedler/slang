@@ -401,7 +401,7 @@ static void compound_assignment() {
 // The inc/dec operator is in the previous token.
 static void inc_dec() {
   TokenType op_type = parser.previous.type;
-  emit_constant(NUMBER_VAL(1));
+  emit_constant(INT_VAL(1));
 
   switch (op_type) {
     case TOKEN_PLUS_PLUS: emit_one(OP_ADD); break;
@@ -462,7 +462,7 @@ static void indexing(bool can_assign) {
   // Since the first number in a slice is optional, we need to check if the indexing starts with a '..'
   if (match(TOKEN_DOTDOT)) {
     slice_started = true;
-    emit_constant(NUMBER_VAL(0));  // Start index.
+    emit_constant(INT_VAL(0));  // Start index.
   }
 
   // Either the index or the slice end.
@@ -596,22 +596,36 @@ static void number(bool can_assign) {
     char kind = parser.previous.start[1];
     // See if it's a hexadecimal, binary, or octal number.
     if ((kind == 'x' || kind == 'X')) {
-      long long int value = strtoll(parser.previous.start + 2, NULL, 16);
-      emit_constant(NUMBER_VAL((double)value));
+      long long value = strtoll(parser.previous.start + 2, NULL, 16);
+      emit_constant(INT_VAL(value));
       return;
     } else if ((kind == 'b' || kind == 'B')) {
-      long long int value = strtoll(parser.previous.start + 2, NULL, 2);
-      emit_constant(NUMBER_VAL((double)value));
+      long long value = strtoll(parser.previous.start + 2, NULL, 2);
+      emit_constant(INT_VAL(value));
       return;
     } else if ((kind == 'o' || kind == 'O')) {
-      long long int value = strtoll(parser.previous.start + 2, NULL, 8);
-      emit_constant(NUMBER_VAL((double)value));
+      long long value = strtoll(parser.previous.start + 2, NULL, 8);
+      emit_constant(INT_VAL(value));
       return;
     }
   }
 
-  double value = strtod(parser.previous.start, NULL);
-  emit_constant(NUMBER_VAL(value));
+  // Check if the number is a float.
+  bool is_float = false;
+  for (int i = 0; i < parser.previous.length; i++) {
+    if (parser.previous.start[i] == '.') {
+      is_float = true;
+      break;
+    }
+  }
+
+  if (is_float) {
+    double value = strtod(parser.previous.start, NULL);
+    emit_constant(FLOAT_VAL(value));
+  } else {
+    long long int value = strtoll(parser.previous.start, NULL, 10);
+    emit_constant(INT_VAL(value));
+  }
 }
 
 // Compiles a string literal and emits it as a string object value.
@@ -1654,8 +1668,7 @@ static void destructuring_assignment(DestructureType type) {
 
     // Emit code to get the index from the rhs. For objs, we use the variable name as the operand for OP_GET_INDEX. For seqs, we
     // use the variables index.
-    Value payload =
-        type == DESTRUCTURE_OBJ ? OBJ_VAL(copy_string(var->name.start, var->name.length)) : NUMBER_VAL((double)var->index);
+    Value payload = type == DESTRUCTURE_OBJ ? OBJ_VAL(copy_string(var->name.start, var->name.length)) : INT_VAL(var->index);
     if (var->is_rest) {
       emit_constant(payload);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][current_index]
       emit_one(OP_NIL);        // [RhsVal][RhsVal][current_index] -> [RhsVal][RhsVal][current_index][nil]

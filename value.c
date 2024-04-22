@@ -109,7 +109,8 @@ bool values_equal(Value a, Value b) {
   switch (a.type) {
     case VAL_BOOL: return AS_BOOL(a) == AS_BOOL(b);
     case VAL_NIL: return true;
-    case VAL_NUMBER: return AS_NUMBER(a) == AS_NUMBER(b);
+    case VAL_INT: return AS_INT(a) == AS_INT(b);
+    case VAL_FLOAT: return AS_FLOAT(a) == AS_FLOAT(b);
     case VAL_OBJ: {
       if (IS_STRING(a) && IS_STRING(b)) {
         return AS_STRING(a) == AS_STRING(b);  // Works, because strings are interned
@@ -137,12 +138,18 @@ static uint32_t hash_double(double value) {
   return cast.target[0] + cast.target[1];
 }
 
+// Hashes a long long.
+static uint32_t hash_int(long long value) {
+  return (uint32_t)value;
+}
+
 uint32_t hash_value(Value value) {
   // TODO (optimize): This is hot, maybe we can do better?
   switch (value.type) {
     case VAL_BOOL: return AS_BOOL(value) ? 4 : 3;
     case VAL_NIL: return 2;
-    case VAL_NUMBER: return hash_double(AS_NUMBER(value));
+    case VAL_INT: return hash_int(AS_INT(value));
+    case VAL_FLOAT: return hash_double(AS_FLOAT(value));
     case VAL_OBJ: return AS_OBJ(value)->hash;
     case VAL_EMPTY_INTERNAL: return 0;
     default: INTERNAL_ERROR("Unhandled hash type: %d", value.type); return 0;
@@ -156,14 +163,8 @@ int print_value_safe(FILE* f, Value value) {
       case VAL_BOOL: return fprintf(f, AS_BOOL(value) ? VALUE_STR_TRUE : VALUE_STR_FALSE);
       case VAL_NIL: return fprintf(f, VALUE_STR_NIL);
       case VAL_HANDLER: return fprintf(f, VALUE_STRFMT_HANDLER, AS_HANDLER(value));
-      case VAL_NUMBER: {
-        long long integer;
-        if (is_int(AS_NUMBER(value), &integer)) {
-          return fprintf(f, VALUE_STR_INT, integer);
-        } else {
-          return fprintf(f, VALUE_STR_FLOAT, AS_NUMBER(value));
-        }
-      }
+      case VAL_INT: return fprintf(f, VALUE_STR_INT, AS_INT(value));
+      case VAL_FLOAT: return fprintf(f, VALUE_STR_FLOAT, AS_FLOAT(value));
       case VAL_EMPTY_INTERNAL: return fprintf(f, VALUE_STR_EMPTY_INTERNAL);
     }
 

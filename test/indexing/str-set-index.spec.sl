@@ -1,4 +1,4 @@
-print "foo"[0] = "a" // [ExpectRuntimeError] Uncaught error: Type Str does not support set-indexing with Num.
+print "foo"[0] = "a" // [ExpectRuntimeError] Uncaught error: Type Str does not support set-indexing with Int.
                      // [ExpectRuntimeError] at line 1 at the toplevel of module "main"
 
 // Stack check. Only the toplevel fn should be in the stack at this point.

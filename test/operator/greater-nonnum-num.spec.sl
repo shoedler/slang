@@ -1,2 +1,2 @@
-"1" > 1 // [ExpectRuntimeError] Uncaught error: Operands must be numbers. Left was Str, right was Num.
+"1" > 1 // [ExpectRuntimeError] Uncaught error: Incompatible types for comparison operand >. Left was Str, right was Int.
         // [ExpectRuntimeError] at line 1 at the toplevel of module "main"

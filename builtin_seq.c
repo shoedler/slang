@@ -34,20 +34,20 @@ void register_builtin_seq_class() {
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_SEQ,
     /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ DOC_ARG("len", TYPENAME_NUMBER),
+    /* Arguments   */ DOC_ARG("len", TYPENAME_INT),
     /* Return Type */ TYPENAME_SEQ,
     /* Description */
     "Creates a new " STR(TYPENAME_NIL) "-initialized " STR(TYPENAME_SEQ) " of length 'len'.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_CTOR) {
   BUILTIN_ARGC_EXACTLY(1)
-  BUILTIN_CHECK_ARG_AT(1, NUMBER)
+  BUILTIN_CHECK_ARG_AT(1, INT)
 
   ValueArray items;
   init_value_array(&items);
   ObjSeq* seq = take_seq(&items);
   push(OBJ_VAL(seq));  // GC Protection
 
-  int count = (int)AS_NUMBER(argv[1]);
+  int count = (int)AS_INT(argv[1]);
   for (int i = 0; i < count; i++) {
     write_value_array(&seq->items, NIL_VAL);
   }
@@ -149,7 +149,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_SEQ,
     /* Name        */ remove_at,
-    /* Arguments   */ DOC_ARG("index", TYPENAME_NUMBER),
+    /* Arguments   */ DOC_ARG("index", TYPENAME_INT),
     /* Return Type */ TYPENAME_OBJ,
     /* Description */
     "Removes and returns the item at 'index' from a " STR(TYPENAME_SEQ) ". Returns " STR(
@@ -157,12 +157,17 @@ BUILTIN_METHOD_DOC(
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, remove_at) {
   BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
-  BUILTIN_CHECK_ARG_AT(1, NUMBER)
+  BUILTIN_CHECK_ARG_AT(1, INT)
 
-  ObjSeq* seq = AS_SEQ(argv[0]);
-  int index   = (int)AS_NUMBER(argv[1]);
+  ObjSeq* seq     = AS_SEQ(argv[0]);
+  long long index = AS_INT(argv[1]);
 
-  return remove_at_value_array(&seq->items, index);  // Does bounds checking
+  if (index > INT32_MAX || index < INT32_MIN) {
+    runtime_error("Index %lld surpasses the maximum value of %d.", index, INT32_MAX);
+    return NIL_VAL;
+  }
+
+  return remove_at_value_array(&seq->items, (int)index);  // Does bounds checking
 }
 
 // Built-in method to check if a sequence contains a value
@@ -223,7 +228,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_HAS) {
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_SEQ,
     /* Name        */ SP_METHOD_SLICE,
-    /* Arguments   */ DOC_ARG("start", TYPENAME_NUMBER) DOC_ARG_SEP DOC_ARG("end", TYPENAME_NUMBER | TYPENAME_NIL),
+    /* Arguments   */ DOC_ARG("start", TYPENAME_INT) DOC_ARG_SEP DOC_ARG("end", TYPENAME_INT | TYPENAME_NIL),
     /* Return Type */ TYPENAME_SEQ,
     /* Description */
     "Returns a new " STR(TYPENAME_SEQ) " containing the items from 'start' to 'end' ('end' is exclusive)."
@@ -233,11 +238,11 @@ BUILTIN_METHOD_DOC(
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_SLICE) {
   BUILTIN_ARGC_EXACTLY(2)
   BUILTIN_CHECK_RECEIVER(SEQ)
-  BUILTIN_CHECK_ARG_AT(1, NUMBER)
+  BUILTIN_CHECK_ARG_AT(1, INT)
   if (IS_NIL(argv[2])) {
-    argv[2] = NUMBER_VAL(AS_SEQ(argv[0])->items.count);
+    argv[2] = INT_VAL(AS_SEQ(argv[0])->items.count);
   }
-  BUILTIN_CHECK_ARG_AT(2, NUMBER)
+  BUILTIN_CHECK_ARG_AT(2, INT)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
   int count   = seq->items.count;
@@ -246,16 +251,8 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_SLICE) {
     return OBJ_VAL(new_seq());
   }
 
-  double start_raw = AS_NUMBER(argv[1]);
-  double end_raw   = AS_NUMBER(argv[2]);
-
-  long long start;
-  long long end;
-
-  if (!is_int(start_raw, &start) || !is_int(end_raw, &end)) {
-    runtime_error("Indices must be integers, but got floats.");
-    return NIL_VAL;
-  }
+  int start = (int)AS_INT(argv[1]);
+  int end   = (int)AS_INT(argv[2]);
 
   // Handle negative indices
   if (start < 0) {
@@ -291,14 +288,14 @@ BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_SEQ,
     /* Name        */ index_of,
     /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_NUMBER,
+    /* Return Type */ TYPENAME_INT,
     /* Description */
     "Returns the index of 'value' in a " STR(TYPENAME_SEQ) ". Returns " VALUE_STR_NIL " if 'value' is not found.")
 BUILTIN_METHOD_DOC_OVERLOAD(
     /* Receiver    */ TYPENAME_SEQ,
     /* Name        */ index_of,
     /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
-    /* Return Type */ TYPENAME_NUMBER,
+    /* Return Type */ TYPENAME_INT,
     /* Description */
     "Returns the index of the first item in a " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE
                                                                   ". Returns " VALUE_STR_NIL
@@ -327,14 +324,14 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, index_of) {
 
       // We don't use is_falsey here, because we want to check for a boolean value.
       if (IS_BOOL(result) && AS_BOOL(result)) {
-        return NUMBER_VAL(i);
+        return INT_VAL(i);
       }
     }
   } else {
     // Value equality
     for (int i = 0; i < count; i++) {
       if (values_equal(argv[1], seq->items.values[i])) {
-        return NUMBER_VAL(i);
+        return INT_VAL(i);
       }
     }
   }
@@ -460,7 +457,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, each) {
         // Execute the provided function on the item
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
-        push(NUMBER_VAL(i));         // arg1 (2): Push the index
+        push(INT_VAL(i));            // arg1 (2): Push the index
         exec_callable(AS_OBJ(argv[1]), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
@@ -521,7 +518,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, map) {
         // Execute the provided function on the item
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
-        push(NUMBER_VAL(i));         // arg1 (2): Push the index
+        push(INT_VAL(i));            // arg1 (2): Push the index
         Value mapped = exec_callable(AS_OBJ(argv[1]), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
@@ -589,7 +586,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, filter) {
         // Execute the provided function on the item
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
-        push(NUMBER_VAL(i));         // arg1 (2): Push the index
+        push(INT_VAL(i));            // arg1 (2): Push the index
         Value result = exec_callable(AS_OBJ(argv[1]), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
@@ -736,7 +733,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, every) {
         // Execute the provided function on the item
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
-        push(NUMBER_VAL(i));         // arg1 (2): Push the index
+        push(INT_VAL(i));            // arg1 (2): Push the index
         Value result = exec_callable(AS_OBJ(argv[1]), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
@@ -805,7 +802,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, some) {
         // Execute the provided function on the item
         push(argv[1]);               // Push the function
         push(seq->items.values[i]);  // arg0 (1): Push the item
-        push(NUMBER_VAL(i));         // arg1 (2): Push the index
+        push(INT_VAL(i));            // arg1 (2): Push the index
         Value result = exec_callable(AS_OBJ(argv[1]), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
@@ -867,7 +864,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, reduce) {
         push(argv[2]);               // Push the function
         push(accumulator);           // arg0 (1): Push the accumulator
         push(seq->items.values[i]);  // arg1 (2): Push the item
-        push(NUMBER_VAL(i));         // arg2 (3): Push the index
+        push(INT_VAL(i));            // arg2 (3): Push the index
         accumulator = exec_callable(AS_OBJ(argv[2]), 3);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           return NIL_VAL;  // Propagate the error
@@ -889,14 +886,14 @@ BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_SEQ,
     /* Name        */ count,
     /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_NUMBER,
+    /* Return Type */ TYPENAME_INT,
     /* Description */
     "Returns the number of occurrences of 'value' in the " STR(TYPENAME_SEQ) ".")
 BUILTIN_METHOD_DOC_OVERLOAD(
     /* Receiver    */ TYPENAME_SEQ,
     /* Name        */ count,
     /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
-    /* Return Type */ TYPENAME_NUMBER,
+    /* Return Type */ TYPENAME_INT,
     /* Description */
     "Returns the number of items in the " STR(TYPENAME_SEQ) " for which 'pred' evaluates to " VALUE_STR_TRUE ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
@@ -905,7 +902,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
 
   ObjSeq* seq = AS_SEQ(argv[0]);
   if (seq->items.count == 0) {
-    return NUMBER_VAL(0);
+    return INT_VAL(0);
   }
 
   int count       = seq->items.count;  // We need to store this, because the sequence might change during the loop
@@ -942,7 +939,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, count) {
     }
   }
 
-  return NUMBER_VAL(occurrences);
+  return INT_VAL(occurrences);
 }
 
 // Built-in method to concatenate two sequences

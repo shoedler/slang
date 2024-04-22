@@ -6,6 +6,20 @@ print 0o1 is Num    // [Expect] true
 print 0x1 is Num    // [Expect] true
 print "str" is Num  // [Expect] false
 
+// is Int
+print 0 is Int      // [Expect] true
+print 1.1 is Int    // [Expect] false
+print 0x1 is Int    // [Expect] true
+print 0b1 is Int    // [Expect] true
+print 0o1 is Int    // [Expect] true
+
+// is Float
+print 0 is Float    // [Expect] false
+print 1.1 is Float  // [Expect] true
+print 0x1 is Float  // [Expect] false
+print 0b1 is Float  // [Expect] false
+print 0o1 is Float  // [Expect] false
+
 // is Bool
 print true is Bool   // [Expect] true
 print false is Bool  // [Expect] true
@@ -51,5 +65,5 @@ print Obj is Class     // [Expect] true
 print X() is Class     // [Expect] false
 
 // Only Classes are accepted as the rval of 'is' operator.
-print try (0 is 1) else error // [Expect] Type must be a class. Was Num.
+print try (0 is 1) else error // [Expect] Type must be a class. Was Int.
 print 0 is typeof(1)         // [Expect] true

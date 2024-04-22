@@ -20,6 +20,12 @@ extern void register_builtin_bool_class();
 // Registers the built-in number class and its methods.
 extern void register_builtin_num_class();
 
+// Registers the built-in int class and its methods.
+extern void register_builtin_int_class();
+
+// Registers the built-in float class and its methods.
+extern void register_builtin_float_class();
+
 // Registers the built-in string class and its methods.
 extern void register_builtin_str_class();
 
@@ -80,8 +86,13 @@ BUILTIN_DECLARE_METHOD(TYPENAME_NIL, SP_METHOD_CTOR)
 BUILTIN_DECLARE_METHOD(TYPENAME_NIL, SP_METHOD_TO_STR)
 
 // Number built-in methods
-BUILTIN_DECLARE_METHOD(TYPENAME_NUMBER, SP_METHOD_CTOR)
-BUILTIN_DECLARE_METHOD(TYPENAME_NUMBER, SP_METHOD_TO_STR)
+BUILTIN_DECLARE_METHOD(TYPENAME_NUM, SP_METHOD_CTOR)
+// Int built-in methods
+BUILTIN_DECLARE_METHOD(TYPENAME_INT, SP_METHOD_CTOR)
+BUILTIN_DECLARE_METHOD(TYPENAME_INT, SP_METHOD_TO_STR)
+// Float built-in methods
+BUILTIN_DECLARE_METHOD(TYPENAME_FLOAT, SP_METHOD_CTOR)
+BUILTIN_DECLARE_METHOD(TYPENAME_FLOAT, SP_METHOD_TO_STR)
 
 // String built-in methods
 BUILTIN_DECLARE_METHOD(TYPENAME_STRING, SP_METHOD_CTOR)

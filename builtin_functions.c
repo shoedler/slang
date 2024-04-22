@@ -15,13 +15,13 @@ void register_builtin_functions() {
 BUILTIN_FN_DOC(
     /* Fn Name     */ clock,
     /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
+    /* Return Type */ TYPENAME_FLOAT,
     /* Description */ "Returns the current execution time in seconds.");
 BUILTIN_FN_IMPL(clock) {
   UNUSED(argc);
   UNUSED(argv);
 
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+  return FLOAT_VAL((double)clock() / CLOCKS_PER_SEC);
 }
 
 // Native cwd function.

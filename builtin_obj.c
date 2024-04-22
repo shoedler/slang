@@ -222,11 +222,11 @@ BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_OBJ,
     /* Name        */ hash,
     /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUMBER,
+    /* Return Type */ TYPENAME_INT,
     /* Description */ "Returns the hash of the " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
   BUILTIN_ARGC_EXACTLY(0)
-  return NUMBER_VAL(hash_value(argv[0]));
+  return INT_VAL(hash_value(argv[0]));
 }
 
 // Built-in method to retrieve all entries of an object.

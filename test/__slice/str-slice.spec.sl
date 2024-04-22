@@ -34,10 +34,10 @@ print quotify("123".slice(-4,nil)) // [Expect] "123"
 print quotify("".slice(0,0)) // [Expect] ""
 
 // Non-numbers should throw an error.
-print try "123".slice(0,"a") else error // [Expect] Expected argument 1 of type Num but got Str.
-print try "123".slice("a",0) else error // [Expect] Expected argument 0 of type Num but got Str.
-print try "123".slice("a","a") else error // [Expect] Expected argument 0 of type Num but got Str.
+print try "123".slice(0,"a") else error // [Expect] Expected argument 1 of type Int but got Str.
+print try "123".slice("a",0) else error // [Expect] Expected argument 0 of type Int but got Str.
+print try "123".slice("a","a") else error // [Expect] Expected argument 0 of type Int but got Str.
 
 // Also, floats should throw an error.
-print try "123".slice(0,0.5) else error // [Expect] Indices must be integers, but got floats.
-print try "123".slice(0.5,0) else error // [Expect] Indices must be integers, but got floats.
+print try "123".slice(0,0.5) else error // [Expect] Expected argument 1 of type Int but got Float.
+print try "123".slice(0.5,0) else error // [Expect] Expected argument 0 of type Int but got Float.

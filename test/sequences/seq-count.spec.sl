@@ -9,7 +9,7 @@ print [1,3,4].count(fn(x) -> x > 1) // [Expect] 2
 
 // Passing a named function
 fn is_num(x) {
-  ret typeof(x) == Num;
+  ret x is Num;
 }
 print [1,3,4].count(is_num) // [Expect] 3
 

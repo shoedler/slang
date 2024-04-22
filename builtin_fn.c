@@ -28,7 +28,7 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ "",
     /* Return Type */ TYPENAME_FUNCTION,
     /* Description */
-    "Returns " STR(TYPENAME_FUNCTION) ".");
+    "No-op constructor for " STR(TYPENAME_FUNCTION) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_CTOR) {
   UNUSED(argc);
   UNUSED(argv);
