@@ -9,7 +9,7 @@ fn is_digit(x) ->
 
 fn to_calibration_value(line) {
   let arr = line.split("")
-  ret Num(arr.first(is_digit) + arr.last(is_digit));
+  ret Int(arr.first(is_digit) + arr.last(is_digit));
 }
 
 fn to_calibration_value_2(line) {
