@@ -12,26 +12,16 @@ fn to_calibration_value(line) {
   ret Num(arr.first(is_digit) + arr.last(is_digit));
 }
 
-fn substr(s, start, end) {
-  let res = ""
-  for let i = start; i < end and i < s.len; i++; {
-    res = res + s[i]
-  }
-  ret res;
-}
-
 fn to_calibration_value_2(line) {
-  let arr = line.split("")
   let new = []
 
-  for let i = 0; i < arr.len; i++; {
-    if is_digit(arr[i]) { 
-      new.push(arr[i])
+  for let i = 0; i < line.len; i++; {
+    if is_digit(line[i]) { 
+      new.push(line[i])
     }
     else {
       num_lens.some(fn (j) {
-        let slice = substr(arr, i, i + j)
-        let num = nums[slice]
+        let num = nums[line[i..i+j]]
         if num {
           new.push(num)
           ret true;

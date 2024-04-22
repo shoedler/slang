@@ -22,13 +22,20 @@ BUILTIN_FN_DOC(
     /* Fn Name     */ read,
     /* Arguments   */ DOC_ARG("path", TYPENAME_STRING),
     /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Reads the content of a file and returns it as a string.");
+    /* Description */ "Reads the content of a file and returns it as a string. Throws an error if the file does not exist.");
 BUILTIN_FN_IMPL(read) {
   BUILTIN_ARGC_EXACTLY(1)
   UNUSED(argv);
   BUILTIN_CHECK_ARG_AT(1, STRING);
 
-  char* content = read_file_safe(AS_CSTRING(argv[1]));
+  const char* path = AS_CSTRING(argv[1]);
+
+  if (!file_exists(path)) {
+    runtime_error("File '%s' does not exist.", path);
+    return NIL_VAL;
+  }
+
+  char* content = read_file_safe(path);
   if (content == NULL) {
     return NIL_VAL;
   }
