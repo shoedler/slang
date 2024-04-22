@@ -1,2 +1,2 @@
-print try try ASLDJKASLDJK else 1+nil else 1+nil // [ExpectRuntimeError] Uncaught error: Incompatible types for binary operand +. Left was Int, right was Nil
+print try try ASLDJKASLDJK else 1+nil else 1+nil // [ExpectRuntimeError] Uncaught error: Incompatible types for binary operand +. Left was Int, right was Nil.
                                                  // [ExpectRuntimeError]  at line 1 at the toplevel of module "main"

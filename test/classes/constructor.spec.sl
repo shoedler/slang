@@ -12,7 +12,7 @@ cls CoffeeMaker {
 }
 
 let maker = CoffeeMaker("coffee and chicory")
-maker.brew() // [ExpectRuntimeError] Uncaught error: Operands must be two numbers or two strings. Left was Str, right was Nil.
+maker.brew() // [ExpectRuntimeError] Uncaught error: Incompatible types for binary operand +. Left was Str, right was Nil.
              // [ExpectRuntimeError]   at line 7 in "brew" in module "main"
              // [ExpectRuntimeError]   at line 19 at the toplevel of module "main"
 

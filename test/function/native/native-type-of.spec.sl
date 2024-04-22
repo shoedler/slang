@@ -3,10 +3,10 @@ print typeof(nil)           // [Expect] <Class Nil>
 print typeof(false)         // [Expect] <Class Bool>
 print typeof(true)          // [Expect] <Class Bool>
 
-print typeof(0)             // [Expect] <Class Num>
-print typeof(0.0)           // [Expect] <Class Num>
-print typeof(-1)            // [Expect] <Class Num>
-print typeof(-1.0)          // [Expect] <Class Num>
+print typeof(0)             // [Expect] <Class Int>
+print typeof(0.0)           // [Expect] <Class Float>
+print typeof(-1)            // [Expect] <Class Int>
+print typeof(-1.0)          // [Expect] <Class Float>
 
 print typeof("")            // [Expect] <Class Str>
 print typeof("hello")       // [Expect] <Class Str>

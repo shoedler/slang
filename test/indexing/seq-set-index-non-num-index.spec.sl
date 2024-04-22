@@ -8,7 +8,7 @@ print try (a[almost_3] = "?") else error // [Expect] Seq indices must be Ints, b
 print a[3]                               // [Expect] hi
 
 // String
-print try (a["3"] = "?") else error      // [Expect] Seq indices must be Nums, but got Str.
+print try (a["3"] = "?") else error      // [Expect] Seq indices must be Ints, but got Str.
 
 // Stack check. Only the toplevel fn should be in the stack at this point.
 // Added this bc there were some bugs in value_get_property, value_set_property, value_get_index and value_set_index
