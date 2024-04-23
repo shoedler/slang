@@ -87,8 +87,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_TO_STR) {
 
     // Expand if necessary
     if (new_buf_size > buf_size) {
-      buf_size = new_buf_size;
-      chars    = realloc(chars, buf_size);
+      buf_size        = new_buf_size;
+      size_t old_size = strlen(chars);
+      chars           = realloc(chars, buf_size);
+      chars[old_size] = '\0';  // Ensure null-termination at the end of the old string
     }
 
     // Append the string
@@ -647,8 +649,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, join) {
 
     // Expand if necessary
     if (new_buf_size > buf_size) {
-      buf_size = new_buf_size;
-      chars    = realloc(chars, buf_size);
+      buf_size        = new_buf_size;
+      size_t old_size = strlen(chars);
+      chars           = realloc(chars, buf_size);
+      chars[old_size] = '\0';  // Ensure null-termination at the end of the old string
     }
 
     // Append the string
