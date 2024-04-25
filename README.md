@@ -1,4 +1,4 @@
-<img src="./doc/slang-dark.png" width="200">
+<img src="./doc/logo/slang-dark.png" width="200">
 
 # slang
 
@@ -32,6 +32,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
+- [ ] Add tests of `OP_MODULO`
 - [ ] Call `to_str` implicitly when adding a string to a non-string.
 - [ ] Remove in `VALUE_STR_CLASS` (`<Class X>`) the "Class" prefix from class type names.
 - [ ] Refactor `VALUE_STR_NATIVE` to look more like the normal `<Fn "name">` strings.
