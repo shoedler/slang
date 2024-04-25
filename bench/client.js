@@ -221,6 +221,10 @@ const createChartOptions = () => {
 
   const scales = {
     y: {
+      title: {
+        display: true,
+        text: "avg. time (s)",
+      },
       beginAtZero: true,
       ticks: {
         font: {
@@ -232,6 +236,10 @@ const createChartOptions = () => {
       },
     },
     x: {
+      title: {
+        display: true,
+        text: "Date",
+      },
       type: "time",
       ticks: {
         font: {

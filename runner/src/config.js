@@ -1,6 +1,6 @@
 export const MSBUILD_EXE =
-  '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\MSBuild\\Current\\Bin\\msbuild.exe"';
-export const SLANG_PROJ_DIR = 'C:\\Projects\\.playground\\slang';
+  '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\msbuild.exe"';
+export const SLANG_PROJ_DIR = 'C:\\Projects\\slang';
 
 export const SLANG_BIN_DIR = SLANG_PROJ_DIR + '\\x64';
 export const SLANG_BENCH_DIR = SLANG_PROJ_DIR + '\\bench';

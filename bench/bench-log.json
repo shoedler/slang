@@ -1,1 +1,14 @@
-[]
+[
+  {"name":"zoo","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"slang","score":3659.201176622948,"best":0.2577076,"avg":0.273283690000038,"worst":0.31113550000009,"sd":0.01379113400752484,"v":"fde6704f5508e79348b84c374fa72df421a5b0cf"},
+  {"name":"zoo","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"javascript","score":5003.051861635598,"best":0.19264,"avg":0.199878,"worst":0.20884,"sd":0.0051350302822865575,"v":"v20.10.0"},
+  {"name":"zoo","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"python","score":13333.333333333334,"best":0,"avg":0.075,"worst":0.1875,"sd":0.07421463804398698,"v":"Python 3.11.3"},
+  {"name":"string","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"slang","score":58420.08716267108,"best":0.01626650000003,"avg":0.017117400000029,"worst":0.01910729999986,"sd":0.0007992894644193999,"v":"fde6704f5508e79348b84c374fa72df421a5b0cf"},
+  {"name":"string","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"javascript","score":309119.0108191653,"best":0.00297,"avg":0.0032350000000000005,"worst":0.00367,"sd":0.0002310086578464106,"v":"v20.10.0"},
+  {"name":"string","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"python","score":320000,"best":0,"avg":0.003125,"worst":0.015625,"sd":0.006250000000000001,"v":"Python 3.11.3"},
+  {"name":"fib","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"slang","score":2410.906226138902,"best":0.40626259999999,"avg":0.414781789999984,"worst":0.42247830000019,"sd":0.006162314794963939,"v":"fde6704f5508e79348b84c374fa72df421a5b0cf"},
+  {"name":"fib","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"javascript","score":3543.6614527594493,"best":0.27187,"avg":0.282194,"worst":0.28601,"sd":0.0039704891386326685,"v":"v20.10.0"},
+  {"name":"fib","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"python","score":53333.333333333336,"best":0,"avg":0.01875,"worst":0.09375,"sd":0.027775607554111213,"v":"Python 3.11.3"},
+  {"name":"list","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"slang","score":9516.332405490652,"best":0.10160560000008,"avg":0.105082500000003,"worst":0.10985669999991,"sd":0.002477378661825231,"v":"fde6704f5508e79348b84c374fa72df421a5b0cf"},
+  {"name":"list","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"javascript","score":16973.31794419173,"best":0.05707,"avg":0.058916,"worst":0.06028,"sd":0.0011179910554203903,"v":"v20.10.0"},
+  {"name":"list","cpu":"13th Gen Intel(R) Core(TM) i7-13700H","date":"2024-04-25T22:43:56.505Z","lang":"python","score":160000,"best":0,"avg":0.00625,"worst":0.03125,"sd":0.010364452469860626,"v":"Python 3.11.3"}
+]

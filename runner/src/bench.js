@@ -1,10 +1,10 @@
 import {
   BENCH_LOG_FILE,
-  SLANG_BENCH_DIR,
-  SLANG_SUFFIX,
-  SLANG_BIN_DIR,
   BENCH_SUFFIX,
   BUILD_CONFIG_RELEASE,
+  SLANG_BENCH_DIR,
+  SLANG_BIN_DIR,
+  SLANG_SUFFIX,
 } from './config.js';
 import {
   LOG_CONFIG,
@@ -12,15 +12,16 @@ import {
   getProcessorName,
   gitStatus,
   info,
+  ok,
   readFile,
   runProcess,
   warn,
 } from './utils.js';
 
-import http from 'node:http';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 import chalk from 'chalk';
+import { existsSync } from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
 
 /**
  * @typedef {{
@@ -72,10 +73,10 @@ const defineBenchmark = (name, expectedOutput) => {
   BENCHMARKS.push({ name, regex });
 };
 
-// defineBenchmark('zoo', ['1800000', '1800000', '1800000', '1800000', '1800000']);
-// defineBenchmark('string', []);
-// defineBenchmark('fib', ['832040', '832040', '832040', '832040', '832040']);
-defineBenchmark('for', ['499999500000']);
+defineBenchmark('zoo', ['1800000', '1800000', '1800000', '1800000', '1800000']);
+defineBenchmark('string', []);
+defineBenchmark('fib', ['832040', '832040', '832040', '832040', '832040']);
+defineBenchmark('list', ['499999500000']);
 
 /**
  * Calculate score based on time
@@ -106,9 +107,31 @@ const standardDeviation = values => {
 };
 
 /**
+ * Find a result in an array of results
+ * @param {BenchmarkResult[]} results - Array of results
+ * @param {string} name - Name of the benchmark
+ * @param {string} lang - Language of the benchmark
+ * @param {boolean} [first=true] - Find the first result or the last result
+ * @returns {BenchmarkResult | undefined} - Result or undefined if not found
+ */
+const findResult = (results, name, lang, first = true) => {
+  if (first) {
+    return results.find(r => r.name === name && r.lang === lang);
+  }
+  for (let i = results.length - 1; i >= 0; i--) {
+    if (results[i].name === name && results[i].lang === lang) {
+      return results[i];
+    }
+  }
+  return undefined;
+};
+
+/**
  * Runs all benchmarks and writes results to a log file
  */
 export const runBenchmarks = async () => {
+  const benchLogFile = path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE);
+  const prevResults = JSON.parse(await readFile(benchLogFile));
   const results = [];
 
   const date = new Date();
@@ -135,7 +158,7 @@ export const runBenchmarks = async () => {
       process.stdout.write(multilineHeaderStyle(multilineHeader));
       process.stdout.write(`  ${chalk.bold(benchmark.name)} `);
       process.stdout.write(' '.repeat(longestBenchmarkName - benchmark.name.length + 1));
-      process.stdout.write(`${chalk.italic(lang == 'slang' ? chalk.blue(lang) : lang)} `);
+      process.stdout.write(`${chalk.italic(lang == 'slang' ? chalk.magenta(lang) : lang)} `);
       process.stdout.write(' '.repeat(longestLanguageName - lang.length + 1));
 
       if (!existsSync(filePath)) {
@@ -148,7 +171,7 @@ export const runBenchmarks = async () => {
 
       // Run benchmark 10 times
       for (let i = 0; i < 10; i++) {
-        process.stdout.write(`■`);
+        process.stdout.write(`.`);
 
         const output = await runProcess(runCommand, '', undefined, false, true);
 
@@ -171,41 +194,57 @@ export const runBenchmarks = async () => {
       const best = Math.min(...times);
       const avg = times.reduce((a, b) => a + b) / times.length;
       const worst = Math.max(...times);
-      const score = getScore(best);
-      const standardDev = standardDeviation(times);
+      const score = getScore(avg);
+      let standardDev = standardDeviation(times);
 
       // Print benchmark results
-      let comparison = '';
+      let comparison;
+      let comparisonSuffix;
+      let dividend = score;
+      let divisor = score;
+
       if (lang === 'slang') {
-        if (benchmark.result) {
-          const ratio = (100 * score) / benchmark[2];
-          comparison = `${ratio.toFixed(2)}% relative to baseline`;
-          if (ratio > 105) {
-            comparison = chalk.green(comparison);
-          }
-          if (ratio < 95) {
-            comparison = chalk.red(comparison);
-          }
+        // If we're running a slang benchmark, compare to a previous slang result
+        const prevResult = findResult(prevResults, benchmark.name, 'slang', false);
+        if (prevResult) {
+          comparisonSuffix = '% relative to baseline';
+          divisor = prevResult.score;
         } else {
           comparison = 'no baseline';
+          comparisonSuffix = '';
         }
       } else {
-        const slangScore = results.find(r => r.lang === 'slang' && r.name === benchmark.name).score;
-        const ratio = (100.0 * slangScore) / score;
-        comparison = `${ratio.toFixed(2)}%`;
-        if (ratio > 105) {
-          comparison = chalk.green(comparison);
-        }
-        if (ratio < 95) {
-          comparison = chalk.red(comparison);
+        // If we're running a non-slang benchmark, compare to the slang result. Slang always runs first.
+        const slangResult = findResult(results, benchmark.name, 'slang');
+        if (slangResult) {
+          comparisonSuffix = '%';
+          dividend = slangResult.score;
+        } else {
+          comparison = 'no slang result';
+          comparisonSuffix = '';
         }
       }
 
-      process.stdout.write(
-        ` ${best.toFixed(2)}s sd(${standardDev.toFixed(4)}) score(${score.toFixed(
-          2,
-        )}) ${comparison}\n`,
-      );
+      // Calculate comparison
+      const ratio = (100 * dividend) / divisor;
+      if (!comparison) {
+        comparison = ratio.toFixed(2) + comparisonSuffix;
+      }
+      if (ratio > 100) {
+        comparison = chalk.green(comparison);
+      }
+      if (ratio < 100) {
+        comparison = chalk.red(comparison);
+      }
+
+      // Emphasize standard deviation if it's high
+      if (standardDev > 0.05) {
+        standardDev = chalk.yellow(standardDev.toFixed(4));
+      } else {
+        standardDev = standardDev.toFixed(4);
+      }
+
+      process.stdout.write(` ${best.toFixed(2)}s sd(${standardDev}) ${comparison}\n`);
 
       // Push benchmark result to results array
       const result = {
@@ -226,11 +265,10 @@ export const runBenchmarks = async () => {
   }
 
   // Write results to log file
-  info(`Writing results.`, `to ${path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE)}`);
-  const benchLogFile = path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE);
+  info(`Writing results.`, `to ${benchLogFile}`);
   await createOrAppendJsonFile(benchLogFile, results);
 
-  info(`All benchmarks done.`);
+  ok(`All benchmarks done.`);
 };
 
 export const serveResults = async () => {

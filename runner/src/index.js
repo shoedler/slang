@@ -1,6 +1,5 @@
 import { runBenchmarks, serveResults } from './bench.js';
 import {
-  BUILD_CONFIG_DEBUG,
   BUILD_CONFIG_RELEASE,
   SLANG_PROJ_DIR,
   SLANG_SAMPLE_FILE,
@@ -48,7 +47,9 @@ const validateOptions = () => {
 
 const hint = [
   'Available commands & options:',
-  '  - bench           Run benchmarks (Debug & Release)',
+  '  - bench           Run benchmarks (Debug & Release) and serve results',
+  '    - serve         Only serve benchmark results',
+  '    - no-serve      Run benchmarks without serving results',
   '  - sample          Run sample file (sample.sl)',
   '  - test            Run tests (.spec.sl files)',
   '    - update-files  Update test files with new expectations',
@@ -56,22 +57,33 @@ const hint = [
   '  - watch-sample    Watch sample file (sample.sl)',
   '  - watch-test      Watch test files',
   '    - <pattern>     Watch tests that match the regex pattern',
-  '  - serve-results   Serve benchmark results',
   '',
   'Note: If not specified, the default configuration is Release',
 ];
 
 switch (cmd) {
   case 'bench': {
+    const doOnlyServe = Boolean(consumeOption('serve', false));
+    const doNoServe = Boolean(consumeOption('no-server', false));
     validateOptions();
+
+    if (doOnlyServe && doNoServe) {
+      abort('Cannot specify both serve and no-serve options');
+    }
+
+    if (doOnlyServe) {
+      info('Serving results');
+      await serveResults();
+      break;
+    }
 
     await buildSlangConfig(BUILD_CONFIG_RELEASE);
     await runBenchmarks();
-    break;
-  }
-  case 'serve-results': {
-    validateOptions();
-    await serveResults();
+
+    if (!doNoServe) {
+      info('Serving results');
+      await serveResults();
+    }
     break;
   }
   case 'test': {
