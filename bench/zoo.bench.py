@@ -27,21 +27,17 @@ class Zoo:
     def mouse(self):
         return self.fox
 
-
 zoo = Zoo()
-duration = 5
-sum = 0
-batches = 0
 
-start = time.time()
-i = 0
-while time.time() < start + duration:
-    while i < 10000:
-        sum = sum + zoo.ant() + zoo.banana() + zoo.tuna() + zoo.hay() + zoo.grass() + zoo.mouse()
-        i = i + 1
-    batches = batches + 1
-    i = 0
+start = time.process_time()
 
-print(batches)  # [Throughput]
-print(sum)  # [Value]
-print(duration)  # [DurationInSecs]
+for k in range(0, 5):
+    sum = 0
+    for j in range(0, 30):
+        i = 0
+        while i < 10000:
+            sum = sum + zoo.ant() + zoo.banana() + zoo.tuna() + zoo.hay() + zoo.grass() + zoo.mouse()
+            i += 1
+    print(sum)
+
+print("elapsed: " + str(time.process_time() - start) + "ms")

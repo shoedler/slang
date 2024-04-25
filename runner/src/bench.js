@@ -1,51 +1,237 @@
-import path from 'node:path';
-import { BENCH_LOG_FILE, SLANG_BENCH_DIR, SLANG_BENCH_SUFFIX } from './config.js';
 import {
-  abort,
+  BENCH_LOG_FILE,
+  SLANG_BENCH_DIR,
+  SLANG_SUFFIX,
+  SLANG_BIN_DIR,
+  BENCH_SUFFIX,
+  BUILD_CONFIG_RELEASE,
+} from './config.js';
+import {
+  LOG_CONFIG,
   createOrAppendJsonFile,
-  extractCommentMetadata,
-  findFiles,
+  getProcessorName,
+  gitStatus,
   info,
   readFile,
   runProcess,
-  runSlangFile,
+  warn,
 } from './utils.js';
 
 import http from 'node:http';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import chalk from 'chalk';
 
 /**
  * @typedef {{
- *   benchmarkType: "ThroughputBenchmark",
- *   name: string,
- *   throughput: number,
- *   value: any,
- *   durationInSecs: number
- * }} ThroughputBenchmark
- */
-
-/**
- * @typedef {{
- *   benchmarkType: "LatencyBenchmark",
- *   name: string,
- *   expectedValue: number,
- *   value: number,
- *   durationInSecs: number
- * }} LatencyBenchmark
- */
-
-/**
- * @typedef {{
+ *   name: string;
+ *   cpu: string;
+ *   lang: string;
+ *   v: string;
  *   date: Date;
- *   commit: {
- *    date: string;
- *    hash: string;
- *    message: string;
- *   };
- *   processorName: string;
- *   config: "Debug" | "Release";
- *   benchmark: ThroughputBenchmark | LatencyBenchmark;
+ *   score: number;
+ *   score: number;
+ *   best: number;
+ *   avg: number;
+ *   worst: number;
+ *   sd: number;
  * }} BenchmarkResult
  */
+
+const LANGUAGES = [
+  {
+    lang: 'slang',
+    ext: SLANG_SUFFIX,
+    cmd: [`${path.join(SLANG_BIN_DIR, BUILD_CONFIG_RELEASE, 'slang')}`, 'run'],
+    version: undefined,
+  },
+  {
+    lang: 'javascript',
+    ext: '.js',
+    cmd: ['node', '--jitless', '--noexpose_wasm'],
+    version: ['node', '--version'],
+  },
+  {
+    lang: 'python',
+    ext: '.py',
+    cmd: ['py'],
+    version: ['py', '--version'],
+  },
+];
+
+const BENCHMARKS = [];
+
+/**
+ * Define a benchmark
+ * @param {string} name - The name of the benchmark (file name, without extension and .bench suffix)
+ * @param {string[]} expectedOutput - The expected output of the benchmark
+ */
+const defineBenchmark = (name, expectedOutput) => {
+  const expectedOutStr = expectedOutput.length > 0 ? expectedOutput.join('\n') + '\n' : '';
+  const regex = new RegExp(expectedOutStr + 'elapsed: (\\d+.\\d+)', 'm');
+  BENCHMARKS.push({ name, regex });
+};
+
+// defineBenchmark('zoo', ['1800000', '1800000', '1800000', '1800000', '1800000']);
+// defineBenchmark('string', []);
+// defineBenchmark('fib', ['832040', '832040', '832040', '832040', '832040']);
+defineBenchmark('for', ['499999500000']);
+
+/**
+ * Calculate score based on time
+ * @param {number} time - Time to calculate score for
+ * @returns {number} - Score
+ */
+const getScore = time => 1000 / time;
+
+/**
+ * Replace Carriage Return + Line Feed (\r\n) with Line Feed (\n)
+ * Then replace any remaining Carriage Returns (\r) with Line Feed (\n)
+ * @param {string} stdout - Output to normalize
+ * @returns {string} - Normalized output
+ */
+const normalizeLineEndings = stdout => {
+  return stdout.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+};
+
+/**
+ * Calculate standard deviation of an array of numbers
+ * @param {number[]} values - Array of numbers
+ * @returns {number} - Standard deviation
+ */
+const standardDeviation = values => {
+  const avg = values.reduce((a, b) => a + b) / values.length;
+  const variance = values.reduce((a, b) => a + (b - avg) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+};
+
+/**
+ * Runs all benchmarks and writes results to a log file
+ */
+export const runBenchmarks = async () => {
+  const results = [];
+
+  const date = new Date();
+  const processorName = await getProcessorName();
+
+  const longestBenchmarkName = Math.max(...BENCHMARKS.map(b => b.name.length));
+  const longestLanguageName = Math.max(...LANGUAGES.map(l => l.lang.length));
+
+  for (const benchmark of BENCHMARKS) {
+    for (const language of LANGUAGES) {
+      const { lang, ext, cmd } = language;
+      const filePath = path.join(SLANG_BENCH_DIR, benchmark.name + BENCH_SUFFIX + ext);
+      const runCommand = cmd.join(' ') + ' ' + filePath;
+      const times = [];
+
+      let interpreterVersion = language.version
+        ? await runProcess(language.version.join(' '))
+        : (await gitStatus()).hash;
+
+      interpreterVersion = normalizeLineEndings(interpreterVersion).replace(/\n/g, '');
+
+      // Print benchmark header
+      const [, , multilineHeader, multilineHeaderStyle] = LOG_CONFIG['info'];
+      process.stdout.write(multilineHeaderStyle(multilineHeader));
+      process.stdout.write(`  ${chalk.bold(benchmark.name)} `);
+      process.stdout.write(' '.repeat(longestBenchmarkName - benchmark.name.length + 1));
+      process.stdout.write(`${chalk.italic(lang == 'slang' ? chalk.blue(lang) : lang)} `);
+      process.stdout.write(' '.repeat(longestLanguageName - lang.length + 1));
+
+      if (!existsSync(filePath)) {
+        process.stdout.write(` (file ${filePath} not found)\n`);
+        continue;
+      }
+
+      // Do one warmup run
+      await runProcess(runCommand, '', undefined, false, true);
+
+      // Run benchmark 10 times
+      for (let i = 0; i < 10; i++) {
+        process.stdout.write(`■`);
+
+        const output = await runProcess(runCommand, '', undefined, false, true);
+
+        if (!output) {
+          process.stdout.write('\n');
+          warn(`${lang} benchmark failed`, `Output: ${output}`);
+          continue;
+        }
+
+        const match = normalizeLineEndings(output).trim().match(benchmark.regex);
+        if (!match) {
+          process.stdout.write('\n');
+          warn(`${lang} benchmark output does not match expected output`, output);
+          continue;
+        }
+        times.push(parseFloat(match[1]));
+      }
+
+      // Calculate some stats
+      const best = Math.min(...times);
+      const avg = times.reduce((a, b) => a + b) / times.length;
+      const worst = Math.max(...times);
+      const score = getScore(best);
+      const standardDev = standardDeviation(times);
+
+      // Print benchmark results
+      let comparison = '';
+      if (lang === 'slang') {
+        if (benchmark.result) {
+          const ratio = (100 * score) / benchmark[2];
+          comparison = `${ratio.toFixed(2)}% relative to baseline`;
+          if (ratio > 105) {
+            comparison = chalk.green(comparison);
+          }
+          if (ratio < 95) {
+            comparison = chalk.red(comparison);
+          }
+        } else {
+          comparison = 'no baseline';
+        }
+      } else {
+        const slangScore = results.find(r => r.lang === 'slang' && r.name === benchmark.name).score;
+        const ratio = (100.0 * slangScore) / score;
+        comparison = `${ratio.toFixed(2)}%`;
+        if (ratio > 105) {
+          comparison = chalk.green(comparison);
+        }
+        if (ratio < 95) {
+          comparison = chalk.red(comparison);
+        }
+      }
+
+      process.stdout.write(
+        ` ${best.toFixed(2)}s sd(${standardDev.toFixed(4)}) score(${score.toFixed(
+          2,
+        )}) ${comparison}\n`,
+      );
+
+      // Push benchmark result to results array
+      const result = {
+        name: benchmark.name,
+        cpu: processorName,
+        date,
+        lang,
+        score,
+        best,
+        avg,
+        worst,
+        sd: standardDev,
+        v: interpreterVersion,
+      };
+
+      results.push(result);
+    }
+  }
+
+  // Write results to log file
+  info(`Writing results.`, `to ${path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE)}`);
+  const benchLogFile = path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE);
+  await createOrAppendJsonFile(benchLogFile, results);
+
+  info(`All benchmarks done.`);
+};
 
 export const serveResults = async () => {
   const clientCodeFile = path.join(SLANG_BENCH_DIR, 'client.js');
@@ -76,177 +262,4 @@ export const serveResults = async () => {
 
   server.listen(8080);
   info('Server running at http://localhost:8080/');
-};
-
-/**
- * Finds all benchmarks in the slang bench directory
- * @returns {string[]} - Array of benchmark file paths
- */
-const findBenchmarks = async () => {
-  const benchmarks = await findFiles(SLANG_BENCH_DIR, SLANG_BENCH_SUFFIX);
-
-  if (benchmarks.length === 0)
-    abort(`No benchmarks found in ${SLANG_BENCH_DIR} with suffix ${SLANG_BENCH_SUFFIX}`);
-
-  info(`Found ${benchmarks.length} slang benchmarks`);
-
-  return benchmarks;
-};
-
-/**
- * Get git status of the current repo (commit hash, date, and message)
- * @returns {Promise<{date: string, hash: string, message: string}>} - Promise that resolves to git status
- */
-const gitStatus = async () => {
-  const formats = ['%ci', '%H', '%s'];
-  const cmd = `git log -1 --pretty=format:`;
-  info(`Getting git status`, `Command: "${cmd}" and formats "${formats.join(', ')}"`);
-  const [date, hash, message] = await Promise.all(
-    formats.map(f => runProcess(cmd + f, `Getting git log faied`)),
-  );
-  return { date, hash, message };
-};
-
-/**
- * Get the name of the processor
- * @returns {Promise<string>} - Promise that resolves to the processor name
- */
-const getProcessorName = async () => {
-  const cmd = 'wmic cpu get name';
-  info(`Getting processor name`, `Command: "${cmd}"`);
-  const labelAndName = await runProcess(cmd, `Getting processor name failed`);
-  return labelAndName.split('\r\n')[1].trim();
-};
-
-/**
- * Get a benchmark result factory function for a given benchmark metadata
- * @param {ReturnType<extractCommentMetadata>} metadata - Metadata extracted from benchmark file
- * @returns {(output: string[]) => LatencyBenchmark | ThroughputBenchmark } - Benchmark result factory function
- */
-const getBenchmarkFactory = metadata => {
-  if (metadata[0].type === 'LatencyBenchmark') {
-    const [benchmarkTypeHeader, expectedValueHeader, valueHeader, durationInSecsHeader] = metadata;
-    const isValid =
-      benchmarkTypeHeader.type === 'LatencyBenchmark' &&
-      expectedValueHeader.type === 'ExpectedValue' &&
-      valueHeader.type === 'Value' &&
-      durationInSecsHeader.type === 'DurationInSecs';
-
-    if (!isValid) {
-      abort('LatencyBenchmark metadata is invalid.', `Metadata: ${metadata.join('\n')}`);
-    }
-
-    const latencyBenchmarkFactory = output => {
-      if (output.length !== 2) {
-        abort(
-          `LatencyBenchmark output is invalid, expected 2 lines, got ${output.length}.`,
-          `Output: ${output.join('\n')}`,
-        );
-      }
-
-      const [value, durationInSecs] = output;
-
-      if (value !== expectedValueHeader.value) {
-        abort(
-          `LatencyBenchmark value is invalid, expected ${expectedValueHeader.value}, got ${value}.`,
-          `Output: ${output.join('\n')}`,
-        );
-      }
-
-      return {
-        benchmarkType: 'LatencyBenchmark',
-        name: benchmarkTypeHeader.value,
-        expectedValue: expectedValueHeader.value,
-        value,
-        durationInSecs,
-      };
-    };
-    return latencyBenchmarkFactory;
-  } else if (metadata[0].type === 'ThroughputBenchmark') {
-    const [benchmarkTypeHeader, throughputHeader, valueHeader, durationInSecsHeader] = metadata;
-    const isValid =
-      benchmarkTypeHeader.type === 'ThroughputBenchmark' &&
-      throughputHeader.type === 'Throughput' &&
-      valueHeader.type === 'Value' &&
-      durationInSecsHeader.type === 'DurationInSecs';
-
-    if (!isValid) {
-      abort('ThroughputBenchmark metadata is invalid.', `Metadata: ${metadata.join('\n')}`);
-    }
-
-    const throughputBenchmarkFactory = output => {
-      if (output.length !== 3) {
-        abort(
-          `ThroughputBenchmark output is invalid, expected 3 lines, got ${output.length}.`,
-          `Output: ${output.join('\n')}`,
-        );
-      }
-
-      const [throughput, value, durationInSecs] = output;
-
-      return {
-        benchmarkType: 'ThroughputBenchmark',
-        name: benchmarkTypeHeader.value,
-        throughput,
-        value,
-        durationInSecs,
-      };
-    };
-    return throughputBenchmarkFactory;
-  }
-
-  abort('Unkown benchmark type.', `Metadata: ${metadata.join('\n')}`);
-};
-
-/**
- * Runs all benchmarks and writes results to a log file
- * @param {string[]} configs - Array of build configs to run benchmarks for
- */
-export const runBenchmarks = async configs => {
-  const benchmarksPaths = await findBenchmarks();
-
-  const benchmarks = [];
-  for (const filePath of benchmarksPaths) {
-    const commentMetadata = await extractCommentMetadata(filePath);
-    const benchmarkFactory = getBenchmarkFactory(commentMetadata);
-    benchmarks.push({
-      filePath,
-      benchmarkFactory,
-    });
-  }
-
-  const results = [];
-
-  const date = new Date();
-  const commit = await gitStatus();
-  const processorName = await getProcessorName();
-
-  for (const benchmark of benchmarks) {
-    info('Running benchmark', benchmark.filePath);
-
-    for (const config of configs) {
-      const { output, exitCode } = await runSlangFile(benchmark.filePath, config);
-
-      if (exitCode !== 0) {
-        abort(`Benchmark failed with exit code ${exitCode}.`, `Output: ${output.join('\n')}`);
-      }
-
-      const benchmarkResult = benchmark.benchmarkFactory(output);
-
-      results.push({
-        date,
-        commit,
-        processorName,
-        config,
-        benchmark: benchmarkResult,
-      });
-    }
-  }
-
-  info(`Done.`, `Writing results to ${path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE)}`);
-
-  const benchLogFile = path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE);
-  await createOrAppendJsonFile(benchLogFile, results, (existingResults, newResults) => {
-    return [...existingResults, ...newResults];
-  });
 };

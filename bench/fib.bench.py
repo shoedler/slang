@@ -1,14 +1,12 @@
+from __future__ import print_function
+
 import time
 
 def fib(n):
-    if n <= 1:
-        return n
-    return fib(n - 1) + fib(n - 2)
+  if n < 2: return n
+  return fib(n - 1) + fib(n - 2)
 
-
-start = time.time()
-
-# [LatencyBenchmark] Fib(35)
-# [ExpectedValue] 9227465
-print(fib(35))  # [Value]
-print(time.time() - start)  # [DurationInSecs]
+start = time.process_time()
+for i in range(0, 5):
+  print(fib(30))
+print("elapsed: " + str(time.process_time() - start) + "ms") 

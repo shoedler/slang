@@ -1,3 +1,5 @@
+import Perf
+
 cls Zoo {
   ctor {
     this.aardvark = 1
@@ -16,27 +18,24 @@ cls Zoo {
 }
 
 let zoo = Zoo()
-let duration = 5
-let sum = 0
-let batches = 0
 
-let start = clock()
-let i = 0
-while clock() < start + duration {
-  while i < 10000 {
-    sum = sum + zoo.ant()
-            + zoo.banana()
-            + zoo.tuna()
-            + zoo.hay()
-            + zoo.grass()
-            + zoo.mouse()
-    i = i + 1
+let start = Perf.now()
+
+for let k = 0; k < 5; k++; {
+  let sum = 0
+  for let j = 0; j < 30; j++; {
+    let i = 0
+    while i < 10000 {
+      sum = sum + zoo.ant()
+                + zoo.banana()
+                + zoo.tuna()
+                + zoo.hay()
+                + zoo.grass()
+                + zoo.mouse()
+      i++
+    }
   }
-  batches = batches + 1
-  i = 0
+  print sum
 }
 
-// [ThroughputBenchmark] Zoo
-print batches  // [Throughput]
-print sum      // [Value]
-print duration // [DurationInSecs]
+print "elapsed: " + (Perf.now() - start).to_str() + " ms"
