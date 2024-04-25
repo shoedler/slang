@@ -1,8 +1,10 @@
-let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
+import Perf
 
-let start = clock()
+fn fib(n) -> n < 2 ? n : fib(n - 1) + fib(n - 2)
 
-// [LatencyBenchmark] Fib(35)
-// [ExpectedValue] 9227465
-print fib(35)          // [Value]
-print clock() - start  // [DurationInSecs]
+let start = Perf.now()
+for let i = 0; i < 5; i++; {
+    print fib(30)
+}
+
+print "elapsed: " + (Perf.now() - start).to_str() + "ms"

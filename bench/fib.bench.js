@@ -1,8 +1,11 @@
-const fib = (n) => (n <= 1 ? n : fib(n - 1) + fib(n - 2));
+function fib(n) {
+  if (n < 2) return n;
+  return fib(n - 1) + fib(n - 2);
+}
 
-const start = Date.now();
+const start = process.hrtime();
+for (let i = 0; i < 5; i++) {
+  console.log(fib(30));
+}
 
-// [LatencyBenchmark] Fib(35)
-// [ExpectedValue] 9227465
-console.log(fib(35)); // [Value]
-console.log(Date.now() - start); // [DurationInSecs]
+console.log(`elapsed: ${(process.hrtime(start)[1] / 1e9).toFixed(5)}ms`);

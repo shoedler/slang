@@ -28,28 +28,26 @@ class Zoo {
 }
 
 let zoo = new Zoo();
-let duration = 5;
-let sum = 0;
-let batches = 0;
 
-let start = Date.now();
-let i = 0;
-while (Date.now() < start + duration * 1000) {
-  while (i < 10000) {
-    sum =
-      sum +
-      zoo.ant() +
-      zoo.banana() +
-      zoo.tuna() +
-      zoo.hay() +
-      zoo.grass() +
-      zoo.mouse();
-    i = i + 1;
+const start = process.hrtime();
+
+for (let k = 0; k < 5; k++) {
+  let sum = 0;
+  for (let j = 0; j < 30; j++) {
+    let i = 0;
+    while (i < 10000) {
+      sum =
+        sum +
+        zoo.ant() +
+        zoo.banana() +
+        zoo.tuna() +
+        zoo.hay() +
+        zoo.grass() +
+        zoo.mouse();
+      i++;
+    }
   }
-  batches = batches + 1;
-  i = 0;
+  console.log(sum);
 }
 
-console.log(batches); // [Throughput]
-console.log(sum); // [Value]
-console.log(duration); // [DurationInSecs]
+console.log(`elapsed: ${(process.hrtime(start)[1] / 1e9).toFixed(5)}ms`);

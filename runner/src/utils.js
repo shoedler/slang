@@ -13,9 +13,16 @@ import { MSBUILD_EXE, SLANG_BIN_DIR, SLANG_PROJ_DIR } from './config.js';
  * @param {string} errorMessage - Error message to throw if command fails (non-zero exit code or stderr)
  * @param {AbortSignal} signal - Abort signal to use
  * @param {boolean} abortOnError - Whether to abort (exiting the app) on error (non-zero exit code or stderr)
+ * @param {boolean} ignoreStderr - Whether to ignore stderr and not abort on error
  * @returns {Promise<string | undefined>} - Promise that resolves to stdout or undefined if abortOnError is false and the process fails
  */
-export const runProcess = (cmd, errorMessage, signal = null, abortOnError = true) => {
+export const runProcess = (
+  cmd,
+  errorMessage,
+  signal = null,
+  abortOnError = true,
+  ignoreStderr = false,
+) => {
   const options = signal ? { signal } : {};
   const child = spawn(cmd, { shell: true, ...options });
 
@@ -40,6 +47,10 @@ export const runProcess = (cmd, errorMessage, signal = null, abortOnError = true
       if (code === 0 && errorOutput === '') {
         return resolve(output);
       } else {
+        if (ignoreStderr && code === 0) {
+          return resolve(output);
+        }
+
         if (abortOnError) {
           abort(errorMessage, `Exit code: ${code}, stderr: ${errorOutput}, stdout: ${output}`);
         } else {
@@ -173,20 +184,23 @@ export const findFiles = async (dir, suffix) => {
 };
 
 /**
- * Create or append to a JSON file. If the file already exists, the existing JSON is merged with
- * the new JSON using the append function.
+ * Create a, or append items to a JSON-array file. If the file already exists, the new items are appended.
+ * Will print every item as a single line in the file.
  * @param {string} file - Absolute path to file to create or append to
- * @param {any} data - Data to append to file
- * @param {(existingJsonObj: any, newJsonObj: any) => any} append - Function to merge existing JSON with new JSON
+ * @param {any[]} array - Data to append to file
  */
-export const createOrAppendJsonFile = async (file, data, append) => {
-  let newJsonObj = data;
+export const createOrAppendJsonFile = async (file, array) => {
+  let newArray = array;
   if (existsSync(file)) {
-    const existingJsonObj = JSON.parse(await fs.readFile(file, 'utf-8'));
-    newJsonObj = append(existingJsonObj, newJsonObj);
+    const existingArray = JSON.parse(await fs.readFile(file, 'utf-8')) || [];
+    newArray = [...existingArray, ...array];
   }
 
-  await fs.writeFile(file, JSON.stringify(newJsonObj, null, 2), { encoding: 'utf-8', flag: 'w' });
+  let content = '[\n';
+  content += newArray.map(i => '  ' + JSON.stringify(i)).join(',\n');
+  content += '\n]\n';
+
+  await fs.writeFile(file, content, { encoding: 'utf-8', flag: 'w' });
 };
 
 /**
@@ -243,9 +257,53 @@ export const updateCommentMetadata = async (file, metadata) => {
 };
 
 /**
+ * Get git status of the current repo (commit hash, date, and message)
+ * @returns {Promise<{date: string, hash: string, message: string}>} - Promise that resolves to git status
+ */
+export const gitStatus = async () => {
+  const formats = ['%ci', '%H', '%s'];
+  const cmd = `git log -1 --pretty=format:`;
+  const [date, hash, message] = await Promise.all(
+    formats.map(f => runProcess(cmd + f, `Getting git log faied`)),
+  );
+  return { date, hash, message };
+};
+
+/**
+ * Get the name of the processor
+ * @returns {Promise<string>} - Promise that resolves to the processor name
+ */
+export const getProcessorName = async () => {
+  const cmd = 'wmic cpu get name';
+  info(`Getting processor name`, `Command: "${cmd}"`);
+  const labelAndName = await runProcess(cmd, `Getting processor name failed`);
+  return labelAndName.split('\r\n')[1].trim();
+};
+
+/**
  * Prints a separator
  */
 export const separator = () => console.log(chalk.gray('─'.repeat(80)));
+
+/**
+ * Object containing log configuration.
+ * Each value is an array with the following elements:
+ * [0] - Prefix for the log message (header), e.g. '█ Error'
+ * [1] - chalk style for the header
+ * [2] - Prefix for multiline header, e.g. '│      '
+ * [3] - chalk style for multiline header
+ */
+// prettier-ignore
+export const LOG_CONFIG = {
+  err:   [ '█ Error', chalk.red.bold,           '│      ', chalk.red.bold           ],
+  abort: [ '█ Abort', chalk.red.bold,           '│      ', chalk.red.bold           ],
+  info:  [ '█ Info ', chalk.gray.bold,          '│      ', chalk.gray.bold          ],
+  ok:    [ '█ Ok   ', chalk.green.bold,         '│      ', chalk.green.bold         ],
+  warn:  [ '█ Warn ', chalk.yellowBright.bold,  '│      ', chalk.yellowBright.bold  ],
+  debug: [ '█ Debug', chalk.magentaBright.bold, '│      ', chalk.magentaBright.bold ],
+  pass:  [ ' Pass ',  chalk.bgGreen.black,      '│     ',  chalk.green              ],
+  fail:  [ ' Fail ',  chalk.bgRed.black,        '│     ',  chalk.red                ],
+}
 
 /**
  * Log a styled message to the console.
@@ -253,17 +311,7 @@ export const separator = () => console.log(chalk.gray('─'.repeat(80)));
  * @param {string} message - Message
  */
 const prettyPrint = (type, message) => {
-  // prettier-ignore
-  const [headerPrefix, headerStyle, multilineHeaderValue, multilineHeaderStyle] = {
-    err:   [ '█ Error', chalk.red.bold,           '│      ', chalk.red.bold           ],
-    abort: [ '█ Abort', chalk.red.bold,           '│      ', chalk.red.bold           ],
-    info:  [ '█ Info ', chalk.gray.bold,          '│      ', chalk.gray.bold          ],
-    ok:    [ '█ Ok   ', chalk.green.bold,         '│      ', chalk.green.bold         ],
-    warn:  [ '█ Warn ', chalk.yellowBright.bold,  '│      ', chalk.yellowBright.bold  ],
-    debug: [ '█ Debug', chalk.magentaBright.bold, '│      ', chalk.magentaBright.bold ],
-    pass:  [ ' Pass ',  chalk.bgGreen.black,      '│     ',  chalk.green              ],
-    fail:  [ ' Fail ',  chalk.bgRed.black,        '│     ',  chalk.red                ],
-  }[type];
+  const [headerPrefix, headerStyle, multilineHeaderValue, multilineHeaderStyle] = LOG_CONFIG[type];
 
   const maxWidth = process.stdout.columns - 1;
   const headerSpace = ' ';

@@ -63,13 +63,10 @@ const hint = [
 
 switch (cmd) {
   case 'bench': {
-    const configs = [BUILD_CONFIG_DEBUG, BUILD_CONFIG_RELEASE];
     validateOptions();
 
-    for (const config of configs) {
-      await buildSlangConfig(config);
-    }
-    await runBenchmarks(configs);
+    await buildSlangConfig(BUILD_CONFIG_RELEASE);
+    await runBenchmarks();
     break;
   }
   case 'serve-results': {
