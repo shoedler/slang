@@ -33,16 +33,12 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_OBJ,
     /* Description */ "Returns a new empty " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_CTOR) {
-  UNUSED(argv);
   BUILTIN_ARGC_EXACTLY(0)
   // This is a base implementation, all objects which don't have a custom implementation will use this one.
   // Works nicely for all classes, because instances are ObjObjects. Any other value type, like primitives, are handled internally
   // and have their own constructors.
 
-  HashTable fields;
-  init_hashtable(&fields);
-  ObjObject* object = take_object(&fields);
-  return OBJ_VAL(object);
+  return argv[0];
 }
 
 static Value instance_object_to_str(int argc, Value* argv) {

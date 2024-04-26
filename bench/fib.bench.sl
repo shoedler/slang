@@ -1,6 +1,9 @@
 import Perf
 
-fn fib(n) -> n < 2 ? n : fib(n - 1) + fib(n - 2)
+fn fib(n) {
+    if n <= 1 ret n;
+    ret fib(n - 1) + fib(n - 2);
+}
 
 let start = Perf.now()
 for let i = 0; i < 5; i++; {

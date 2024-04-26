@@ -272,19 +272,6 @@ ObjClass* typeof(Value value) {
   return vm.__builtin_Obj_class;  // This field name was created via macro
 }
 
-// Finds a method in the inheritance chain of a class. This is used to find methods in the class hierarchy.
-// If the method is not found, NIL_VAL is returned.
-static Value find_method_in_inheritance_chain(ObjClass* klass, ObjString* name) {
-  while (klass != NULL) {
-    Value method;
-    if (hashtable_get_by_string(&klass->methods, name, &method)) {
-      return method;
-    }
-    klass = klass->base;
-  }
-  return NIL_VAL;
-}
-
 // Executes a call to a managed-code function or method by creating a new call frame and pushing it onto the
 // frame stack.
 // `Stack: ...[closure][arg0][arg1]...[argN]`
@@ -381,9 +368,8 @@ static CallResult call_value(Value callable, int arg_count) {
 // table and calling it. (Combines "get-property" and "call" opcodes)
 // `Stack: ...[receiver][arg0][arg1]...[argN]`
 static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
-  Value method = find_method_in_inheritance_chain(klass, name);
-
-  if (IS_NIL(method)) {
+  Value method;
+  if (!hashtable_get_by_string(&klass->methods, name, &method)) {
     bool is_base = klass->base == NULL;
     runtime_error("Undefined method '%s' in type %s%s.", name->chars, klass->name->chars,
                   is_base ? "" : " or any of its parent classes");
@@ -469,8 +455,8 @@ Value exec_callable(Obj* callable, int arg_count) {
 // Binds a method to an instance by creating a new bound method object from the instance and the method name.
 // The stack is unchanged.
 static bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method) {
-  Value method = find_method_in_inheritance_chain(klass, name);
-  if (IS_NIL(method)) {
+  Value method;
+  if (!hashtable_get_by_string(&klass->methods, name, &method)) {
     *bound_method = NIL_VAL;
     return false;
   }
@@ -532,9 +518,12 @@ static void define_method(ObjString* name, FunctionType type) {
                                         // is actually a class
 
   switch (type) {
-    case TYPE_METHOD: hashtable_set(&klass->methods, OBJ_VAL(name), method); break;
-    case TYPE_CONSTRUCTOR: hashtable_set(&klass->methods, OBJ_VAL(vm.special_method_names[SPECIAL_METHOD_CTOR]), method); break;
     case TYPE_METHOD_STATIC: hashtable_set(&klass->static_methods, OBJ_VAL(name), method); break;
+    case TYPE_CONSTRUCTOR:
+    case TYPE_METHOD: {
+      hashtable_set(&klass->methods, OBJ_VAL(name), method);
+      break;
+    }
     default: {
       INTERNAL_ERROR("Unknown method FunctionType %d", type);
       exit(1);
@@ -1384,7 +1373,9 @@ static Value run() {
       }
       case OP_CLASS:
         // Initially, a class always inherits from Obj
-        push(OBJ_VAL(new_class(READ_STRING(), vm.__builtin_Obj_class)));
+        ObjClass* klass = new_class(READ_STRING(), vm.__builtin_Obj_class);
+        push(OBJ_VAL(klass));
+        hashtable_add_all(&klass->base->methods, &klass->methods);
         break;
       case OP_INHERIT: {
         Value baseclass    = peek(1);
