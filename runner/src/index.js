@@ -50,6 +50,7 @@ const hint = [
   '  - bench           Run benchmarks (Debug & Release) and serve results',
   '    - serve         Only serve benchmark results',
   '    - no-serve      Run benchmarks without serving results',
+  '    - <pattern>     Run language that matches the regex pattern',
   '  - sample          Run sample file (sample.sl)',
   '  - test            Run tests (.spec.sl files)',
   '    - update-files  Update test files with new expectations',
@@ -65,6 +66,7 @@ switch (cmd) {
   case 'bench': {
     const doOnlyServe = Boolean(consumeOption('serve', false));
     const doNoServe = Boolean(consumeOption('no-server', false));
+    const langPattern = options.pop();
     validateOptions();
 
     if (doOnlyServe && doNoServe) {
@@ -78,7 +80,7 @@ switch (cmd) {
     }
 
     await buildSlangConfig(BUILD_CONFIG_RELEASE);
-    await runBenchmarks();
+    await runBenchmarks(langPattern);
 
     if (!doNoServe) {
       info('Serving results');

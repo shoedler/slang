@@ -128,8 +128,9 @@ const findResult = (results, name, lang, first = true) => {
 
 /**
  * Runs all benchmarks and writes results to a log file
+ * @param {string} langPattern - Pattern to match languages (regex)
  */
-export const runBenchmarks = async () => {
+export const runBenchmarks = async langPattern => {
   const benchLogFile = path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE);
   const prevResults = JSON.parse(await readFile(benchLogFile));
   const results = [];
@@ -137,11 +138,13 @@ export const runBenchmarks = async () => {
   const date = new Date();
   const processorName = await getProcessorName();
 
+  const actualLanguages = LANGUAGES.filter(l => l.lang.match(langPattern));
+
   const longestBenchmarkName = Math.max(...BENCHMARKS.map(b => b.name.length));
-  const longestLanguageName = Math.max(...LANGUAGES.map(l => l.lang.length));
+  const longestLanguageName = Math.max(...actualLanguages.map(l => l.lang.length));
 
   for (const benchmark of BENCHMARKS) {
-    for (const language of LANGUAGES) {
+    for (const language of actualLanguages) {
       const { lang, ext, cmd } = language;
       const filePath = path.join(SLANG_BENCH_DIR, benchmark.name + BENCH_SUFFIX + ext);
       const runCommand = cmd.join(' ') + ' ' + filePath;
