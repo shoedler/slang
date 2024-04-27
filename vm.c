@@ -136,6 +136,21 @@ void make_seq(int count) {
   push(OBJ_VAL(seq));
 }
 
+void make_tuple(int count) {
+  // Since we know the count, we can preallocate the value array for the tuple. This avoids
+  // using write_value_array within the loop, which can trigger a GC due to growing the array
+  // and free items in the middle of the loop. Also, it lets us pop the tuple items on the
+  // stack, instead of peeking and then having to pop them later (Requiring us to loop over
+  // the array twice)
+  ObjTuple* tuple = prealloc_tuple(count);
+
+  for (int i = count - 1; i >= 0; i--) {
+    tuple->items.values[i] = pop();
+  }
+
+  push(OBJ_VAL(tuple));
+}
+
 // Creates an object from the top "count" * 2 values on the stack.
 // The resulting object is pushed onto the stack.
 static void make_object(int count) {
@@ -207,6 +222,7 @@ void init_vm() {
   register_builtin_int_class();
   register_builtin_float_class();
   register_builtin_seq_class();
+  register_builtin_tuple_class();
   register_builtin_str_class();
   register_builtin_fn_class();
   register_builtin_class_class();
@@ -257,8 +273,9 @@ ObjClass* typeof(Value value) {
     case VAL_FLOAT: return vm.__builtin_Float_class;  // This field name was created via macro
     case VAL_OBJ: {
       switch (OBJ_TYPE(value)) {
-        case OBJ_STRING: return vm.__builtin_Str_class;  // This field name was created via macro
-        case OBJ_SEQ: return vm.__builtin_Seq_class;     // This field name was created via macro
+        case OBJ_STRING: return vm.__builtin_Str_class;   // This field name was created via macro
+        case OBJ_SEQ: return vm.__builtin_Seq_class;      // This field name was created via macro
+        case OBJ_TUPLE: return vm.__builtin_Tuple_class;  // This field name was created via macro
         case OBJ_NATIVE:
         case OBJ_CLOSURE:
         case OBJ_BOUND_METHOD:
@@ -1263,6 +1280,11 @@ static Value run() {
       case OP_SEQ_LITERAL: {
         int count = READ_ONE();
         make_seq(count);
+        break;
+      }
+      case OP_TUPLE_LITERAL: {
+        int count = READ_ONE();
+        make_tuple(count);
         break;
       }
       case OP_OBJECT_LITERAL: {

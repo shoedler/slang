@@ -149,6 +149,12 @@ ObjSeq* new_seq() {
   return take_seq(&items);
 }
 
+ObjTuple* new_tuple() {
+  ValueArray items;
+  init_value_array(&items);
+  return take_tuple(&items);
+}
+
 ObjNative* new_native(NativeFn function, ObjString* name, ObjString* doc, int arity) {
   ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
   native->function  = function;
@@ -168,7 +174,7 @@ static uint32_t hash_string(const char* key, int length) {
   return hash;
 }
 
-ObjSeq* prealloc_seq(int count) {
+static ValueArray prealloc_value_array(int count) {
   ValueArray items;
   init_value_array(&items);
 
@@ -181,6 +187,11 @@ ObjSeq* prealloc_seq(int count) {
     items.values[i] = NIL_VAL;
   }
 
+  return items;
+}
+
+ObjSeq* prealloc_seq(int count) {
+  ValueArray items = prealloc_value_array(count);
   return take_seq(&items);
 }
 
@@ -188,6 +199,17 @@ ObjSeq* take_seq(ValueArray* items) {
   ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
   seq->items  = *items;
   return seq;
+}
+
+ObjTuple* prealloc_tuple(int count) {
+  ValueArray items = prealloc_value_array(count);
+  return take_tuple(&items);
+}
+
+ObjTuple* take_tuple(ValueArray* items) {
+  ObjTuple* tuple = ALLOCATE_OBJ(ObjTuple, OBJ_TUPLE);
+  tuple->items    = *items;
+  return tuple;
 }
 
 ObjObject* take_object(HashTable* fields) {

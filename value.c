@@ -195,16 +195,33 @@ int print_value_safe(FILE* f, Value value) {
         return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(unknown)");
       }
     }
+    case OBJ_TUPLE:
     case OBJ_SEQ: {
-      ObjSeq* seq = AS_SEQ(value);
-      int written = fprintf(f, VALUE_STR_SEQ_START);
-      for (int i = 0; i < seq->items.count; i++) {
-        written += print_value_safe(f, seq->items.values[i]);
-        if (i < seq->items.count - 1) {
-          written += fprintf(f, VALUE_STR_SEQ_DELIM);
+      const char* start;
+      const char* delim;
+      const char* end;
+      ValueArray* items;
+
+      if (IS_SEQ(value)) {
+        start = VALUE_STR_SEQ_START;
+        delim = VALUE_STR_SEQ_DELIM;
+        end   = VALUE_STR_SEQ_END;
+        items = &AS_SEQ(value)->items;
+      } else {
+        start = VALUE_STR_TUPLE_START;
+        delim = VALUE_STR_TUPLE_DELIM;
+        end   = VALUE_STR_TUPLE_END;
+        items = &AS_TUPLE(value)->items;
+      }
+
+      int written = fprintf(f, start);
+      for (int i = 0; i < items->count; i++) {
+        written += print_value_safe(f, items->values[i]);
+        if (i < items->count - 1) {
+          written += fprintf(f, delim);
         }
       }
-      written += fprintf(f, VALUE_STR_SEQ_END);
+      written += fprintf(f, end);
       return written;
     }
     case OBJ_OBJECT: {

@@ -20,6 +20,9 @@
 // Determines whether a value is of type sequence.
 #define IS_SEQ(value) is_obj_type(value, OBJ_SEQ)
 
+// Determines whether a value is of type tuple.
+#define IS_TUPLE(value) is_obj_type(value, OBJ_TUPLE)
+
 // Determines whether a value is of type function.
 #define IS_FUNCTION(value) is_obj_type(value, OBJ_FUNCTION)
 
@@ -54,6 +57,10 @@
 // Value must be of type sequence.
 #define AS_SEQ(value) ((ObjSeq*)AS_OBJ(value))
 
+// Converts a value into a tuple.
+// Value must be of type tuple.
+#define AS_TUPLE(value) ((ObjTuple*)AS_OBJ(value))
+
 // Converts a value into a function.
 // Value must be of type function.
 #define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
@@ -82,6 +89,7 @@ typedef enum {
   OBJ_OBJECT,
   OBJ_NATIVE,
   OBJ_SEQ,
+  OBJ_TUPLE,
   OBJ_STRING,
   OBJ_UPVALUE,
   OBJ_BOUND_METHOD,
@@ -96,6 +104,11 @@ struct Obj {
 };
 
 struct ObjSeq {
+  Obj obj;
+  ValueArray items;
+};
+
+struct ObjTuple {
   Obj obj;
   ValueArray items;
 };
@@ -202,6 +215,10 @@ ObjFunction* new_function();
 // collection.
 ObjSeq* new_seq();
 
+// Creates, initializes and allocates a new tuple object. Might trigger garbage
+// collection.
+ObjTuple* new_tuple();
+
 // Creates, initializes and allocates a new native function object. Might
 // trigger garbage collection.
 ObjNative* new_native(NativeFn function, ObjString* name, ObjString* doc, int arity);
@@ -220,6 +237,11 @@ ObjString* copy_string(const char* chars, int length);
 // directly to items.values[idx], no need to use write_value_array. Might trigger garbage collection.
 ObjSeq* prealloc_seq(int count);
 
+// Creates, initializes and allocates a new tuple object. Initializes the
+// value array with all nils and a capacity to add 'count' values without resizing. It's intended to add items
+// directly to items.values[idx], no need to use write_value_array. Might trigger garbage collection.
+ObjTuple* prealloc_tuple(int count);
+
 // Creates a string object from a C string.
 // This takes ownership of the string. This means that the string will be freed
 // when the object is freed. Might trigger garbage collection.
@@ -229,6 +251,11 @@ ObjString* take_string(char* chars, int length);
 // This takes ownership of the value array. This means that the value array will
 // be freed when the object is freed. Might trigger garbage collection.
 ObjSeq* take_seq(ValueArray* items);
+
+// Creates a new tuple object from a value array.
+// This takes ownership of the value array. This means that the value array will
+// be freed when the object is freed. Might trigger garbage collection.
+ObjTuple* take_tuple(ValueArray* items);
 
 // Creates a new object from a hashtable.
 // This takes ownership of the hashtable. This means that the hashtable will be

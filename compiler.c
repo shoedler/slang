@@ -530,11 +530,41 @@ static void literal(bool can_assign) {
   }
 }
 
+// Compiles a tuple literal.
+// The opening parenthesis has already been consumed (previous token)
+// Maybe the first element (expression) has already been consumed too, bc it could also just be a grouping.
+// Making a tuple of one element is allowed, but it's also a little stupid.
+static void tuple_literal(bool can_assign) {
+  UNUSED(can_assign);
+  int count = 0;
+
+  if (!check(TOKEN_CPAR)) {
+    do {
+      if (check(TOKEN_CPAR)) {
+        break;  // Allow trailing comma.
+      }
+      expression();
+      count++;
+    } while (match(TOKEN_COMMA));
+  }
+  consume(TOKEN_CPAR, "Expecting ')' after " STR(TYPENAME_TUPLE) " literal. Or maybe you are missing a ','?");
+
+  if (count <= MAX_TUPLE_LITERAL_ITEMS) {
+    emit_two(OP_TUPLE_LITERAL, (uint16_t)count);
+  } else {
+    error_at_current("Can't have more than " STR(MAX_TUPLE_LITERAL_ITEMS) " items in a " STR(TYPENAME_TUPLE) ".");
+  }
+}
+
 // Compiles a grouping (expression in parentheses).
 // The opening parenthesis has already been consumed (previous token)
 static void grouping(bool can_assign) {
   UNUSED(can_assign);
   expression();
+  if (match(TOKEN_COMMA)) {
+    tuple_literal(can_assign);
+    return;
+  }
   consume(TOKEN_CPAR, "Expecting ')' after expression.");
 }
 
@@ -555,10 +585,10 @@ static void seq_literal(bool can_assign) {
   }
   consume(TOKEN_CBRACK, "Expecting ']' after " STR(TYPENAME_SEQ) " literal. Or maybe you are missing a ','?");
 
-  if (count <= MAX_SEQ_ITEMS) {
+  if (count <= MAX_SEQ_LITERAL_ITEMS) {
     emit_two(OP_SEQ_LITERAL, (uint16_t)count);
   } else {
-    error_at_current("Can't have more than " STR(MAX_SEQ_ITEMS) " items in a " STR(TYPENAME_SEQ) ".");
+    error_at_current("Can't have more than " STR(MAX_SEQ_LITERAL_ITEMS) " items in a " STR(TYPENAME_SEQ) ".");
   }
 }
 
@@ -581,10 +611,10 @@ static void object_literal(bool can_assign) {
   }
   consume(TOKEN_CBRACE, "Expecting '}' after " STR(TYPENAME_OBJ) " literal. Or maybe you are missing a ','?");
 
-  if (count <= MAX_OBJECT_ITEMS) {
+  if (count <= MAX_OBJECT_LITERAL_ITEMS) {
     emit_two(OP_OBJECT_LITERAL, (uint16_t)count);
   } else {
-    error_at_current("Can't have more than " STR(MAX_OBJECT_ITEMS) " items in a " STR(TYPENAME_OBJ) ".");
+    error_at_current("Can't have more than " STR(MAX_OBJECT_LITERAL_ITEMS) " items in a " STR(TYPENAME_OBJ) ".");
   }
 }
 
@@ -1623,10 +1653,10 @@ static void destructuring_assignment(DestructureType type) {
     }
 
     // A variable is parsed just like in a normal let declaration. But, because the rhs is not yet compiled,
-    // we need to first declare the variables. In a local scope, we emit OP_NIL to define the variable, in global scope, that
-    // doesn't matter yet (will be declared later with OP_DEFINE_GLOBAL) We don't want to mark the variables as initialized yet,
-    // so we don't use define_variable(global) here. We just emit OP_NIL (if in local scope) to create a placeholder value on the
-    // stack for the local.
+    // we need to first declare the variables. In a local scope, we emit OP_NIL to define the variable, in global scope,
+    // that doesn't matter yet (will be declared later with OP_DEFINE_GLOBAL) We don't want to mark the variables as
+    // initialized yet, so we don't use define_variable(global) here. We just emit OP_NIL (if in local scope) to create a
+    // placeholder value on the stack for the local.
     variables[current_index].is_rest = has_rest;
     variables[current_index].global  = has_rest
                                            ? parse_variable("Expecting identifier after ellipsis in destructuring assignment.")
@@ -1666,8 +1696,8 @@ static void destructuring_assignment(DestructureType type) {
 
     emit_two(OP_DUPE, 0);  // Duplicate the rhs value: [RhsVal] -> [RhsVal][RhsVal]
 
-    // Emit code to get the index from the rhs. For objs, we use the variable name as the operand for OP_GET_INDEX. For seqs, we
-    // use the variables index.
+    // Emit code to get the index from the rhs. For objs, we use the variable name as the operand for OP_GET_INDEX. For
+    // seqs, we use the variables index.
     Value payload = type == DESTRUCTURE_OBJ ? OBJ_VAL(copy_string(var->name.start, var->name.length)) : INT_VAL(var->index);
     if (var->is_rest) {
       emit_constant(payload);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][current_index]
@@ -1680,8 +1710,8 @@ static void destructuring_assignment(DestructureType type) {
 
     // Define the variable. We need to emit different opcodes depending on whether we're in a local or global scope.
     if (local_scope) {
-      // Mark the variable as initialized. We cannot use mark_initialized() here, because that would just mark the most recent
-      // local. So we need to do it manually.
+      // Mark the variable as initialized. We cannot use mark_initialized() here, because that would just mark the most
+      // recent local. So we need to do it manually.
       current->locals[var->local].depth = current->scope_depth;
       emit_two(OP_SET_LOCAL, (uint16_t)(var->local));
       emit_one(OP_POP);  // Discard the value.

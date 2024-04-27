@@ -156,6 +156,7 @@
     <ClCompile Include="builtin_bool.c" />
     <ClCompile Include="builtin_str.c" />
     <ClCompile Include="builtin_seq.c" />
+    <ClCompile Include="builtin_tuple.c" />
     <ClCompile Include="builtin_fn.c" />
     <ClCompile Include="builtin_class.c" />
     <ClCompile Include="builtin_module_file.c" />

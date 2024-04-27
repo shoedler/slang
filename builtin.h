@@ -32,6 +32,9 @@ extern void register_builtin_str_class();
 // Registers the built-in seq class and its methods.
 extern void register_builtin_seq_class();
 
+// Registers the built-in tuple class and its methods.
+extern void register_builtin_tuple_class();
+
 // Registers the built-in fn class and its methods.
 extern void register_builtin_fn_class();
 
@@ -123,5 +126,10 @@ BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, some)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, reduce)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, count)
 BUILTIN_DECLARE_METHOD(TYPENAME_SEQ, concat)
+
+// Tuple built-in methods
+BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, SP_METHOD_CTOR)
+BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, SP_METHOD_TO_STR)
+BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, SP_METHOD_HAS)
 
 #endif

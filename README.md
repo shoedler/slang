@@ -32,7 +32,24 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
-- [ ] Add tests of `OP_MODULO`
+- [ ] Add tests for `OP_MODULO`
+- [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
+- [ ] Overhaul of enumerable types. I want base-implementations of all enumerable methods that don't modify the object. Probably should be a collecttion of macros:
+      `SP_METHOD_HAS   // has(key|pred) -> Bool`
+      `SP_METHOD_SLICE // slice(start, end) -> T`
+      `index_of        // index_of(value|pred) -> Int`
+      `first           // first(value|pred) -> T`
+      `last            // last(value|pred) -> T`
+      `each            // each(fn) -> Nil`
+      `map             // map(fn) -> T`
+      `filter          // filter(pred) -> T`
+      `join            // join(separator) -> Str`
+      `reverse         // reverse() -> T`
+      `every           // every(pred) -> Bool`
+      `some            // some(pred) -> Bool`
+      `reduce          // reduce(inital, fn) -> T`
+      `count           // count(value|pred) -> Int`
+      `concat          // concat(other) -> T`
 - [ ] Call `to_str` implicitly when adding a string to a non-string.
 - [ ] Remove in `VALUE_STR_CLASS` (`<Class X>`) the "Class" prefix from class type names.
 - [ ] Refactor `VALUE_STR_NATIVE` to look more like the normal `<Fn "name">` strings.
