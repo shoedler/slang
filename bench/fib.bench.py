@@ -6,7 +6,7 @@ def fib(n):
   if n < 2: return n
   return fib(n - 1) + fib(n - 2)
 
-start = time.process_time()
+start = time.perf_counter()
 for i in range(0, 5):
   print(fib(30))
-print("elapsed: " + str(time.process_time() - start) + "ms") 
+print("elapsed: " + str(time.perf_counter() - start) + "s") 

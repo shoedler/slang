@@ -13,4 +13,4 @@ for let i = 0; i < 10000; i++; {
     let h = a + b + c + d + e + f + g
 }
 
-print "elapsed: " + (Perf.now() - start).to_str() + "ms"
+print "elapsed: " + (Perf.now() - start).to_str() + "s"

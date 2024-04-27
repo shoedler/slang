@@ -148,11 +148,12 @@ export const runBenchmarks = async langPattern => {
       const { lang, ext, cmd } = language;
       const filePath = path.join(SLANG_BENCH_DIR, benchmark.name + BENCH_SUFFIX + ext);
       const runCommand = cmd.join(' ') + ' ' + filePath;
+      const isSlang = lang === 'slang';
       const times = [];
 
-      let interpreterVersion = language.version
-        ? await runProcess(language.version.join(' '))
-        : (await gitStatus()).hash;
+      let interpreterVersion = isSlang
+        ? (await gitStatus()).hash
+        : await runProcess(language.version.join(' '));
 
       interpreterVersion = normalizeLineEndings(interpreterVersion).replace(/\n/g, '');
 
@@ -206,7 +207,7 @@ export const runBenchmarks = async langPattern => {
       let dividend = score;
       let divisor = score;
 
-      if (lang === 'slang') {
+      if (isSlang) {
         // If we're running a slang benchmark, compare to a previous slang result
         const prevResult = findResult(prevResults, benchmark.name, 'slang', false);
         if (prevResult) {

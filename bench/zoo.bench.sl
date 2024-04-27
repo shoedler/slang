@@ -38,4 +38,4 @@ for let k = 0; k < 5; k++; {
   print sum
 }
 
-print "elapsed: " + (Perf.now() - start).to_str() + " ms"
+print "elapsed: " + (Perf.now() - start).to_str() + " s"

@@ -29,7 +29,7 @@ class Zoo:
 
 zoo = Zoo()
 
-start = time.process_time()
+start = time.perf_counter()
 
 for k in range(0, 5):
     sum = 0
@@ -40,4 +40,4 @@ for k in range(0, 5):
             i += 1
     print(sum)
 
-print("elapsed: " + str(time.process_time() - start) + "ms")
+print("elapsed: " + str(time.perf_counter() - start) + "s")

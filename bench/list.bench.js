@@ -1,4 +1,4 @@
-const start = process.hrtime();
+const start = process.hrtime.bigint();
 const list = [];
 for (let i = 0; i < 1000000; i++) {
   list.push(i);
@@ -10,4 +10,8 @@ for (let i = 0; i < list.length; i++) {
 }
 console.log(sum);
 
-console.log(`elapsed: ${(process.hrtime(start)[1] / 1e9).toFixed(5)}ms`);
+console.log(
+  `elapsed: ${(Number(process.hrtime.bigint() - start) / 1_000_000_000).toFixed(
+    5
+  )}s`
+);

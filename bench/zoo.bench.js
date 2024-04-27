@@ -29,7 +29,7 @@ class Zoo {
 
 let zoo = new Zoo();
 
-const start = process.hrtime();
+const start = process.hrtime.bigint();
 
 for (let k = 0; k < 5; k++) {
   let sum = 0;
@@ -50,4 +50,8 @@ for (let k = 0; k < 5; k++) {
   console.log(sum);
 }
 
-console.log(`elapsed: ${(process.hrtime(start)[1] / 1e9).toFixed(5)}ms`);
+console.log(
+  `elapsed: ${(Number(process.hrtime.bigint() - start) / 1_000_000_000).toFixed(
+    5
+  )}s`
+);

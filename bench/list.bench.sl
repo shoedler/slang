@@ -11,4 +11,4 @@ for let i = 0; i < list.len; i++; {
   sum += list[i]
 }
 print sum
-print "elapsed: " + (Perf.now() - start).to_str() + "ms"
+print "elapsed: " + (Perf.now() - start).to_str() + "s"
