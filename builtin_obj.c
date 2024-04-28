@@ -176,44 +176,16 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
   return OBJ_VAL(str_obj);
 }
 
-// Built-in method to check if an object contains a value
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ SP_METHOD_HAS,
-    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_BOOL,
-    /* Description */
-    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_OBJ) " contains a key which equals 'value'.")
-BUILTIN_METHOD_DOC_OVERLOAD(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ SP_METHOD_HAS,
-    /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
-    /* Return Type */ TYPENAME_BOOL,
-    /* Description */
-    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_OBJ) " contains a key for which 'pred' evaluates to " VALUE_STR_TRUE ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_HAS) {
-  BUILTIN_ARGC_EXACTLY(1)
-  BUILTIN_CHECK_RECEIVER(OBJ)
-
-  // This is a base implementation, all objects which don't have a custom implementation will use this one.
-
-  // Execute the 'keys' method on the receiver
-  push(argv[0]);  // Receiver
-  Value seq = exec_callable((Obj*)copy_string("keys", 4), 0);
-  if (vm.flags & VM_FLAG_HAS_ERROR) {
-    return NIL_VAL;
-  }
-
-  // Execute the 'has' method on the seq
-  push(seq);      // Receiver
-  push(argv[1]);  // Argument
-  Value result = exec_callable(typeof(seq)->__has, 1);
-  if (vm.flags & VM_FLAG_HAS_ERROR) {
-    return NIL_VAL;
-  }
-
-  return result;
-}
+#define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value)             \
+  /* Execute the 'keys' method on the receiver */             \
+  push(argv[0]); /* Receiver */                               \
+  Value seq = exec_callable((Obj*)copy_string("keys", 4), 0); \
+  if (vm.flags & VM_FLAG_HAS_ERROR) {                         \
+    return NIL_VAL;                                           \
+  }                                                           \
+  items = AS_SEQ(seq)->items;
+BUILTIN_ENUMERABLE_HAS(OBJ, "a key")
+#undef BUILTIN_ENUMERABLE_GET_VALUE_ARRAY
 
 // Built-in method to return the hash of an object.
 BUILTIN_METHOD_DOC(

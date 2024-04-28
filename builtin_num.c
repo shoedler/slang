@@ -19,7 +19,7 @@ BUILTIN_METHOD_DOC(
 BUILTIN_METHOD_IMPL(TYPENAME_NUM, SP_METHOD_CTOR) {
   UNUSED(argc);
   UNUSED(argv);
-  runtime_error("Cannot instantiate a function via " STR(TYPENAME_NUM) "." STR(SP_METHOD_CTOR) ".");
+  runtime_error("Cannot instantiate a number via " STR(TYPENAME_NUM) "." STR(SP_METHOD_CTOR) ".");
   return NIL_VAL;
 }
 
