@@ -13,6 +13,7 @@ print try Seq(12.0)                       else error // [Expect] Expected argume
 print try Seq(123.456)                    else error // [Expect] Expected argument 0 of type Int but got Float.
 print try Seq(nil)                        else error // [Expect] Expected argument 0 of type Int but got Nil.
 print try Seq([1, 2, 3])                  else error // [Expect] Expected argument 0 of type Int but got Seq.
+print try Seq((4, 5, 6))                  else error // [Expect] Expected argument 0 of type Int but got Tuple.
 print try Seq({"key": "value"})           else error // [Expect] Expected argument 0 of type Int but got Obj.
 print try Seq(Foo)                        else error // [Expect] Expected argument 0 of type Int but got Class.
 print try Seq(Foo())                      else error // [Expect] Expected argument 0 of type Int but got Foo.

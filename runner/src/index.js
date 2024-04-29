@@ -9,12 +9,12 @@ import { runTests } from './test.js';
 import {
   abort,
   buildSlangConfig,
-  testGcStressFlag,
   error,
   info,
   ok,
   runSlangFile,
   separator,
+  testGcStressFlag,
   warn,
 } from './utils.js';
 import { watch } from './watch.js';
@@ -48,7 +48,7 @@ const validateOptions = () => {
 
 // Check if the GC stress flag is set to the expected value. If not, print a warning
 const checkGcStressFlagForTests = async () => {
-  const gcStressEnabled = await testGcStressFlag(true); // Enable stress GC for tests
+  const gcStressEnabled = await testGcStressFlag(); // Enable stress GC for tests
   if (!gcStressEnabled) {
     warn(
       "GC stress mode is disabled. Should be enabled to ensure that the GC only collects what it's supposed to collect.",
@@ -80,8 +80,8 @@ switch (cmd) {
     const langPattern = options.pop();
     validateOptions();
 
-    const gcStressDisabled = await testGcStressFlag(false); // Disable stress GC for benchmarks
-    if (!gcStressDisabled) {
+    const gcStressEnabled = await testGcStressFlag(); // Disable stress GC for benchmarks
+    if (gcStressEnabled) {
       abort(
         'GC stress mode is enabled. Must be disabled for benchmarks to ensure consistent results.',
       );

@@ -161,14 +161,17 @@ export const buildSlangConfig = async (config, signal = null, abortOnError = tru
 
 /**
  * Tests if DEBUG_STRESS_GC flag in common.h is enabled or disabled (commented out).
- * @param {boolean} enabled - Whether to ensure the flag is enabled or disabled
- * @returns {Promise<boolean>} - Promise that resolves to true if DEBUG_STRESS_GC is configured correctly
+ * @returns {Promise<boolean>} - Promise that resolves to true if DEBUG_STRESS_GC is enabled, false otherwise
  */
-export const testGcStressFlag = async enabled => {
+export const testGcStressFlag = async () => {
   const commonFile = path.join(SLANG_PROJ_DIR, 'common.h');
   const commonContents = await readFile(commonFile);
-  const regex = enabled ? /^\s*\/\/\s*#define\s+DEBUG_STRESS_GC/ : /^\s*#define\s+DEBUG_STRESS_GC/;
-  return regex.test(commonContents);
+  const disabled = new RegExp(/^\s*\/\/\s*#define\s+DEBUG_STRESS_GC\s*$/m).test(commonContents);
+  const enabled = new RegExp(/^\s*#define\s+DEBUG_STRESS_GC\s*$/m).test(commonContents);
+  if (!disabled && !enabled) {
+    abort('Failed to test DEBUG_STRESS_GC flag', 'common.h does not contain DEBUG_STRESS_GC');
+  }
+  return enabled;
 };
 
 /**

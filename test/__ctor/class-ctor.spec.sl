@@ -13,6 +13,7 @@ print try Class(12.0)                       else error // [Expect] Cannot instan
 print try Class(123.456)                    else error // [Expect] Cannot instantiate a class via Class.ctor.
 print try Class(nil)                        else error // [Expect] Cannot instantiate a class via Class.ctor.
 print try Class([1, 2, 3])                  else error // [Expect] Cannot instantiate a class via Class.ctor.
+print try Class((4, 5, 6))                  else error // [Expect] Cannot instantiate a class via Class.ctor.
 print try Class({"key": "value"})           else error // [Expect] Cannot instantiate a class via Class.ctor.
 print try Class(Foo)                        else error // [Expect] Cannot instantiate a class via Class.ctor.
 print try Class(Foo())                      else error // [Expect] Cannot instantiate a class via Class.ctor.

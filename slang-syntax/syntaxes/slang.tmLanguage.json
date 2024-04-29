@@ -50,7 +50,7 @@
             "patterns": [
                 {
                     "name": "entity.name.type.SlangScript",
-                    "match": "\\b(Obj|Nil|Bool|Num|Int|Float|Str|Seq|Fn|Class)\\b"
+                    "match": "\\b(Obj|Nil|Bool|Num|Int|Float|Str|Seq|Tuple|Fn|Class)\\b"
                 }
             ]
         },

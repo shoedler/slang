@@ -13,6 +13,7 @@ print try Obj(12.0)                       else error // [Expect] Expected 0 argu
 print try Obj(123.456)                    else error // [Expect] Expected 0 arguments but got 1.
 print try Obj(nil)                        else error // [Expect] Expected 0 arguments but got 1.
 print try Obj([1, 2, 3])                  else error // [Expect] Expected 0 arguments but got 1.
+print try Obj((4, 5, 6))                  else error // [Expect] Expected 0 arguments but got 1.
 print try Obj({"key": "value"})           else error // [Expect] Expected 0 arguments but got 1.
 print try Obj(Foo)                        else error // [Expect] Expected 0 arguments but got 1.
 print try Obj(Foo())                      else error // [Expect] Expected 0 arguments but got 1.
