@@ -9,6 +9,15 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 ### Syntax & Language Features
 
 - [ ] Add tuples. E.g. `(1, 2, 3)`. They should be immutable and hash to their values.
+  - Get-Indexing
+  - Get/Set Property
+  - Hashing
+  - Tests compiling tuples
+  - Tests for tuple destructure
+  - Tests for tuple equality
+  - Tests for all tuple methods (listlike methods)
+    - Make sure to compare the results (if the return tuples) with an identical tuple literal to ensure hashing is handled correctly withing the methods.
+  - Update existing tests involving all builtin types.
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] Implement iterators. Maybe a new builtin class. They should initialize these fields/methods: `__has_next`, `__next()`.
@@ -34,22 +43,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 - [ ] Add tests for `OP_MODULO`
 - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
-- [ ] Overhaul of enumerable types. I want base-implementations of all enumerable methods that don't modify the object. Probably should be a collecttion of macros:
-      `SP_METHOD_HAS   // has(key|pred) -> Bool`
-      `SP_METHOD_SLICE // slice(start, end) -> T`
-      `index_of        // index_of(value|pred) -> Int`
-      `first           // first(value|pred) -> T`
-      `last            // last(value|pred) -> T`
-      `each            // each(fn) -> Nil`
-      `map             // map(fn) -> T`
-      `filter          // filter(pred) -> T`
-      `join            // join(separator) -> Str`
-      `reverse         // reverse() -> T`
-      `every           // every(pred) -> Bool`
-      `some            // some(pred) -> Bool`
-      `reduce          // reduce(inital, fn) -> T`
-      `count           // count(value|pred) -> Int`
-      `concat          // concat(other) -> T`
 - [ ] Call `to_str` implicitly when adding a string to a non-string.
 - [ ] Remove in `VALUE_STR_CLASS` (`<Class X>`) the "Class" prefix from class type names.
 - [ ] Refactor `VALUE_STR_NATIVE` to look more like the normal `<Fn "name">` strings.

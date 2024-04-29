@@ -232,15 +232,11 @@ ObjUpvalue* new_upvalue(Value* slot);
 // trigger garbage collection.
 ObjString* copy_string(const char* chars, int length);
 
-// Creates, initializes and allocates a new seq object. Initializes the
-// value array with all nils and a capacity to add 'count' values without resizing. It's intended to add items
-// directly to items.values[idx], no need to use write_value_array. Might trigger garbage collection.
-ObjSeq* prealloc_seq(int count);
-
-// Creates, initializes and allocates a new tuple object. Initializes the
-// value array with all nils and a capacity to add 'count' values without resizing. It's intended to add items
-// directly to items.values[idx], no need to use write_value_array. Might trigger garbage collection.
-ObjTuple* prealloc_tuple(int count);
+// Creates, initializes and allocates a new value array for listlike objects (Seq, Tuple). Initializes the
+// value array and a capacity to add 'count' values without resizing. It's intended to add items
+// directly to items.values[idx], no need to use write_value_array. You *MUST* fill the array up to 'count' with some sort of
+// value. Might trigger garbage collection.
+ValueArray prealloc_value_array(int count);
 
 // Creates a string object from a C string.
 // This takes ownership of the string. This means that the string will be freed
@@ -249,12 +245,15 @@ ObjString* take_string(char* chars, int length);
 
 // Creates a new seq object from a value array.
 // This takes ownership of the value array. This means that the value array will
-// be freed when the object is freed. Might trigger garbage collection.
+// be freed when the object is freed. Specifically does not trigger garbage collection, such that you can fill the value array
+// beforehand with unreachable values without worrying that this operation might free them.
 ObjSeq* take_seq(ValueArray* items);
 
 // Creates a new tuple object from a value array.
+// After this, the tuple cannot be modified, since the hash is calculated here.
 // This takes ownership of the value array. This means that the value array will
-// be freed when the object is freed. Might trigger garbage collection.
+// be freed when the object is freed. Specifically does not trigger garbage collection, such that you can fill the value array
+// beforehand with unreachable values without worrying that this operation might free them.
 ObjTuple* take_tuple(ValueArray* items);
 
 // Creates a new object from a hashtable.

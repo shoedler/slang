@@ -66,8 +66,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
 
   // If the separator is empty, split by character
   if (sep->length == 0) {
-    ObjSeq* seq = prealloc_seq(str->length);
-    push(OBJ_VAL(seq));  // GC Protection
+    ValueArray items = prealloc_value_array(str->length);
+    ObjSeq* seq      = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
+    push(OBJ_VAL(seq));                   // GC Protection
     for (int i = 0; i < str->length; i++) {
       seq->items.values[i] = OBJ_VAL(copy_string(str->chars + i, 1));
     }

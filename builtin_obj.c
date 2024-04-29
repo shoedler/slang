@@ -213,8 +213,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ObjSeq* seq       = prealloc_seq(object->fields.count);
-  push(OBJ_VAL(seq));  // GC Protection
+  ValueArray items  = prealloc_value_array(object->fields.count);
+  ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
+  push(OBJ_VAL(seq));                    // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
@@ -222,8 +223,8 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
     if (!IS_EMPTY_INTERNAL(entry->key)) {
       push(entry->key);
       push(entry->value);
-      make_seq(2);                             // Leaves a seq with the key-value on the stack
-      seq->items.values[processed++] = pop();  // The seq
+      make_seq(2);                        // Leaves a seq with the key-value on the stack
+      items.values[processed++] = pop();  // The seq
     }
   }
 
@@ -242,14 +243,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, keys) {
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ObjSeq* seq       = prealloc_seq(object->fields.count);
-  push(OBJ_VAL(seq));  // GC Protection
+  ValueArray items  = prealloc_value_array(object->fields.count);
+  ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
+  push(OBJ_VAL(seq));                    // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
     if (!IS_EMPTY_INTERNAL(entry->key)) {
-      seq->items.values[processed++] = entry->key;
+      items.values[processed++] = entry->key;
     }
   }
 
@@ -268,14 +270,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, values) {
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ObjSeq* seq       = prealloc_seq(object->fields.count);
-  push(OBJ_VAL(seq));  // GC Protection
+  ValueArray items  = prealloc_value_array(object->fields.count);
+  ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
+  push(OBJ_VAL(seq));                    // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
     if (!IS_EMPTY_INTERNAL(entry->key)) {
-      seq->items.values[processed++] = entry->value;
+      items.values[processed++] = entry->value;
     }
   }
 

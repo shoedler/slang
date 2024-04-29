@@ -116,7 +116,7 @@ bool values_equal(Value a, Value b) {
         return AS_STRING(a) == AS_STRING(b);  // Works, because strings are interned
       }
       if (IS_OBJ(a) && IS_OBJ(b)) {
-        return AS_OBJ(a) == AS_OBJ(b);
+        return AS_OBJ(a)->hash == AS_OBJ(b)->hash;
       }
       return false;
     }

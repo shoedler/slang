@@ -127,13 +127,11 @@ void make_seq(int count) {
   // and free items in the middle of the loop. Also, it lets us pop the list items on the
   // stack, instead of peeking and then having to pop them later (Requiring us to loop over
   // the array twice)
-  ObjSeq* seq = prealloc_seq(count);
-
+  ValueArray items = prealloc_value_array(count);
   for (int i = count - 1; i >= 0; i--) {
-    seq->items.values[i] = pop();
+    items.values[i] = pop();
   }
-
-  push(OBJ_VAL(seq));
+  push(OBJ_VAL(take_seq(&items)));
 }
 
 void make_tuple(int count) {
@@ -142,13 +140,12 @@ void make_tuple(int count) {
   // and free items in the middle of the loop. Also, it lets us pop the tuple items on the
   // stack, instead of peeking and then having to pop them later (Requiring us to loop over
   // the array twice)
-  ObjTuple* tuple = prealloc_tuple(count);
+  ValueArray items = prealloc_value_array(count);
 
   for (int i = count - 1; i >= 0; i--) {
-    tuple->items.values[i] = pop();
+    items.values[i] = pop();
   }
-
-  push(OBJ_VAL(tuple));
+  push(OBJ_VAL(take_tuple(&items)));
 }
 
 // Creates an object from the top "count" * 2 values on the stack.
