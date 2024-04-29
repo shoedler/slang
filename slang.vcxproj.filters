@@ -64,6 +64,9 @@
     <ClCompile Include="builtin_seq.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="builtin_tuple.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="builtin_fn.c" />
       <Filter>Source Files</Filter>
     </ClCompile>

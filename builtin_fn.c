@@ -128,12 +128,8 @@ BUILTIN_METHOD_DOC(
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, bind) {
   BUILTIN_CHECK_RECEIVER_IS_FN()
   BUILTIN_ARGC_EXACTLY(1)
+  BUILTIN_CHECK_ARG_AT(1, OBJ)
 
   Value bind_target = argv[1];
-  if (!IS_OBJ(bind_target)) {
-    runtime_error("Expected bind_target to be an object, but got %s.", typeof(bind_target)->name->chars);
-    return NIL_VAL;
-  }
-
   return OBJ_VAL(new_bound_method(bind_target, AS_OBJ(argv[0])));
 }

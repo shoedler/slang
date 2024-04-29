@@ -127,13 +127,25 @@ void make_seq(int count) {
   // and free items in the middle of the loop. Also, it lets us pop the list items on the
   // stack, instead of peeking and then having to pop them later (Requiring us to loop over
   // the array twice)
-  ObjSeq* seq = prealloc_seq(count);
+  ValueArray items = prealloc_value_array(count);
+  for (int i = count - 1; i >= 0; i--) {
+    items.values[i] = pop();
+  }
+  push(OBJ_VAL(take_seq(&items)));
+}
+
+void make_tuple(int count) {
+  // Since we know the count, we can preallocate the value array for the tuple. This avoids
+  // using write_value_array within the loop, which can trigger a GC due to growing the array
+  // and free items in the middle of the loop. Also, it lets us pop the tuple items on the
+  // stack, instead of peeking and then having to pop them later (Requiring us to loop over
+  // the array twice)
+  ValueArray items = prealloc_value_array(count);
 
   for (int i = count - 1; i >= 0; i--) {
-    seq->items.values[i] = pop();
+    items.values[i] = pop();
   }
-
-  push(OBJ_VAL(seq));
+  push(OBJ_VAL(take_tuple(&items)));
 }
 
 // Creates an object from the top "count" * 2 values on the stack.
@@ -207,6 +219,7 @@ void init_vm() {
   register_builtin_int_class();
   register_builtin_float_class();
   register_builtin_seq_class();
+  register_builtin_tuple_class();
   register_builtin_str_class();
   register_builtin_fn_class();
   register_builtin_class_class();
@@ -257,8 +270,9 @@ ObjClass* typeof(Value value) {
     case VAL_FLOAT: return vm.__builtin_Float_class;  // This field name was created via macro
     case VAL_OBJ: {
       switch (OBJ_TYPE(value)) {
-        case OBJ_STRING: return vm.__builtin_Str_class;  // This field name was created via macro
-        case OBJ_SEQ: return vm.__builtin_Seq_class;     // This field name was created via macro
+        case OBJ_STRING: return vm.__builtin_Str_class;   // This field name was created via macro
+        case OBJ_SEQ: return vm.__builtin_Seq_class;      // This field name was created via macro
+        case OBJ_TUPLE: return vm.__builtin_Tuple_class;  // This field name was created via macro
         case OBJ_NATIVE:
         case OBJ_CLOSURE:
         case OBJ_BOUND_METHOD:
@@ -682,18 +696,19 @@ bool value_get_property(ObjString* name) {
         }
         break;
       }
+      case OBJ_TUPLE:
       case OBJ_SEQ: {
-        ObjSeq* seq = AS_SEQ(receiver);
         if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-          result = INT_VAL(seq->items.count);
+          ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver);
+          result           = INT_VAL(items.count);
           goto done_getting_property;
         }
         break;
       }
       case OBJ_STRING: {
-        ObjString* string = AS_STRING(receiver);
         if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-          result = INT_VAL(string->length);
+          ObjString* string = AS_STRING(receiver);
+          result            = INT_VAL(string->length);
           goto done_getting_property;
         }
         break;
@@ -763,29 +778,31 @@ bool value_get_index() {
         result = NIL_VAL;
         goto done_getting_index;
       }
+      case OBJ_TUPLE:
       case OBJ_SEQ: {
-        ObjSeq* seq = AS_SEQ(receiver);
+        // Hack: Just cast to a sequence, because ObjTuple has the same layout.
+        ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver);
 
         if (!IS_INT(index)) {
           break;  // Maybe it's a string index
         }
 
         long long i = AS_INT(index);
-        if (i >= seq->items.count) {
+        if (i >= items.count) {
           result = NIL_VAL;
           goto done_getting_index;
         }
 
         // Negative index
         if (i < 0) {
-          i += seq->items.count;
+          i += items.count;
         }
         if (i < 0) {
           result = NIL_VAL;
           goto done_getting_index;
         }
 
-        result = seq->items.values[i];
+        result = items.values[i];
         goto done_getting_index;
       }
       case OBJ_STRING: {
@@ -1239,7 +1256,7 @@ static Value run() {
           }
         }
 
-        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "\%", typeof(a)->name->chars,
+        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", typeof(a)->name->chars,
                       typeof(b)->name->chars);
         goto finish_error;
       }
@@ -1263,6 +1280,11 @@ static Value run() {
       case OP_SEQ_LITERAL: {
         int count = READ_ONE();
         make_seq(count);
+        break;
+      }
+      case OP_TUPLE_LITERAL: {
+        int count = READ_ONE();
+        make_tuple(count);
         break;
       }
       case OP_OBJECT_LITERAL: {

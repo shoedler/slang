@@ -13,6 +13,7 @@ print try Fn(12.0)                       else error // [Expect] Cannot instantia
 print try Fn(123.456)                    else error // [Expect] Cannot instantiate a function via Fn.ctor.
 print try Fn(nil)                        else error // [Expect] Cannot instantiate a function via Fn.ctor.
 print try Fn([1, 2, 3])                  else error // [Expect] Cannot instantiate a function via Fn.ctor.
+print try Fn((4, 5, 6))                  else error // [Expect] Cannot instantiate a function via Fn.ctor.
 print try Fn({"key": "value"})           else error // [Expect] Cannot instantiate a function via Fn.ctor.
 print try Fn(Foo)                        else error // [Expect] Cannot instantiate a function via Fn.ctor.
 print try Fn(Foo())                      else error // [Expect] Cannot instantiate a function via Fn.ctor.

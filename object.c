@@ -149,6 +149,12 @@ ObjSeq* new_seq() {
   return take_seq(&items);
 }
 
+ObjTuple* new_tuple() {
+  ValueArray items;
+  init_value_array(&items);
+  return take_tuple(&items);
+}
+
 ObjNative* new_native(NativeFn function, ObjString* name, ObjString* doc, int arity) {
   ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
   native->function  = function;
@@ -168,7 +174,19 @@ static uint32_t hash_string(const char* key, int length) {
   return hash;
 }
 
-ObjSeq* prealloc_seq(int count) {
+// Hashes a tuple.
+static uint32_t hash_tuple(ValueArray* items) {
+  uint32_t t = items->count;
+  uint32_t m = 0x3456;
+  for (int i = 0; i < items->count; ++i) {
+    uint32_t step = hash_value(items->values[i]);
+    t             = (t ^ step) * m;
+    m += 2 * (items->count - i) + 82520;
+  }
+  return t;
+}
+
+ValueArray prealloc_value_array(int count) {
   ValueArray items;
   init_value_array(&items);
 
@@ -181,13 +199,28 @@ ObjSeq* prealloc_seq(int count) {
     items.values[i] = NIL_VAL;
   }
 
-  return take_seq(&items);
+  return items;
 }
 
 ObjSeq* take_seq(ValueArray* items) {
+  // Pause while we allocate an object for seq, because this might trigger a GC. This allows us to prepare a value array with it's
+  // values being out of reach of the GC.
+  vm.flags |= VM_FLAG_PAUSE_GC;
   ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
-  seq->items  = *items;
+  vm.flags &= ~VM_FLAG_PAUSE_GC;
+  seq->items = *items;
   return seq;
+}
+
+ObjTuple* take_tuple(ValueArray* items) {
+  // Pause while we allocate an object for tuple, because this might trigger a GC. This allows us to prepare a value array with
+  // it's values being out of reach of the GC.
+  vm.flags |= VM_FLAG_PAUSE_GC;
+  ObjTuple* tuple = ALLOCATE_OBJ(ObjTuple, OBJ_TUPLE);
+  vm.flags &= ~VM_FLAG_PAUSE_GC;
+  tuple->items    = *items;
+  tuple->obj.hash = hash_tuple(items);
+  return tuple;
 }
 
 ObjObject* take_object(HashTable* fields) {

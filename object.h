@@ -20,6 +20,9 @@
 // Determines whether a value is of type sequence.
 #define IS_SEQ(value) is_obj_type(value, OBJ_SEQ)
 
+// Determines whether a value is of type tuple.
+#define IS_TUPLE(value) is_obj_type(value, OBJ_TUPLE)
+
 // Determines whether a value is of type function.
 #define IS_FUNCTION(value) is_obj_type(value, OBJ_FUNCTION)
 
@@ -54,6 +57,14 @@
 // Value must be of type sequence.
 #define AS_SEQ(value) ((ObjSeq*)AS_OBJ(value))
 
+// Converts a value into a tuple.
+// Value must be of type tuple.
+#define AS_TUPLE(value) ((ObjTuple*)AS_OBJ(value))
+
+// Gets the value array of a listlike object (Seq, Tuple).
+// Hack: Just cast to ObjSeq* and access the items field, because the layout is the same.
+#define LISTLIKE_GET_VALUEARRAY(value) ((ObjSeq*)AS_OBJ(value))->items
+
 // Converts a value into a function.
 // Value must be of type function.
 #define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
@@ -82,6 +93,7 @@ typedef enum {
   OBJ_OBJECT,
   OBJ_NATIVE,
   OBJ_SEQ,
+  OBJ_TUPLE,
   OBJ_STRING,
   OBJ_UPVALUE,
   OBJ_BOUND_METHOD,
@@ -96,6 +108,11 @@ struct Obj {
 };
 
 struct ObjSeq {
+  Obj obj;
+  ValueArray items;
+};
+
+struct ObjTuple {
   Obj obj;
   ValueArray items;
 };
@@ -202,6 +219,10 @@ ObjFunction* new_function();
 // collection.
 ObjSeq* new_seq();
 
+// Creates, initializes and allocates a new tuple object. Might trigger garbage
+// collection.
+ObjTuple* new_tuple();
+
 // Creates, initializes and allocates a new native function object. Might
 // trigger garbage collection.
 ObjNative* new_native(NativeFn function, ObjString* name, ObjString* doc, int arity);
@@ -215,10 +236,11 @@ ObjUpvalue* new_upvalue(Value* slot);
 // trigger garbage collection.
 ObjString* copy_string(const char* chars, int length);
 
-// Creates, initializes and allocates a new seq object. Initializes the
-// value array with all nils and a capacity to add 'count' values without resizing. It's intended to add items
-// directly to items.values[idx], no need to use write_value_array. Might trigger garbage collection.
-ObjSeq* prealloc_seq(int count);
+// Creates, initializes and allocates a new value array for listlike objects (Seq, Tuple). Initializes the
+// value array and a capacity to add 'count' values without resizing. It's intended to add items
+// directly to items.values[idx], no need to use write_value_array. You *MUST* fill the array up to 'count' with some sort of
+// value. Might trigger garbage collection.
+ValueArray prealloc_value_array(int count);
 
 // Creates a string object from a C string.
 // This takes ownership of the string. This means that the string will be freed
@@ -227,8 +249,16 @@ ObjString* take_string(char* chars, int length);
 
 // Creates a new seq object from a value array.
 // This takes ownership of the value array. This means that the value array will
-// be freed when the object is freed. Might trigger garbage collection.
+// be freed when the object is freed. Specifically does not trigger garbage collection, such that you can fill the value array
+// beforehand with unreachable values without worrying that this operation might free them.
 ObjSeq* take_seq(ValueArray* items);
+
+// Creates a new tuple object from a value array.
+// After this, the tuple cannot be modified, since the hash is calculated here.
+// This takes ownership of the value array. This means that the value array will
+// be freed when the object is freed. Specifically does not trigger garbage collection, such that you can fill the value array
+// beforehand with unreachable values without worrying that this operation might free them.
+ObjTuple* take_tuple(ValueArray* items);
 
 // Creates a new object from a hashtable.
 // This takes ownership of the hashtable. This means that the hashtable will be

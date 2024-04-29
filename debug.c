@@ -179,6 +179,7 @@ int disassemble_instruction(Chunk* chunk, int offset) {
     case OP_NEGATE: return simple_instruction(STR(OP_NEGATE), offset);
     case OP_PRINT: return simple_instruction(STR(OP_PRINT), offset);
     case OP_SEQ_LITERAL: return byte_instruction(STR(OP_SEQ_LITERAL), chunk, offset);
+    case OP_TUPLE_LITERAL: return byte_instruction(STR(OP_TUPLE_LITERAL), chunk, offset);
     case OP_OBJECT_LITERAL: return byte_instruction(STR(OP_OBJECT_LITERAL), chunk, offset);
     case OP_JUMP: return jump_instruction(STR(OP_JUMP), 1, chunk, offset);
     case OP_JUMP_IF_FALSE: return jump_instruction(STR(OP_JUMP_IF_FALSE), 1, chunk, offset);

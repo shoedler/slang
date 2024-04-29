@@ -7,8 +7,8 @@
 #include "object.h"
 #include "value.h"
 
-#define FRAMES_MAX 64
-#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
+#define FRAMES_MAX 128
+#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)  // 128 * 256 = 32,768
 
 #define KEYWORD_THIS "this"
 #define KEYWORD_THIS_LEN (STR_LEN(KEYWORD_THIS))
@@ -81,6 +81,7 @@ typedef struct {
   ObjClass* BUILTIN_CLASS(TYPENAME_BOOL);      // Base class: The bool class
   ObjClass* BUILTIN_CLASS(TYPENAME_NIL);       // Base class: The nil class
   ObjClass* BUILTIN_CLASS(TYPENAME_SEQ);       // Special class: The sequence class
+  ObjClass* BUILTIN_CLASS(TYPENAME_TUPLE);     // Special class: The tuple class
   ObjClass* BUILTIN_CLASS(TYPENAME_STRING);    // Special class: The string class
   ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // Special class: The function class
   ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // Special class: The class class
@@ -176,6 +177,14 @@ bool is_falsey(Value value);
 // TODO (optimize): This is mainly used for OP_SEQ_LITERAL, where all items are on the stack, maybe we could
 // batch-copy them into the value_array?
 void make_seq(int count);
+
+// Creates a tuple of length "count" from the top "count" values on the stack.
+// The resulting tuple is pushed onto the stack.
+// This is obviously O(n), so use it with caution.
+//
+// TODO (optimize): This is mainly used for OP_TUPLE_LITERAL, where all items are on the stack, maybe we could
+// batch-copy them into the value_array?
+void make_tuple(int count);
 
 // Tries to resolve and push a property of a value onto the stack. If the property is not found, it returns
 // false and does not touch the stack.

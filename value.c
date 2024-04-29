@@ -116,7 +116,7 @@ bool values_equal(Value a, Value b) {
         return AS_STRING(a) == AS_STRING(b);  // Works, because strings are interned
       }
       if (IS_OBJ(a) && IS_OBJ(b)) {
-        return AS_OBJ(a) == AS_OBJ(b);
+        return AS_OBJ(a)->hash == AS_OBJ(b)->hash;
       }
       return false;
     }
@@ -195,16 +195,32 @@ int print_value_safe(FILE* f, Value value) {
         return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(unknown)");
       }
     }
+    case OBJ_TUPLE:
     case OBJ_SEQ: {
-      ObjSeq* seq = AS_SEQ(value);
-      int written = fprintf(f, VALUE_STR_SEQ_START);
-      for (int i = 0; i < seq->items.count; i++) {
-        written += print_value_safe(f, seq->items.values[i]);
-        if (i < seq->items.count - 1) {
-          written += fprintf(f, VALUE_STR_SEQ_DELIM);
+      const char* start;
+      const char* delim;
+      const char* end;
+
+      if (IS_SEQ(value)) {
+        start = VALUE_STR_SEQ_START;
+        delim = VALUE_STR_SEQ_DELIM;
+        end   = VALUE_STR_SEQ_END;
+      } else {
+        start = VALUE_STR_TUPLE_START;
+        delim = VALUE_STR_TUPLE_DELIM;
+        end   = VALUE_STR_TUPLE_END;
+      }
+
+      ValueArray items = LISTLIKE_GET_VALUEARRAY(value);
+
+      int written = fprintf(f, start);
+      for (int i = 0; i < items.count; i++) {
+        written += print_value_safe(f, items.values[i]);
+        if (i < items.count - 1) {
+          written += fprintf(f, delim);
         }
       }
-      written += fprintf(f, VALUE_STR_SEQ_END);
+      written += fprintf(f, end);
       return written;
     }
     case OBJ_OBJECT: {

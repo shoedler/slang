@@ -139,6 +139,11 @@ static void blacken_object(Obj* object) {
       mark_array(&seq->items);
       break;
     }
+    case OBJ_TUPLE: {
+      ObjTuple* tuple = (ObjTuple*)object;
+      mark_array(&tuple->items);
+      break;
+    }
     case OBJ_NATIVE: {
       ObjNative* native = (ObjNative*)object;
       mark_obj((Obj*)native->name);
@@ -197,6 +202,12 @@ static void free_object(Obj* object) {
       ObjSeq* seq = (ObjSeq*)object;
       free_value_array(&seq->items);
       FREE(ObjSeq, object);
+      break;
+    }
+    case OBJ_TUPLE: {
+      ObjTuple* tuple = (ObjTuple*)object;
+      free_value_array(&tuple->items);
+      FREE(ObjTuple, object);
       break;
     }
     case OBJ_UPVALUE: FREE(ObjUpvalue, object); break;
@@ -264,6 +275,7 @@ static void mark_roots() {
   BUILTIN_MARK_CLASS(TYPENAME_FLOAT);
   BUILTIN_MARK_CLASS(TYPENAME_STRING);
   BUILTIN_MARK_CLASS(TYPENAME_SEQ);
+  BUILTIN_MARK_CLASS(TYPENAME_TUPLE);
   BUILTIN_MARK_CLASS(TYPENAME_MODULE);
   BUILTIN_MARK_CLASS(TYPENAME_FUNCTION);
   BUILTIN_MARK_CLASS(TYPENAME_CLASS);

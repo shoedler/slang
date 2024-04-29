@@ -176,44 +176,16 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
   return OBJ_VAL(str_obj);
 }
 
-// Built-in method to check if an object contains a value
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ SP_METHOD_HAS,
-    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_BOOL,
-    /* Description */
-    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_OBJ) " contains a key which equals 'value'.")
-BUILTIN_METHOD_DOC_OVERLOAD(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ SP_METHOD_HAS,
-    /* Arguments   */ DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL),
-    /* Return Type */ TYPENAME_BOOL,
-    /* Description */
-    "Returns " VALUE_STR_TRUE " if the " STR(TYPENAME_OBJ) " contains a key for which 'pred' evaluates to " VALUE_STR_TRUE ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_HAS) {
-  BUILTIN_ARGC_EXACTLY(1)
-  BUILTIN_CHECK_RECEIVER(OBJ)
-
-  // This is a base implementation, all objects which don't have a custom implementation will use this one.
-
-  // Execute the 'keys' method on the receiver
-  push(argv[0]);  // Receiver
-  Value seq = exec_callable((Obj*)copy_string("keys", 4), 0);
-  if (vm.flags & VM_FLAG_HAS_ERROR) {
-    return NIL_VAL;
-  }
-
-  // Execute the 'has' method on the seq
-  push(seq);      // Receiver
-  push(argv[1]);  // Argument
-  Value result = exec_callable(typeof(seq)->__has, 1);
-  if (vm.flags & VM_FLAG_HAS_ERROR) {
-    return NIL_VAL;
-  }
-
-  return result;
-}
+#define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value)             \
+  /* Execute the 'keys' method on the receiver */             \
+  push(argv[0]); /* Receiver */                               \
+  Value seq = exec_callable((Obj*)copy_string("keys", 4), 0); \
+  if (vm.flags & VM_FLAG_HAS_ERROR) {                         \
+    return NIL_VAL;                                           \
+  }                                                           \
+  items = AS_SEQ(seq)->items;
+BUILTIN_ENUMERABLE_HAS(OBJ, "a key")
+#undef BUILTIN_ENUMERABLE_GET_VALUE_ARRAY
 
 // Built-in method to return the hash of an object.
 BUILTIN_METHOD_DOC(
@@ -241,8 +213,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ObjSeq* seq       = prealloc_seq(object->fields.count);
-  push(OBJ_VAL(seq));  // GC Protection
+  ValueArray items  = prealloc_value_array(object->fields.count);
+  ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
+  push(OBJ_VAL(seq));                    // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
@@ -250,8 +223,8 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
     if (!IS_EMPTY_INTERNAL(entry->key)) {
       push(entry->key);
       push(entry->value);
-      make_seq(2);                             // Leaves a seq with the key-value on the stack
-      seq->items.values[processed++] = pop();  // The seq
+      make_seq(2);                        // Leaves a seq with the key-value on the stack
+      items.values[processed++] = pop();  // The seq
     }
   }
 
@@ -270,14 +243,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, keys) {
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ObjSeq* seq       = prealloc_seq(object->fields.count);
-  push(OBJ_VAL(seq));  // GC Protection
+  ValueArray items  = prealloc_value_array(object->fields.count);
+  ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
+  push(OBJ_VAL(seq));                    // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
     if (!IS_EMPTY_INTERNAL(entry->key)) {
-      seq->items.values[processed++] = entry->key;
+      items.values[processed++] = entry->key;
     }
   }
 
@@ -296,14 +270,15 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, values) {
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ObjSeq* seq       = prealloc_seq(object->fields.count);
-  push(OBJ_VAL(seq));  // GC Protection
+  ValueArray items  = prealloc_value_array(object->fields.count);
+  ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
+  push(OBJ_VAL(seq));                    // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
     if (!IS_EMPTY_INTERNAL(entry->key)) {
-      seq->items.values[processed++] = entry->value;
+      items.values[processed++] = entry->value;
     }
   }
 

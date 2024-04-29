@@ -44,3 +44,13 @@ print n // [Expect] nil
 let [o, ...p] = "a"
 print o // [Expect] a
 print "\"" + p + "\"" // [Expect] ""
+
+// Destructuring tuples into seq:
+let [q, r] = (1, 2)
+print q // [Expect] 1
+print r // [Expect] 2
+
+// ...is not fully supported yet. The rest will be returned as the same type as the rhs:
+let [s, ...t] = (1, 2, 3)
+print s // [Expect] 1
+print t // [Expect] (2, 3)
