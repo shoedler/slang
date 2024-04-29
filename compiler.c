@@ -556,10 +556,21 @@ static void tuple_literal(bool can_assign, int already_emitted_items) {
   }
 }
 
+// Compiles an empty tuple literal.
+// The opening parenthesis has already been consumed (previous token). Also, the comma has already been consumed.
+static void empty_tuple_literal(bool can_assign) {
+  emit_two(OP_TUPLE_LITERAL, (uint16_t)0);
+  consume(TOKEN_CPAR, "Expecting ')' after " STR(TYPENAME_TUPLE) " literal. ");
+}
+
 // Compiles a grouping (expression in parentheses).
 // The opening parenthesis has already been consumed (previous token)
 static void grouping(bool can_assign) {
   UNUSED(can_assign);
+  if (match(TOKEN_COMMA)) {
+    empty_tuple_literal(can_assign);
+    return;
+  }
   expression();
   if (match(TOKEN_COMMA)) {
     tuple_literal(can_assign, 1);

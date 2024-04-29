@@ -1,6 +1,7 @@
 cls X {
   ctor {
-    this.tuple = ("Foo")
+    this.tuple = ("Foo",)
+  }
 }
 
-print X().list // [Expect] (Foo)
+print X().tuple // [Expect] (Foo)

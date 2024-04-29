@@ -1,7 +1,5 @@
-let s = [1,2,3,4]
+let t = (1,2,3,4)
 
-print s.len // [Expect] 4
-print s.pop() // [Expect] 4
-print s.len // [Expect] 3
-print s.push(4) // [Expect] nil
-print s.len // [Expect] 4
+print t.len // [Expect] 4
+print (,).len // [Expect] 0
+print (1,).len // [Expect] 1
