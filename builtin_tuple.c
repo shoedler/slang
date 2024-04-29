@@ -30,15 +30,23 @@ void register_builtin_tuple_class() {
 BUILTIN_METHOD_DOC(
     /* Receiver    */ TYPENAME_TUPLE,
     /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ DOC_ARG("len", TYPENAME_INT),
+    /* Arguments   */ DOC_ARG("seq", TYPENAME_SEQ),
     /* Return Type */ TYPENAME_TUPLE,
     /* Description */
-    "No-op constructor for " STR(TYPENAME_TUPLE) ".");
+    "Creates a new " STR(TYPENAME_TUPLE) " from a " STR(TYPENAME_SEQ) " of values.");
 BUILTIN_METHOD_IMPL(TYPENAME_TUPLE, SP_METHOD_CTOR) {
-  UNUSED(argc);
-  UNUSED(argv);
-  runtime_error("Cannot instantiate a tuple via " STR(TYPENAME_TUPLE) "." STR(SP_METHOD_CTOR) ".");
-  return NIL_VAL;
+  BUILTIN_ARGC_EXACTLY(1)
+  BUILTIN_CHECK_ARG_AT(1, SEQ)
+
+  ObjSeq* seq = AS_SEQ(argv[1]);
+
+  ValueArray items = prealloc_value_array(seq->items.count);
+
+  // We can use memcpy here because the items array is already preallocated
+  memcpy(items.values, seq->items.values, seq->items.count * sizeof(Value));
+
+  ObjTuple* tuple = take_tuple(&items);
+  return OBJ_VAL(tuple);
 }
 
 #define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value) items = AS_TUPLE(value)->items

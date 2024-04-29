@@ -55,6 +55,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ### Optimizations
 
+- [ ] Use `memcpy` for concat and such (See `Seq(Tuple)` ctor for an example). Check for for-loops in the builtin methods.
 - [ ] Make stringification faster.
 - [ ] Inline `push()`, `peek()` and `pop()` in the Vm.
 - [ ] Make a `BUILTIN_METHOD_RUNTIME_ERROR(class_name, method_name)` macro, which throws a runtime error with a nice prefix and always returns `NIL_VAL`. Use this in all `BUILTIN_METHOD_IMPL` functions.

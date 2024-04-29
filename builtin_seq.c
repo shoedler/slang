@@ -37,23 +37,51 @@ BUILTIN_METHOD_DOC(
     /* Arguments   */ DOC_ARG("len", TYPENAME_INT),
     /* Return Type */ TYPENAME_SEQ,
     /* Description */
-    "Creates a new " STR(TYPENAME_NIL) "-initialized " STR(TYPENAME_SEQ) " of length 'len'.");
+    "Creates a new " STR(TYPENAME_NIL) "-initialized " STR(TYPENAME_SEQ) " of length 'len'.")
+BUILTIN_METHOD_DOC_OVERLOAD(
+    /* Receiver    */ TYPENAME_SEQ,
+    /* Name        */ SP_METHOD_CTOR,
+    /* Arguments   */ DOC_ARG("tuple", TYPENAME_TUPLE),
+    /* Return Type */ TYPENAME_SEQ,
+    /* Description */
+    "Creates a new " STR(TYPENAME_SEQ) " from a " STR(TYPENAME_TUPLE) " of values.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_CTOR) {
   BUILTIN_ARGC_EXACTLY(1)
-  BUILTIN_CHECK_ARG_AT(1, INT)
 
-  ValueArray items;
-  init_value_array(&items);
-  ObjSeq* seq = take_seq(&items);
-  push(OBJ_VAL(seq));  // GC Protection
+  switch (argv[1].type) {
+    case VAL_INT: {
+      ValueArray items;
+      init_value_array(&items);
+      ObjSeq* seq = take_seq(&items);
+      push(OBJ_VAL(seq));  // GC Protection
 
-  int count = (int)AS_INT(argv[1]);
-  for (int i = 0; i < count; i++) {
-    write_value_array(&seq->items, NIL_VAL);
+      int count = (int)AS_INT(argv[1]);
+      for (int i = 0; i < count; i++) {
+        write_value_array(&seq->items, NIL_VAL);
+      }
+
+      pop();  // The seq
+      return OBJ_VAL(seq);
+    }
+    case VAL_OBJ: {
+      if (IS_TUPLE(argv[1])) {
+        ObjTuple* tuple = AS_TUPLE(argv[1]);
+
+        ValueArray items = prealloc_value_array(tuple->items.count);
+
+        // We can use memcpy here because the items array is already preallocated
+        memcpy(items.values, tuple->items.values, tuple->items.count * sizeof(Value));
+
+        ObjSeq* seq = take_seq(&items);
+        return OBJ_VAL(seq);
+      }
+    }
   }
 
-  pop();  // The seq
-  return OBJ_VAL(seq);
+  // TODO: Make a macro for this error message
+  runtime_error("Expected argument 0 of type " STR(TYPENAME_INT) " or " STR(TYPENAME_TUPLE) " but got %s.",
+                typeof(argv[1])->name->chars);
+  return NIL_VAL;
 }
 
 #define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value) items = AS_SEQ(value)->items
