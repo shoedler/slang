@@ -1,22 +1,22 @@
 cls Foo{}
 fn bar -> 1
 
-print try Num()                           else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num("123.0")                    else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num("1kjhkjh2hkjhkj.....3hkj4") else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num("false")                    else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num("true")                     else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num(true)                       else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num(false)                      else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num(12)                         else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num(12.0)                       else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num(123.456)                    else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num(nil)                        else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num([1, 2, 3])                  else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num({"key": "value"})           else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num(Foo)                        else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num(Foo())                      else error // [Expect] Cannot instantiate a function via Num.ctor.
-print try Num(bar)                        else error // [Expect] Cannot instantiate a function via Num.ctor.
+print try Num()                           else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num("123.0")                    else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num("1kjhkjh2hkjhkj.....3hkj4") else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num("false")                    else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num("true")                     else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num(true)                       else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num(false)                      else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num(12)                         else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num(12.0)                       else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num(123.456)                    else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num(nil)                        else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num([1, 2, 3])                  else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num({"key": "value"})           else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num(Foo)                        else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num(Foo())                      else error // [Expect] Cannot instantiate a number via Num.ctor.
+print try Num(bar)                        else error // [Expect] Cannot instantiate a number via Num.ctor.
 
 print try Int()                           else error // [Expect] Expected 1 arguments but got 0.
 print try Int("123.0")                    else error // [Expect] 123

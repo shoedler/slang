@@ -11,12 +11,11 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add tuples. E.g. `(1, 2, 3)`. They should be immutable and hash to their values.
   - Get-Indexing
   - Get/Set Property
-  - Hashing
   - Tests compiling tuples
   - Tests for tuple destructure
   - Tests for tuple equality
   - Tests for all tuple methods (listlike methods)
-    - Make sure to compare the results (if the return tuples) with an identical tuple literal to ensure hashing is handled correctly withing the methods.
+    - Make sure to compare the results (if the return tuples) with an identical tuple literal to ensure hashing is handled correctly within the methods.
   - Update existing tests involving all builtin types.
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
@@ -42,6 +41,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 ## Improvements
 
 - [ ] Add tests for `OP_MODULO`
+- [ ] (When `Gc` is implemented) Add some test cases where we call `Gc.collect()` to ensure that relevant objects are not collected.
 - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
 - [ ] Call `to_str` implicitly when adding a string to a non-string.
 - [ ] Remove in `VALUE_STR_CLASS` (`<Class X>`) the "Class" prefix from class type names.
