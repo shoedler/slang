@@ -532,9 +532,9 @@ static void literal(bool can_assign) {
 
 // Compiles a tuple literal.
 // The opening parenthesis has already been consumed (previous token)
-// Maybe the first element (expression) has already been consumed too, bc it could also just be a grouping.
-// Making a tuple of one element is allowed, but it's also a little stupid.
-static void tuple_literal(bool can_assign) {
+// Maybe the first element (expression) has already been consumed too, bc it could also just be a grouping experssion (expression
+// in parentheses). Making a tuple of one element is allowed, but it's also a little stupid.
+static void tuple_literal(bool can_assign, int already_emitted_items) {
   UNUSED(can_assign);
   int count = 0;
 
@@ -550,7 +550,7 @@ static void tuple_literal(bool can_assign) {
   consume(TOKEN_CPAR, "Expecting ')' after " STR(TYPENAME_TUPLE) " literal. Or maybe you are missing a ','?");
 
   if (count <= MAX_TUPLE_LITERAL_ITEMS) {
-    emit_two(OP_TUPLE_LITERAL, (uint16_t)count);
+    emit_two(OP_TUPLE_LITERAL, (uint16_t)count + already_emitted_items);
   } else {
     error_at_current("Can't have more than " STR(MAX_TUPLE_LITERAL_ITEMS) " items in a " STR(TYPENAME_TUPLE) ".");
   }
@@ -562,7 +562,7 @@ static void grouping(bool can_assign) {
   UNUSED(can_assign);
   expression();
   if (match(TOKEN_COMMA)) {
-    tuple_literal(can_assign);
+    tuple_literal(can_assign, 1);
     return;
   }
   consume(TOKEN_CPAR, "Expecting ')' after expression.");
@@ -1622,6 +1622,7 @@ static void statement() {
 typedef enum {
   DESTRUCTURE_SEQ,
   DESTRUCTURE_OBJ,
+  DESTRUCTURE_TUPLE,
 } DestructureType;
 
 // Compiles a destructuring assignment.
@@ -1635,7 +1636,12 @@ static void destructuring_assignment(DestructureType type) {
     int index;        // The index of the variable in the destructuring pattern.
   } DestructuringVariable;
 
-  TokenType closing = type == DESTRUCTURE_OBJ ? TOKEN_CBRACE : TOKEN_CBRACK;
+  TokenType closing;
+  switch (type) {
+    case DESTRUCTURE_SEQ: closing = TOKEN_CBRACK; break;
+    case DESTRUCTURE_OBJ: closing = TOKEN_CBRACE; break;
+    case DESTRUCTURE_TUPLE: closing = TOKEN_CPAR; break;
+  }
 
   DestructuringVariable variables[MAX_FN_ARGS];
   int current_index = 0;
@@ -1730,6 +1736,8 @@ static void declaration_let() {
     destructuring_assignment(DESTRUCTURE_SEQ);
   } else if (match(TOKEN_OBRACE)) {
     destructuring_assignment(DESTRUCTURE_OBJ);
+  } else if (match(TOKEN_OPAR)) {
+    destructuring_assignment(DESTRUCTURE_TUPLE);
   } else {
     uint16_t global = parse_variable("Expecting variable name.");
 

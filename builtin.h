@@ -196,9 +196,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     return BOOL_VAL(false);                                                                                                     \
   }
 
-// Implementation for the 'to_str' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
-// macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
+// Implementation for the 'to_str' method for listlike objects (Objects that have a 'ValueArray items' field).
 #define BUILTIN_LISTLIKE_TO_STR(type, start_chars, delim_chars, end_chars)                                              \
   BUILTIN_METHOD_DOC(TYPENAME_##type, SP_METHOD_TO_STR, "", TYPENAME_##type,                                            \
                      "Returns a " STR(TYPENAME_STRING) " representation of a " STR(TYPENAME_##type) ".");               \
@@ -206,10 +204,9 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_ARGC_EXACTLY(0)                                                                                             \
     BUILTIN_CHECK_RECEIVER(type)                                                                                        \
                                                                                                                         \
-    ValueArray items;                                                                                                   \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                        \
-    size_t buf_size = 64; /* Start with a reasonable size */                                                            \
-    char* chars     = malloc(buf_size);                                                                                 \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                \
+    size_t buf_size  = 64; /* Start with a reasonable size */                                                           \
+    char* chars      = malloc(buf_size);                                                                                \
                                                                                                                         \
     strcpy(chars, start_chars);                                                                                         \
     for (int i = 0; i < items.count; i++) {                                                                             \
@@ -253,7 +250,6 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
 
 // Implementation for the 'slice' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
 // macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
 // - BUILTIN_LISTLIKE_TAKE_ARRAY(value): to create a new listlike object from a ValueArray.
 // - BUILTIN_LISTLIKE_NEW_EMPTY(): to create a new empty listlike object.
 #define BUILTIN_LISTLIKE_SLICE(type)                                                                                                                               \
@@ -271,9 +267,8 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     }                                                                                                                                                              \
     BUILTIN_CHECK_ARG_AT(2, INT)                                                                                                                                   \
                                                                                                                                                                    \
-    ValueArray items;                                                                                                                                              \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                                                                   \
-    int count = items.count;                                                                                                                                       \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                                                           \
+    int count        = items.count;                                                                                                                                \
                                                                                                                                                                    \
     if (count == 0) {                                                                                                                                              \
       return OBJ_VAL(BUILTIN_LISTLIKE_NEW_EMPTY());                                                                                                                \
@@ -311,9 +306,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     return OBJ_VAL(BUILTIN_LISTLIKE_TAKE_ARRAY(sliced));                                                                                                           \
   }
 
-// Implementation for the 'index_of' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
-// macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
+// Implementation for the 'index_of' method for listlike objects (Objects that have a 'ValueArray items' field).
 #define BUILTIN_LISTLIKE_INDEX_OF(type)                                                                                        \
   BUILTIN_METHOD_DOC(TYPENAME_##type, index_of, DOC_ARG("value", TYPENAME_OBJ), TYPENAME_INT,                                  \
                      "Returns the index of first item which equals 'value' in a " STR(                                         \
@@ -326,8 +319,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_ARGC_EXACTLY(1)                                                                                                    \
     BUILTIN_CHECK_RECEIVER(type)                                                                                               \
                                                                                                                                \
-    ValueArray items;                                                                                                          \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                               \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                       \
     if (items.count == 0) {                                                                                                    \
       return NIL_VAL;                                                                                                          \
     }                                                                                                                          \
@@ -362,9 +354,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     return NIL_VAL;                                                                                                            \
   }
 
-// Implementation for the 'first' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
-// macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
+// Implementation for the 'first' method for listlike objects (Objects that have a 'ValueArray items' field).
 #define BUILTIN_LISTLIKE_FIRST(type)                                                                                         \
   BUILTIN_METHOD_DOC(                                                                                                        \
       TYPENAME_##type, first, DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL), TYPENAME_OBJ,                               \
@@ -375,8 +365,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_RECEIVER(type)                                                                                             \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                                      \
                                                                                                                              \
-    ValueArray items;                                                                                                        \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                             \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                     \
     if (items.count == 0) {                                                                                                  \
       return NIL_VAL;                                                                                                        \
     }                                                                                                                        \
@@ -402,9 +391,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     return NIL_VAL;                                                                                                          \
   }
 
-// Implementation for the 'last' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these macros
-// to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
+// Implementation for the 'last' method for listlike objects (Objects that have a 'ValueArray items' field).
 #define BUILTIN_LISTLIKE_LAST(type)                                                                                         \
   BUILTIN_METHOD_DOC(                                                                                                       \
       TYPENAME_##type, last, DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL), TYPENAME_OBJ,                               \
@@ -416,8 +403,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_RECEIVER(type)                                                                                            \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                                     \
                                                                                                                             \
-    ValueArray items;                                                                                                       \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                            \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                    \
     if (items.count == 0) {                                                                                                 \
       return NIL_VAL;                                                                                                       \
     }                                                                                                                       \
@@ -443,9 +429,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     return NIL_VAL;                                                                                                         \
   }
 
-// Implementation for the 'each' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these macros
-// to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
+// Implementation for the 'each' method for listlike objects (Objects that have a 'ValueArray items' field).
 #define BUILTIN_LISTLIKE_EACH(type)                                                                                 \
   BUILTIN_METHOD_DOC(TYPENAME_##type,each,DOC_ARG("fn", TYPENAME_FUNCTION), TYPENAME_NIL,                        \
     "Executes 'fn' for each item in the " STR(TYPENAME_##type) ". 'fn' should take one or two arguments: "       \
@@ -455,10 +439,9 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_RECEIVER(type)                                                                                    \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
                                                                                                                     \
-    ValueArray items;                                                                                               \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                    \
-    int fn_arity = callable_get_arity(AS_OBJ(argv[1]));                                                             \
-    int count    = items.count; /* We need to store this, because the listlike might change during the loop */      \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                            \
+    int fn_arity     = callable_get_arity(AS_OBJ(argv[1]));                                                         \
+    int count        = items.count; /* We need to store this, because the listlike might change during the loop */  \
                                                                                                                     \
     /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                        \
     switch (fn_arity) {                                                                                             \
@@ -498,7 +481,6 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
 
 // Implementation for the 'map' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these macros
 // to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
 // - BUILTIN_LISTLIKE_TAKE_ARRAY(value): to create a new listlike object from a ValueArray.
 #define BUILTIN_LISTLIKE_MAP(type)                                                                                  \
   BUILTIN_METHOD_DOC(\
@@ -514,8 +496,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_RECEIVER(type)                                                                                    \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
                                                                                                                     \
-    ValueArray items;                                                                                               \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                    \
+    ValueArray items  = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
     int fn_arity      = callable_get_arity(AS_OBJ(argv[1]));                                                        \
     int count         = items.count; /* We need to store this, because the listlike might change during the loop */ \
     ValueArray mapped = prealloc_value_array(count);                                                                \
@@ -566,7 +547,6 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
 
 // Implementation for the 'filter' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
 // macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
 // - BUILTIN_LISTLIKE_TAKE_ARRAY(value): to create a new listlike object from a ValueArray.
 #define BUILTIN_LISTLIKE_FILTER(type)                                                                                         \
   BUILTIN_METHOD_DOC(TYPENAME_##type, filter, DOC_ARG("fn", TYPENAME_FUNCTION->TYPENAME_BOOL), TYPENAME_##type,               \
@@ -581,10 +561,9 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_RECEIVER(type)                                                                                              \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                                       \
                                                                                                                               \
-    ValueArray items;                                                                                                         \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                              \
-    int fn_arity = callable_get_arity(AS_OBJ(argv[1]));                                                                       \
-    int count    = items.count; /* We need to store this, because the listlike might change during the loop */                \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                      \
+    int fn_arity     = callable_get_arity(AS_OBJ(argv[1]));                                                                   \
+    int count        = items.count; /* We need to store this, because the listlike might change during the loop */            \
                                                                                                                               \
     ValueArray filtered_items;                                                                                                \
     init_value_array(&filtered_items);                                                                                        \
@@ -646,9 +625,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     return result;                                                                                                            \
   }
 
-// Implementation for the 'join' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
-// macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
+// Implementation for the 'join' method for listlike objects (Objects that have a 'ValueArray items' field).
 #define BUILTIN_LISTLIKE_JOIN(type)                                                                                 \
   BUILTIN_METHOD_DOC(                                                                                               \
       TYPENAME_##type, join, DOC_ARG("sep", TYPENAME_STRING), TYPENAME_STRING,                                      \
@@ -658,9 +635,8 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_RECEIVER(type)                                                                                    \
     BUILTIN_CHECK_ARG_AT(1, STRING)                                                                                 \
                                                                                                                     \
-    ValueArray items;                                                                                               \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                    \
-    ObjString* sep = AS_STRING(argv[1]);                                                                            \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                            \
+    ObjString* sep   = AS_STRING(argv[1]);                                                                          \
                                                                                                                     \
     size_t buf_size = 64; /* Start with a reasonable size */                                                        \
     char* chars     = malloc(buf_size);                                                                             \
@@ -707,7 +683,6 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
 
 // Implementation for the 'reverse' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
 // macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
 // - BUILTIN_LISTLIKE_TAKE_ARRAY(value): to create a new listlike object from a ValueArray.
 #define BUILTIN_LISTLIKE_REVERSE(type)                                                       \
   BUILTIN_METHOD_DOC(TYPENAME_##type, reverse, "", TYPENAME_##type,                          \
@@ -717,8 +692,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_ARGC_EXACTLY(0)                                                                  \
     BUILTIN_CHECK_RECEIVER(type)                                                             \
                                                                                              \
-    ValueArray items;                                                                        \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                             \
+    ValueArray items    = LISTLIKE_GET_VALUEARRAY(argv[0]);                                  \
     ValueArray reversed = prealloc_value_array(items.count);                                 \
                                                                                              \
     /* No GC protection needed */                                                            \
@@ -730,10 +704,8 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     return OBJ_VAL(BUILTIN_LISTLIKE_TAKE_ARRAY(reversed));                                   \
   }
 
-// Implementation for the 'every' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
-// macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
-#define BUILTIN_LISTLIKE_EVERY(type)                                                                              \
+// Implementation for the 'every' method for listlike objects (Objects that have a 'ValueArray items' field).
+#define BUILTIN_LISTLIKE_EVERY(type)                                                                               \
   BUILTIN_METHOD_DOC(\
      TYPENAME_##type,\
      every,\
@@ -742,70 +714,67 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     "Returns " VALUE_STR_TRUE\
     " if 'fn' evaluates to " VALUE_STR_TRUE\
     " for every item in the " STR(TYPENAME_##type) ". 'fn' should take one or two arguments: the item and the index of the "\
-    "item. The latter is optional. Returns " VALUE_STR_FALSE " if the " STR(TYPENAME_##type) " is empty.");                                                                                           \
-  BUILTIN_METHOD_IMPL(TYPENAME_##type, every) {                                                                   \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                       \
-    BUILTIN_CHECK_RECEIVER(type)                                                                                  \
-    BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                           \
-                                                                                                                  \
-    ValueArray items;                                                                                             \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                  \
-    int fn_arity = callable_get_arity(AS_OBJ(argv[1]));                                                           \
-    int count    = items.count; /* We need to store this, because the listlike might change during the loop */    \
-                                                                                                                  \
-    /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                      \
-    switch (fn_arity) {                                                                                           \
-      case 1: {                                                                                                   \
-        for (int i = 0; i < count; i++) {                                                                         \
-          /* Execute the provided function on the item */                                                         \
-          push(argv[1]);         /* Push the function */                                                          \
-          push(items.values[i]); /* arg0 (1): Push the item */                                                    \
-          Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                       \
-          if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                     \
-            return NIL_VAL; /* Propagate the error */                                                             \
-          }                                                                                                       \
-                                                                                                                  \
-          /* We don't use is_falsey here, because we want to check for a boolean value. */                        \
-          if (!IS_BOOL(result) || !AS_BOOL(result)) {                                                             \
-            return BOOL_VAL(false);                                                                               \
-          }                                                                                                       \
-        }                                                                                                         \
-        break;                                                                                                    \
-      }                                                                                                           \
-      case 2: {                                                                                                   \
-        for (int i = 0; i < count; i++) {                                                                         \
-          /* Execute the provided function on the item */                                                         \
-          push(argv[1]);         /* Push the function */                                                          \
-          push(items.values[i]); /* arg0 (1): Push the item */                                                    \
-          push(INT_VAL(i));      /* arg1 (2): Push the index */                                                   \
-          Value result = exec_callable(AS_OBJ(argv[1]), 2);                                                       \
-          if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                     \
-            return NIL_VAL; /* Propagate the error */                                                             \
-          }                                                                                                       \
-                                                                                                                  \
-          /* We don't use is_falsey here, because we want to check for a boolean value. */                        \
-          if (!IS_BOOL(result) || !AS_BOOL(result)) {                                                             \
-            return BOOL_VAL(false);                                                                               \
-          }                                                                                                       \
-        }                                                                                                         \
-        break;                                                                                                    \
-      }                                                                                                           \
-      default: {                                                                                                  \
-        runtime_error("Function passed to \"" STR(every) "\" must take 1 or 2 arguments, but got %d.", fn_arity); \
-        return NIL_VAL;                                                                                           \
-      }                                                                                                           \
-    }                                                                                                             \
-    if (fn_arity > 1) {                                                                                           \
-    } else {                                                                                                      \
-    }                                                                                                             \
-                                                                                                                  \
-    return BOOL_VAL(true);                                                                                        \
+    "item. The latter is optional. Returns " VALUE_STR_FALSE " if the " STR(TYPENAME_##type) " is empty.");                                                                                            \
+  BUILTIN_METHOD_IMPL(TYPENAME_##type, every) {                                                                    \
+    BUILTIN_ARGC_EXACTLY(1)                                                                                        \
+    BUILTIN_CHECK_RECEIVER(type)                                                                                   \
+    BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                            \
+                                                                                                                   \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
+    int fn_arity     = callable_get_arity(AS_OBJ(argv[1]));                                                        \
+    int count        = items.count; /* We need to store this, because the listlike might change during the loop */ \
+                                                                                                                   \
+    /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                       \
+    switch (fn_arity) {                                                                                            \
+      case 1: {                                                                                                    \
+        for (int i = 0; i < count; i++) {                                                                          \
+          /* Execute the provided function on the item */                                                          \
+          push(argv[1]);         /* Push the function */                                                           \
+          push(items.values[i]); /* arg0 (1): Push the item */                                                     \
+          Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                        \
+          if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
+            return NIL_VAL; /* Propagate the error */                                                              \
+          }                                                                                                        \
+                                                                                                                   \
+          /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
+          if (!IS_BOOL(result) || !AS_BOOL(result)) {                                                              \
+            return BOOL_VAL(false);                                                                                \
+          }                                                                                                        \
+        }                                                                                                          \
+        break;                                                                                                     \
+      }                                                                                                            \
+      case 2: {                                                                                                    \
+        for (int i = 0; i < count; i++) {                                                                          \
+          /* Execute the provided function on the item */                                                          \
+          push(argv[1]);         /* Push the function */                                                           \
+          push(items.values[i]); /* arg0 (1): Push the item */                                                     \
+          push(INT_VAL(i));      /* arg1 (2): Push the index */                                                    \
+          Value result = exec_callable(AS_OBJ(argv[1]), 2);                                                        \
+          if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
+            return NIL_VAL; /* Propagate the error */                                                              \
+          }                                                                                                        \
+                                                                                                                   \
+          /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
+          if (!IS_BOOL(result) || !AS_BOOL(result)) {                                                              \
+            return BOOL_VAL(false);                                                                                \
+          }                                                                                                        \
+        }                                                                                                          \
+        break;                                                                                                     \
+      }                                                                                                            \
+      default: {                                                                                                   \
+        runtime_error("Function passed to \"" STR(every) "\" must take 1 or 2 arguments, but got %d.", fn_arity);  \
+        return NIL_VAL;                                                                                            \
+      }                                                                                                            \
+    }                                                                                                              \
+    if (fn_arity > 1) {                                                                                            \
+    } else {                                                                                                       \
+    }                                                                                                              \
+                                                                                                                   \
+    return BOOL_VAL(true);                                                                                         \
   }
 
-// Implementation for the 'some' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
-// macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
-#define BUILTIN_LISTLIKE_SOME(type)                                                                              \
+// Implementation for the 'some' method for listlike objects (Objects that have a 'ValueArray items' field).
+#define BUILTIN_LISTLIKE_SOME(type)                                                                                \
   BUILTIN_METHOD_DOC(\
      TYPENAME_##type,\
      some,\
@@ -815,66 +784,63 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     "Returns " VALUE_STR_TRUE\
     " if 'fn' evaluates to " VALUE_STR_TRUE\
     " for at least one item in the " STR(TYPENAME_##type) ". 'fn' should take one or two arguments: the item and the index of the "\
-    "item. The latter is optional. Returns " VALUE_STR_FALSE " if the " STR(TYPENAME_##type) " is empty.");                                                                                          \
-  BUILTIN_METHOD_IMPL(TYPENAME_##type, some) {                                                                   \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                      \
-    BUILTIN_CHECK_RECEIVER(type)                                                                                 \
-    BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                          \
-                                                                                                                 \
-    ValueArray items;                                                                                            \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                 \
-    int fn_arity = callable_get_arity(AS_OBJ(argv[1]));                                                          \
-    int count    = items.count; /* We need to store this, because the listlike might change during the loop */   \
-                                                                                                                 \
-    /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                     \
-    switch (fn_arity) {                                                                                          \
-      case 1: {                                                                                                  \
-        for (int i = 0; i < count; i++) {                                                                        \
-          /* Execute the provided function on the item */                                                        \
-          push(argv[1]);         /* Push the function */                                                         \
-          push(items.values[i]); /* arg0 (1): Push the item */                                                   \
-          Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                      \
-          if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                    \
-            return NIL_VAL; /* Propagate the error */                                                            \
-          }                                                                                                      \
-                                                                                                                 \
-          /* We don't use is_falsey here, because we want to check for a boolean value. */                       \
-          if (IS_BOOL(result) && AS_BOOL(result)) {                                                              \
-            return BOOL_VAL(true);                                                                               \
-          }                                                                                                      \
-        }                                                                                                        \
-        break;                                                                                                   \
-      }                                                                                                          \
-      case 2: {                                                                                                  \
-        for (int i = 0; i < count; i++) {                                                                        \
-          /* Execute the provided function on the item */                                                        \
-          push(argv[1]);         /* Push the function */                                                         \
-          push(items.values[i]); /* arg0 (1): Push the item */                                                   \
-          push(INT_VAL(i));      /* arg1 (2): Push the index */                                                  \
-          Value result = exec_callable(AS_OBJ(argv[1]), 2);                                                      \
-          if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                    \
-            return NIL_VAL; /* Propagate the error */                                                            \
-          }                                                                                                      \
-                                                                                                                 \
-          /* We don't use is_falsey here, because we want to check for a boolean value. */                       \
-          if (IS_BOOL(result) && AS_BOOL(result)) {                                                              \
-            return BOOL_VAL(true);                                                                               \
-          }                                                                                                      \
-        }                                                                                                        \
-        break;                                                                                                   \
-      }                                                                                                          \
-      default: {                                                                                                 \
-        runtime_error("Function passed to \"" STR(some) "\" must take 1 or 2 arguments, but got %d.", fn_arity); \
-        return NIL_VAL;                                                                                          \
-      }                                                                                                          \
-    }                                                                                                            \
-                                                                                                                 \
-    return BOOL_VAL(false);                                                                                      \
+    "item. The latter is optional. Returns " VALUE_STR_FALSE " if the " STR(TYPENAME_##type) " is empty.");                                                                                            \
+  BUILTIN_METHOD_IMPL(TYPENAME_##type, some) {                                                                     \
+    BUILTIN_ARGC_EXACTLY(1)                                                                                        \
+    BUILTIN_CHECK_RECEIVER(type)                                                                                   \
+    BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                            \
+                                                                                                                   \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
+    int fn_arity     = callable_get_arity(AS_OBJ(argv[1]));                                                        \
+    int count        = items.count; /* We need to store this, because the listlike might change during the loop */ \
+                                                                                                                   \
+    /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                       \
+    switch (fn_arity) {                                                                                            \
+      case 1: {                                                                                                    \
+        for (int i = 0; i < count; i++) {                                                                          \
+          /* Execute the provided function on the item */                                                          \
+          push(argv[1]);         /* Push the function */                                                           \
+          push(items.values[i]); /* arg0 (1): Push the item */                                                     \
+          Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                        \
+          if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
+            return NIL_VAL; /* Propagate the error */                                                              \
+          }                                                                                                        \
+                                                                                                                   \
+          /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
+          if (IS_BOOL(result) && AS_BOOL(result)) {                                                                \
+            return BOOL_VAL(true);                                                                                 \
+          }                                                                                                        \
+        }                                                                                                          \
+        break;                                                                                                     \
+      }                                                                                                            \
+      case 2: {                                                                                                    \
+        for (int i = 0; i < count; i++) {                                                                          \
+          /* Execute the provided function on the item */                                                          \
+          push(argv[1]);         /* Push the function */                                                           \
+          push(items.values[i]); /* arg0 (1): Push the item */                                                     \
+          push(INT_VAL(i));      /* arg1 (2): Push the index */                                                    \
+          Value result = exec_callable(AS_OBJ(argv[1]), 2);                                                        \
+          if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
+            return NIL_VAL; /* Propagate the error */                                                              \
+          }                                                                                                        \
+                                                                                                                   \
+          /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
+          if (IS_BOOL(result) && AS_BOOL(result)) {                                                                \
+            return BOOL_VAL(true);                                                                                 \
+          }                                                                                                        \
+        }                                                                                                          \
+        break;                                                                                                     \
+      }                                                                                                            \
+      default: {                                                                                                   \
+        runtime_error("Function passed to \"" STR(some) "\" must take 1 or 2 arguments, but got %d.", fn_arity);   \
+        return NIL_VAL;                                                                                            \
+      }                                                                                                            \
+    }                                                                                                              \
+                                                                                                                   \
+    return BOOL_VAL(false);                                                                                        \
   }
 
-// Implementation for the 'reduce' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
-// macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
+// Implementation for the 'reduce' method for listlike objects (Objects that have a 'ValueArray items' field).
 #define BUILTIN_LISTLIKE_REDUCE(type)                                                                               \
   BUILTIN_METHOD_DOC(\
      TYPENAME_##type,\
@@ -889,8 +855,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_RECEIVER(type)                                                                                    \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(2)                                                                             \
                                                                                                                     \
-    ValueArray items;                                                                                               \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                    \
+    ValueArray items  = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
     Value accumulator = argv[1];                                                                                    \
     int fn_arity      = callable_get_arity(AS_OBJ(argv[2]));                                                        \
     int count         = items.count; /* We need to store this, because the listlike might change during the loop */ \
@@ -933,9 +898,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     return accumulator;                                                                                             \
   }
 
-// Implementation for the 'count' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
-// macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
+// Implementation for the 'count' method for listlike objects (Objects that have a 'ValueArray items' field).
 #define BUILTIN_LISTLIKE_COUNT(type)                                                                                    \
   BUILTIN_METHOD_DOC(TYPENAME_##type, count, DOC_ARG("value", TYPENAME_OBJ), TYPENAME_INT,                              \
                      "Returns the number of occurrences of 'value' in the " STR(TYPENAME_##type) ".")                   \
@@ -946,8 +909,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_ARGC_EXACTLY(1)                                                                                             \
     BUILTIN_CHECK_RECEIVER(type)                                                                                        \
                                                                                                                         \
-    ValueArray items;                                                                                                   \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                        \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                \
     if (items.count == 0) {                                                                                             \
       return INT_VAL(0);                                                                                                \
     }                                                                                                                   \
@@ -989,9 +951,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     return INT_VAL(occurrences);                                                                                        \
   }
 
-// Implementation for the 'concat' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
-// macros to be defined before this:
-// - BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value): to retrieve the items from the receiver.
+// Implementation for the 'concat' method for listlike objects (Objects that have a 'ValueArray items' field).
 #define BUILTIN_LISTLIKE_CONCAT(type)                                            \
   BUILTIN_METHOD_DOC(\
      TYPENAME_##type,\
@@ -1005,11 +965,8 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_RECEIVER(type)                                                 \
     BUILTIN_CHECK_ARG_AT(1, type)                                                \
                                                                                  \
-    ValueArray items;                                                            \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                 \
-    ValueArray items1 = items;                                                   \
-    BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[1]);                                 \
-    ValueArray items2 = items;                                                   \
+    ValueArray items1 = LISTLIKE_GET_VALUEARRAY(argv[0]);                        \
+    ValueArray items2 = LISTLIKE_GET_VALUEARRAY(argv[1]);                        \
                                                                                  \
     ValueArray concatenated = prealloc_value_array(items1.count + items2.count); \
                                                                                  \

@@ -200,24 +200,23 @@ int print_value_safe(FILE* f, Value value) {
       const char* start;
       const char* delim;
       const char* end;
-      ValueArray* items;
 
       if (IS_SEQ(value)) {
         start = VALUE_STR_SEQ_START;
         delim = VALUE_STR_SEQ_DELIM;
         end   = VALUE_STR_SEQ_END;
-        items = &AS_SEQ(value)->items;
       } else {
         start = VALUE_STR_TUPLE_START;
         delim = VALUE_STR_TUPLE_DELIM;
         end   = VALUE_STR_TUPLE_END;
-        items = &AS_TUPLE(value)->items;
       }
 
+      ValueArray items = LISTLIKE_GET_VALUEARRAY(value);
+
       int written = fprintf(f, start);
-      for (int i = 0; i < items->count; i++) {
-        written += print_value_safe(f, items->values[i]);
-        if (i < items->count - 1) {
+      for (int i = 0; i < items.count; i++) {
+        written += print_value_safe(f, items.values[i]);
+        if (i < items.count - 1) {
           written += fprintf(f, delim);
         }
       }

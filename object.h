@@ -61,6 +61,10 @@
 // Value must be of type tuple.
 #define AS_TUPLE(value) ((ObjTuple*)AS_OBJ(value))
 
+// Gets the value array of a listlike object (Seq, Tuple).
+// Hack: Just cast to ObjSeq* and access the items field, because the layout is the same.
+#define LISTLIKE_GET_VALUEARRAY(value) ((ObjSeq*)AS_OBJ(value))->items
+
 // Converts a value into a function.
 // Value must be of type function.
 #define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))

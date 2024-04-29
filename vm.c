@@ -696,18 +696,19 @@ bool value_get_property(ObjString* name) {
         }
         break;
       }
+      case OBJ_TUPLE:
       case OBJ_SEQ: {
-        ObjSeq* seq = AS_SEQ(receiver);
         if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-          result = INT_VAL(seq->items.count);
+          ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver);
+          result           = INT_VAL(items.count);
           goto done_getting_property;
         }
         break;
       }
       case OBJ_STRING: {
-        ObjString* string = AS_STRING(receiver);
         if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-          result = INT_VAL(string->length);
+          ObjString* string = AS_STRING(receiver);
+          result            = INT_VAL(string->length);
           goto done_getting_property;
         }
         break;
@@ -777,29 +778,31 @@ bool value_get_index() {
         result = NIL_VAL;
         goto done_getting_index;
       }
+      case OBJ_TUPLE:
       case OBJ_SEQ: {
-        ObjSeq* seq = AS_SEQ(receiver);
+        // Hack: Just cast to a sequence, because ObjTuple has the same layout.
+        ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver);
 
         if (!IS_INT(index)) {
           break;  // Maybe it's a string index
         }
 
         long long i = AS_INT(index);
-        if (i >= seq->items.count) {
+        if (i >= items.count) {
           result = NIL_VAL;
           goto done_getting_index;
         }
 
         // Negative index
         if (i < 0) {
-          i += seq->items.count;
+          i += items.count;
         }
         if (i < 0) {
           result = NIL_VAL;
           goto done_getting_index;
         }
 
-        result = seq->items.values[i];
+        result = items.values[i];
         goto done_getting_index;
       }
       case OBJ_STRING: {
@@ -1253,7 +1256,7 @@ static Value run() {
           }
         }
 
-        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "\%", typeof(a)->name->chars,
+        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", typeof(a)->name->chars,
                       typeof(b)->name->chars);
         goto finish_error;
       }

@@ -9,8 +9,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 ### Syntax & Language Features
 
 - [ ] Add tuples. E.g. `(1, 2, 3)`. They should be immutable and hash to their values.
-  - Get-Indexing
-  - Get/Set Property
   - Tests compiling tuples
   - Tests for tuple destructure
   - Tests for tuple equality
