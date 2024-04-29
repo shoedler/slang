@@ -7,8 +7,8 @@
 #include "object.h"
 #include "value.h"
 
-#define FRAMES_MAX 64
-#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
+#define FRAMES_MAX 128
+#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)  // 128 * 256 = 32,768
 
 #define KEYWORD_THIS "this"
 #define KEYWORD_THIS_LEN (STR_LEN(KEYWORD_THIS))
