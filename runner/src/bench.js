@@ -111,15 +111,17 @@ const standardDeviation = values => {
  * @param {BenchmarkResult[]} results - Array of results
  * @param {string} name - Name of the benchmark
  * @param {string} lang - Language of the benchmark
+ * @param {string} cpu - CPU name running the benchmark
  * @param {boolean} [first=true] - Find the first result or the last result
  * @returns {BenchmarkResult | undefined} - Result or undefined if not found
  */
-const findResult = (results, name, lang, first = true) => {
+const findResult = (results, name, lang, cpu, first = true) => {
+  const isTheOne = r => r.name === name && r.lang === lang && r.cpu === cpu;
   if (first) {
-    return results.find(r => r.name === name && r.lang === lang);
+    return results.find(isTheOne);
   }
   for (let i = results.length - 1; i >= 0; i--) {
-    if (results[i].name === name && results[i].lang === lang) {
+    if (isTheOne(results[i])) {
       return results[i];
     }
   }
@@ -209,22 +211,22 @@ export const runBenchmarks = async langPattern => {
 
       if (isSlang) {
         // If we're running a slang benchmark, compare to a previous slang result
-        const prevResult = findResult(prevResults, benchmark.name, 'slang', false);
+        const prevResult = findResult(prevResults, benchmark.name, 'slang', processorName, false);
         if (prevResult) {
           comparisonSuffix = '% relative to baseline';
           divisor = prevResult.score;
         } else {
-          comparison = 'no baseline';
+          comparison = 'no baseline for this benchmark on this cpu found';
           comparisonSuffix = '';
         }
       } else {
         // If we're running a non-slang benchmark, compare to the slang result. Slang always runs first.
-        const slangResult = findResult(results, benchmark.name, 'slang');
+        const slangResult = findResult(results, benchmark.name, 'slang', processorName);
         if (slangResult) {
           comparisonSuffix = '%';
           dividend = slangResult.score;
         } else {
-          comparison = 'no slang result';
+          comparison = 'no slang result for this benchmark on this cpu found';
           comparisonSuffix = '';
         }
       }

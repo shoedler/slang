@@ -9,6 +9,7 @@ import { runTests } from './test.js';
 import {
   abort,
   buildSlangConfig,
+  testGcStressFlag,
   error,
   info,
   ok,
@@ -45,6 +46,16 @@ const validateOptions = () => {
   }
 };
 
+// Check if the GC stress flag is set to the expected value. If not, print a warning
+const checkGcStressFlagForTests = async () => {
+  const gcStressEnabled = await testGcStressFlag(true); // Enable stress GC for tests
+  if (!gcStressEnabled) {
+    warn(
+      "GC stress mode is disabled. Should be enabled to ensure that the GC only collects what it's supposed to collect.",
+    );
+  }
+};
+
 const hint = [
   'Available commands & options:',
   '  - bench           Run benchmarks (Debug & Release) and serve results',
@@ -68,6 +79,13 @@ switch (cmd) {
     const doNoServe = Boolean(consumeOption('no-server', false));
     const langPattern = options.pop();
     validateOptions();
+
+    const gcStressDisabled = await testGcStressFlag(false); // Disable stress GC for benchmarks
+    if (!gcStressDisabled) {
+      abort(
+        'GC stress mode is enabled. Must be disabled for benchmarks to ensure consistent results.',
+      );
+    }
 
     if (doOnlyServe && doNoServe) {
       abort('Cannot specify both serve and no-serve options');
@@ -94,6 +112,7 @@ switch (cmd) {
     const testNamePattern = options.pop() || '.*';
     validateOptions();
 
+    await checkGcStressFlagForTests();
     await buildSlangConfig(config);
     await runTests(config, undefined, doUpdateFiles, testNamePattern);
     break;
@@ -165,6 +184,7 @@ switch (cmd) {
       async (signal, triggerFile, isFirstRun) => {
         // Only build if the trigger file is not a test file, or if it is the first run
         if (isFirstRun || !triggerFile.endsWith(SLANG_TEST_SUFFIX)) {
+          await checkGcStressFlagForTests();
           const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
           if (!didBuild) {
             return;
