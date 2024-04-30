@@ -185,7 +185,7 @@ void free_value_array(ValueArray* array);
 bool is_int(double number, long long* integer);
 
 // Get the hashcode of a value, based on its type.
-uint32_t hash_value(Value value);
+uint64_t hash_value(Value value);
 
 // Converts a string to a double.
 // Result for "[ 1, 2, 3, 4]": 1234.000000

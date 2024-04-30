@@ -22,8 +22,8 @@ static Obj* allocate_object(size_t size, ObjType type) {
                                          // isn't referenced by anything yet -> not reachable by GC
   object->type      = type;
   object->is_marked = false;
-  object->hash      = (uint32_t)((intptr_t)(object) >> 4 | (intptr_t)(object) << 28);  // Get a better distribution of hash
-                                                                                       // values, by shifting the address
+  object->hash      = (uint64_t)((uintptr_t)(object) >> 4 | (uintptr_t)(object) << 60);  // Get a better distribution of hash
+                                                                                         // values, by shifting the address
   object->next = vm.objects;
   vm.objects   = object;
 
@@ -37,7 +37,7 @@ static Obj* allocate_object(size_t size, ObjType type) {
 // Allocates a heap-allocated string in a string object.
 // The string object sort of acts like a wrapper for the c string.
 // Both the string object and the c string are heap-allocated.
-static ObjString* allocate_string(char* chars, int length, uint32_t hash) {
+static ObjString* allocate_string(char* chars, int length, uint64_t hash) {
   ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
   string->length    = length;
   string->chars     = chars;
@@ -165,25 +165,24 @@ ObjNative* new_native(NativeFn function, ObjString* name, ObjString* doc, int ar
 }
 
 // Hashes a string using the FNV-1a algorithm.
-static uint32_t hash_string(const char* key, int length) {
-  uint32_t hash = 2166136261u;
+static uint64_t hash_string(const char* key, int length) {
+  uint64_t hash = 14695981039346656037ULL;  // FNV-1a 64-bit hash offset basis
   for (int i = 0; i < length; i++) {
     hash ^= (uint8_t)key[i];
-    hash *= 16777619;
+    hash *= 1099511628211ULL;  // FNV-1a 64-bit prime
   }
   return hash;
 }
 
-// Hashes a tuple.
-static uint32_t hash_tuple(ValueArray* items) {
-  uint32_t t = items->count;
-  uint32_t m = 0x3456;
-  for (int i = 0; i < items->count; ++i) {
-    uint32_t step = hash_value(items->values[i]);
-    t             = (t ^ step) * m;
-    m += 2 * (items->count - i) + 82520;
+// // Hashes a tuple. Borrowed from Python.
+static uint64_t hash_tuple(ValueArray* items) {
+  uint64_t t      = items->count;
+  uint64_t result = 0x345678;
+  for (int i = 0; i < t; i++) {
+    result = (result * 1000003) ^ hash_value(items->values[i]);
   }
-  return t;
+  result += 97531;
+  return result;
 }
 
 ValueArray prealloc_value_array(int count) {
@@ -231,7 +230,7 @@ ObjObject* take_object(HashTable* fields) {
 }
 
 ObjString* take_string(char* chars, int length) {
-  uint32_t hash       = hash_string(chars, length);
+  uint64_t hash       = hash_string(chars, length);
   ObjString* interned = hashtable_find_string(&vm.strings, chars, length, hash);
   if (interned != NULL) {
     FREE_ARRAY(char, chars, length + 1);
@@ -242,7 +241,7 @@ ObjString* take_string(char* chars, int length) {
 }
 
 ObjString* copy_string(const char* chars, int length) {
-  uint32_t hash       = hash_string(chars, length);
+  uint64_t hash       = hash_string(chars, length);
   ObjString* interned = hashtable_find_string(&vm.strings, chars, length, hash);
   if (interned != NULL) {
     return interned;

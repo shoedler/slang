@@ -1,6 +1,4 @@
-throw "Currently does not return the right results. Parsing is correct, but something is wrong with the logic."
-// [ExpectRuntimeError] Uncaught error: Currently does not return the right results. Parsing is correct, but something is wrong with the logic.
-// [ExpectRuntimeError] at line 1 at the toplevel of module "main"
+// [Skip] Too slow
 
 import File
 import Perf
@@ -38,11 +36,7 @@ let cache = {
 }
 
 fn max_relief(vid, opened, min_left, type) {
-  if !(vid is Int) throw "vid must be an integer, not " + typeof(vid).__name
-  if !(opened is Tuple) throw "opened must be tuple, not " + typeof(opened).__name
-  if !(min_left is Int) throw "min_left must be an integer, not " + typeof(min_left).__name
-  if !(type is Int) throw "type must be an integer, not " + typeof(type).__name
-
+  // Base case
   if min_left <= 0 {
     ret type == 1 ? 0 : max_relief(valve_labels["AA"], opened, 26, 1); // It's the elephants turn now!
   }
@@ -55,28 +49,33 @@ fn max_relief(vid, opened, min_left, type) {
 
   let max_reliefed = 0
 
-  // Unopened
+  let tunnel = tunnels[vid]
+
+  // If the valve is closed, we can only open it. With a simple heuristic: Does it have a flow rate?
+  // Bc if it doesn't, it cannot add any relief. It's more of a plug than a valve - lol.
   if opened[vid] == false and flow_rates[vid] > 0 {
     let valve_relief = (min_left - 1) * flow_rates[vid]
 
+    // Open the valve by converting the Tuple to a Seq, and then back to a Tuple
     let prev_opened = Seq(opened)
     prev_opened[vid] = true
     let new_opened = Tuple(prev_opened)
 
-    tunnels[vid].each(fn (next_valve) {
-      let next_vid = valve_labels[next_valve]
-      let reliefed = valve_relief + max_relief(next_vid, new_opened, min_left - 2, type)
+    for let i = 0; i < tunnel.len; i++ ; {
+      // We subtract 2 from min_left because it takes 1 minute to open the valve and 1 minute to walk trough the tunnel.
+      let reliefed = valve_relief + max_relief(valve_labels[tunnel[i]], new_opened, min_left - 2, type)
       max_reliefed = reliefed > max_reliefed ? reliefed : max_reliefed
-    })
+    }
   }
  
-  // Opened
-  tunnels[vid].each(fn (next_valve) {
-    let next_vid = valve_labels[next_valve]
-    let reliefed = max_relief(next_vid, opened, min_left - 1, type)
+  // Also run the case where we don't open the valve
+  for let i = 0; i < tunnel.len; i++ ; {
+    // In this case, we only subtract 1 from min_left, because we only need to walk trough the tunnel to the next valve.
+    let reliefed = max_relief(valve_labels[tunnel[i]], opened, min_left - 1, type)
     max_reliefed = reliefed > max_reliefed ? reliefed : max_reliefed
-  })
+  }
 
+  // Now store that baby in the cache using tuple hashing
   cache[type][cache_key] = max_reliefed
   ret max_reliefed;
 }
@@ -87,13 +86,24 @@ let start = Perf.now()
 let result = max_relief(valve_labels["AA"], opened, 30, 1)
 let time = Perf.now() - start
 
-// print "Part 1: " + result.to_str() + " took " + time.to_str() + "s"
-print result // /Expect/ 1460
+print "Part 1: " + result.to_str() + " took " + time.to_str() + "s"
+print "Cache size " + cache[1].len.to_str()
 
 start = Perf.now()
 result = max_relief(valve_labels["AA"], opened, 26, 2)
 time = Perf.now() - start
 
-// print "Part 2: " + result.to_str() + " took " + time.to_str() + "s"
-print result // /Expect/ 2117
+print "Part 2: " + result.to_str() + " took " + time.to_str() + "s"
+print "Cache size " + cache[2].len.to_str()
 
+// Slang output:
+// Part 1: 1460 took 1.05499110004166s
+// Cache size 573172
+// Part 2: 2117 took 310.2654574000s (5 minutes 10 seconds)
+// Cache size 244166
+
+// Js output (Ran on a tiny bit slower machine):
+// Part One: 1460 took 1.139946400s
+// Cache size 573172
+// Part Two: 2117 took 49.342724400s
+// Cache size 244166

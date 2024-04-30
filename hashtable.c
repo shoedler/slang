@@ -16,7 +16,9 @@ void free_hashtable(HashTable* table) {
 
 // Find the entry for key. Returns NULL if no entry is found.
 static Entry* find_entry(Entry* entries, int capacity, Value key) {
-  uint32_t index   = hash_value(key) & (capacity - 1);
+  uint64_t index = hash_value(key) & (capacity - 1);
+
+  // If we pass a tombstone and don't end up finding the key, its entry will be re-used for the insert.
   Entry* tombstone = NULL;
 
   for (;;) {
@@ -26,7 +28,8 @@ static Entry* find_entry(Entry* entries, int capacity, Value key) {
         // Empty entry.
         return tombstone != NULL ? tombstone : entry;
       } else {
-        // We found a tombstone.
+        // We found a tombstone. We need to keep looking in case the key is after it, but we'll use this entry as the insertion
+        // point if the key ends up not being found.
         if (tombstone == NULL) {
           tombstone = entry;
         }
@@ -87,7 +90,7 @@ bool hashtable_get_by_string(HashTable* table, ObjString* key, Value* value) {
   }
 
   int capacity   = table->capacity;
-  uint32_t index = key->obj.hash & (capacity - 1);
+  uint64_t index = key->obj.hash & (capacity - 1);
   for (;;) {
     Entry* entry = &table->entries[index];
 
@@ -160,12 +163,12 @@ void hashtable_add_all(HashTable* from, HashTable* to) {
   }
 }
 
-ObjString* hashtable_find_string(HashTable* table, const char* chars, int length, uint32_t hash) {
+ObjString* hashtable_find_string(HashTable* table, const char* chars, int length, uint64_t hash) {
   if (table->count == 0) {
     return NULL;
   }
 
-  uint32_t index = hash & (table->capacity - 1);
+  uint64_t index = hash & (table->capacity - 1);
   for (;;) {
     Entry* entry = &table->entries[index];
     if (IS_EMPTY_INTERNAL(entry->key)) {

@@ -127,26 +127,27 @@ bool values_equal(Value a, Value b) {
 }
 
 // Hashes a double. Borrowed from Lua.
-static uint32_t hash_double(double value) {
+static uint64_t hash_double(double value) {
   union BitCast {
     double source;
-    uint32_t target[2];
+    uint64_t target;
   };
 
   union BitCast cast;
   cast.source = (value) + 1.0;
-  return cast.target[0] + cast.target[1];
+  return cast.target;
 }
 
 // Hashes a long long.
-static uint32_t hash_int(long long value) {
-  return (uint32_t)value;
+static uint64_t hash_int(long long value) {
+  // Bc of 2's complement, directly casting to uint64_t should ensure unique hash values.
+  return (uint64_t)value;
 }
 
-uint32_t hash_value(Value value) {
+uint64_t hash_value(Value value) {
   // TODO (optimize): This is hot, maybe we can do better?
   switch (value.type) {
-    case VAL_BOOL: return AS_BOOL(value) ? 4 : 3;
+    case VAL_BOOL: return AS_BOOL(value) ? 977 : 479;  // Prime numbers. Selected based on trial and error.
     case VAL_NIL: return 2;
     case VAL_INT: return hash_int(AS_INT(value));
     case VAL_FLOAT: return hash_double(AS_FLOAT(value));

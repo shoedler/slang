@@ -103,7 +103,7 @@ typedef enum {
 struct Obj {
   ObjType type;
   bool is_marked;
-  uint32_t hash;
+  uint64_t hash;
   struct Obj* next;
 };
 
