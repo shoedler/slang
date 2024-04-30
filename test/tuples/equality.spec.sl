@@ -20,3 +20,12 @@ c = (1, (3, 2))
 
 print a == b // [Expect] true
 print a == c // [Expect] false
+
+let all_false = Seq(55).map(fn (x) -> false)
+let all_false_except_33 = Seq(55).map(fn (x) -> false)
+all_false_except_33[33] = true
+
+a = Tuple(all_false)
+b = Tuple(all_false_except_33)
+
+print a == b // [Expect] false

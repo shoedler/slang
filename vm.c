@@ -1393,12 +1393,13 @@ static Value run() {
         frame = &vm.frames[vm.frame_count - 1];
         break;
       }
-      case OP_CLASS:
+      case OP_CLASS: {
         // Initially, a class always inherits from Obj
         ObjClass* klass = new_class(READ_STRING(), vm.__builtin_Obj_class);
         push(OBJ_VAL(klass));
         hashtable_add_all(&klass->base->methods, &klass->methods);
         break;
+      }
       case OP_INHERIT: {
         Value baseclass    = peek(1);
         ObjClass* subclass = AS_CLASS(peek(0));
