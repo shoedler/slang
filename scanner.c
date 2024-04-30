@@ -62,7 +62,7 @@ static bool match(char expected) {
   return true;
 }
 
-static Token make_token(TokenType type) {
+static Token make_token(TokenKind type) {
   Token token;
   token.type             = type;
   token.start            = scanner.start;
@@ -114,7 +114,7 @@ static void skip_whitespace() {
   }
 }
 
-static TokenType check_keyword(int start, int length, const char* rest, TokenType type) {
+static TokenKind check_keyword(int start, int length, const char* rest, TokenKind type) {
   if (scanner.current - scanner.start == start + length && memcmp(scanner.start + start, rest, length) == 0) {
     return type;
   }
@@ -122,7 +122,7 @@ static TokenType check_keyword(int start, int length, const char* rest, TokenTyp
   return TOKEN_ID;
 }
 
-static TokenType identifier_type() {
+static TokenKind identifier_type() {
   switch (scanner.start[0]) {
     case 'a': return check_keyword(1, 2, "nd", TOKEN_AND);
     case 'b': {

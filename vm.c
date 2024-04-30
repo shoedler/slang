@@ -41,7 +41,63 @@ static void reset_stack() {
   vm.flags &= ~VM_FLAG_PAUSE_GC;   // Clear the pause flag
 }
 
-void dump_stacktrace() {
+static void dump_location() {
+  CallFrame* frame      = &vm.frames[vm.frame_count - 1];
+  ObjFunction* function = frame->closure->function;
+  size_t instruction    = frame->ip - function->chunk.code - 1;
+
+  Token start = function->chunk.start[instruction];
+  Token end   = function->chunk.end[instruction];
+
+  // Reverse until the start of the line
+  int offset_to_line_start = 0;
+  while (start.start[-1] != '\n') {
+    start.start--;  // TODO (robust): I know it's nice. But we need to check how far we are allowed to go back.
+    offset_to_line_start++;
+  }
+  // Now we're at the start of the line, we move ahaead in case of whitespace
+  while (*start.start == ' ' || *start.start == '\t') {
+    start.start++;
+    offset_to_line_start--;
+  }
+
+  fputs("\n  ", stderr);
+
+  // Now we can print the line content
+  for (const char* c = start.start; c < end.start; c++) {
+    if (*c == '\n') {
+      break;
+    }
+    if (*c == '\r') {
+      continue;
+    }
+    fputc(*c, stderr);
+  }
+  // ... and go beyond 'end' until the end of the line (or the end of the file, you never know)
+  // Only if 'end' is not the first on the line, because then we're already done.
+  while (!end.is_first_on_line && *end.start != '\n' && *end.start != '\0') {
+    if (*end.start == '\r') {
+      end.start++;
+      continue;
+    }
+    fputc(*end.start, stderr);
+    end.start++;
+  }
+
+  fputs("\n  ", stderr);
+
+  // Print the caret, but first we add spaces to align it with the start of offending token
+  for (int i = 0; i < offset_to_line_start; i++) {
+    fputc(' ', stderr);
+  }
+  for (int i = 0; i < start.length; i++) {
+    fputs(ANSI_RED_STR("~"), stderr);
+  }
+
+  fputs("\n\n", stderr);
+}
+
+static void dump_stacktrace() {
   for (int i = vm.frame_count - 1; i >= 0; i--) {
     CallFrame* frame      = &vm.frames[i];
     ObjFunction* function = frame->closure->function;
@@ -917,6 +973,8 @@ static bool handle_error() {
       fprintf(stderr, "Uncaught error: ");
       print_value_safe(stderr, vm.current_error);
       fprintf(stderr, "\n");
+
+      dump_location();
       dump_stacktrace();
       reset_stack();
       vm.frame_count = 0;

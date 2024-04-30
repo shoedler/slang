@@ -144,7 +144,7 @@ static void advance() {
 
 // Assert and cosume the current token according to the provided token type.
 // If it doesn't match, print an error message.
-static void consume(TokenType type, const char* message) {
+static void consume(TokenKind type, const char* message) {
   if (parser.current.type == type) {
     advance();
     return;
@@ -154,13 +154,13 @@ static void consume(TokenType type, const char* message) {
 }
 
 // Compares the current token with the provided token type.
-static bool check(TokenType type) {
+static bool check(TokenKind type) {
   return parser.current.type == type;
 }
 
 // Accept the current token if it matches the provided token type, otherwise do
 // nothing.
-static bool match(TokenType type) {
+static bool match(TokenKind type) {
   if (!check(type)) {
     return false;
   }
@@ -179,7 +179,7 @@ static bool check_statement_return_end() {
 
 // Writes an opcode or operand to the current chunk.
 static void emit_one(uint16_t data) {
-  write_chunk(current_chunk(), data, parser.previous.line);
+  write_chunk(current_chunk(), data, parser.previous, parser.current, parser.previous.line);
 }
 
 // Writes two opcodes or operands to the current chunk.
@@ -367,7 +367,7 @@ static void declaration();
 static void block();
 
 static uint16_t argument_list();
-static ParseRule* get_rule(TokenType type);
+static ParseRule* get_rule(TokenKind type);
 static void parse_precedence(Precedence precedence);
 static uint16_t string_constant(Token* name);
 static int resolve_local(Compiler* compiler, Token* name);
@@ -393,7 +393,7 @@ static bool match_inc_dec() {
 // emitted. The rhs starts at the current token. The compound assignment
 // operator is in the previous token.
 static void compound_assignment() {
-  TokenType op_type = parser.previous.type;
+  TokenKind op_type = parser.previous.type;
   expression();
 
   switch (op_type) {
@@ -409,7 +409,7 @@ static void compound_assignment() {
 // Compiles an inc/dec expression. The lhs bytecode has already been emitted.
 // The inc/dec operator is in the previous token.
 static void inc_dec() {
-  TokenType op_type = parser.previous.type;
+  TokenKind op_type = parser.previous.type;
   emit_constant(INT_VAL(1));
 
   switch (op_type) {
@@ -529,7 +529,7 @@ static void indexing(bool can_assign) {
 // token.
 static void literal(bool can_assign) {
   UNUSED(can_assign);
-  TokenType op_type = parser.previous.type;
+  TokenKind op_type = parser.previous.type;
 
   switch (op_type) {
     case TOKEN_FALSE: emit_one(OP_FALSE); break;
@@ -740,7 +740,7 @@ static void string(bool can_assign) {
 // token.
 static void unary(bool can_assign) {
   UNUSED(can_assign);
-  TokenType operator_type = parser.previous.type;
+  TokenKind operator_type = parser.previous.type;
 
   parse_precedence(PREC_UNARY);
 
@@ -757,7 +757,7 @@ static void unary(bool can_assign) {
 // token. The operator is in the previous token.
 static void binary(bool can_assign) {
   UNUSED(can_assign);
-  TokenType op_type = parser.previous.type;
+  TokenKind op_type = parser.previous.type;
   ParseRule* rule   = get_rule(op_type);
   parse_precedence((Precedence)(rule->precedence + 1));
 
@@ -1087,7 +1087,7 @@ ParseRule rules[] = {
 };
 
 // Returns the rule for the given token type.
-static ParseRule* get_rule(TokenType type) {
+static ParseRule* get_rule(TokenKind type) {
   return &rules[type];
 }
 
@@ -1666,7 +1666,7 @@ static void destructuring_assignment(DestructureType type) {
     int index;        // The index of the variable in the destructuring pattern.
   } DestructuringVariable;
 
-  TokenType closing;
+  TokenKind closing;
   switch (type) {
     case DESTRUCTURE_SEQ: closing = TOKEN_CBRACK; break;
     case DESTRUCTURE_OBJ: closing = TOKEN_CBRACE; break;
