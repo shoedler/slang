@@ -295,7 +295,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
       }
       INTERNAL_ERROR("Module name not found in module's fields (" STR(SP_PROP_MODULE_NAME) ").");
     }
-    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("__anon", 6); break;
+    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("(anon)", 6); break;
     case TYPE_CONSTRUCTOR: current->function->name = vm.special_method_names[SPECIAL_METHOD_CTOR]; break;
     default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }

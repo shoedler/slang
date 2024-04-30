@@ -49,6 +49,8 @@ typedef enum {
 
 #define VALUE_STRFMT_FUNCTION "<Fn %s>"
 #define VALUE_STRFMT_FUNCTION_LEN (sizeof(VALUE_STRFMT_FUNCTION) - 2)
+#define VALUE_STRFMT_NATIVE "<NativeFn %s>"
+#define VALUE_STRFMT_NATIVE_LEN (sizeof(VALUE_STRFMT_NATIVE) - 2)
 #define VALUE_STRFMT_CLASS "<Class %s>"
 #define VALUE_STRFMT_CLASS_LEN (sizeof(VALUE_STRFMT_CLASS) - 2)
 #define VALUE_STRFTM_INSTANCE "<Instance of %s>"
@@ -58,7 +60,6 @@ typedef enum {
 #define VALUE_STRFMT_HANDLER "<Try -> %hu>"  // The handler is a 16-bit unsigned integer
 #define VALUE_STRFMT_OBJ "<%s at %p>"
 #define VALUE_STRFMT_OBJ_LEN (sizeof(VALUE_STRFMT_OBJ) - 4)
-#define VALUE_STR_NATIVE "<Native Fn>"
 #define VALUE_STR_SEQ_START "["
 #define VALUE_STR_SEQ_DELIM ", "
 #define VALUE_STR_SEQ_END "]"

@@ -10,8 +10,8 @@ cls A {
 print ({"a": A(), "b": A() }).to_str()
 
 // [ExpectRuntimeError] Uncaught error: true
-// [ExpectRuntimeError]   at line 4 in "__anon" in module "main"
-// [ExpectRuntimeError]   at line 6 in "__anon" in module "main"
+// [ExpectRuntimeError]   at line 4 in "(anon)" in module "main"
+// [ExpectRuntimeError]   at line 6 in "(anon)" in module "main"
 // [ExpectRuntimeError]   at line 6 in "check" in module "main"
 // [ExpectRuntimeError]   at line 4 in "to_str" in module "main"
 // [ExpectRuntimeError]   at line 10 at the toplevel of module "main"

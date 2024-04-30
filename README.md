@@ -41,7 +41,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
 - [ ] Call `to_str` implicitly when adding a string to a non-string. Only if the left side is a string.
 - [ ] Remove in `VALUE_STR_CLASS` (`<Class X>`) the "Class" prefix from class type names.
-- [ ] Refactor `VALUE_STR_NATIVE` to look more like the normal `<Fn "name">` strings.
 - [ ] Use something else instead of `rint`, because it's not very precise. See _num-to-str.spec.sl_ for an example.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.

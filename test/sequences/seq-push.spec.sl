@@ -4,4 +4,4 @@ print s // [Expect] [1]
 
 s.push("hello", nil, fn -> 1, true)
 
-print s // [Expect] [1, hello, nil, <Fn __anon>, true]
+print s // [Expect] [1, hello, nil, <Fn (anon)>, true]

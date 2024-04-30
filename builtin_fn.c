@@ -49,6 +49,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_TO_STR) {
 
   Value fn = argv[0];
 
+  ObjString* name = NULL;
+  const char* fmt = VALUE_STRFMT_FUNCTION;
+  size_t fmt_len  = VALUE_STRFMT_FUNCTION_LEN;
+
   // Bound methods can be closures or native functions
   if (IS_BOUND_METHOD(fn)) {
     fn = OBJ_VAL(AS_BOUND_METHOD(fn)->method);
@@ -61,20 +65,21 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_TO_STR) {
 
   // Native functions
   if (IS_NATIVE(fn)) {
-    return OBJ_VAL(copy_string(VALUE_STR_NATIVE, STR_LEN(VALUE_STR_NATIVE)));
+    name    = AS_NATIVE(fn)->name;
+    fmt     = VALUE_STRFMT_NATIVE;
+    fmt_len = VALUE_STRFMT_NATIVE_LEN;
+  } else {
+    name = AS_FUNCTION(fn)->name;
   }
 
-  // It's a function
-  ObjFunction* function = AS_FUNCTION(fn);
-  ObjString* name       = function->name;
   if (name == NULL || name->chars == NULL) {
     name = copy_string("???", 3);
   }
   push(OBJ_VAL(name));  // GC Protection
 
-  size_t buf_size = VALUE_STRFMT_FUNCTION_LEN + name->length;
+  size_t buf_size = fmt_len + name->length;
   char* chars     = malloc(buf_size);
-  snprintf(chars, buf_size, VALUE_STRFMT_FUNCTION, name->chars);
+  snprintf(chars, buf_size, fmt, name->chars);
 
   // Intuitively, you'd expect to use take_string here, but we don't know where malloc
   // allocates the memory - we don't want this block in our own memory pool.

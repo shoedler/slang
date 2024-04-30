@@ -177,7 +177,7 @@ int print_value_safe(FILE* f, Value value) {
     case OBJ_FUNCTION: return fprintf(f, VALUE_STRFMT_FUNCTION, AS_FUNCTION(value)->name->chars);
     case OBJ_CLOSURE: return fprintf(f, VALUE_STRFMT_FUNCTION, AS_CLOSURE(value)->function->name->chars);
     case OBJ_CLASS: return fprintf(f, VALUE_STRFMT_CLASS, AS_CLASS(value)->name->chars);
-    case OBJ_NATIVE: return fprintf(f, VALUE_STR_NATIVE);
+    case OBJ_NATIVE: return fprintf(f, VALUE_STRFMT_NATIVE, AS_NATIVE(value)->name->chars);
     case OBJ_BOUND_METHOD: {
       ObjBoundMethod* bound = AS_BOUND_METHOD(value);
       if (bound->method == NULL) {
