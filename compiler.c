@@ -1096,6 +1096,18 @@ static void parse_precedence(Precedence precedence) {
   bool can_assign = precedence <= PREC_ASSIGN;
   prefix_rule(can_assign);
 
+  // Exit early if we're now at a new line. That's it. Nothing more is needed to make newlines meaningful.
+  // This allows us to write code like this:
+  //   let a = [1,2,3]
+  //   [4].map(fn (x) -> log(x))
+  //  Which would've been impossible before. That would've been interpreted as let a = [1,2,3][4].map...
+  if (parser.current.is_first_on_line) {
+    // Except if it's a dot, because chaining method calls is a common pattern and still allowed.
+    if (parser.current.type != TOKEN_DOT) {
+      return;
+    }
+  }
+
   while (precedence <= get_rule(parser.current.type)->precedence) {
     advance();
     ParseFn infix_rule = get_rule(parser.previous.type)->infix;

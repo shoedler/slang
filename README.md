@@ -32,7 +32,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
-- [ ] Make newlines meaningful. (To separate statements)
 - [ ] Restructure test: compiler, vm (types, modules)
 - [ ] Add tests for `OP_MODULO`
 - [ ] Add tests for `Fn.bind(Obj)`

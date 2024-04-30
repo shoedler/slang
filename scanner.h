@@ -99,6 +99,7 @@ typedef struct {
   const char* start;
   int length;
   int line;
+  bool is_first_on_line;
 } Token;
 
 // Initialize the scanner with the source code

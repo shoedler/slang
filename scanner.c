@@ -11,6 +11,7 @@ typedef struct {
   const char* start;
   const char* current;
   int line;
+  bool is_first_on_line;
 } Scanner;
 
 Scanner scanner;
@@ -63,10 +64,11 @@ static bool match(char expected) {
 
 static Token make_token(TokenType type) {
   Token token;
-  token.type   = type;
-  token.start  = scanner.start;
-  token.length = (int)(scanner.current - scanner.start);
-  token.line   = scanner.line;
+  token.type             = type;
+  token.start            = scanner.start;
+  token.length           = (int)(scanner.current - scanner.start);
+  token.line             = scanner.line;
+  token.is_first_on_line = scanner.is_first_on_line;
 
 #ifdef DEBUG_PRINT_TOKENS
   printf("TOKEN: %d %.*s\n", token.type, token.length, token.start);
@@ -77,10 +79,11 @@ static Token make_token(TokenType type) {
 
 static Token error_token(const char* message) {
   Token token;
-  token.type   = TOKEN_ERROR;
-  token.start  = message;
-  token.length = (int)strlen(message);
-  token.line   = scanner.line;
+  token.type             = TOKEN_ERROR;
+  token.start            = message;
+  token.length           = (int)strlen(message);
+  token.line             = scanner.line;
+  token.is_first_on_line = scanner.is_first_on_line;
   return token;
 }
 
@@ -92,6 +95,7 @@ static void skip_whitespace() {
       case '\r':
       case '\t': advance(); break;
       case '\n':
+        scanner.is_first_on_line = true;
         scanner.line++;
         advance();
         break;
@@ -309,6 +313,8 @@ static Token string() {
 }
 
 Token scan_token() {
+  scanner.is_first_on_line = false;
+
   skip_whitespace();
   scanner.start = scanner.current;
 
