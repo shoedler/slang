@@ -1,13 +1,13 @@
 cls Foo {
-  fn method0() { ret "no args"; }
-  fn method1(a) { ret a; }
-  fn method2(a, b) { ret a + b; }
-  fn method3(a, b, c) { ret a + b + c; }
-  fn method4(a, b, c, d) { ret a + b + c + d; }
-  fn method5(a, b, c, d, e) { ret a + b + c + d + e; }
-  fn method6(a, b, c, d, e, f) { ret a + b + c + d + e + f; }
-  fn method7(a, b, c, d, e, f, g) { ret a + b + c + d + e + f + g; }
-  fn method8(a, b, c, d, e, f, g, h) { ret a + b + c + d + e + f + g + h; }
+  fn method0() { ret "no args" }
+  fn method1(a) { ret a }
+  fn method2(a, b) { ret a + b }
+  fn method3(a, b, c) { ret a + b + c }
+  fn method4(a, b, c, d) { ret a + b + c + d }
+  fn method5(a, b, c, d, e) { ret a + b + c + d + e }
+  fn method6(a, b, c, d, e, f) { ret a + b + c + d + e + f }
+  fn method7(a, b, c, d, e, f, g) { ret a + b + c + d + e + f + g }
+  fn method8(a, b, c, d, e, f, g, h) { ret a + b + c + d + e + f + g + h }
 }
 
 let foo = Foo()

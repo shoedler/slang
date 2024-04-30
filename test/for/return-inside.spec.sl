@@ -1,7 +1,7 @@
 fn f() {
   for ;;; {
     let i = "i"
-    ret i;
+    ret i
   }
 }
 

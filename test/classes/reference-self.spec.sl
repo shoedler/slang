@@ -1,6 +1,6 @@
 cls Foo {
   fn returnSelf {
-    ret Foo;
+    ret Foo
   }
 }
 

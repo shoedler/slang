@@ -6,7 +6,7 @@ cls A {
 
 cls B : A {
   fn getClosure() {
-    ret base.method;
+    ret base.method
   }
 
   fn method(arg) {

@@ -9,7 +9,7 @@ cls B : A {
     fn closure() {
       base.say()
     }
-    ret closure;
+    ret closure
   }
 
   fn say() {

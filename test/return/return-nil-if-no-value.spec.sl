@@ -1,5 +1,5 @@
 fn f() {
-  ret;
+  ret
   print "bad"
 }
 

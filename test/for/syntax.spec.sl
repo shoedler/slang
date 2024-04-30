@@ -14,7 +14,7 @@ for let a = 0; a < 3; a = a + 1; {
 
 // No clauses.
 fn foo() {
-  for ;;; ret "done";
+  for ;;; ret "done"
 }
 print foo() // [Expect] done
 
@@ -28,7 +28,7 @@ for ; i < 2; i = i + 1; print i
 fn bar() {
   for let i = 0;; i = i + 1; {
     print i
-    if i >= 2 ret;
+    if i >= 2 ret
   }
 }
 bar()
@@ -46,13 +46,13 @@ for let i = 0; i < 2;; {
 
 // Statement bodies.
 fn stat_body_1() {
-  for ;;; if true ret 1; else ret 2;
+  for ;;; if true ret 1 else ret 2
 }
 fn stat_body_2() {
-  for ;;; while true ret 1;
+  for ;;; while true ret 1
 }
 fn stat_body_3() {
-  for ;;; for ;;; ret 1;
+  for ;;; for ;;; ret 1
 }
 print stat_body_1() // [Expect] 1
 print stat_body_2() // [Expect] 1

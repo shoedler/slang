@@ -2,7 +2,7 @@ cls A {}
 
 fn f {
   cls B : A {}
-  ret B;
+  ret B
 }
 
 print f() // [Expect] <Class B>

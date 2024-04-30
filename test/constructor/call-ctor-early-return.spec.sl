@@ -1,7 +1,7 @@
 cls Foo {
   ctor {
     print "ctor"
-    ret;
+    ret
     print "nope"
   }
 }

@@ -1,7 +1,7 @@
 fn f() {
   while (true) {
     let i = "i"
-    ret i;
+    ret i
   }
 }
 

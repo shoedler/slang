@@ -8,14 +8,14 @@ print (1,3,4).some(fn(x) -> typeof(x) == Int) // [Expect] true
 
 // Passing a named function
 fn is_num(x) {
-  ret x is Num;
+  ret x is Num
 }
 print (1,3,4).some(is_num) // [Expect] true
 
 // Passing a bound method
 cls Equals { 
   ctor { this.num = 3 }
-  fn num_3(x) { ret x == this.num; }
+  fn num_3(x) { ret x == this.num }
 }
 let equals = Equals()
 print (1,3,4).some(equals.num_3) // [Expect] true

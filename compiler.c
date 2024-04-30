@@ -168,6 +168,15 @@ static bool match(TokenType type) {
   return true;
 }
 
+// Checks if the current token is a statement terminator.
+// Mainly used for return statements, because they can be followed an expression
+static bool check_statement_return_end() {
+  return parser.current.is_first_on_line ||  // If the current token is the first on the line
+         check(TOKEN_CBRACE) ||  // If the current token is a closing brace, indicating the end of a block ({ ret x` })
+         check(TOKEN_ELSE) ||    // If the current token is an else keyword (if a ret b` else ret c)
+         check(TOKEN_EOF);       // If the current token is the end of the file
+}
+
 // Writes an opcode or operand to the current chunk.
 static void emit_one(uint16_t data) {
   write_chunk(current_chunk(), data, parser.previous.line);
@@ -1429,11 +1438,7 @@ static void try_(bool can_assign) {
 // Handles illegal return statements in a constructor.
 // The return value is an expression or nil.
 static void statement_return() {
-  // TODO (syntax): We don't want semicolons after return statements - but it's
-  // almost impossible to get rid of them here since there could literally come
-  // anything after a return statement.
-
-  if (match(TOKEN_SCOLON)) {
+  if (check_statement_return_end()) {
     emit_return();
   } else {
     if (current->type == TYPE_CONSTRUCTOR) {
@@ -1441,7 +1446,9 @@ static void statement_return() {
     }
 
     expression();
-    consume(TOKEN_SCOLON, "Expecting ';' after return value.");
+    if (!check_statement_return_end()) {
+      error_at_current("Expecting newline, '}' or some other statement after return value.");
+    }
     emit_one(OP_RETURN);
   }
 }

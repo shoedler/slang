@@ -1,6 +1,6 @@
 cls Test {
   static fn assert() {
-    ret Test();
+    ret Test()
   }
 }
 

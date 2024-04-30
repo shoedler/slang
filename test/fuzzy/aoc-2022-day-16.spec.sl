@@ -38,13 +38,13 @@ let cache = {
 fn max_relief(vid, opened, min_left, type) {
   // Base case
   if min_left <= 0 {
-    ret type == 1 ? 0 : max_relief(valve_labels["AA"], opened, 26, 1); // It's the elephants turn now!
+    ret type == 1 ? 0 : max_relief(valve_labels["AA"], opened, 26, 1) // It's the elephants turn now!
   }
 
   // Check if we already have a result for this signature
   let cache_key = (vid, min_left, opened)
   if cache[type][cache_key] is Int {
-    ret cache[type][cache_key];
+    ret cache[type][cache_key]
   }
 
   let max_reliefed = 0
@@ -77,7 +77,7 @@ fn max_relief(vid, opened, min_left, type) {
 
   // Now store that baby in the cache using tuple hashing
   cache[type][cache_key] = max_reliefed
-  ret max_reliefed;
+  ret max_reliefed
 }
 
 let opened = Tuple(Seq(num_valves + 1).map(fn (x) -> false))

@@ -1,9 +1,9 @@
 fn returnArg(arg) {
-  ret arg;
+  ret arg
 }
 
 fn returnFunCallWithArg(func, arg) {
-  ret returnArg(func)(arg);
+  ret returnArg(func)(arg)
 }
 
 fn printArg(arg) {

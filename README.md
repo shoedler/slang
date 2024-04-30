@@ -47,7 +47,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Make sure managed code classes do not override internal classes.
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
-- [ ] Allow return stats without suffixed `;`
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
 - [ ] Add `error` to the reserved words
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.

@@ -1,6 +1,6 @@
 cls Foo {
   fn method() {
-    ret "ok";
+    ret "ok"
     print "bad"
   }
 }

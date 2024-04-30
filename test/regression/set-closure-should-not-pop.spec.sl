@@ -13,7 +13,7 @@ fn call_caller() {
     captured_var = "after"
 
     // Returning anything also fixes it, even nil:
-    //ret nil;
+    //ret nil
   }
 
   caller(f)

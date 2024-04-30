@@ -1,13 +1,13 @@
 cls Base {
-  fn toString() { ret "Base"; }
+  fn toString() { ret "Base" }
 }
 
 cls Derived : Base {
   fn getClosure() {
     fn closure() {
-      ret base.toString();
+      ret base.toString()
     }
-    ret closure;
+    ret closure
   }
 
   fn toString -> "Derived"

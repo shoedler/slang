@@ -18,7 +18,7 @@ print (1,3,4).filter(is_even) // [Expect] (4)
 // Passing a bound method
 cls Storage { 
   ctor { this.cache = [] }
-  fn store(x) { this.cache.push(x) ret this.is_even(x); }
+  fn store(x) { this.cache.push(x) ret this.is_even(x) }
   fn is_even(x) -> x % 2 == 0
 }
 let storage = Storage()
@@ -37,7 +37,7 @@ let a = (1,2,3)
 print a.filter(fn (x) {
   let trigger_gc = {"a": 2} // by creating a new object
   let k = trigger_gc["a"]
-  ret x == k;
+  ret x == k
 }) // [Expect] (2)
 
 // Still makes a new tuple, even if the filter matches all elements. But since they are tuples, they are equal.

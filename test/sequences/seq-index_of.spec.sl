@@ -18,14 +18,14 @@ print [true, false].index_of(fn(x) -> x is Num) // [Expect] nil
 
 // Passing a named function
 fn is_num(x) {
-  ret x is Num;
+  ret x is Num
 }
 print [1,3,4].index_of(is_num) // [Expect] 0
 
 // Passing a bound method
 cls Equals { 
   ctor { this.num = 3 }
-  fn num_3(x) { ret x == this.num; }
+  fn num_3(x) { ret x == this.num }
 }
 let equals = Equals()
 print [1,3,4].index_of(equals.num_3) // [Expect] 1
@@ -39,6 +39,6 @@ print [1,2,3].index_of(fn(x) -> x) // [Expect] nil
 let a = [1,2,3]
 print a.index_of(fn (x) {
   a = [4,5,6]
-  ret x == 6;
+  ret x == 6
 }) // [Expect] nil
 print a // [Expect] [4, 5, 6]

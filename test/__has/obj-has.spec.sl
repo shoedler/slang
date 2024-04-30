@@ -14,14 +14,14 @@ print {"a": 1}.has(fn(x) -> x == "b") // [Expect] false
 
 // Passing a named function
 fn is_num(x) {
-  ret x is Num;
+  ret x is Num
 }
 print {3: 1}.has(is_num) // [Expect] true
 
 // Passing a bound method
 cls Equals { 
   ctor { this.num = 3 }
-  fn num_3(x) { ret x == this.num; }
+  fn num_3(x) { ret x == this.num }
 }
 let equals = Equals()
 print {3: 1}.has(equals.num_3) // [Expect] true
@@ -35,6 +35,6 @@ print {"a": 1}.has(fn(x) -> x) // [Expect] false
 let a = {1:1}
 print a.has(fn(x) {
   a = {2:2}
-  ret x == 2;
+  ret x == 2
 }) // [Expect] false
 print a // [Expect] {2: 2}

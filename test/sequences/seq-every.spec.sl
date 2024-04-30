@@ -8,14 +8,14 @@ print [1,3,4].every(fn(x) -> typeof(x) == Int) // [Expect] true
 
 // Passing a named function
 fn is_num(x) {
-  ret x is Num;
+  ret x is Num
 }
 print [1,3,4].every(is_num) // [Expect] true
 
 // Passing a bound method
 cls Equals { 
   ctor { this.num = 3 }
-  fn num_3(x) { ret x == this.num; }
+  fn num_3(x) { ret x == this.num }
 }
 let equals = Equals()
 print [1,3,4].every(equals.num_3) // [Expect] false
@@ -36,6 +36,6 @@ print [1,2,3].every(fn (x) -> x > 0 and x < 3) // [Expect] false
 let a = [1,2,3]
 print a.every(fn(x) {
   a.push(4)
-  ret x < 3;
+  ret x < 3
 }) // [Expect] false
 print a // [Expect] [1, 2, 3, 4, 4, 4]

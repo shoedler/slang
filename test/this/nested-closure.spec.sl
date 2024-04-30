@@ -3,14 +3,14 @@ cls Foo {
     fn f() {
       fn g() {
         fn h() -> this.toString()
-        ret h;
+        ret h
       }
-      ret g;
+      ret g
     }
-    ret f;
+    ret f
   }
 
-  fn toString() { ret "Foo"; }
+  fn toString() { ret "Foo" }
 }
 
 let closure = Foo().getClosure()

@@ -32,7 +32,7 @@ for let i = 0 ; i < 10 ; i = i + 1 ; {
   let outer = fn {
     let x = "outside"
     let inner = fn { print x }
-    ret inner;
+    ret inner
   }
 
   for let y = 0; y < 10; y = y + 1 ; {

@@ -10,14 +10,14 @@ print [1,3,4].first(fn(x) -> typeof(x) == Int) // [Expect] 1
 
 // Passing a named function
 fn is_num(x) {
-  ret x is Num;
+  ret x is Num
 }
 print [1,3,4].first(is_num) // [Expect] 1
 
 // Passing a bound method
 cls Equals { 
   ctor { this.num = 3 }
-  fn num_3(x) { ret x == this.num; }
+  fn num_3(x) { ret x == this.num }
 }
 let equals = Equals()
 print [1,3,4].first(equals.num_3) // [Expect] 3
@@ -31,6 +31,6 @@ print [1,2,3].first(fn(x) -> x) // [Expect] nil
 let a = [1,2,3]
 print a.first(fn(x) {
   a = [4,5,6]
-  ret x == 6;
+  ret x == 6
 }) // [Expect] nil
 print a // [Expect] [4, 5, 6]

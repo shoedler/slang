@@ -1,8 +1,8 @@
 import Perf
 
 fn fib(n) {
-    if n <= 1 ret n;
-    ret fib(n - 1) + fib(n - 2);
+    if n <= 1 ret n
+    ret fib(n - 1) + fib(n - 2)
 }
 
 let start = Perf.now()

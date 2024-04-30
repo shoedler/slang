@@ -18,7 +18,7 @@ print (1,3,4).map(square) // [Expect] (1, 9, 16)
 // Passing a bound method
 cls Storage { 
   ctor { this.cache = [] }
-  fn store(x) { this.cache.push(x) ret x + 1; }
+  fn store(x) { this.cache.push(x) ret x + 1 }
 }
 let storage = Storage()
 print (1,3,4).map(storage.store)  // [Expect] (2, 4, 5)
@@ -35,7 +35,7 @@ print ["a","b","c"].map(fn (x, i) -> ({i: x})) // [Expect] [{0: a}, {1: b}, {2: 
 let a = (1,2,3)
 print a.map(fn(x) {
   a = (4,5,6)
-  ret x == 6;
+  ret x == 6
 }) // [Expect] (false, false, false)
 print a // [Expect] (4, 5, 6)
 
@@ -43,7 +43,7 @@ print a // [Expect] (4, 5, 6)
 let a = (1,2,3)
 print a.map(fn (x) {
   let trigger_gc = {1: "a", 2: "b", 3: "c"} // by creating a new object
-  ret trigger_gc[x];
+  ret trigger_gc[x]
 }) // [Expect] (a, b, c)
 
 let a = (1,2,3)

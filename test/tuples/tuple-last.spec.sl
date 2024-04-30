@@ -10,14 +10,14 @@ print (1,3,4).last(fn(x) -> typeof(x) == Int) // [Expect] 4
 
 // Passing a named function
 fn is_num(x) {
-  ret x is Num;
+  ret x is Num
 }
 print (1,3,4).last(is_num) // [Expect] 4
 
 // Passing a bound method
 cls Equals { 
   ctor { this.num = 3 }
-  fn num_3(x) { ret x == this.num; }
+  fn num_3(x) { ret x == this.num }
 }
 let equals = Equals()
 print (1,3,4).last(equals.num_3) // [Expect] 3
@@ -31,6 +31,6 @@ print (1,2,3).last(fn(x) -> x) // [Expect] nil
 let a = (1,2,3)
 print a.last(fn(x) {
   a = (9,9,9)
-  ret x == 6;
+  ret x == 6
 }) // [Expect] nil
 print a // [Expect] (9, 9, 9)

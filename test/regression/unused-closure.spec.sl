@@ -5,7 +5,7 @@
 {
   let a = "a"
   if false {
-    fn foo { ret a; }
+    fn foo { ret a }
   }
 }
 
