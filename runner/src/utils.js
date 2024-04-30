@@ -317,12 +317,13 @@ export const LOG_CONFIG = {
   warn:  [ '█ Warn ', chalk.yellowBright.bold,  '│      ', chalk.yellowBright.bold  ],
   debug: [ '█ Debug', chalk.magentaBright.bold, '│      ', chalk.magentaBright.bold ],
   pass:  [ ' Pass ',  chalk.bgGreen.black,      '│     ',  chalk.green              ],
-  fail:  [ ' Fail ',  chalk.bgRed.black,        '│     ',  chalk.red                ],
+  skip:  [ ' Skip ',  chalk.bgBlue.white,       '│     ',  chalk.blue               ],
+  fail:  [ ' Fail ',  chalk.bgRed.white,        '│     ',  chalk.red                ],
 }
 
 /**
  * Log a styled message to the console.
- * @param {'err' | 'warn' | 'debug' | 'info' | 'ok'} type - Type of message
+ * @param {'err' | 'warn' | 'debug' | 'info' | 'ok' | 'abort' | 'pass' | 'fail'} type - Type of message
  * @param {string} message - Message
  */
 const prettyPrint = (type, message) => {
@@ -418,4 +419,12 @@ export const pass = message => {
  */
 export const fail = message => {
   prettyPrint('fail', message);
+};
+
+/**
+ * Print a test skip message
+ * @param {string} message - Message to append
+ */
+export const skip = message => {
+  prettyPrint('skip', message);
 };

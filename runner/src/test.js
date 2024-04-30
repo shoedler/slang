@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import path from 'node:path';
 import { SLANG_TEST_DIR, SLANG_TEST_SUFFIX } from './config.js';
 import {
+  LOG_CONFIG,
   abort,
   extractCommentMetadata,
   fail,
@@ -9,6 +10,7 @@ import {
   info,
   pass,
   runSlangFile,
+  skip,
   updateCommentMetadata,
 } from './utils.js';
 
@@ -48,7 +50,21 @@ export const runTests = async (config, signal, updateFiles = false, testNamePatt
 
   for (const test of tests) {
     const commentMetadata = await extractCommentMetadata(test);
+
+    const skipMetadata = commentMetadata.find(m => m.type === 'Skip');
+    if (skipMetadata) {
+      skip(getTestName(test) + chalk.gray(` Filepath: ${test}, Reason: ${skipMetadata.value}`));
+      continue;
+    }
+
+    const [header, headerStyle] = LOG_CONFIG['info'];
+    process.stdout.write(headerStyle(header));
+    process.stdout.write(`  Running ${chalk.bold(getTestName(test))}`);
+
     const { output, exitCode } = await runSlangFile(test, config, signal);
+
+    // Clear the line
+    process.stdout.write('\r' + ' '.repeat(header.length + 2) + '\r');
 
     if (signal?.aborted) {
       throw signal.reason;

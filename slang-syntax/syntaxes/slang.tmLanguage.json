@@ -40,7 +40,7 @@
                     "patterns": [
                         {
                             "name": "storage.type.SlangScript",
-                            "match": "\\[(Expect|ExpectCompileError|ExpectRuntimeError)\\]"
+                            "match": "\\[(Expect|Skip|ExpectCompileError|ExpectRuntimeError)\\]"
                         }
                     ]
                 }
