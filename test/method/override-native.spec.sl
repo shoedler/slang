@@ -15,4 +15,4 @@ cls List {
 }
 
 print ListWithoutStrOverride().to_str() // [Expect] <Instance of ListWithoutStrOverride>
-print List().to_str() // [Expect]  List with 3 elements: [1, 2, [true, nil, lol]]
+print List().to_str() // [Expect] List with 3 elements: [1, 2, [true, nil, lol]]

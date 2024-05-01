@@ -3,7 +3,7 @@ for let i = 0; i < 3; i++; {
     for let j = 0; j < 3; j++; {
       if i == j 
         break
-      print "  do_something: i = " + i.to_str() + ", j = " + j.to_str()
+      print " do_something: i = " + i.to_str() + ", j = " + j.to_str()
     }
   }
 
@@ -13,6 +13,6 @@ for let i = 0; i < 3; i++; {
   do_something()
 }
 
-// [Expect] do_something: i = 1, j = 0
-// [Expect] do_something: i = 2, j = 0
-// [Expect] do_something: i = 2, j = 1
+// [Expect]  do_something: i = 1, j = 0
+// [Expect]  do_something: i = 2, j = 0
+// [Expect]  do_something: i = 2, j = 1

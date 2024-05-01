@@ -1,1 +1,1 @@
-for ;;; cls Foo {} // [ExpectCompileError] Compile error at line 1 at 'cls': Expecting expression.
+for ;;; cls Foo {} // [ExpectError] Compile error at line 1 at 'cls': Expecting expression.

@@ -1,2 +1,2 @@
-let a = {cls X {}: cls Y {}} // [ExpectCompileError] Compile error at line 1 at 'cls': Expecting expression.
-                             // [ExpectCompileError] Compile error at line 1 at '}': Expecting expression.
+let a = {cls X {}: cls Y {}} // [ExpectError] Compile error at line 1 at 'cls': Expecting expression.
+                             // [ExpectError] Compile error at line 1 at '}': Expecting expression.

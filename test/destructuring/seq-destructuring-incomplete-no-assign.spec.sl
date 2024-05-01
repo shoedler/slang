@@ -1,1 +1,1 @@
-let [a, b] // [ExpectCompileError] Compile error at line 1 at end: Expecting '=' in destructuring assignment.
+let [a, b] // [ExpectError] Compile error at line 1 at end: Expecting '=' in destructuring assignment.

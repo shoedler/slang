@@ -5,7 +5,7 @@ while i++ < 4 {
     while j++ < 3 {
       if i == j 
         break
-      print "  do_something: i = " + i.to_str() + ", j = " + j.to_str()
+      print " do_something: i = " + i.to_str() + ", j = " + j.to_str()
     }
   }
 
@@ -15,4 +15,4 @@ while i++ < 4 {
   do_something()
 }
 
-// [Expect] do_something: i = 2, j = 1
+// [Expect]  do_something: i = 2, j = 1

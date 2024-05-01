@@ -257,5 +257,5 @@ fn foo() {}
      a, // 253
      a, // 254
      a, // 255
-     a) // [ExpectCompileError] Compile error at line 260 at 'a': Can't have more than 255 arguments.
-} // [ExpectCompileError] Compile error at line 262 at end: Expecting '}' after block.
+     a) // [ExpectError] Compile error at line 260 at 'a': Can't have more than 255 arguments.
+} // [ExpectError] Compile error at line 262 at end: Expecting '}' after block.

@@ -1,2 +1,2 @@
-print --(3) // [ExpectCompileError] Compile error at line 1 at '--': Expecting expression.
+print --(3) // [ExpectError] Compile error at line 1 at '--': Expecting expression.
  

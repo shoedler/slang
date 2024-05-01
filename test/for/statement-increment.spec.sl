@@ -1,1 +1,1 @@
-for ; let a = 1; a < 2; {}; {} // [ExpectCompileError] Compile error at line 1 at 'let': Expecting expression.
+for ; let a = 1; a < 2; {}; {} // [ExpectError] Compile error at line 1 at 'let': Expecting expression.

@@ -52,6 +52,7 @@ static void dump_location() {
   const char* error_start = source.start + source.error_start_ofs;
 
   fprintf(stderr, "\n %5d | ", source.line);
+  // Print the source code line
   for (const char* c = source.start; c < error_end || (c >= error_end && *c != '\n' && *c != '\0'); c++) {
     if (*c == '\r') {
       continue;
@@ -60,6 +61,8 @@ static void dump_location() {
     if (*c == '\n') {
       fputs("...", stderr);
       break;
+    } else if (*c == '/' && c[1] == '/') {
+      break;  // Break if we reach a line comment
     } else {
       fputc(*c, stderr);
     }

@@ -1,1 +1,1 @@
-skip // [ExpectCompileError] Compile error at line 1 at 'skip': Can't skip outside of a loop.
+skip // [ExpectError] Compile error at line 1 at 'skip': Can't skip outside of a loop.

@@ -1,1 +1,1 @@
-let [true] = [1] // [ExpectCompileError] Compile error at line 1 at 'true': Expecting identifier in destructuring assignment.
+let [true] = [1] // [ExpectError] Compile error at line 1 at 'true': Expecting identifier in destructuring assignment.

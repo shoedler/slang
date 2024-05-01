@@ -1,1 +1,1 @@
-0xDEADBEEFDEADB // [ExpectCompileError] Compile error at line 1: Hexadecimal number literal must have at least one digit/letter and at most 12.
+0xDEADBEEFDEADB // [ExpectError] Compile error at line 1: Hexadecimal number literal must have at least one digit/letter and at most 12.

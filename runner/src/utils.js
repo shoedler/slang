@@ -84,7 +84,7 @@ const makeSlangRunCommand = (config, file) => `${getSlangExe(config)} run ${file
  * @param {string} file - Absolute path to slang file to run
  * @param {AbortSignal} signal - Abort signal to use
  * @param {boolean} colorStderr - Whether to color stderr red
- * @returns {{output: string[], exitCode: number, rawOutput: string }} - Object containing output and exit code
+ * @returns {{exitCode: number, stdoutOutput: string, stderrOutput: string }} - Object containing output and exit code
  */
 export const runSlangFile = async (file, config, signal = null, colorStderr = false) => {
   const cmd = makeSlangRunCommand(config, file);
@@ -92,12 +92,13 @@ export const runSlangFile = async (file, config, signal = null, colorStderr = fa
   const child = spawn(cmd, { shell: true, ...options });
 
   return new Promise(resolve => {
-    let output = '';
+    let stdoutOutput = '';
+    let stderrOutput = '';
 
-    child.stdout.on('data', data => (output += data.toString()));
+    child.stdout.on('data', data => (stdoutOutput += data.toString()));
     child.stderr.on(
       'data',
-      data => (output += colorStderr ? chalk.red(data.toString()) : data.toString()),
+      data => (stderrOutput += colorStderr ? chalk.red(data.toString()) : data.toString()),
     );
     child.on('error', err => {
       if (err.name === 'AbortError') {
@@ -109,11 +110,8 @@ export const runSlangFile = async (file, config, signal = null, colorStderr = fa
 
     child.on('close', exitCode => {
       return resolve({
-        rawOutput: output,
-        output: output
-          .split('\r\n')
-          .filter(Boolean)
-          .map(line => line.trim()),
+        stdoutOutput,
+        stderrOutput,
         exitCode,
       });
     });
@@ -239,27 +237,41 @@ export const extractCommentMetadata = async file => {
   const lines = fileContents.split('\n');
   const metadata = [];
   lines.forEach((l, i) => {
-    const match = l.match(/\/\/\s*\[(.+?)\](.*)/);
+    const match = l.match(/\/\/\s*\[(.+?)\] (.*)/);
     if (match) {
-      const [_, type, value] = match;
-      metadata.push({ type, line: i + 1, value: value.trim() });
+      const [, type, value] = match;
+      metadata.push({ type, line: i + 1, value: value.trimEnd() });
     }
   });
   return metadata;
 };
 
 /**
- * Update comment-based metadata in a slang file. Only handles [Expect]
+ * Update comment-based metadata in a slang file.
  * @param {string} file - Absolute path to a slang file
  * @param {{type: string, line: number, value: string}[]} metadata - Array containing the new metadata
+ * @param {string} expectationType - Type of metadata to update (e.g. 'Expect', 'ExpectError')
+ * @param {{type: string, value: string}[]} additional - Additional metadata to add to the end of the file
+ * @returns {Promise<void>} - Promise that resolves when metadata is updated
  */
-export const updateCommentMetadata = async (file, metadata) => {
+export const updateCommentMetadata = async (file, metadata, expectationType, additional = []) => {
+  if (!metadata.length) {
+    return;
+  }
+
   const fileContents = await readFile(file);
   const lines = fileContents.split('\n');
+
   metadata.forEach(({ type, line, value }) => {
-    const match = lines[line - 1].match(/(.*)\/\/\s*\[(.+?)\](.*)/);
+    if (type !== expectationType) {
+      abort(
+        `Sanity check failed. Invalid metadata type ${type} for updating. Expected ${expectationType}`,
+      );
+    }
+
+    const match = lines[line - 1].match(/(.*)\/\/\s*\[(.+?)\] (.*)/);
     if (match) {
-      const [_, prefix, __, ___] = match;
+      const [, prefix, ,] = match;
       lines[line - 1] = `${prefix}// [${type}] ${value}`;
     } else
       throw new Error(
@@ -268,6 +280,9 @@ export const updateCommentMetadata = async (file, metadata) => {
         }`,
       );
   });
+
+  additional.forEach(value => lines.push(`// [${expectationType}] ${value}`));
+
   await fs.writeFile(file, lines.join('\n'), 'utf8');
 };
 
