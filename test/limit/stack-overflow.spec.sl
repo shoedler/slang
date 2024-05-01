@@ -17,7 +17,7 @@ fn foo() {
   let a16
   foo() // [ExpectError] Uncaught error: Stack overflow.
 }       // [ExpectError]     18 |   foo()
-        // [ExpectError]               ~
+        // [ExpectError]               ~~
 foo()   // [ExpectError]   at line 18 in "foo" in module "main"
         // [ExpectError]   at line 18 in "foo" in module "main"
         // [ExpectError]   at line 18 in "foo" in module "main"

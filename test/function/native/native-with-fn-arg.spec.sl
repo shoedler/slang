@@ -11,7 +11,7 @@ print ({"a": A(), "b": A() }).to_str()
 
 // [ExpectError] Uncaught error: true
 // [ExpectError]      4 |   fn to_str -> this.check(fn (x) { throw x })
-// [ExpectError]                                             ~~~~~~
+// [ExpectError]                                             ~~~~~~~
 // [ExpectError]   at line 4 in "(anon)" in module "main"
 // [ExpectError]   at line 6 in "(anon)" in module "main"
 // [ExpectError]   at line 6 in "check" in module "main"

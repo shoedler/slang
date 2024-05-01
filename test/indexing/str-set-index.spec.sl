@@ -1,6 +1,6 @@
 print "foo"[0] = "a" // [ExpectError] Uncaught error: Type Str does not support set-indexing with Int.
                      // [ExpectError]      1 | print "foo"[0] = "a"
-                     // [ExpectError]                     ~~~~~~
+                     // [ExpectError]                     ~~~~~~~~~
                      // [ExpectError]   at line 1 at the toplevel of module "main"
 
 // Stack check. Only the toplevel fn should be in the stack at this point.

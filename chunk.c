@@ -19,11 +19,13 @@ void write_chunk(Chunk* chunk, uint16_t data, Token error_start, Token error_end
   }
 
   const char* start = get_line_start(error_start);
+  const char* end =
+      error_start.start == error_end.start ? error_start.start + error_start.length : error_end.start + error_end.length;
 
   SourceView source_view = {
       .start           = start,
       .error_start_ofs = (uint16_t)(error_start.start - start),
-      .error_end_ofs   = (uint16_t)(error_end.start - start),
+      .error_end_ofs   = (uint16_t)(end - start),
       .line            = error_start.line,
   };
 

@@ -6,5 +6,5 @@ let a = "1
 
 err // [ExpectError] Uncaught error: Undefined variable 'err'.
     // [ExpectError]      7 | err
-    // [ExpectError]          ~~~ (TODO: Manually added this. Fix it)
+    // [ExpectError]          ~~~
     // [ExpectError]   at line 7 at the toplevel of module "main"
