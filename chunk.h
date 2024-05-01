@@ -64,10 +64,10 @@ typedef enum {
 } OpCode;
 
 typedef struct {
-  const char* start;        // Pointer to first char of the line on which the error occurred.
-  const char* error_start;  // Pointer to first char of the first token that caused the error.
-  const char* error_end;    // Pointer to last char of the last token that caused the error.
-  int line;                 // Line number on which the error starts.
+  const char* start;         // Pointer to first char of the line on which the error occurred.
+  uint16_t error_start_ofs;  // Offset to [start]. Points to first char of the first token that caused the error.
+  uint16_t error_end_ofs;    // Offset to [start]. Points to last char of the last token that caused the error.
+  int line;                  // Line number on which the error starts.
 } SourceView;
 
 // Dynamic array of instructions.

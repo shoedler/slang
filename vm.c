@@ -46,10 +46,13 @@ static void dump_location() {
   ObjFunction* function = frame->closure->function;
   size_t instruction    = frame->ip - function->chunk.code - 1;
 
-  SourceView view = function->chunk.source_views[instruction];
+  SourceView source = function->chunk.source_views[instruction];
 
-  fprintf(stderr, "\n %5d | ", view.line);
-  for (const char* c = view.start; c < view.error_end || (c >= view.error_end && *c != '\n' && *c != '\0'); c++) {
+  const char* error_end   = source.start + source.error_end_ofs;
+  const char* error_start = source.start + source.error_start_ofs;
+
+  fprintf(stderr, "\n %5d | ", source.line);
+  for (const char* c = source.start; c < error_end || (c >= error_end && *c != '\n' && *c != '\0'); c++) {
     if (*c == '\r') {
       continue;
     }
@@ -63,10 +66,10 @@ static void dump_location() {
   }
 
   fputs("\n         ", stderr);
-  for (const char* c = view.start; c < view.error_start; c++) {
+  for (const char* c = source.start; c < error_start; c++) {
     fputc(' ', stderr);
   }
-  for (const char* c = view.error_start; c < view.error_end; c++) {
+  for (const char* c = error_start; c < error_end; c++) {
     if (*c == '\r') {
       continue;
     }

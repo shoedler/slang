@@ -18,11 +18,13 @@ void write_chunk(Chunk* chunk, uint16_t data, Token error_start, Token error_end
     chunk->source_views = RESIZE_ARRAY(SourceView, chunk->source_views, old_capacity, chunk->capacity);
   }
 
+  const char* start = get_line_start(error_start);
+
   SourceView source_view = {
-      .start       = get_line_start(error_start),
-      .error_start = error_start.start,
-      .error_end   = error_end.start + error_end.length,
-      .line        = error_start.line,
+      .start           = start,
+      .error_start_ofs = (uint16_t)(error_start.start - start),
+      .error_end_ofs   = (uint16_t)(error_end.start - start),
+      .line            = error_start.line,
   };
 
   chunk->code[chunk->count]         = data;
