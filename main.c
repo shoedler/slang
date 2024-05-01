@@ -13,7 +13,7 @@ static void repl() {
   char cwd[1024];
   if (_getcwd(cwd, sizeof(cwd)) == NULL) {
     fprintf(stderr, "Failed to get cwd\n");
-    exit(1);
+    exit(EIO_ERROR);
   }
 
   // Create a module initially to act as our toplevel module.
@@ -35,7 +35,7 @@ void usage() {
   printf("Usage: slang <args>\n");
   printf("  run  <path> Run script at <path>\n");
   printf("  repl        Run REPL\n");
-  exit(64);
+  exit(EBAD_USAGE);
 }
 
 int main(int argc, char* argv[]) {

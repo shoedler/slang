@@ -5,6 +5,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define EXIT_SUCCESS 0  // Successful termination
+#define EXIT_FAILURE 1  // General error
+
+#define ECOMPILE_ERROR 2  // Compilation error
+#define ERUNTIME_ERROR 3  // Runtime error
+
+#define EBAD_USAGE 64  // Command line usage error
+#define EMEM_ERROR 70  // Memory related error
+#define EIO_ERROR 74   // Input/output error
+#define ESW_ERROR 75   // General internal logic error
+
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_YELLOW "\x1b[33m"
@@ -26,13 +37,6 @@
   do {                                                   \
     ##PRINT_ERROR_HEADER("INTERNAL ERROR");              \
     fprintf(stderr, format_literal "\n", ##__VA_ARGS__); \
-  } while (0)
-
-#define NOT_IMPLEMENTED(what)                       \
-  do {                                              \
-    ##PRINT_ERROR_HEADER("NOT IMPLEMENTED ERROR");  \
-    fprintf(stderr, "Not implemented: " what "\n"); \
-    exit(1);                                        \
   } while (0)
 
 // Stringification Macro - don't use directly, use STR

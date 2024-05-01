@@ -97,9 +97,9 @@ export const runTests = async (config, signal, updateFiles = false, testNamePatt
 
     // Evaluate test results
     const errorMessages = [];
-    if (exitCode === 65 && !expectedCompileError) {
+    if (exitCode === 2 && !expectedCompileError) {
       errorMessages.push(chalk.bold('▬ Test failed to compile but was not expected to.'));
-    } else if (exitCode === 70 && !expectedRuntimeError) {
+    } else if (exitCode === 3 && !expectedRuntimeError) {
       errorMessages.push(chalk.bold('▬ Test encountered an unexpected runtime error.'));
     } else if (exitCode !== 0 && !expectedCompileError && !expectedRuntimeError) {
       errorMessages.push(

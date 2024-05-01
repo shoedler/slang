@@ -128,7 +128,7 @@ void runtime_error(const char* format, ...) {
 static void exit_with_compile_error() {
   free_vm();
   // TODO (recovery): Find a way to progpagate errors */
-  exit(65);
+  exit(ECOMPILE_ERROR);
 }
 
 void define_native(HashTable* table, const char* name, NativeFn function, const char* doc, int arity) {
@@ -583,7 +583,7 @@ static void define_method(ObjString* name, FunctionType type) {
     }
     default: {
       INTERNAL_ERROR("Unknown method FunctionType %d", type);
-      exit(1);
+      exit(ESW_ERROR);
     }
   }
 
@@ -646,7 +646,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
         "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
         "'%s'",
         module_name->chars, AS_STRING(cwd)->chars, module_path == NULL ? "NULL" : module_path->chars);
-    exit(74);
+    exit(EIO_ERROR);
   }
 
   if (!file_exists(module_to_load_path)) {
@@ -980,7 +980,7 @@ static bool handle_error() {
   // Did we find a frame that owns the handler?
   if (frame_offset == -1) {
     INTERNAL_ERROR("Call stack corrupted. No call frame found that owns the handler.");
-    exit(1);
+    exit(ESW_ERROR);
   }
 
   // We have the handler's index/offset in the stack and the frame it belongs to. Now let's reset the Vm to

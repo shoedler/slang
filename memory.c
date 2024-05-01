@@ -34,9 +34,8 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size) {
 
   void* result = realloc(pointer, new_size);
   if (result == NULL) {
-    // TODO (recovery): Handle out of memory
     INTERNAL_ERROR("Not enough memory to reallocate");
-    exit(70);
+    exit(EMEM_ERROR);
   }
 
   return result;
@@ -64,10 +63,9 @@ void mark_obj(Obj* object) {
     vm.gray_capacity = GROW_CAPACITY(vm.gray_capacity);
     vm.gray_stack    = (Obj**)realloc(vm.gray_stack, sizeof(Obj*) * vm.gray_capacity);
 
-    // TODO (recovery): Handle out of memory
     if (vm.gray_stack == NULL) {
       INTERNAL_ERROR("Not enough memory to reallocate gray stack");
-      exit(70);
+      exit(EMEM_ERROR);
     }
   }
 
