@@ -15,11 +15,22 @@ typedef struct {
 } Scanner;
 
 Scanner scanner;
+static const char* first_source_char;
 
 void init_scanner(const char* source) {
   scanner.start   = source;
   scanner.current = source;
   scanner.line    = 1;
+
+  first_source_char = source;
+}
+
+const char* get_line_start(Token token) {
+  const char* line_start = token.start;
+  while (line_start > first_source_char && line_start[-1] != '\n') {
+    line_start--;
+  }
+  return line_start;
 }
 
 static bool is_digit(char c) {

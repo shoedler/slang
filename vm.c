@@ -46,52 +46,36 @@ static void dump_location() {
   ObjFunction* function = frame->closure->function;
   size_t instruction    = frame->ip - function->chunk.code - 1;
 
-  Token start = function->chunk.start[instruction];
-  Token end   = function->chunk.end[instruction];
+  SourceView view = function->chunk.source_views[instruction];
 
-  // Reverse until the start of the line
-  int offset_to_line_start = 0;
-  while (start.start[-1] != '\n') {
-    start.start--;  // TODO (robust): I know it's nice. But we need to check how far we are allowed to go back.
-    offset_to_line_start++;
-  }
-  // Now we're at the start of the line, we move ahaead in case of whitespace
-  while (*start.start == ' ' || *start.start == '\t') {
-    start.start++;
-    offset_to_line_start--;
-  }
-
-  fputs("\n  ", stderr);
-
-  // Now we can print the line content
-  for (const char* c = start.start; c < end.start; c++) {
-    if (*c == '\n') {
-      break;
-    }
+  fprintf(stderr, "\n %5d | ", view.line);
+  for (const char* c = view.start; c < view.error_end || (c >= view.error_end && *c != '\n' && *c != '\0'); c++) {
     if (*c == '\r') {
       continue;
     }
-    fputc(*c, stderr);
-  }
-  // ... and go beyond 'end' until the end of the line (or the end of the file, you never know)
-  // Only if 'end' is not the first on the line, because then we're already done.
-  while (!end.is_first_on_line && *end.start != '\n' && *end.start != '\0') {
-    if (*end.start == '\r') {
-      end.start++;
-      continue;
+
+    if (*c == '\n') {
+      fputs("...", stderr);
+      break;
+    } else {
+      fputc(*c, stderr);
     }
-    fputc(*end.start, stderr);
-    end.start++;
   }
 
-  fputs("\n  ", stderr);
-
-  // Print the caret, but first we add spaces to align it with the start of offending token
-  for (int i = 0; i < offset_to_line_start; i++) {
+  fputs("\n         ", stderr);
+  for (const char* c = view.start; c < view.error_start; c++) {
     fputc(' ', stderr);
   }
-  for (int i = 0; i < start.length; i++) {
-    fputs(ANSI_RED_STR("~"), stderr);
+  for (const char* c = view.error_start; c < view.error_end; c++) {
+    if (*c == '\r') {
+      continue;
+    }
+
+    if (*c == '\n') {
+      break;
+    } else {
+      fputc('~', stderr);
+    }
   }
 
   fputs("\n\n", stderr);
@@ -103,7 +87,7 @@ static void dump_stacktrace() {
     ObjFunction* function = frame->closure->function;
     size_t instruction    = frame->ip - function->chunk.code - 1;
 
-    fprintf(stderr, "  at line %d ", function->chunk.lines[instruction]);
+    fprintf(stderr, "  at line %d ", function->chunk.source_views[instruction].line);
 
     Value module_name;
     if (!hashtable_get_by_string(&function->globals_context->fields, vm.special_prop_names[SPECIAL_PROP_MODULE_NAME],
@@ -1323,7 +1307,9 @@ static Value run() {
         switch (peek(0).type) {
           case VAL_INT: push(INT_VAL(-AS_INT(pop()))); break;
           case VAL_FLOAT: push(FLOAT_VAL(-AS_FLOAT(pop()))); break;
-          default: runtime_error("Operand must be a number. Was %s.", typeof(peek(0))->name->chars); goto finish_error;
+          default:
+            runtime_error("Type for unary - must be a " STR(TYPENAME_NUM) ". Was %s.", typeof(peek(0))->name->chars);
+            goto finish_error;
         }
         break;
       }

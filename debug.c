@@ -144,10 +144,10 @@ static int invoke_instruction(const char* name, Chunk* chunk, int offset) {
 int disassemble_instruction(Chunk* chunk, int offset) {
   PRINT_OFFSET(offset);
 
-  if (offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1]) {
+  if (offset > 0 && chunk->source_views[offset].line == chunk->source_views[offset - 1].line) {
     PRINT_SAME_LINE();
   } else {
-    PRINT_LINE(chunk->lines[offset]);
+    PRINT_LINE(chunk->source_views[offset].line);
   }
 
   uint16_t instruction = chunk->code[offset];

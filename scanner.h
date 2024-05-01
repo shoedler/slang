@@ -103,10 +103,13 @@ typedef struct {
   bool is_first_on_line;
 } Token;
 
-// Initialize the scanner with the source code
+// Initialize the scanner with the source code.
 void init_scanner(const char* source);
 
-// Scan and return the next token
+// Scan and return the next token.
 Token scan_token();
+
+// Get the start of a line of a token, exclusive (points to the first character of the line).
+const char* get_line_start(Token token);
 
 #endif
