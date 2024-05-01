@@ -3,7 +3,7 @@ cls A {
 }
 
 cls B : A {
-  fn method() {
+  fn method() {     // [Exit] 2
     (base).method() // [ExpectError] Compile error at line 7 at ')': Expecting '.' after 'base'.
   }
 }

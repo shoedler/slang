@@ -1,7 +1,7 @@
 cls A {}
 
 cls B : A {
-  fn method() {
+  fn method() { // [Exit] 2
     base. // [ExpectError] Compile error at line 6 at '}': Expecting base class method name.
   }
 }

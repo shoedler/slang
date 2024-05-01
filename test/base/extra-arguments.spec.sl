@@ -11,6 +11,6 @@ cls Derived : Base {
   }                              // [ExpectError]     10 |     base.foo("a", "b", "c", "d")
 }                                // [ExpectError]                   ~~~~~~~~~~~~~~~~~~~~~~
                                  // [ExpectError]   at line 10 in "foo" in module "main"
-                                 // [ExpectError]   at line 14 at the toplevel of module "main"
+                                 // [ExpectError]   at line 16 at the toplevel of module "main"
 
 Derived().foo() // [Expect] Derived.foo()

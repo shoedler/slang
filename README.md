@@ -32,6 +32,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Improvements
 
+- [ ] Add Tests with tabs in source code. Especially to test uncaught runtime error reporting.
 - [ ] Restructure test: compiler, vm (types, modules)
 - [ ] Add tests for `OP_MODULO`
 - [ ] Add tests for `Fn.bind(Obj)`

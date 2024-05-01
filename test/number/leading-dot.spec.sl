@@ -1,2 +1,3 @@
-// [ExpectError] Compile error at line 2 at '.': Expecting expression.
+// [Exit] 2
+// [ExpectError] Compile error at line 3 at '.': Expecting expression.
 .123

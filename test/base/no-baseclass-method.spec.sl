@@ -6,6 +6,6 @@ cls Derived : Base {
   }                      // [ExpectError]      5 |     base.doesNotExist(1)
 }                        // [ExpectError]                   ~~~~~~~~~~~~~~
                          // [ExpectError]   at line 5 in "foo" in module "main"
-                         // [ExpectError]   at line 9 at the toplevel of module "main"
+                         // [ExpectError]   at line 11 at the toplevel of module "main"
 
 Derived().foo()

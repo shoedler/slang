@@ -1,5 +1,5 @@
 cls Foo {
-  ctor {
+  ctor {         // [Exit] 2
     ret "result" // [ExpectError] Compile error at line 3 at 'ret': Can't return a value from a constructor.
   }
 }

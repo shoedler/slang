@@ -1,1 +1,2 @@
-if true cls Foo {} // [ExpectError] Compile error at line 1 at 'cls': Expecting expression.
+// [Exit] 2
+if true cls Foo {} // [ExpectError] Compile error at line 2 at 'cls': Expecting expression.
