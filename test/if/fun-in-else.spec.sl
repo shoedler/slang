@@ -1,4 +1,5 @@
 // This would be allowed if it were an anonymous function, but since it is a named function, it is not allowed.
-if true "ok" else fn foo() {} // [ExpectCompileError] Compile error at line 2 at 'foo': Expecting '{' or '->' before function body.
+// [Exit] 2
+if true "ok" else fn foo() {} // [ExpectError] Compile error at line 3 at 'foo': Expecting '{' or '->' before function body.
 // Now as anonymous:
 if true "ok" elsefn() {} // ok

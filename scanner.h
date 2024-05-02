@@ -17,6 +17,7 @@
 // digits in an octal literal to fit into a double without loss of precision, with similar considerations for
 // the last digit as in the hexadecimal case.
 #define MAX_OCTAL_DIGITS 17
+
 typedef enum {
   TOKEN_OR,       // 'or'
   TOKEN_AND,      // 'and'
@@ -91,21 +92,24 @@ typedef enum {
   TOKEN_OTHER,   // .
   TOKEN_ERROR,
   TOKEN_EOF
-} TokenType;
+} TokenKind;
 
 // Token type
 typedef struct {
-  TokenType type;
+  TokenKind type;
   const char* start;
   int length;
   int line;
   bool is_first_on_line;
 } Token;
 
-// Initialize the scanner with the source code
+// Initialize the scanner with the source code.
 void init_scanner(const char* source);
 
-// Scan and return the next token
+// Scan and return the next token.
 Token scan_token();
+
+// Get the start of a line of a token, exclusive (points to the first character of the line).
+const char* get_line_start(Token token);
 
 #endif

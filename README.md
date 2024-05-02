@@ -10,7 +10,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
-- [ ] Implement iterators. Maybe a new builtin class. They should initialize these fields/methods: `__has_next`, `__next()`.
 - [ ] Implement `for ... in ...;` loops
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] Add destructuring to module imports.
@@ -29,9 +28,11 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `Float.nan` and `Float.inf` constants.
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
 - [ ] Implement a way to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing. Maybe attributes? (e.g. `@doc "This is a doc string"`)
+- [ ] Implement iterators. Maybe a new builtin class. They should initialize these fields/methods: `__has_next`, `__next()`.
 
 ## Improvements
 
+- [ ] Add Tests with tabs in source code. Especially to test uncaught runtime error reporting.
 - [ ] Restructure test: compiler, vm (types, modules)
 - [ ] Add tests for `OP_MODULO`
 - [ ] Add tests for `Fn.bind(Obj)`
@@ -49,7 +50,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
 - [ ] Add `error` to the reserved words
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
-- [ ] Move exit codess to `common.h` and replace all magic numbers with them
 
 ### Optimizations
 
@@ -69,7 +69,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement a register-based Vm https://www.lua.org/doc/jucs05.pdf
 - [ ] Constant folding directly in the compiler
 - [ ] Implement a JIT compiler
-- [ ] Infer names of anonymous functions (Improves stack traces)
 
 ## References
 

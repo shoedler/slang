@@ -1,1 +1,2 @@
-let false = "value" // [ExpectCompileError] Compile error at line 1 at 'false': Expecting variable name.
+// [Exit] 2
+let false = "value" // [ExpectError] Compile error at line 2 at 'false': Expecting variable name.

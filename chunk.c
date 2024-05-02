@@ -3,29 +3,40 @@
 #include "vm.h"
 
 void init_chunk(Chunk* chunk) {
-  chunk->count    = 0;
-  chunk->capacity = 0;
-  chunk->code     = NULL;
-  chunk->lines    = NULL;
+  chunk->count        = 0;
+  chunk->capacity     = 0;
+  chunk->code         = NULL;
+  chunk->source_views = NULL;
   init_value_array(&chunk->constants);
 }
 
-void write_chunk(Chunk* chunk, uint16_t data, int line) {
+void write_chunk(Chunk* chunk, uint16_t data, Token error_start, Token error_end) {
   if (SHOULD_GROW(chunk->count + 1, chunk->capacity)) {
-    int old_capacity = chunk->capacity;
-    chunk->capacity  = GROW_CAPACITY(old_capacity);
-    chunk->code      = RESIZE_ARRAY(uint16_t, chunk->code, old_capacity, chunk->capacity);
-    chunk->lines     = RESIZE_ARRAY(int, chunk->lines, old_capacity, chunk->capacity);
+    int old_capacity    = chunk->capacity;
+    chunk->capacity     = GROW_CAPACITY(old_capacity);
+    chunk->code         = RESIZE_ARRAY(uint16_t, chunk->code, old_capacity, chunk->capacity);
+    chunk->source_views = RESIZE_ARRAY(SourceView, chunk->source_views, old_capacity, chunk->capacity);
   }
 
-  chunk->code[chunk->count]  = data;
-  chunk->lines[chunk->count] = line;
+  const char* start = get_line_start(error_start);
+  const char* end =
+      error_start.start == error_end.start ? error_start.start + error_start.length : error_end.start + error_end.length;
+
+  SourceView source_view = {
+      .start           = start,
+      .error_start_ofs = (uint16_t)(error_start.start - start),
+      .error_end_ofs   = (uint16_t)(end - start),
+      .line            = error_start.line,
+  };
+
+  chunk->code[chunk->count]         = data;
+  chunk->source_views[chunk->count] = source_view;
   chunk->count++;
 }
 
 void free_chunk(Chunk* chunk) {
   FREE_ARRAY(uint16_t, chunk->code, chunk->capacity);
-  FREE_ARRAY(int, chunk->lines, chunk->capacity);
+  FREE_ARRAY(SourceView, chunk->source_views, chunk->capacity);
   free_value_array(&chunk->constants);
   init_chunk(chunk);
 }

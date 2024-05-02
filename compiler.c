@@ -144,7 +144,7 @@ static void advance() {
 
 // Assert and cosume the current token according to the provided token type.
 // If it doesn't match, print an error message.
-static void consume(TokenType type, const char* message) {
+static void consume(TokenKind type, const char* message) {
   if (parser.current.type == type) {
     advance();
     return;
@@ -154,13 +154,13 @@ static void consume(TokenType type, const char* message) {
 }
 
 // Compares the current token with the provided token type.
-static bool check(TokenType type) {
+static bool check(TokenKind type) {
   return parser.current.type == type;
 }
 
 // Accept the current token if it matches the provided token type, otherwise do
 // nothing.
-static bool match(TokenType type) {
+static bool match(TokenKind type) {
   if (!check(type)) {
     return false;
   }
@@ -178,14 +178,22 @@ static bool check_statement_return_end() {
 }
 
 // Writes an opcode or operand to the current chunk.
-static void emit_one(uint16_t data) {
-  write_chunk(current_chunk(), data, parser.previous.line);
+static void emit_one(uint16_t data, Token error_start) {
+  write_chunk(current_chunk(), data, error_start, parser.previous /* error_end */);
+}
+static void emit_one_here(uint16_t data) {
+  emit_one(data, parser.previous,
+           parser.previous);  // 'current' is actually the next one we want to consume. So we use 'previous'.
 }
 
 // Writes two opcodes or operands to the current chunk.
-static void emit_two(uint16_t data1, uint16_t data2) {
-  emit_one(data1);
-  emit_one(data2);
+static void emit_two(uint16_t data1, uint16_t data2, Token error_start) {
+  emit_one(data1, error_start, parser.previous /* error_end */);
+  emit_one(data2, error_start, parser.previous /* error_end */);
+}
+static void emit_two_here(uint16_t data1, uint16_t data2) {
+  emit_two(data1, data2, parser.previous,
+           parser.previous);  // 'current' is actually the next one we want to consume. So we use 'previous'.
 }
 
 // Emits a loop instruction.
@@ -193,22 +201,22 @@ static void emit_two(uint16_t data1, uint16_t data2) {
 // It is calculated by subtracting the current chunk's count from the offset of
 // the jump instruction.
 static void emit_loop(int loop_start) {
-  emit_one(OP_LOOP);
+  emit_one_here(OP_LOOP);
 
   int offset = current_chunk()->count - loop_start + 1;
   if (offset > MAX_JUMP) {
     error("Loop body too large.");
   }
 
-  emit_one((uint16_t)offset);
+  emit_one_here((uint16_t)offset);
 }
 
 // Emits a jump instruction and returns the offset of the jump instruction.
 // Along with the emitted jump instruction, a 16-bit placeholder for the
 // operand is emitted.
 static int emit_jump(uint16_t instruction) {
-  emit_one(instruction);
-  emit_one(UINT16_MAX);
+  emit_one_here(instruction);
+  emit_one_here(UINT16_MAX);
   return current_chunk()->count - 1;
 }
 
@@ -247,8 +255,11 @@ static uint16_t make_constant(Value value) {
 }
 
 // Adds value to the constant pool and emits a const instruction to load it.
-static void emit_constant(Value value) {
-  emit_two(OP_CONSTANT, make_constant(value));
+static void emit_constant(Value value, Token error_start) {
+  emit_two(OP_CONSTANT, make_constant(value), error_start);
+}
+static void emit_constant_here(Value value) {
+  emit_constant(value, parser.previous);
 }
 
 // Emits a return instruction.
@@ -256,12 +267,12 @@ static void emit_constant(Value value) {
 // (the 'this' pointer). Otherwise, the return value is nil.
 static void emit_return() {
   if (current->type == TYPE_CONSTRUCTOR) {
-    emit_two(OP_GET_LOCAL, 0);  // Return class instance, e.g. 'this'.
+    emit_two_here(OP_GET_LOCAL, 0);  // Return class instance, e.g. 'this'.
   } else {
-    emit_one(OP_NIL);
+    emit_one_here(OP_NIL);
   }
 
-  emit_one(OP_RETURN);
+  emit_one_here(OP_RETURN);
 }
 
 // Initializes a new compiler.
@@ -353,9 +364,9 @@ static void end_scope() {
     // The ones who got captured by a closure are still needed, and are
     // going to need to live on the heap.
     if (current->locals[current->local_count - 1].is_captured) {
-      emit_one(OP_CLOSE_UPVALUE);
+      emit_one_here(OP_CLOSE_UPVALUE);
     } else {
-      emit_one(OP_POP);
+      emit_one_here(OP_POP);
     }
     current->local_count--;
   }
@@ -367,7 +378,7 @@ static void declaration();
 static void block();
 
 static uint16_t argument_list();
-static ParseRule* get_rule(TokenType type);
+static ParseRule* get_rule(TokenKind type);
 static void parse_precedence(Precedence precedence);
 static uint16_t string_constant(Token* name);
 static int resolve_local(Compiler* compiler, Token* name);
@@ -393,15 +404,16 @@ static bool match_inc_dec() {
 // emitted. The rhs starts at the current token. The compound assignment
 // operator is in the previous token.
 static void compound_assignment() {
-  TokenType op_type = parser.previous.type;
+  TokenKind op_type = parser.previous.type;
+  Token error_start = parser.previous;
   expression();
 
   switch (op_type) {
-    case TOKEN_PLUS_ASSIGN: emit_one(OP_ADD); break;
-    case TOKEN_MINUS_ASSIGN: emit_one(OP_SUBTRACT); break;
-    case TOKEN_MULT_ASSIGN: emit_one(OP_MULTIPLY); break;
-    case TOKEN_DIV_ASSIGN: emit_one(OP_DIVIDE); break;
-    case TOKEN_MOD_ASSIGN: emit_one(OP_MODULO); break;
+    case TOKEN_PLUS_ASSIGN: emit_one_here(OP_ADD); break;
+    case TOKEN_MINUS_ASSIGN: emit_one_here(OP_SUBTRACT); break;
+    case TOKEN_MULT_ASSIGN: emit_one_here(OP_MULTIPLY); break;
+    case TOKEN_DIV_ASSIGN: emit_one_here(OP_DIVIDE); break;
+    case TOKEN_MOD_ASSIGN: emit_one_here(OP_MODULO); break;
     default: INTERNAL_ERROR("Unhandled compound assignment operator type: %d", op_type); break;
   }
 }
@@ -409,12 +421,12 @@ static void compound_assignment() {
 // Compiles an inc/dec expression. The lhs bytecode has already been emitted.
 // The inc/dec operator is in the previous token.
 static void inc_dec() {
-  TokenType op_type = parser.previous.type;
-  emit_constant(INT_VAL(1));
+  TokenKind op_type = parser.previous.type;
+  emit_constant_here(INT_VAL(1));
 
   switch (op_type) {
-    case TOKEN_PLUS_PLUS: emit_one(OP_ADD); break;
-    case TOKEN_MINUS_MINUS: emit_one(OP_SUBTRACT); break;
+    case TOKEN_PLUS_PLUS: emit_one_here(OP_ADD); break;
+    case TOKEN_MINUS_MINUS: emit_one_here(OP_SUBTRACT); break;
     default: INTERNAL_ERROR("Unhandled inc/dec operator type: %d", op_type); break;
   }
 }
@@ -424,8 +436,9 @@ static void inc_dec() {
 // previous token.
 static void call(bool can_assign) {
   UNUSED(can_assign);
+  Token error_start  = parser.previous;
   uint16_t arg_count = argument_list();
-  emit_two(OP_CALL, arg_count);
+  emit_two(OP_CALL, arg_count, error_start);
 }
 
 // Compiles a dot expression.
@@ -436,29 +449,30 @@ static void dot(bool can_assign) {
     consume(TOKEN_CTOR, "Expecting property name after '.'.");
   }
 
-  uint16_t name = string_constant(&parser.previous);
+  Token error_start = parser.previous;
+  uint16_t name     = string_constant(&parser.previous);
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();
-    emit_two(OP_SET_PROPERTY, name);
+    emit_two(OP_SET_PROPERTY, name, error_start);
   } else if (can_assign && match_inc_dec()) {
-    emit_two(OP_DUPE, 0);  // Duplicate the object.
-    emit_two(OP_GET_PROPERTY, name);
+    emit_two(OP_DUPE, 0, error_start);  // Duplicate the object.
+    emit_two(OP_GET_PROPERTY, name, error_start);
     inc_dec();
-    emit_two(OP_SET_PROPERTY, name);
+    emit_two(OP_SET_PROPERTY, name, error_start);
   } else if (can_assign && match_compound_assignment()) {
-    emit_two(OP_DUPE, 0);  // Duplicate the object.
-    emit_two(OP_GET_PROPERTY, name);
+    emit_two(OP_DUPE, 0, error_start, parser.previous);  // Duplicate the object.
+    emit_two(OP_GET_PROPERTY, name, error_start);
     compound_assignment();
-    emit_two(OP_SET_PROPERTY, name);
+    emit_two(OP_SET_PROPERTY, name, error_start);
   } else if (match(TOKEN_OPAR)) {
     // Shorthand for method calls. This combines two instructions into one:
     // getting a property and calling a method.
     uint16_t arg_count = argument_list();
-    emit_two(OP_INVOKE, name);
-    emit_one(arg_count);
+    emit_two(OP_INVOKE, name, error_start);
+    emit_one(arg_count, error_start);
   } else {
-    emit_two(OP_GET_PROPERTY, name);
+    emit_two(OP_GET_PROPERTY, name, error_start);
   }
 }
 
@@ -468,15 +482,18 @@ static void dot(bool can_assign) {
 static void indexing(bool can_assign) {
   bool slice_started = false;
 
+  // Start at the '['
+  Token error_start = parser.previous;
+
   // Since the first number in a slice is optional, we need to check if the indexing starts with a '..'
   if (match(TOKEN_DOTDOT)) {
     slice_started = true;
-    emit_constant(INT_VAL(0));  // Start index.
+    emit_constant_here(INT_VAL(0));  // Start index.
   }
 
   // Either the index or the slice end.
   if (slice_started && check(TOKEN_CBRACK)) {
-    emit_one(OP_NIL);  // Signals that we want to slice until the end.
+    emit_one(OP_NIL, error_start);  // Signals that we want to slice until the end.
   } else {
     expression();
   }
@@ -487,14 +504,14 @@ static void indexing(bool can_assign) {
     if (!slice_started) {
       // The end of the slice is optional too.
       if (check(TOKEN_CBRACK)) {
-        emit_one(OP_NIL);  // Signals that we want to slice until the end.
+        emit_one(OP_NIL, error_start);  // Signals that we want to slice until the end.
       } else {
         expression();
       }
     }
 
     consume(TOKEN_CBRACK, "Expecting ']' after slice.");
-    emit_one(OP_GET_SLICE);
+    emit_one(OP_GET_SLICE, error_start);
 
     if (match(TOKEN_ASSIGN)) {
       error("Slices can't be assigned to.");
@@ -506,21 +523,21 @@ static void indexing(bool can_assign) {
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();  // The new value.
-    emit_one(OP_SET_INDEX);
+    emit_one(OP_SET_INDEX, error_start);
   } else if (can_assign && match_inc_dec()) {
-    emit_two(OP_DUPE, 1);  // Duplicate the indexee: [indexee][index] -> [indexee][index][indexee]
-    emit_two(OP_DUPE, 1);  // Duplicate the index:   [indexee][index][indexee] -> [indexee][index][indexee][index]
-    emit_one(OP_GET_INDEX);
+    emit_two(OP_DUPE, 1, error_start);  // Duplicate the indexee: [indexee][index] -> [indexee][index][indexee]
+    emit_two(OP_DUPE, 1, error_start);  // Duplicate the index:   [indexee][index][indexee] -> [indexee][index][indexee][index]
+    emit_one(OP_GET_INDEX, error_start);
     inc_dec();
-    emit_one(OP_SET_INDEX);
+    emit_one(OP_SET_INDEX, error_start);
   } else if (can_assign && match_compound_assignment()) {
-    emit_two(OP_DUPE, 1);  // Duplicate the indexee: [indexee][index] -> [indexee][index][indexee]
-    emit_two(OP_DUPE, 1);  // Duplicate the index:  [indexee][index][indexee] -> [indexee][index][indexee][index]
-    emit_one(OP_GET_INDEX);
+    emit_two(OP_DUPE, 1, error_start);  // Duplicate the indexee: [indexee][index] -> [indexee][index][indexee]
+    emit_two(OP_DUPE, 1, error_start);  // Duplicate the index:  [indexee][index][indexee] -> [indexee][index][indexee][index]
+    emit_one(OP_GET_INDEX, error_start);
     compound_assignment();
-    emit_one(OP_SET_INDEX);
+    emit_one(OP_SET_INDEX, error_start);
   } else {
-    emit_one(OP_GET_INDEX);
+    emit_one(OP_GET_INDEX, error_start);
   }
 }
 
@@ -529,21 +546,21 @@ static void indexing(bool can_assign) {
 // token.
 static void literal(bool can_assign) {
   UNUSED(can_assign);
-  TokenType op_type = parser.previous.type;
+  TokenKind op_type = parser.previous.type;
 
   switch (op_type) {
-    case TOKEN_FALSE: emit_one(OP_FALSE); break;
-    case TOKEN_NIL: emit_one(OP_NIL); break;
-    case TOKEN_TRUE: emit_one(OP_TRUE); break;
+    case TOKEN_FALSE: emit_one_here(OP_FALSE); break;
+    case TOKEN_NIL: emit_one_here(OP_NIL); break;
+    case TOKEN_TRUE: emit_one_here(OP_TRUE); break;
     default: INTERNAL_ERROR("Unhandled literal: %d", op_type); return;
   }
 }
 
 // Compiles a tuple literal.
-// The opening parenthesis has already been consumed (previous token)
+// The opening parenthesis, aswell as the first element (optional) and the comma (previous token) have been consumed.
 // Maybe the first element (expression) has already been consumed too, bc it could also just be a grouping experssion (expression
 // in parentheses). Making a tuple of one element is allowed, but it's also a little stupid.
-static void tuple_literal(bool can_assign, int already_emitted_items) {
+static void tuple_literal(bool can_assign, int already_emitted_items, Token error_start) {
   UNUSED(can_assign);
   int count = 0;
 
@@ -559,32 +576,42 @@ static void tuple_literal(bool can_assign, int already_emitted_items) {
   consume(TOKEN_CPAR, "Expecting ')' after " STR(TYPENAME_TUPLE) " literal. Or maybe you are missing a ','?");
 
   if (count <= MAX_TUPLE_LITERAL_ITEMS) {
-    emit_two(OP_TUPLE_LITERAL, (uint16_t)count + already_emitted_items);
+    emit_two(OP_TUPLE_LITERAL, (uint16_t)count + already_emitted_items, error_start);
   } else {
+    // Still use 'error_at_current' because the message would be very long if we'd start at 'error_start'.
     error_at_current("Can't have more than " STR(MAX_TUPLE_LITERAL_ITEMS) " items in a " STR(TYPENAME_TUPLE) ".");
   }
 }
 
 // Compiles an empty tuple literal.
 // The opening parenthesis has already been consumed (previous token). Also, the comma has already been consumed.
-static void empty_tuple_literal(bool can_assign) {
-  emit_two(OP_TUPLE_LITERAL, (uint16_t)0);
+static void empty_tuple_literal(bool can_assign, Token error_start) {
+  UNUSED(can_assign);
+
   consume(TOKEN_CPAR, "Expecting ')' after " STR(TYPENAME_TUPLE) " literal. ");
+  emit_two(OP_TUPLE_LITERAL, (uint16_t)0, error_start);
 }
 
 // Compiles a grouping (expression in parentheses).
 // The opening parenthesis has already been consumed (previous token)
 static void grouping(bool can_assign) {
   UNUSED(can_assign);
+
+  // Start at the '('
+  Token error_start = parser.previous;
+
   if (match(TOKEN_COMMA)) {
-    empty_tuple_literal(can_assign);
+    empty_tuple_literal(can_assign, error_start);
     return;
   }
+
   expression();
+
   if (match(TOKEN_COMMA)) {
-    tuple_literal(can_assign, 1);
+    tuple_literal(can_assign, 1, error_start);
     return;
   }
+
   consume(TOKEN_CPAR, "Expecting ')' after expression.");
 }
 
@@ -593,6 +620,9 @@ static void grouping(bool can_assign) {
 static void seq_literal(bool can_assign) {
   UNUSED(can_assign);
   int count = 0;
+
+  // Start at the '['
+  Token error_start = parser.previous;
 
   if (!check(TOKEN_CBRACK)) {
     do {
@@ -606,7 +636,7 @@ static void seq_literal(bool can_assign) {
   consume(TOKEN_CBRACK, "Expecting ']' after " STR(TYPENAME_SEQ) " literal. Or maybe you are missing a ','?");
 
   if (count <= MAX_SEQ_LITERAL_ITEMS) {
-    emit_two(OP_SEQ_LITERAL, (uint16_t)count);
+    emit_two(OP_SEQ_LITERAL, (uint16_t)count, error_start);
   } else {
     error_at_current("Can't have more than " STR(MAX_SEQ_LITERAL_ITEMS) " items in a " STR(TYPENAME_SEQ) ".");
   }
@@ -617,6 +647,9 @@ static void seq_literal(bool can_assign) {
 static void object_literal(bool can_assign) {
   UNUSED(can_assign);
   int count = 0;
+
+  // Start at the '{'
+  Token error_start = parser.previous;
 
   if (!check(TOKEN_CBRACE)) {
     do {
@@ -632,7 +665,7 @@ static void object_literal(bool can_assign) {
   consume(TOKEN_CBRACE, "Expecting '}' after " STR(TYPENAME_OBJ) " literal. Or maybe you are missing a ','?");
 
   if (count <= MAX_OBJECT_LITERAL_ITEMS) {
-    emit_two(OP_OBJECT_LITERAL, (uint16_t)count);
+    emit_two(OP_OBJECT_LITERAL, (uint16_t)count, error_start);
   } else {
     error_at_current("Can't have more than " STR(MAX_OBJECT_LITERAL_ITEMS) " items in a " STR(TYPENAME_OBJ) ".");
   }
@@ -647,15 +680,15 @@ static void number(bool can_assign) {
     // See if it's a hexadecimal, binary, or octal number.
     if ((kind == 'x' || kind == 'X')) {
       long long value = strtoll(parser.previous.start + 2, NULL, 16);
-      emit_constant(INT_VAL(value));
+      emit_constant_here(INT_VAL(value));
       return;
     } else if ((kind == 'b' || kind == 'B')) {
       long long value = strtoll(parser.previous.start + 2, NULL, 2);
-      emit_constant(INT_VAL(value));
+      emit_constant_here(INT_VAL(value));
       return;
     } else if ((kind == 'o' || kind == 'O')) {
       long long value = strtoll(parser.previous.start + 2, NULL, 8);
-      emit_constant(INT_VAL(value));
+      emit_constant_here(INT_VAL(value));
       return;
     }
   }
@@ -671,10 +704,10 @@ static void number(bool can_assign) {
 
   if (is_float) {
     double value = strtod(parser.previous.start, NULL);
-    emit_constant(FLOAT_VAL(value));
+    emit_constant_here(FLOAT_VAL(value));
   } else {
     long long int value = strtoll(parser.previous.start, NULL, 10);
-    emit_constant(INT_VAL(value));
+    emit_constant_here(INT_VAL(value));
   }
 }
 
@@ -728,7 +761,7 @@ static void string(bool can_assign) {
   } while (match(TOKEN_STRING));
 
   // Emit the string constant.
-  emit_constant(OBJ_VAL(copy_string(str_bytes, (int)str_length)));
+  emit_constant_here(OBJ_VAL(copy_string(str_bytes, (int)str_length)));
 
   // Cleanup
   FREE_ARRAY(char, str_bytes, str_capacity);
@@ -740,14 +773,15 @@ static void string(bool can_assign) {
 // token.
 static void unary(bool can_assign) {
   UNUSED(can_assign);
-  TokenType operator_type = parser.previous.type;
+  TokenKind operator_type = parser.previous.type;
+  Token error_start       = parser.previous;
 
   parse_precedence(PREC_UNARY);
 
   // Emit the operator instruction.
   switch (operator_type) {
-    case TOKEN_NOT: emit_one(OP_NOT); break;
-    case TOKEN_MINUS: emit_one(OP_NEGATE); break;
+    case TOKEN_NOT: emit_one(OP_NOT, error_start); break;
+    case TOKEN_MINUS: emit_one(OP_NEGATE, error_start); break;
     default: INTERNAL_ERROR("Unhandled unary operator type: %d", operator_type); return;
   }
 }
@@ -757,29 +791,32 @@ static void unary(bool can_assign) {
 // token. The operator is in the previous token.
 static void binary(bool can_assign) {
   UNUSED(can_assign);
-  TokenType op_type = parser.previous.type;
-  ParseRule* rule   = get_rule(op_type);
+  TokenKind op_type = parser.previous.type;
+  Token error_start = parser.previous;
+
+  ParseRule* rule = get_rule(op_type);
   parse_precedence((Precedence)(rule->precedence + 1));
 
   switch (op_type) {
-    case TOKEN_NEQ: emit_one(OP_NEQ); break;
-    case TOKEN_EQ: emit_one(OP_EQ); break;
-    case TOKEN_GT: emit_one(OP_GT); break;
-    case TOKEN_GTEQ: emit_one(OP_GTEQ); break;
-    case TOKEN_LT: emit_one(OP_LT); break;
-    case TOKEN_LTEQ: emit_one(OP_LTEQ); break;
-    case TOKEN_PLUS: emit_one(OP_ADD); break;
-    case TOKEN_MINUS: emit_one(OP_SUBTRACT); break;
-    case TOKEN_MULT: emit_one(OP_MULTIPLY); break;
-    case TOKEN_DIV: emit_one(OP_DIVIDE); break;
-    case TOKEN_MOD: emit_one(OP_MODULO); break;
+    case TOKEN_NEQ: emit_one(OP_NEQ, error_start); break;
+    case TOKEN_EQ: emit_one(OP_EQ, error_start); break;
+    case TOKEN_GT: emit_one(OP_GT, error_start); break;
+    case TOKEN_GTEQ: emit_one(OP_GTEQ, error_start); break;
+    case TOKEN_LT: emit_one(OP_LT, error_start); break;
+    case TOKEN_LTEQ: emit_one(OP_LTEQ, error_start); break;
+    case TOKEN_PLUS: emit_one(OP_ADD, error_start); break;
+    case TOKEN_MINUS: emit_one(OP_SUBTRACT, error_start); break;
+    case TOKEN_MULT: emit_one(OP_MULTIPLY, error_start); break;
+    case TOKEN_DIV: emit_one(OP_DIVIDE, error_start); break;
+    case TOKEN_MOD: emit_one(OP_MODULO, error_start); break;
     default: INTERNAL_ERROR("Unhandled binary operator type: %d", op_type); break;
   }
 }
 
 // Compiles a variable. Generates bytecode to load a variable with the given
 // name onto the stack.
-static void named_variable(Token name, bool can_assign) {
+// 'name' can be a synthetic token, but 'error_start' must be the actual token from the source code.
+static void named_variable(Token name, bool can_assign, Token error_start) {
   uint16_t get_op, set_op;
   int arg = resolve_local(current, &name);
   if (arg != -1) {
@@ -796,17 +833,17 @@ static void named_variable(Token name, bool can_assign) {
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();
-    emit_two(set_op, (uint16_t)arg);
+    emit_two(set_op, (uint16_t)arg, error_start);
   } else if (can_assign && match_inc_dec()) {
-    emit_two(get_op, (uint16_t)arg);
+    emit_two(get_op, (uint16_t)arg, error_start);
     inc_dec();
-    emit_two(set_op, (uint16_t)arg);
+    emit_two(set_op, (uint16_t)arg, error_start);
   } else if (can_assign && match_compound_assignment()) {
-    emit_two(get_op, (uint16_t)arg);
+    emit_two(get_op, (uint16_t)arg, error_start);
     compound_assignment();
-    emit_two(set_op, (uint16_t)arg);
+    emit_two(set_op, (uint16_t)arg, error_start);
   } else {
-    emit_two(get_op, (uint16_t)arg);
+    emit_two(get_op, (uint16_t)arg, error_start);
   }
 }
 
@@ -814,7 +851,7 @@ static void named_variable(Token name, bool can_assign) {
 // The variable has already been consumed and is referenced by the previous
 // token.
 static void variable(bool can_assign) {
-  named_variable(parser.previous, can_assign);
+  named_variable(parser.previous, can_assign, parser.previous);
 }
 
 // Creates a token from the given text.
@@ -827,12 +864,14 @@ static Token synthetic_token(const char* text) {
 }
 
 // Compiles a base expression.
-// This is a special expression that allows access to the base class.
-// It also handles the directly following dot operator - which is the only
-// operator allowed after a base expression.
-// The next token to be parsed is the dot operator.
+// This is a special expression that allows access to the base class. It also handles the directly following dot operator - which
+// is the only operator allowed after a base expression. The base keyword has already been consumed and is referenced by the
+// previous token.
 static void base_(bool can_assign) {
   UNUSED(can_assign);
+
+  Token error_start = parser.previous;
+
   if (current_class == NULL) {
     error("Can't use '" KEYWORD_BASE "' outside of a class.");
   } else if (!current_class->has_baseclass) {
@@ -848,21 +887,23 @@ static void base_(bool can_assign) {
     consume(TOKEN_DOT, "Expecting '.' after '" KEYWORD_BASE "'.");
     consume(TOKEN_ID, "Expecting base class method name.");
     method_name = parser.previous;
+    error_start = parser.previous;  // Use the method name as the error token instead.
   }
 
   uint16_t name = string_constant(&method_name);
 
-  named_variable(synthetic_token(KEYWORD_THIS), false);
+  named_variable(synthetic_token(KEYWORD_THIS), false, error_start);
   if (match(TOKEN_OPAR)) {
     // Shorthand for method calls. This combines two instructions into one:
     // getting a property and calling a method.
     uint16_t arg_count = argument_list();
-    named_variable(synthetic_token(KEYWORD_BASE), false);
-    emit_two(OP_BASE_INVOKE, name);
-    emit_one(arg_count);
+
+    named_variable(synthetic_token(KEYWORD_BASE), false, error_start);
+    emit_two(OP_BASE_INVOKE, name, error_start);
+    emit_one(arg_count, error_start);
   } else {
-    named_variable(synthetic_token(KEYWORD_BASE), false);
-    emit_two(OP_GET_BASE_METHOD, name);
+    named_variable(synthetic_token(KEYWORD_BASE), false, error_start);
+    emit_two(OP_GET_BASE_METHOD, name, error_start);
   }
 }
 
@@ -906,17 +947,17 @@ static void function(bool can_assign, FunctionType type) {
     // instructions, but that would require some changes to end_compiler() and emit_return().
 
     expression();
-    emit_one(OP_RETURN);
+    emit_one_here(OP_RETURN);
   } else {
     error_at_current("Expecting '{' or '->' before function body.");
   }
 
   ObjFunction* function = end_compiler();  // Also handles end of scope. (end_scope())
 
-  emit_two(OP_CLOSURE, make_constant(OBJ_VAL(function)));
+  emit_two_here(OP_CLOSURE, make_constant(OBJ_VAL(function)));
   for (int i = 0; i < function->upvalue_count; i++) {
-    emit_one(compiler.upvalues[i].is_local ? 1 : 0);
-    emit_one(compiler.upvalues[i].index);
+    emit_one_here(compiler.upvalues[i].is_local ? 1 : 0);
+    emit_one_here(compiler.upvalues[i].index);
   }
 
   free_compiler(&compiler);
@@ -932,20 +973,25 @@ static void method() {
   FunctionType type = match(TOKEN_STATIC) ? TYPE_METHOD_STATIC : TYPE_METHOD;
   consume(TOKEN_FN, "Expecting method initializer.");
   consume(TOKEN_ID, "Expecting method name.");
+  Token error_start = parser.previous;
+
   uint16_t constant = string_constant(&parser.previous);
+
   function(false /* does not matter */, type);
-  emit_two(OP_METHOD, constant);
-  emit_one((uint16_t)type);
+  emit_two(OP_METHOD, constant, error_start);
+  emit_one((uint16_t)type, error_start);
 }
 
 static void constructor() {
   consume(TOKEN_CTOR, "Expecting constructor.");
+  Token error_start = parser.previous;
+
   Token ctor        = synthetic_token(STR(SP_METHOD_CTOR));
   uint16_t constant = string_constant(&ctor);
 
   function(false /* does not matter */, TYPE_CONSTRUCTOR);
-  emit_two(OP_METHOD, constant);
-  emit_one((uint16_t)TYPE_CONSTRUCTOR);
+  emit_two(OP_METHOD, constant, error_start);
+  emit_one((uint16_t)TYPE_CONSTRUCTOR, error_start);
 }
 
 // Compiles an and expression. And is special in that it acts more lik a control flow construct rather than a
@@ -955,7 +1001,7 @@ static void constructor() {
 static void and_(bool can_assign) {
   UNUSED(can_assign);
   int end_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_one(OP_POP);
+  emit_one_here(OP_POP);
 
   parse_precedence(PREC_AND);
 
@@ -965,7 +1011,7 @@ static void and_(bool can_assign) {
 // Compiles an or expression.
 // Or is special in that it acts more lik a control flow construct rather than
 // a binary operator. It short-circuits the evaluation of the rhs if the lhs is
-// true by jumping over the rhs. The lhs bytecode has already been emitted. The
+// true by jumping over the rhs. The lhs bytecode has already been emitted.
 static void or_(bool can_assign) {
   UNUSED(can_assign);
   // TODO (optimize): We could optimize this by inverting the logic (jumping over the rhs if the lhs is true)
@@ -975,7 +1021,7 @@ static void or_(bool can_assign) {
   int end_jump  = emit_jump(OP_JUMP);
 
   patch_jump(else_jump);
-  emit_one(OP_POP);
+  emit_one_here(OP_POP);
 
   parse_precedence(PREC_OR);
   patch_jump(end_jump);
@@ -986,7 +1032,7 @@ static void or_(bool can_assign) {
 static void ternary(bool can_assign) {
   UNUSED(can_assign);
   int else_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_one(OP_POP);  // Discard the condition.
+  emit_one_here(OP_POP);  // Discard the condition.
 
   parse_precedence(PREC_TERNARY);
 
@@ -994,7 +1040,7 @@ static void ternary(bool can_assign) {
   int end_jump = emit_jump(OP_JUMP);
 
   patch_jump(else_jump);
-  emit_one(OP_POP);  // Discard the true branch.
+  emit_one_here(OP_POP);  // Discard the true branch.
 
   parse_precedence(PREC_TERNARY);
   patch_jump(end_jump);
@@ -1005,14 +1051,14 @@ static void ternary(bool can_assign) {
 static void is_(bool can_assign) {
   UNUSED(can_assign);
   expression();
-  emit_one(OP_IS);
+  emit_one_here(OP_IS);
 }
 
 // Compiles an 'in' expression. The 'in' keyword has already been consumed and is referenced by the previous token.
 static void in_(bool can_assign) {
   UNUSED(can_assign);
   expression();
-  emit_one(OP_IN);
+  emit_one_here(OP_IN);
 }
 
 // Compiles a 'this' expression.
@@ -1087,7 +1133,7 @@ ParseRule rules[] = {
 };
 
 // Returns the rule for the given token type.
-static ParseRule* get_rule(TokenType type) {
+static ParseRule* get_rule(TokenKind type) {
   return &rules[type];
 }
 
@@ -1286,7 +1332,7 @@ static void define_variable(uint16_t global) {
     return;
   }
 
-  emit_two(OP_DEFINE_GLOBAL, global);
+  emit_two_here(OP_DEFINE_GLOBAL, global);
 }
 
 // Compiles an argument list.
@@ -1338,16 +1384,18 @@ static void expression() {
 // Compiles a print statement.
 // The print keyword has already been consumed at this point.
 static void statement_print() {
+  Token error_start = parser.previous;
   expression();
-  emit_one(OP_PRINT);
+  emit_one(OP_PRINT, error_start);
 }
 
 // Compiles an expression statement.
 // Nothing has been consumed yet, so the current token is the first token of the
 // expression.
 static void statement_expression() {
+  Token error_start = parser.current;
   expression();
-  emit_one(OP_POP);
+  emit_one(OP_POP, error_start);
 }
 
 // Compiles an if statement.
@@ -1356,14 +1404,14 @@ static void statement_if() {
   expression();
 
   int then_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_one(OP_POP);  // Discard the result of the condition expression.
+  emit_one_here(OP_POP);  // Discard the result of the condition expression.
 
   statement();
 
   int else_jump = emit_jump(OP_JUMP);
 
   patch_jump(then_jump);
-  emit_one(OP_POP);
+  emit_one_here(OP_POP);
 
   if (match(TOKEN_ELSE)) {
     statement();
@@ -1375,8 +1423,9 @@ static void statement_if() {
 // Compiles a throw statement.
 // The throw keyword has already been consumed at this point.
 static void statement_throw() {
+  Token error_start = parser.previous;
   expression();
-  emit_one(OP_THROW);
+  emit_one(OP_THROW, error_start);
 }
 
 // Compiles a try statement.
@@ -1392,13 +1441,15 @@ static void statement_try(bool is_try_expression) {
   add_local(error);
   define_variable(0 /* ignore, we're not in global scope */);
 
+  Token error_start = parser.current;
+
   // Compile the try block / expression.
   if (is_try_expression) {
     expression();  // Leaves the result on the stack.
 
     // Set the error variable to the expression result.
     int arg = resolve_local(current, &error);
-    emit_two(OP_SET_LOCAL, (uint16_t)arg);
+    emit_two(OP_SET_LOCAL, (uint16_t)arg, error_start);
   } else {
     statement();
   }
@@ -1410,11 +1461,11 @@ static void statement_try(bool is_try_expression) {
   // Compile optional catch block / expression.
   if (is_try_expression) {
     //  If there is no else expression, we push nil as the "else" value.
-    match(TOKEN_ELSE) ? expression() : emit_one(OP_NIL);
+    match(TOKEN_ELSE) ? expression() : emit_one_here(OP_NIL);
 
     // Set the error variable to the else expression result or the nil value.
     int arg = resolve_local(current, &error);
-    emit_two(OP_SET_LOCAL, (uint16_t)arg);
+    emit_two(OP_SET_LOCAL, (uint16_t)arg, error_start);
   } else {
     if (match(TOKEN_CATCH)) {
       statement();
@@ -1438,6 +1489,8 @@ static void try_(bool can_assign) {
 // Handles illegal return statements in a constructor.
 // The return value is an expression or nil.
 static void statement_return() {
+  Token error_start = parser.previous;
+
   if (check_statement_return_end()) {
     emit_return();
   } else {
@@ -1449,7 +1502,7 @@ static void statement_return() {
     if (!check_statement_return_end()) {
       error_at_current("Expecting newline, '}' or some other statement after return value.");
     }
-    emit_one(OP_RETURN);
+    emit_one(OP_RETURN, error_start);
   }
 }
 
@@ -1466,7 +1519,7 @@ static void statement_while() {
   expression();
 
   int exit_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_one(OP_POP);
+  emit_one_here(OP_POP);
 
   // Loop body
   statement();
@@ -1474,7 +1527,7 @@ static void statement_while() {
   emit_loop(current->innermost_loop_start);
 
   patch_jump(exit_jump);
-  emit_one(OP_POP);
+  emit_one_here(OP_POP);
 
   patch_breaks(current->innermost_loop_start);
 
@@ -1514,7 +1567,7 @@ static void statement_for() {
 
     // Jump out of the loop if the condition is false.
     exit_jump = emit_jump(OP_JUMP_IF_FALSE);
-    emit_one(OP_POP);  // Discard the result of the condition expression.
+    emit_one_here(OP_POP);  // Discard the result of the condition expression.
   }
 
   // Loop increment
@@ -1522,7 +1575,7 @@ static void statement_for() {
     int body_jump       = emit_jump(OP_JUMP);
     int increment_start = current_chunk()->count;
     expression();
-    emit_one(OP_POP);  // Discard the result of the increment expression.
+    emit_one_here(OP_POP);  // Discard the result of the increment expression.
     consume(TOKEN_SCOLON, "Expecting ';' after loop increment.");
 
     emit_loop(current->innermost_loop_start);
@@ -1536,7 +1589,7 @@ static void statement_for() {
 
   if (exit_jump != -1) {
     patch_jump(exit_jump);
-    emit_one(OP_POP);  // Discard the result of the condition expression.
+    emit_one_here(OP_POP);  // Discard the result of the condition expression.
   }
 
   patch_breaks(current->innermost_loop_start);
@@ -1557,7 +1610,7 @@ static void statement_skip() {
 
   // Discard any locals created in the loop body.
   for (int i = current->local_count - 1; i >= 0 && current->locals[i].depth > current->innermost_loop_scope_depth; i--) {
-    emit_one(OP_POP);
+    emit_one_here(OP_POP);
   }
 
   // Jump back to the start of the loop.
@@ -1580,7 +1633,7 @@ static void statement_break() {
 
   // Discard any locals created in the loop body.
   for (int i = current->local_count - 1; i >= 0 && current->locals[i].depth > current->innermost_loop_scope_depth; i--) {
-    emit_one(OP_POP);
+    emit_one_here(OP_POP);
   }
 
   // Jump to the end of the loop.
@@ -1590,6 +1643,7 @@ static void statement_break() {
 // Compiles an import statement.
 // The import keyword has already been consumed at this point.
 static void statement_import() {
+  Token error_start = parser.previous;
   consume(TOKEN_ID, "Expecting module name.");
 
   uint16_t name_constant = string_constant(&parser.previous);
@@ -1599,10 +1653,10 @@ static void statement_import() {
     consume(TOKEN_STRING, "Expecting file name.");
     uint16_t file_constant = make_constant(OBJ_VAL(copy_string(parser.previous.start + 1,
                                                                parser.previous.length - 2)));  // +1 and -2 to strip the quotes
-    emit_two(OP_IMPORT_FROM, name_constant);
-    emit_one(file_constant);
+    emit_two(OP_IMPORT_FROM, name_constant, error_start);
+    emit_one(file_constant, error_start);
   } else {
-    emit_two(OP_IMPORT, name_constant);
+    emit_two(OP_IMPORT, name_constant, error_start);
   }
 
   define_variable(name_constant);
@@ -1666,7 +1720,7 @@ static void destructuring_assignment(DestructureType type) {
     int index;        // The index of the variable in the destructuring pattern.
   } DestructuringVariable;
 
-  TokenType closing;
+  TokenKind closing;
   switch (type) {
     case DESTRUCTURE_SEQ: closing = TOKEN_CBRACK; break;
     case DESTRUCTURE_OBJ: closing = TOKEN_CBRACE; break;
@@ -1677,6 +1731,8 @@ static void destructuring_assignment(DestructureType type) {
   int current_index = 0;
   bool has_rest     = false;
   bool local_scope  = current->scope_depth > 0;
+
+  Token error_start = parser.previous;
 
   // Parse the left-hand side of the assignment, e.g. the variables.
   while (!check(closing) && !check(TOKEN_EOF)) {
@@ -1703,7 +1759,7 @@ static void destructuring_assignment(DestructureType type) {
 
     // Emit a placeholder value for the variable if we're in a local scope, because locals live on the stack.
     if (local_scope) {
-      emit_one(OP_NIL);  // Define the variable.
+      emit_one(OP_NIL, error_start);  // Define the variable.
     }
 
     if (++current_index > MAX_FN_ARGS) {
@@ -1730,18 +1786,18 @@ static void destructuring_assignment(DestructureType type) {
   for (int i = 0; i < current_index; i++) {
     DestructuringVariable* var = &variables[i];
 
-    emit_two(OP_DUPE, 0);  // Duplicate the rhs value: [RhsVal] -> [RhsVal][RhsVal]
+    emit_two(OP_DUPE, 0, error_start);  // Duplicate the rhs value: [RhsVal] -> [RhsVal][RhsVal]
 
     // Emit code to get the index from the rhs. For objs, we use the variable name as the operand for OP_GET_INDEX. For
     // seqs, we use the variables index.
     Value payload = type == DESTRUCTURE_OBJ ? OBJ_VAL(copy_string(var->name.start, var->name.length)) : INT_VAL(var->index);
     if (var->is_rest) {
-      emit_constant(payload);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][current_index]
-      emit_one(OP_NIL);        // [RhsVal][RhsVal][current_index] -> [RhsVal][RhsVal][current_index][nil]
-      emit_one(OP_GET_SLICE);  // [RhsVal][RhsVal][current_index] -> [RhsVal][slice]
+      emit_constant(payload, error_start);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][current_index]
+      emit_one(OP_NIL, error_start);        // [RhsVal][RhsVal][current_index] -> [RhsVal][RhsVal][current_index][nil]
+      emit_one(OP_GET_SLICE, error_start);  // [RhsVal][RhsVal][current_index] -> [RhsVal][slice]
     } else {
-      emit_constant(payload);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][i]
-      emit_one(OP_GET_INDEX);  // [RhsVal][RhsVal][i] -> [RhsVal][value]
+      emit_constant(payload, error_start);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][i]
+      emit_one(OP_GET_INDEX, error_start);  // [RhsVal][RhsVal][i] -> [RhsVal][value]
     }
 
     // Define the variable. We need to emit different opcodes depending on whether we're in a local or global scope.
@@ -1749,14 +1805,14 @@ static void destructuring_assignment(DestructureType type) {
       // Mark the variable as initialized. We cannot use mark_initialized() here, because that would just mark the most
       // recent local. So we need to do it manually.
       current->locals[var->local].depth = current->scope_depth;
-      emit_two(OP_SET_LOCAL, (uint16_t)(var->local));
-      emit_one(OP_POP);  // Discard the value.
+      emit_two(OP_SET_LOCAL, (uint16_t)(var->local), error_start);
+      emit_one(OP_POP, error_start);  // Discard the value.
     } else {
-      emit_two(OP_DEFINE_GLOBAL, var->global);  // Also pops the value.
+      emit_two(OP_DEFINE_GLOBAL, var->global, error_start);  // Also pops the value.
     }
   }
 
-  emit_one(OP_POP);  // Discard the value.
+  emit_one(OP_POP, error_start);  // Discard the value.
 }
 
 // Compiles a let declaration.
@@ -1774,7 +1830,7 @@ static void declaration_let() {
     if (match(TOKEN_ASSIGN)) {
       expression();
     } else {
-      emit_one(OP_NIL);
+      emit_one_here(OP_NIL);
     }
 
     define_variable(global);
@@ -1796,12 +1852,14 @@ static void declaration_function() {
 // The class keyword has already been consumed at this point.
 // Also handles inheritance.
 static void declaration_class() {
+  Token error_start = parser.previous;
+
   consume(TOKEN_ID, "Expecting class name.");
   Token class_name       = parser.previous;
   uint16_t name_constant = string_constant(&parser.previous);
   declare_local(&parser.previous);
 
-  emit_two(OP_CLASS, name_constant);
+  emit_two(OP_CLASS, name_constant, error_start);
 
   // Define here, so it can be referenced in the class body.
   define_variable(name_constant);
@@ -1826,12 +1884,12 @@ static void declaration_class() {
     add_local(synthetic_token(KEYWORD_BASE));
     define_variable(0 /* ignore, we're not in global scope */);
 
-    named_variable(class_name, false);
-    emit_one(OP_INHERIT);
+    named_variable(class_name, false, parser.previous);
+    emit_one(OP_INHERIT, parser.previous);
     class_compiler.has_baseclass = true;
   }
 
-  named_variable(class_name, false);
+  named_variable(class_name, false, error_start);
 
   // Body
   bool has_ctor = false;
@@ -1848,7 +1906,7 @@ static void declaration_class() {
     }
   }
   consume(TOKEN_CBRACE, "Expecting '}' after class body.");
-  emit_one(OP_FINALIZE);  // Finalize the class & pop it from the stack.
+  emit_one(OP_FINALIZE, error_start);  // Finalize the class & pop it from the stack.
 
   if (class_compiler.has_baseclass) {
     end_scope();

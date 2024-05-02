@@ -1,1 +1,2 @@
-break  // [ExpectCompileError] Compile error at line 1 at 'break': Can't break outside of a loop.
+// [Exit] 2
+break  // [ExpectError] Compile error at line 2 at 'break': Can't break outside of a loop.

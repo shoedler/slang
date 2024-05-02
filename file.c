@@ -3,13 +3,12 @@
 char* ensure_slang_extension(const char* path) {
   if (path == NULL) {
     INTERNAL_ERROR("Cannot append extension to NULL path");
-    exit(74);
+    exit(EMEM_ERROR);
   }
 
   // Maybe the path already has the extension. In that case, return the same path
   size_t path_len = strlen(path);
-  if (path_len >= SLANG_EXTENSION_LEN &&
-      strcmp(path + path_len - SLANG_EXTENSION_LEN, SLANG_EXTENSION) == 0) {
+  if (path_len >= SLANG_EXTENSION_LEN && strcmp(path + path_len - SLANG_EXTENSION_LEN, SLANG_EXTENSION) == 0) {
     return _strdup(path);
   }
 
@@ -18,7 +17,7 @@ char* ensure_slang_extension(const char* path) {
   char* new_path = (char*)malloc(len + SLANG_EXTENSION_LEN + 1);  // +1 for the null terminator
   if (new_path == NULL) {
     INTERNAL_ERROR("Not enough memory to append extension to \"%s\"", path);
-    exit(74);
+    exit(EMEM_ERROR);
   }
 
   strcpy(new_path, path);
@@ -30,7 +29,7 @@ char* ensure_slang_extension(const char* path) {
 char* base(const char* path) {
   if (path == NULL) {
     INTERNAL_ERROR("Cannot get base of NULL path");
-    exit(74);
+    exit(EMEM_ERROR);
   }
 
   size_t len = strlen(path);
@@ -41,7 +40,7 @@ char* base(const char* path) {
   char* base = (char*)malloc(len + 1);
   if (base == NULL) {
     INTERNAL_ERROR("Not enough memory to get base of \"%s\"", path);
-    exit(74);
+    exit(EMEM_ERROR);
   }
 
   strcpy(base, path);
@@ -69,7 +68,7 @@ char* base(const char* path) {
 bool file_exists(const char* path) {
   if (path == NULL) {
     INTERNAL_ERROR("Cannot check existence of NULL path");
-    exit(74);
+    exit(EMEM_ERROR);
   }
 
   FILE* file = fopen(path, "r");
@@ -152,7 +151,7 @@ static char* internal_read_file(const char* path, bool exit_on_error) {
   if (path == NULL) {
     if (exit_on_error) {
       INTERNAL_ERROR("Cannot open NULL path \"%s\"", path);
-      exit(74);
+      exit(EMEM_ERROR);
     } else {
       return NULL;
     }
@@ -162,7 +161,7 @@ static char* internal_read_file(const char* path, bool exit_on_error) {
   if (file == NULL) {
     if (exit_on_error) {
       INTERNAL_ERROR("Could not open file \"%s\"", path);
-      exit(74);
+      exit(EIO_ERROR);
     } else {
       return NULL;
     }
@@ -176,7 +175,7 @@ static char* internal_read_file(const char* path, bool exit_on_error) {
   if (buffer == NULL) {
     if (exit_on_error) {
       INTERNAL_ERROR("Not enough memory to read \"%s\"\n", path);
-      exit(74);
+      exit(EMEM_ERROR);
     } else {
       return NULL;
     }
@@ -186,7 +185,7 @@ static char* internal_read_file(const char* path, bool exit_on_error) {
   if (bytes_read < file_size) {
     if (exit_on_error) {
       INTERNAL_ERROR("Could not read file \"%s\"\n", path);
-      exit(74);
+      exit(EIO_ERROR);
     } else {
       return NULL;
     }

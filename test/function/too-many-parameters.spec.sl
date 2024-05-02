@@ -253,5 +253,5 @@ fn f(
     a251,
     a252,
     a253,
-    a254,
-    a255, a) {} // [ExpectCompileError] Compile error at line 257 at 'a': Can't have more than 255 parameters.
+    a254,       // [Exit] 2
+    a255, a) {} // [ExpectError] Compile error at line 257 at 'a': Can't have more than 255 parameters.

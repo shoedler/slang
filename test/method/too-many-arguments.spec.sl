@@ -255,7 +255,7 @@
      a, // 252
      a, // 253
      a, // 254
-     a, // 255
-     a) // [ExpectCompileError] Compile error at line 259 at 'a': Can't have more than 255 arguments.
+     a, // 255 // [Exit] 2
+     a) // [ExpectError] Compile error at line 259 at 'a': Can't have more than 255 arguments.
 }
-// [ExpectCompileError] Compile error at line 261 at end: Expecting '}' after block.
+// [ExpectError] Compile error at line 261 at end: Expecting '}' after block.

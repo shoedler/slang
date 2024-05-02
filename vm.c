@@ -41,13 +41,66 @@ static void reset_stack() {
   vm.flags &= ~VM_FLAG_PAUSE_GC;   // Clear the pause flag
 }
 
-void dump_stacktrace() {
+static void dump_location() {
+  CallFrame* frame      = &vm.frames[vm.frame_count - 1];
+  ObjFunction* function = frame->closure->function;
+  size_t instruction    = frame->ip - function->chunk.code - 1;
+
+  SourceView source = function->chunk.source_views[instruction];
+
+  const char* error_end   = source.start + source.error_end_ofs;
+  const char* error_start = source.start + source.error_start_ofs;
+
+  fprintf(stderr, "\n %5d | ", source.line);
+
+  // Print the source code line
+  for (const char* c = source.start; c < error_end || (c >= error_end && *c != '\n' && *c != '\0'); c++) {
+    if (*c == '\r') {
+      continue;
+    }
+
+    if (*c == '\n') {
+      fputs("...", stderr);
+      break;
+    } else if (*c == '/' && c[1] == '/') {
+      break;  // Break if we reach a line comment
+    } else {
+      fputc(*c, stderr);
+    }
+  }
+
+  // Newline and padding
+  fputs("\n         ", stderr);
+  for (const char* c = source.start; c < error_start; c++) {
+    fputc(' ', stderr);
+  }
+
+  // Print the squiggly line
+  fputs(ANSI_COLOR_RED, stderr);
+  for (const char* c = error_start; c < error_end; c++) {
+    if (*c == '\r') {
+      continue;
+    }
+
+    if (*c == '\n') {
+      break;
+    } else {
+      fputc('~', stderr);
+    }
+  }
+  fputs(ANSI_COLOR_RESET, stderr);
+
+  // Done!
+  fputs("\n\n", stderr);
+}
+
+static void dump_stacktrace() {
   for (int i = vm.frame_count - 1; i >= 0; i--) {
     CallFrame* frame      = &vm.frames[i];
     ObjFunction* function = frame->closure->function;
     size_t instruction    = frame->ip - function->chunk.code - 1;
 
-    fprintf(stderr, "  at line %d ", function->chunk.lines[instruction]);
+    fprintf(stderr, "  at line %d ", function->chunk.source_views[instruction].line);
 
     Value module_name;
     if (!hashtable_get_by_string(&function->globals_context->fields, vm.special_prop_names[SPECIAL_PROP_MODULE_NAME],
@@ -85,7 +138,7 @@ void runtime_error(const char* format, ...) {
 static void exit_with_compile_error() {
   free_vm();
   // TODO (recovery): Find a way to progpagate errors */
-  exit(65);
+  exit(ECOMPILE_ERROR);
 }
 
 void define_native(HashTable* table, const char* name, NativeFn function, const char* doc, int arity) {
@@ -540,7 +593,7 @@ static void define_method(ObjString* name, FunctionType type) {
     }
     default: {
       INTERNAL_ERROR("Unknown method FunctionType %d", type);
-      exit(1);
+      exit(ESW_ERROR);
     }
   }
 
@@ -603,7 +656,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
         "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
         "'%s'",
         module_name->chars, AS_STRING(cwd)->chars, module_path == NULL ? "NULL" : module_path->chars);
-    exit(74);
+    exit(EIO_ERROR);
   }
 
   if (!file_exists(module_to_load_path)) {
@@ -917,6 +970,8 @@ static bool handle_error() {
       fprintf(stderr, "Uncaught error: ");
       print_value_safe(stderr, vm.current_error);
       fprintf(stderr, "\n");
+
+      dump_location();
       dump_stacktrace();
       reset_stack();
       vm.frame_count = 0;
@@ -935,7 +990,7 @@ static bool handle_error() {
   // Did we find a frame that owns the handler?
   if (frame_offset == -1) {
     INTERNAL_ERROR("Call stack corrupted. No call frame found that owns the handler.");
-    exit(1);
+    exit(ESW_ERROR);
   }
 
   // We have the handler's index/offset in the stack and the frame it belongs to. Now let's reset the Vm to
@@ -1265,7 +1320,9 @@ static Value run() {
         switch (peek(0).type) {
           case VAL_INT: push(INT_VAL(-AS_INT(pop()))); break;
           case VAL_FLOAT: push(FLOAT_VAL(-AS_FLOAT(pop()))); break;
-          default: runtime_error("Operand must be a number. Was %s.", typeof(peek(0))->name->chars); goto finish_error;
+          default:
+            runtime_error("Type for unary - must be a " STR(TYPENAME_NUM) ". Was %s.", typeof(peek(0))->name->chars);
+            goto finish_error;
         }
         break;
       }

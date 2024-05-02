@@ -1,1 +1,2 @@
-0o // [ExpectCompileError] Compile error at line 1: Octal number literal must have at least one digit and at most 17.
+// [Exit] 2
+0o // [ExpectError] Compile error at line 2: Octal number literal must have at least one digit and at most 17.

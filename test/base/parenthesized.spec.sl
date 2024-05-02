@@ -3,8 +3,8 @@ cls A {
 }
 
 cls B : A {
-  fn method() {
-    (base).method() // [ExpectCompileError] Compile error at line 7 at ')': Expecting '.' after 'base'.
+  fn method() {     // [Exit] 2
+    (base).method() // [ExpectError] Compile error at line 7 at ')': Expecting '.' after 'base'.
   }
 }
-// [ExpectCompileError] Compile error at line 10 at end: Expecting '}' after block.
+// [ExpectError] Compile error at line 10 at end: Expecting '}' after block.

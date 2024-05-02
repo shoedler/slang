@@ -4,5 +4,7 @@ let a = "1
 3
 "
 
-err // [ExpectRuntimeError] Uncaught error: Undefined variable 'err'.
-    // [ExpectRuntimeError] at line 7 at the toplevel of module "main"
+err // [ExpectError] Uncaught error: Undefined variable 'err'.
+    // [ExpectError]      7 | err
+    // [ExpectError]          ~~~
+    // [ExpectError]   at line 7 at the toplevel of module "main"

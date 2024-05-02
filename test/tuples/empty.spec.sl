@@ -1,2 +1,3 @@
 // An empty tuple is a valid expression, but it's not written like this:
-let a = () // [ExpectCompileError] Compile error at line 2 at ')': Expecting expression.
+// [Exit] 2
+let a = () // [ExpectError] Compile error at line 3 at ')': Expecting expression.

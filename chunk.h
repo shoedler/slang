@@ -2,6 +2,7 @@
 #define chunk_h
 
 #include "common.h"
+#include "scanner.h"
 #include "value.h"
 
 typedef enum {
@@ -62,6 +63,13 @@ typedef enum {
   OP_GET_SLICE,
 } OpCode;
 
+typedef struct {
+  const char* start;         // Pointer to first char of the line on which the error occurred.
+  uint16_t error_start_ofs;  // Offset to [start]. Points to first char of the first token that caused the error.
+  uint16_t error_end_ofs;    // Offset to [start]. Points to last char of the last token that caused the error.
+  int line;                  // Line number on which the error starts.
+} SourceView;
+
 // Dynamic array of instructions.
 // Provides a cache-friendly, constant-time lookup (and append) dense
 // storage for instructions.
@@ -69,7 +77,7 @@ typedef struct {
   int count;
   int capacity;
   uint16_t* code;
-  int* lines;
+  SourceView* source_views;
   ValueArray constants;
 } Chunk;
 
@@ -81,7 +89,7 @@ void free_chunk(Chunk* chunk);
 
 // Write data to the chunk.
 // This will grow the chunk if necessary.
-void write_chunk(Chunk* chunk, uint16_t data, int line);
+void write_chunk(Chunk* chunk, uint16_t data, Token error_start, Token error_end);
 
 // Add a value to the chunk's constant pool.
 // Returns the index of the value in the constant pool.
