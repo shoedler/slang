@@ -178,22 +178,28 @@ static bool check_statement_return_end() {
 }
 
 // Writes an opcode or operand to the current chunk.
+// [error_start] is the token where the error message should start if the Vm encounters a runtime error executing this data.
+// It'll span up to the previous token.
 static void emit_one(uint16_t data, Token error_start) {
   write_chunk(current_chunk(), data, error_start, parser.previous /* error_end */);
 }
+// Writes an opcode or operand to the current chunk.
+// This is a shorthand for [emit_one], indicating that the offending token is [parser.previous].
 static void emit_one_here(uint16_t data) {
-  emit_one(data, parser.previous,
-           parser.previous);  // 'current' is actually the next one we want to consume. So we use 'previous'.
+  emit_one(data, parser.previous);  // 'current' is actually the next one we want to consume. So we use 'previous'.
 }
 
 // Writes two opcodes or operands to the current chunk.
+// [error_start] is the token where the error message should start if the Vm encounters a runtime error executing this data.
+// It'll span up to the previous token.
 static void emit_two(uint16_t data1, uint16_t data2, Token error_start) {
-  emit_one(data1, error_start, parser.previous /* error_end */);
-  emit_one(data2, error_start, parser.previous /* error_end */);
+  emit_one(data1, error_start);
+  emit_one(data2, error_start);
 }
+// Writes two opcodes or operands to the current chunk.
+// This is a shorthand for [emit_two], indicating that the offending token is [parser.previous].
 static void emit_two_here(uint16_t data1, uint16_t data2) {
-  emit_two(data1, data2, parser.previous,
-           parser.previous);  // 'current' is actually the next one we want to consume. So we use 'previous'.
+  emit_two(data1, data2, parser.previous);  // 'current' is actually the next one we want to consume. So we use 'previous'.
 }
 
 // Emits a loop instruction.
@@ -405,7 +411,6 @@ static bool match_inc_dec() {
 // operator is in the previous token.
 static void compound_assignment() {
   TokenKind op_type = parser.previous.type;
-  Token error_start = parser.previous;
   expression();
 
   switch (op_type) {
@@ -461,7 +466,7 @@ static void dot(bool can_assign) {
     inc_dec();
     emit_two(OP_SET_PROPERTY, name, error_start);
   } else if (can_assign && match_compound_assignment()) {
-    emit_two(OP_DUPE, 0, error_start, parser.previous);  // Duplicate the object.
+    emit_two(OP_DUPE, 0, error_start);  // Duplicate the object.
     emit_two(OP_GET_PROPERTY, name, error_start);
     compound_assignment();
     emit_two(OP_SET_PROPERTY, name, error_start);
@@ -1725,6 +1730,7 @@ static void destructuring_assignment(DestructureType type) {
     case DESTRUCTURE_SEQ: closing = TOKEN_CBRACK; break;
     case DESTRUCTURE_OBJ: closing = TOKEN_CBRACE; break;
     case DESTRUCTURE_TUPLE: closing = TOKEN_CPAR; break;
+    default: INTERNAL_ERROR("Unhandled destructuring type."); break;
   }
 
   DestructuringVariable variables[MAX_FN_ARGS];
