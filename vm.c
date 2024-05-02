@@ -52,6 +52,7 @@ static void dump_location() {
   const char* error_start = source.start + source.error_start_ofs;
 
   fprintf(stderr, "\n %5d | ", source.line);
+
   // Print the source code line
   for (const char* c = source.start; c < error_end || (c >= error_end && *c != '\n' && *c != '\0'); c++) {
     if (*c == '\r') {
@@ -68,10 +69,14 @@ static void dump_location() {
     }
   }
 
+  // Newline and padding
   fputs("\n         ", stderr);
   for (const char* c = source.start; c < error_start; c++) {
     fputc(' ', stderr);
   }
+
+  // Print the squiggly line
+  fputs(ANSI_COLOR_RED, stderr);
   for (const char* c = error_start; c < error_end; c++) {
     if (*c == '\r') {
       continue;
@@ -83,7 +88,9 @@ static void dump_location() {
       fputc('~', stderr);
     }
   }
+  fputs(ANSI_COLOR_RESET, stderr);
 
+  // Done!
   fputs("\n\n", stderr);
 }
 

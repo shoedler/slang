@@ -1,7 +1,7 @@
 cls Base { }
  
 cls Derived : Base { 
-  ctor {       // [Exit] 2
+  ctor {
     base.foo() // [ExpectError] Uncaught error: Undefined method 'foo' in type Base or any of its parent classes.
   }            // [ExpectError]      5 |     base.foo()
 }              // [ExpectError]                   ~~~~~
