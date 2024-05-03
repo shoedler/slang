@@ -95,7 +95,7 @@ char* clean_path(const char* path, bool no_prefixed_separators) {
 
   // Normalize slashes and remove redundant slashes
   int write_index = 0;
-  for (int i = 0; i < len; ++i) {
+  for (size_t i = 0; i < len; ++i) {
     if (path[i] == '/' || path[i] == '\\') {
       // Skip slashes at the beginning
       if (write_index != 0 || !no_prefixed_separators) {

@@ -52,8 +52,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_CTOR) {
           ObjString* str = AS_STRING(argv[1]);
           return INT_VAL((long long)string_to_double(str->chars, str->length));
         }
+        default: break;
       }
     }
+    default: break;
   }
 
   return INT_VAL(0);
@@ -106,8 +108,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_CTOR) {
           ObjString* str = AS_STRING(argv[1]);
           return FLOAT_VAL(string_to_double(str->chars, str->length));
         }
+        default: break;
       }
     }
+    default: break;
   }
 
   return FLOAT_VAL(0);

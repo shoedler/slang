@@ -333,8 +333,10 @@ ObjClass* typeof(Value value) {
         case OBJ_CLASS: return vm.__builtin_Class_class;  // This field name was created via macro
         case OBJ_OBJECT:
           return AS_OBJECT(value)->klass;  // Class X, if it's an instance. Or just vm.__builtin_Obj_class, if it's an object.
+        default: break;
       }
     }
+    default: break;
   }
   return vm.__builtin_Obj_class;  // This field name was created via macro
 }
@@ -391,6 +393,7 @@ static CallResult call_value(Value callable, int arg_count) {
           case OBJ_NATIVE: return call_native((ObjNative*)bound->method, arg_count);
           default: break;  // Non-callable object type.
         }
+        break;
       }
       case OBJ_CLASS: {
         ObjClass* klass = AS_CLASS(callable);
@@ -647,6 +650,11 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
 
       // We assume it is an absolute path insted, we infer that it has the extension already
       module_to_load_path = malloc(module_path->length + 1);
+      if (module_to_load_path == NULL) {
+        runtime_error("Could not import module '%s'. Out of memory.", module_name->chars);
+        return false;
+      }
+
       strcpy(module_to_load_path, module_path->chars);
     }
   }
@@ -766,6 +774,7 @@ bool value_get_property(ObjString* name) {
         }
         break;
       }
+      default: break;
     }
   }
 
@@ -884,6 +893,7 @@ bool value_get_index() {
         result              = OBJ_VAL(char_str);
         goto done_getting_index;
       }
+      default: break;
     }
   }
 
@@ -925,6 +935,7 @@ bool value_set_index() {
         seq->items.values[i] = value;
         goto done_setting_index;
       }
+      default: break;
     }
   }
 
@@ -983,7 +994,7 @@ static bool handle_error() {
   // We do that by going through the frames from the top to the bottom, and stop at the frame where the
   // handler (stack_offset) is.
   for (frame_offset = vm.frame_count - 1;  // Start at the top of the frame stack
-       frame_offset >= 0 && (size_t)(vm.frames[frame_offset].slots - vm.stack) > stack_offset;  // Stop at the frame
+       frame_offset >= 0 && (int)(vm.frames[frame_offset].slots - vm.stack) > stack_offset;  // Stop at the frame
        frame_offset--)
     ;
 

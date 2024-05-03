@@ -310,7 +310,9 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
         current->function->name = AS_STRING(module_name);
         break;
       }
-      INTERNAL_ERROR("Module name not found in module's fields (" STR(SP_PROP_MODULE_NAME) ").");
+      INTERNAL_ERROR("Module name not found in the fields of the active module (module." STR(SP_PROP_MODULE_NAME) ").");
+      current->function->name = copy_string("(Unnamed module)", 16);
+      break;
     }
     case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("(anon)", 6); break;
     case TYPE_CONSTRUCTOR: current->function->name = vm.special_method_names[SPECIAL_METHOD_CTOR]; break;
@@ -581,7 +583,7 @@ static void tuple_literal(bool can_assign, int already_emitted_items, Token erro
   consume(TOKEN_CPAR, "Expecting ')' after " STR(TYPENAME_TUPLE) " literal. Or maybe you are missing a ','?");
 
   if (count <= MAX_TUPLE_LITERAL_ITEMS) {
-    emit_two(OP_TUPLE_LITERAL, (uint16_t)count + already_emitted_items, error_start);
+    emit_two(OP_TUPLE_LITERAL, (uint16_t)(count + already_emitted_items), error_start);
   } else {
     // Still use 'error_at_current' because the message would be very long if we'd start at 'error_start'.
     error_at_current("Can't have more than " STR(MAX_TUPLE_LITERAL_ITEMS) " items in a " STR(TYPENAME_TUPLE) ".");
@@ -1245,7 +1247,7 @@ static int resolve_upvalue(Compiler* compiler, Token* name) {
 
 // Adds a local variable to the current compiler's local variables array.
 static void add_local(Token name) {
-  if (current->local_count == (UINT32_MAX - 1)) {
+  if (current->local_count == (int)(UINT32_MAX - 1)) {
     error("Too many local variables in this scope.");
     return;
   }
@@ -1271,7 +1273,7 @@ static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
     }
   }
 
-  if (upvalue_count == (UINT32_MAX - 1)) {
+  if (upvalue_count == (int)(UINT32_MAX - 1)) {
     error("Too many closure variables in function.");
     return 0;
   }
@@ -1759,7 +1761,7 @@ static void destructuring_assignment(DestructureType type) {
     variables[current_index].global  = has_rest
                                            ? parse_variable("Expecting identifier after ellipsis in destructuring assignment.")
                                            : parse_variable("Expecting identifier in destructuring assignment.");
-    variables[current_index].local   = current->local_count - 1;  // It's just the one on the top.
+    variables[current_index].local   = (uint16_t)(current->local_count - 1);  // It's just the one on the top.
     variables[current_index].index   = current_index;
     variables[current_index].name    = parser.previous;  // Used for object destructuring.
 

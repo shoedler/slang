@@ -159,7 +159,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                                                               " for which 'pred' evaluates to " VALUE_STR_TRUE ".");            \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, SP_METHOD_HAS) {                                                                         \
     BUILTIN_ARGC_EXACTLY(1)                                                                                                     \
-    BUILTIN_CHECK_RECEIVER(##type)                                                                                              \
+    BUILTIN_CHECK_RECEIVER(type)                                                                                                \
                                                                                                                                 \
     ValueArray items;                                                                                                           \
     BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                                \

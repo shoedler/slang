@@ -178,7 +178,7 @@ static uint64_t hash_string(const char* key, int length) {
 static uint64_t hash_tuple(ValueArray* items) {
   uint64_t t      = items->count;
   uint64_t result = 0x345678;
-  for (int i = 0; i < t; i++) {
+  for (uint64_t i = 0; i < t; i++) {
     result = (result * 1000003) ^ hash_value(items->values[i]);
   }
   result += 97531;

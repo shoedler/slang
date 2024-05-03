@@ -76,6 +76,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_CTOR) {
         return OBJ_VAL(seq);
       }
     }
+    default: break;
   }
 
   // TODO: Make a macro for this error message
