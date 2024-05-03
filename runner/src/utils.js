@@ -164,8 +164,8 @@ export const buildSlangConfig = async (config, signal = null, abortOnError = tru
 export const testGcStressFlag = async () => {
   const commonFile = path.join(SLANG_PROJ_DIR, 'common.h');
   const commonContents = await readFile(commonFile);
-  const disabled = new RegExp(/^\s*\/\/\s*#define\s+DEBUG_STRESS_GC\s*$/m).test(commonContents);
-  const enabled = new RegExp(/^\s*#define\s+DEBUG_STRESS_GC\s*$/m).test(commonContents);
+  const disabled = new RegExp(/^\s*\/\/\s*#define\s+DEBUG_STRESS_GC/m).test(commonContents);
+  const enabled = new RegExp(/^\s*#define\s+DEBUG_STRESS_GC/m).test(commonContents);
   if (!disabled && !enabled) {
     abort('Failed to test DEBUG_STRESS_GC flag', 'common.h does not contain DEBUG_STRESS_GC');
   }
