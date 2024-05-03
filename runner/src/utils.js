@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import wrapAnsi from 'wrap-ansi';
-import { MSBUILD_EXE, SLANG_BIN_DIR, SLANG_PROJ_DIR } from './config.js';
+import { SLANG_BIN_DIR, SLANG_PROJ_DIR } from './config.js';
 
 /**
  * Run a command and return stdout. Exits if the process fails (non-zero exit code or stderr).
@@ -151,7 +151,7 @@ const forceDeleteDirectory = async (dirPath, signal) => {
  * @returns {Promise<string>} - Promise that resolves when build completes
  */
 export const buildSlangConfig = async (config, signal = null, abortOnError = true) => {
-  const cmd = `cd ${SLANG_PROJ_DIR} && ${MSBUILD_EXE} slang.sln /p:Configuration=${config}`;
+  const cmd = `make -C ${SLANG_PROJ_DIR} config=${config}`;
   await forceDeleteDirectory(path.join(SLANG_BIN_DIR, config), signal);
   info(`Building slang ${config}`, `Command: "${cmd}"`);
   return await runProcess(cmd, `Building config "${config}" failed`, signal, abortOnError);
@@ -371,7 +371,7 @@ const prettyPrint = (type, message) => {
  * @param {string} hint - Hint to print
  */
 export const error = (message, hint) => {
-  prettyPrint('err', message + (hint ? chalk.gray(` (${hint})`) : ''));
+  prettyPrint('err', message + (hint ? chalk.gray(` ${hint}`) : ''));
 };
 
 /**
@@ -380,7 +380,7 @@ export const error = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const abort = (message, hint) => {
-  prettyPrint('abort', message + (hint ? chalk.gray(` (${hint})`) : ''));
+  prettyPrint('abort', message + (hint ? chalk.gray(` ${hint}`) : ''));
   process.exit(1);
 };
 
@@ -390,7 +390,7 @@ export const abort = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const info = (message, hint) => {
-  prettyPrint('info', message + (hint ? chalk.gray(` (${hint})`) : ''));
+  prettyPrint('info', message + (hint ? chalk.gray(` ${hint}`) : ''));
 };
 
 /**
@@ -399,7 +399,7 @@ export const info = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const ok = (message, hint) => {
-  prettyPrint('ok', message + (hint ? chalk.gray(` (${hint})`) : ''));
+  prettyPrint('ok', message + (hint ? chalk.gray(` ${hint}`) : ''));
 };
 
 /**
@@ -408,7 +408,7 @@ export const ok = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const warn = (message, hint) => {
-  prettyPrint('warn', message + (hint ? chalk.gray(` (${hint})`) : ''));
+  prettyPrint('warn', message + (hint ? chalk.gray(` ${hint}`) : ''));
 };
 
 /**
@@ -417,7 +417,7 @@ export const warn = (message, hint) => {
  * @param {string} hint - Hint to print
  */
 export const debug = (message, hint) => {
-  prettyPrint('debug', message + (hint ? chalk.gray(` (${hint})`) : ''));
+  prettyPrint('debug', message + (hint ? chalk.gray(` ${hint}`) : ''));
 };
 
 /**

@@ -58,7 +58,7 @@ const checkGcStressFlagForTests = async () => {
 
 const hint = [
   'Available commands & options:',
-  '  - bench           Run benchmarks (Debug & Release) and serve results',
+  '  - bench           Run benchmarks (debug & release) and serve results',
   '    - serve         Only serve benchmark results',
   '    - no-serve      Run benchmarks without serving results',
   '    - <pattern>     Run language that matches the regex pattern',
@@ -70,7 +70,7 @@ const hint = [
   '  - watch-test      Watch test files',
   '    - <pattern>     Watch tests that match the regex pattern',
   '',
-  'Note: If not specified, the default configuration is Release',
+  'Note: If not specified, the default configuration is release',
 ];
 
 switch (cmd) {
