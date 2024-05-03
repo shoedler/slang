@@ -17,10 +17,14 @@ DEBUG_DIR=bin/x64/debug/
 RELEASE_DIR=bin/x64/release/
 DEBUG_OBJECTS=$(addprefix $(DEBUG_DIR), $(OBJECTS))
 RELEASE_OBJECTS=$(addprefix $(RELEASE_DIR), $(OBJECTS))
+DEP_DIR=.deps/
+
+# Dependency generation flags
+DEP_CFLAGS=-MMD -MP -MF $(DEP_DIR)/$*.d
 
 # Debug specific flags
 DEBUG_CFLAGS=$(CFLAGS) -g -O0 -D_DEBUG
-DEBUG_LDFLAGS=$(LDFLAGS) -g
+DEBUG_LDFLAGS=$(LDFLAGS) -g 
 
 # Release specific flags
 RELEASE_CFLAGS=$(CFLAGS) -O3 -DNDEBUG -flto=8 # Arbirary, could be retrieved with $(shell nproc) on linux or $(NUMBER_OF_PROCESSORS) on windows
@@ -36,23 +40,28 @@ all: setup debug release
 setup:
 	@$(MKDIR) $(DEBUG_DIR)
 	@$(MKDIR) $(RELEASE_DIR)
+	@$(MKDIR) $(DEP_DIR)
 
 debug: setup $(DEBUG_EXEC)
 
 release: setup $(RELEASE_EXEC)
 
 $(DEBUG_EXEC): $(DEBUG_OBJECTS)
-	$(LD) $^ -o $@ $(DEBUG_LDFLAGS) $(LIBS)
+	$(LD) $^ -o $@ $(DEBUG_LDFLAGS)  $(LIBS)
 
 $(RELEASE_EXEC): $(RELEASE_OBJECTS)
 	$(LD) $^ -o $@ $(RELEASE_LDFLAGS) $(LIBS)
 
 $(DEBUG_DIR)%.o: %.c
-	$(CC) $(DEBUG_CFLAGS) -c $< -o $@
+	$(CC) $(DEBUG_CFLAGS) $(DEP_CFLAGS) -c $< -o $@
 
 $(RELEASE_DIR)%.o: %.c
-	$(CC) $(RELEASE_CFLAGS) -c $< -o $@
+	$(CC) $(RELEASE_CFLAGS) $(DEP_CFLAGS) -c $< -o $@
+
+# Include dependencies if they exist
+-include $(wildcard $(DEP_DIR)/*.d)
 
 clean:
 	@$(RM) $(DEBUG_OBJECTS) $(DEBUG_EXEC)
 	@$(RM) $(RELEASE_OBJECTS) $(RELEASE_EXEC)
+	@$(RM) -r $(DEP_DIR)

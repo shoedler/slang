@@ -12,6 +12,11 @@
 !.vscode/extensions.json
 !.vscode/c_cpp_properties.json
 
+# User-specific files
 *.code-workspace
 
+# Npm
 node_modules/
+
+# C dependencies
+.deps/
