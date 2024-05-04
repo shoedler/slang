@@ -45,7 +45,7 @@ RELEASE_LDFLAGS += -fprofile-generate
 
 # After running the program to generate profile data:
 RELEASE_CFLAGS := $(filter-out -fprofile-generate, $(RELEASE_CFLAGS)) -fprofile-use
-RELEASE_LDFLAGS := $(filter-out -fprofile-generate, $(RELEASE_LDFLAGS)) -fprofile-use
+RELEASE_LDFLAGS := $(filter-out -fprofile-generate, $(RELEASE_LDFLAGS)) -fprofile-use -lgcov
 ```
 
 You'll need to build and run the executable once to collect the profile data, then rebuild it with `-fprofile-use` to optimize using that data.

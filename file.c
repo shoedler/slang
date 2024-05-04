@@ -150,7 +150,7 @@ char* join_path(const char* path_a, const char* path_b) {
 static char* internal_read_file(const char* path, bool exit_on_error) {
   if (path == NULL) {
     if (exit_on_error) {
-      INTERNAL_ERROR("Cannot open NULL path \"%s\"", path);
+      INTERNAL_ERROR("Cannot open NULL path.");
       exit(EMEM_ERROR);
     } else {
       return NULL;

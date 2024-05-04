@@ -17,21 +17,20 @@ DEBUG_DIR=bin/x64/debug/
 RELEASE_DIR=bin/x64/release/
 DEBUG_OBJECTS=$(addprefix $(DEBUG_DIR), $(OBJECTS))
 RELEASE_OBJECTS=$(addprefix $(RELEASE_DIR), $(OBJECTS))
-DEP_DIR=.deps/
+DEBUG_DEP_DIR=$(DEBUG_DIR).deps/
+RELEASE_DEP_DIR=$(RELEASE_DIR).deps/
 
 # Dependency generation flags
-DEP_CFLAGS=-MMD -MP -MF $(DEP_DIR)/$*.d
+DEBUG_DEP_CFLAGS=-MMD -MP -MF $(DEBUG_DEP_DIR)/$*.d
+RELEASE_DEP_CFLAGS=-MMD -MP -MF $(RELEASE_DEP_DIR)/$*.d
 
 # Debug specific flags
 DEBUG_CFLAGS=$(CFLAGS) -g -O0 -D_DEBUG
 DEBUG_LDFLAGS=$(LDFLAGS) -g 
 
 # Release specific flags
-RELEASE_CFLAGS=$(CFLAGS) -O3 -DNDEBUG -flto=8 # Arbirary, could be retrieved with $(shell nproc) on linux or $(NUMBER_OF_PROCESSORS) on windows
-RELEASE_LDFLAGS=$(LDFLAGS) -flto
-
-# Experimental optimization flags for release builds
-# RELEASE_CFLAGS += -march=native -funroll_loops
+RELEASE_CFLAGS=$(CFLAGS) -O3 -march=native -DNDEBUG -flto=20 # Arbirary, could be retrieved with $(shell nproc) on linux or $(NUMBER_OF_PROCESSORS) on windows
+RELEASE_LDFLAGS=$(LDFLAGS) -fprofile-use -flto=20 # Arbirary, could be retrieved with $(shell nproc) on linux or $(NUMBER_OF_PROCESSORS) on windows
 
 .PHONY: all clean debug release setup
 
@@ -40,7 +39,8 @@ all: setup debug release
 setup:
 	@$(MKDIR) $(DEBUG_DIR)
 	@$(MKDIR) $(RELEASE_DIR)
-	@$(MKDIR) $(DEP_DIR)
+	@$(MKDIR) $(DEBUG_DEP_DIR)
+	@$(MKDIR) $(RELEASE_DEP_DIR)
 
 debug: setup $(DEBUG_EXEC)
 
@@ -53,15 +53,17 @@ $(RELEASE_EXEC): $(RELEASE_OBJECTS)
 	$(LD) $^ -o $@ $(RELEASE_LDFLAGS) $(LIBS)
 
 $(DEBUG_DIR)%.o: %.c
-	$(CC) $(DEBUG_CFLAGS) $(DEP_CFLAGS) -c $< -o $@
+	$(CC) $(DEBUG_CFLAGS) $(DEBUG_DEP_CFLAGS) -c $< -o $@
 
 $(RELEASE_DIR)%.o: %.c
-	$(CC) $(RELEASE_CFLAGS) $(DEP_CFLAGS) -c $< -o $@
+	$(CC) $(RELEASE_CFLAGS) $(RELEASE_DEP_CFLAGS) -c $< -o $@
 
 # Include dependencies if they exist
--include $(wildcard $(DEP_DIR)/*.d)
+-include $(wildcard $(DEBUG_DEP_DIR)/*.d)
+-include $(wildcard $(RELEASE_DEP_DIR)/*.d)
 
 clean:
 	@$(RM) $(DEBUG_OBJECTS) $(DEBUG_EXEC)
 	@$(RM) $(RELEASE_OBJECTS) $(RELEASE_EXEC)
-	@$(RM) -r $(DEP_DIR)
+	@$(RM) -r $(DEBUG_DEP_DIR)
+	@$(RM) -r $(RELEASE_DEP_DIR)
