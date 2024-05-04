@@ -81,7 +81,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_CTOR) {
 
   // TODO: Make a macro for this error message
   runtime_error("Expected argument 0 of type " STR(TYPENAME_INT) " or " STR(TYPENAME_TUPLE) " but got %s.",
-                typeof(argv[1])->name->chars);
+                typeof_(argv[1])->name->chars);
   return NIL_VAL;
 }
 

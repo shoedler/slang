@@ -314,7 +314,7 @@ static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
 }
 
-ObjClass* typeof(Value value) {
+ObjClass* typeof_(Value value) {
   // Handle primitive and internal types which have a corresponding class
   switch (value.type) {
     case VAL_NIL: return vm.__builtin_Nil_class;      // This field name was created via macro
@@ -414,7 +414,7 @@ static CallResult call_value(Value callable, int arg_count) {
             case OBJ_CLOSURE: return call_managed(AS_CLOSURE(ctor), arg_count);
             case OBJ_NATIVE: return call_native(AS_NATIVE(ctor), arg_count);
             default: {
-              runtime_error("Cannot invoke ctor of type %s", typeof(ctor)->name->chars);
+              runtime_error("Cannot invoke ctor of type %s", typeof_(ctor)->name->chars);
               return CALL_FAILED;
             }
           }
@@ -430,7 +430,7 @@ static CallResult call_value(Value callable, int arg_count) {
     }
   }
 
-  runtime_error("Attempted to call non-callable value of type %s.", typeof(callable)->name->chars);
+  runtime_error("Attempted to call non-callable value of type %s.", typeof_(callable)->name->chars);
   return CALL_FAILED;
 }
 
@@ -450,7 +450,7 @@ static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_co
     case OBJ_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
     case OBJ_NATIVE: return call_native(AS_NATIVE(method), arg_count);
     default: {
-      runtime_error("Cannot invoke method of type %s on class", typeof(method)->name->chars);
+      runtime_error("Cannot invoke method of type %s on class", typeof_(method)->name->chars);
       return CALL_FAILED;
     }
   }
@@ -474,7 +474,7 @@ static CallResult invoke(ObjString* name, int arg_count) {
   // Handle primitives which have a corresponding class.
   // Everything which is not an object
   if (!IS_OBJECT(receiver)) {
-    ObjClass* klass = typeof(receiver);
+    ObjClass* klass = typeof_(receiver);
     return invoke_from_class(klass, name, arg_count);
   }
 
@@ -507,7 +507,7 @@ Value exec_callable(Obj* callable, int arg_count) {
   CallResult result = CALL_FAILED;
   if (callable->type == OBJ_STRING) {
     Value receiver  = peek(arg_count);
-    ObjClass* klass = typeof(receiver);
+    ObjClass* klass = typeof_(receiver);
     result          = invoke_from_class(klass, (ObjString*)callable, arg_count);
   } else {
     result = call_value(OBJ_VAL(callable), arg_count);
@@ -779,7 +779,7 @@ bool value_get_property(ObjString* name) {
   }
 
   // For every value, you can access it's classes methods
-  if (bind_method(typeof(receiver), name, &result)) {
+  if (bind_method(typeof_(receiver), name, &result)) {
     goto done_getting_property;
   }
 
@@ -804,7 +804,7 @@ bool value_set_property(ObjString* name) {
   // Check if it is a reserved property.
   for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
     if (name == vm.special_prop_names[i]) {  // We can just compare pointers, because strings are interned.
-      runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, typeof(receiver)->name->chars);
+      runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, typeof_(receiver)->name->chars);
       return false;
     }
   }
@@ -920,7 +920,7 @@ bool value_set_index() {
       }
       case OBJ_SEQ: {
         if (!IS_INT(index)) {
-          runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_INT) "s, but got %s.", typeof(index)->name->chars);
+          runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_INT) "s, but got %s.", typeof_(index)->name->chars);
           return false;
         }
 
@@ -1033,35 +1033,35 @@ static Value run() {
 // stack, and pushes the result.
 //
 // TODO (optimize): These probably have some potential for optimization.
-#define MAKE_BINARY_OP(operator, b_check)                                                                                    \
-  {                                                                                                                          \
-    Value b = pop();                                                                                                         \
-    Value a = pop();                                                                                                         \
-    if (IS_INT(a) && IS_INT(b)) {                                                                                            \
-      b_check;                                                                                                               \
-      push(INT_VAL(AS_INT(a) operator AS_INT(b)));                                                                           \
-      break;                                                                                                                 \
-    }                                                                                                                        \
-    if (IS_FLOAT(a)) {                                                                                                       \
-      if (IS_INT(b)) {                                                                                                       \
-        b_check;                                                                                                             \
-        push(FLOAT_VAL(AS_FLOAT(a) operator(double) AS_INT(b)));                                                             \
-        break;                                                                                                               \
-      } else if (IS_FLOAT(b)) {                                                                                              \
-        b_check;                                                                                                             \
-        push(FLOAT_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                                                   \
-        break;                                                                                                               \
-      }                                                                                                                      \
-    } else if (IS_FLOAT(b)) {                                                                                                \
-      if (IS_INT(a)) {                                                                                                       \
-        b_check;                                                                                                             \
-        push(FLOAT_VAL((double)AS_INT(a) operator AS_FLOAT(b)));                                                             \
-        break;                                                                                                               \
-      }                                                                                                                      \
-    }                                                                                                                        \
-    runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", #operator, typeof(a)->name->chars, \
-                  typeof(b)->name->chars);                                                                                   \
-    goto finish_error;                                                                                                       \
+#define MAKE_BINARY_OP(operator, b_check)                                                                                     \
+  {                                                                                                                           \
+    Value b = pop();                                                                                                          \
+    Value a = pop();                                                                                                          \
+    if (IS_INT(a) && IS_INT(b)) {                                                                                             \
+      b_check;                                                                                                                \
+      push(INT_VAL(AS_INT(a) operator AS_INT(b)));                                                                            \
+      break;                                                                                                                  \
+    }                                                                                                                         \
+    if (IS_FLOAT(a)) {                                                                                                        \
+      if (IS_INT(b)) {                                                                                                        \
+        b_check;                                                                                                              \
+        push(FLOAT_VAL(AS_FLOAT(a) operator(double) AS_INT(b)));                                                              \
+        break;                                                                                                                \
+      } else if (IS_FLOAT(b)) {                                                                                               \
+        b_check;                                                                                                              \
+        push(FLOAT_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                                                    \
+        break;                                                                                                                \
+      }                                                                                                                       \
+    } else if (IS_FLOAT(b)) {                                                                                                 \
+      if (IS_INT(a)) {                                                                                                        \
+        b_check;                                                                                                              \
+        push(FLOAT_VAL((double)AS_INT(a) operator AS_FLOAT(b)));                                                              \
+        break;                                                                                                                \
+      }                                                                                                                       \
+    }                                                                                                                         \
+    runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", #operator, typeof_(a)->name->chars, \
+                  typeof_(b)->name->chars);                                                                                   \
+    goto finish_error;                                                                                                        \
   }
 
 #define BIN_ADD MAKE_BINARY_OP(+, (void)0)
@@ -1078,31 +1078,31 @@ static Value run() {
 // stack, and pushes the result.
 //
 // TODO (optimize): These probably have some potential for optimization.
-#define MAKE_COMPARATOR(operator)                                                                                                \
-  {                                                                                                                              \
-    Value b = pop();                                                                                                             \
-    Value a = pop();                                                                                                             \
-    if (IS_INT(a) && IS_INT(b)) {                                                                                                \
-      push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                                              \
-      break;                                                                                                                     \
-    }                                                                                                                            \
-    if (IS_FLOAT(a)) {                                                                                                           \
-      if (IS_INT(b)) {                                                                                                           \
-        push(BOOL_VAL(AS_FLOAT(a) operator AS_INT(b)));                                                                          \
-        break;                                                                                                                   \
-      } else if (IS_FLOAT(b)) {                                                                                                  \
-        push(BOOL_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                                                        \
-        break;                                                                                                                   \
-      }                                                                                                                          \
-    } else if (IS_FLOAT(b)) {                                                                                                    \
-      if (IS_INT(a)) {                                                                                                           \
-        push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                                            \
-        break;                                                                                                                   \
-      }                                                                                                                          \
-    }                                                                                                                            \
-    runtime_error("Incompatible types for comparison operand %s. Left was %s, right was %s.", #operator, typeof(a)->name->chars, \
-                  typeof(b)->name->chars);                                                                                       \
-    goto finish_error;                                                                                                           \
+#define MAKE_COMPARATOR(operator)                                                                        \
+  {                                                                                                      \
+    Value b = pop();                                                                                     \
+    Value a = pop();                                                                                     \
+    if (IS_INT(a) && IS_INT(b)) {                                                                        \
+      push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                      \
+      break;                                                                                             \
+    }                                                                                                    \
+    if (IS_FLOAT(a)) {                                                                                   \
+      if (IS_INT(b)) {                                                                                   \
+        push(BOOL_VAL(AS_FLOAT(a) operator AS_INT(b)));                                                  \
+        break;                                                                                           \
+      } else if (IS_FLOAT(b)) {                                                                          \
+        push(BOOL_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                                \
+        break;                                                                                           \
+      }                                                                                                  \
+    } else if (IS_FLOAT(b)) {                                                                            \
+      if (IS_INT(a)) {                                                                                   \
+        push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                    \
+        break;                                                                                           \
+      }                                                                                                  \
+    }                                                                                                    \
+    runtime_error("Incompatible types for comparison operand %s. Left was %s, right was %s.", #operator, \
+                  typeof_(a)->name->chars, typeof_(b)->name->chars);                                     \
+    goto finish_error;                                                                                   \
   }
 
 #define BIN_LT MAKE_COMPARATOR(<)
@@ -1190,8 +1190,8 @@ static Value run() {
         if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_get_index set an error
           goto finish_error;
         }
-        runtime_error("Type %s does not support get-indexing with %s.", typeof(peek(1))->name->chars,
-                      typeof(peek(0))->name->chars);
+        runtime_error("Type %s does not support get-indexing with %s.", typeof_(peek(1))->name->chars,
+                      typeof_(peek(0))->name->chars);
         goto finish_error;
       }
       case OP_SET_INDEX: {
@@ -1201,8 +1201,8 @@ static Value run() {
         if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_set_index set an error
           goto finish_error;
         }
-        runtime_error("Type %s does not support set-indexing with %s.", typeof(peek(2))->name->chars,
-                      typeof(peek(1))->name->chars);
+        runtime_error("Type %s does not support set-indexing with %s.", typeof_(peek(2))->name->chars,
+                      typeof_(peek(1))->name->chars);
         goto finish_error;
       }
       case OP_GET_PROPERTY: {
@@ -1213,7 +1213,7 @@ static Value run() {
         if (vm.flags & VM_FLAG_HAS_ERROR) {  // Will never happen: value_get_property never sets an error. Just a precaution.
           goto finish_error;
         }
-        runtime_error("Property '%s' does not exist on value of type %s.", name->chars, typeof(peek(0))->name->chars);
+        runtime_error("Property '%s' does not exist on value of type %s.", name->chars, typeof_(peek(0))->name->chars);
         goto finish_error;
       }
       case OP_SET_PROPERTY: {
@@ -1224,7 +1224,7 @@ static Value run() {
         if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_set_property set an error
           goto finish_error;
         }
-        runtime_error("Type %s does not support property-set access.", typeof(peek(1))->name->chars);
+        runtime_error("Type %s does not support property-set access.", typeof_(peek(1))->name->chars);
         goto finish_error;
       }
       case OP_IMPORT_FROM: {
@@ -1322,8 +1322,8 @@ static Value run() {
           }
         }
 
-        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", typeof(a)->name->chars,
-                      typeof(b)->name->chars);
+        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", typeof_(a)->name->chars,
+                      typeof_(b)->name->chars);
         goto finish_error;
       }
       case OP_NOT: push(BOOL_VAL(is_falsey(pop()))); break;
@@ -1332,13 +1332,13 @@ static Value run() {
           case VAL_INT: push(INT_VAL(-AS_INT(pop()))); break;
           case VAL_FLOAT: push(FLOAT_VAL(-AS_FLOAT(pop()))); break;
           default:
-            runtime_error("Type for unary - must be a " STR(TYPENAME_NUM) ". Was %s.", typeof(peek(0))->name->chars);
+            runtime_error("Type for unary - must be a " STR(TYPENAME_NUM) ". Was %s.", typeof_(peek(0))->name->chars);
             goto finish_error;
         }
         break;
       }
       case OP_PRINT: {
-        ObjString* str = AS_STRING(exec_callable(typeof(peek(0))->__to_str, 0));
+        ObjString* str = AS_STRING(exec_callable(typeof_(peek(0))->__to_str, 0));
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           goto finish_error;
         }
@@ -1472,7 +1472,7 @@ static Value run() {
         Value baseclass    = peek(1);
         ObjClass* subclass = AS_CLASS(peek(0));
         if (!IS_CLASS(baseclass)) {
-          runtime_error("Base class must be a class. Was %s.", typeof(baseclass)->name->chars);
+          runtime_error("Base class must be a class. Was %s.", typeof_(baseclass)->name->chars);
           goto finish_error;
         }
         hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);
@@ -1491,11 +1491,11 @@ static Value run() {
         Value value = pop();
 
         if (!IS_CLASS(type)) {
-          runtime_error("Type must be a class. Was %s.", typeof(type)->name->chars);
+          runtime_error("Type must be a class. Was %s.", typeof_(type)->name->chars);
           goto finish_error;
         }
 
-        ObjClass* value_klass = typeof(value);
+        ObjClass* value_klass = typeof_(value);
         ObjString* type_name  = AS_CLASS(type)->name;
 
         bool result = false;
@@ -1514,7 +1514,7 @@ static Value run() {
         Value in_target = peek(0);
         Value value     = peek(1);
 
-        ObjClass* target_type = typeof(in_target);
+        ObjClass* target_type = typeof_(in_target);
 
         push(in_target);  // Receiver
         push(value);      // Argument
@@ -1532,7 +1532,7 @@ static Value run() {
         // Could also just use is_falses, to be less strict - but for now I like this better.
         if (!IS_BOOL(result)) {
           runtime_error("Method '" STR(SP_METHOD_HAS) "' on type %s must return a " STR(TYPENAME_BOOL) ", but got %s.",
-                        target_type->name->chars, typeof(result)->name->chars);
+                        target_type->name->chars, typeof_(result)->name->chars);
           goto finish_error;
         }
 
@@ -1543,7 +1543,7 @@ static Value run() {
       }
       case OP_GET_SLICE: {
         // [receiver][start][end] is on the stack
-        ObjClass* type = typeof(peek(2));
+        ObjClass* type = typeof_(peek(2));
         if (type->__slice == NULL) {
           runtime_error("Type %s does not support slicing. It must implement '" STR(SP_METHOD_SLICE) "'.", type->name->chars);
           goto finish_error;

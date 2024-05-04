@@ -59,7 +59,7 @@ BUILTIN_FN_IMPL(log) {
   for (int i = 1; i <= argc; i++) {
     // Execute the to_str method on the receiver
     push(argv[i]);  // Load the receiver onto the stack
-    ObjString* str = AS_STRING(exec_callable(typeof(argv[i])->__to_str, 0));
+    ObjString* str = AS_STRING(exec_callable(typeof_(argv[i])->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -82,6 +82,6 @@ BUILTIN_FN_DOC(
 BUILTIN_FN_IMPL(typeof) {
   UNUSED(argc);
 
-  ObjClass* klass = typeof(argv[1]);
+  ObjClass* klass = typeof_(argv[1]);
   return OBJ_VAL(klass);
 }
