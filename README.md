@@ -8,6 +8,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ### Syntax & Language Features
 
+- [ ] Add version flag to the interpreter. E.g. `slang -v` should print the version. Implement in Makefile.
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] Implement `for ... in ...;` loops

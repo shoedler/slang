@@ -3,6 +3,9 @@ LD=gcc
 RM=rm -f
 MKDIR=mkdir -p
 
+# Hide make commands
+MAKEFLAGS += --no-print-directory 
+
 # General compiler flags
 CFLAGS=-Wall -Wextra -Werror -std=c17 -m64 -D_UNICODE -DUNICODE
 LDFLAGS=-m64
@@ -32,7 +35,7 @@ DEBUG_LDFLAGS=$(LDFLAGS) -g
 RELEASE_CFLAGS=$(CFLAGS) -O3 -march=native -DNDEBUG -flto=20 # Arbirary, could be retrieved with $(shell nproc) on linux or $(NUMBER_OF_PROCESSORS) on windows
 RELEASE_LDFLAGS=$(LDFLAGS) -fprofile-use -flto=20 # Arbirary, could be retrieved with $(shell nproc) on linux or $(NUMBER_OF_PROCESSORS) on windows
 
-.PHONY: all clean debug release setup
+.PHONY: all clean debug release release-profiled setup
 
 all: setup debug release
 
@@ -46,17 +49,27 @@ debug: setup $(DEBUG_EXEC)
 
 release: setup $(RELEASE_EXEC)
 
+release-profiled:
+	@echo "Building with profile generation..."
+	@$(MAKE) clean
+	@$(MAKE) release CFLAGS="$(RELEASE_CFLAGS) -fprofile-generate" LDFLAGS="$(RELEASE_LDFLAGS) -fprofile-generate"
+	@echo "Gathering profile data..."
+	@$(RELEASE_EXEC) run profile/profile.sl
+	@echo "Building with profile usage..."
+	@$(MAKE) clean
+	@$(MAKE) release CFLAGS="$(RELEASE_CFLAGS) -fprofile-use" LDFLAGS="$(RELEASE_LDFLAGS) -fprofile-use"
+
 $(DEBUG_EXEC): $(DEBUG_OBJECTS)
-	$(LD) $^ -o $@ $(DEBUG_LDFLAGS)  $(LIBS)
+	@$(LD) $^ -o $@ $(DEBUG_LDFLAGS)  $(LIBS)
 
 $(RELEASE_EXEC): $(RELEASE_OBJECTS)
-	$(LD) $^ -o $@ $(RELEASE_LDFLAGS) $(LIBS)
+	@$(LD) $^ -o $@ $(RELEASE_LDFLAGS) $(LIBS)
 
 $(DEBUG_DIR)%.o: %.c
-	$(CC) $(DEBUG_CFLAGS) $(DEBUG_DEP_CFLAGS) -c $< -o $@
+	@$(CC) $(DEBUG_CFLAGS) $(DEBUG_DEP_CFLAGS) -c $< -o $@
 
 $(RELEASE_DIR)%.o: %.c
-	$(CC) $(RELEASE_CFLAGS) $(RELEASE_DEP_CFLAGS) -c $< -o $@
+	@$(CC) $(RELEASE_CFLAGS) $(RELEASE_DEP_CFLAGS) -c $< -o $@
 
 # Include dependencies if they exist
 -include $(wildcard $(DEBUG_DEP_DIR)/*.d)

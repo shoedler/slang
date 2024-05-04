@@ -63,21 +63,6 @@ export const runProcess = (
 };
 
 /**
- * Get the path to the slang executable for a given config
- * @param {string} config - Build config to use
- * @returns
- */
-export const getSlangExe = config => path.join(SLANG_BIN_DIR, config, 'slang.exe');
-
-/**
- * Make a command to run a slang file with a given config
- * @param {string} config - Build config to use
- * @param {string} file - Absolute path to slang file to run
- * @returns {string} - Command to run slang file
- */
-const makeSlangRunCommand = (config, file) => `${getSlangExe(config)} run ${file}`;
-
-/**
  * Run a slang file with a given config. Collects stdout and stderr and returns it along with the
  * exit code. Aborts gracefully if the signal is aborted.
  * @param {string} config - Build config to use
@@ -87,7 +72,7 @@ const makeSlangRunCommand = (config, file) => `${getSlangExe(config)} run ${file
  * @returns {{exitCode: number, stdoutOutput: string, stderrOutput: string }} - Object containing output and exit code
  */
 export const runSlangFile = async (file, config, signal = null, colorStderr = false) => {
-  const cmd = makeSlangRunCommand(config, file);
+  const cmd = `${path.join(SLANG_BIN_DIR, config, 'slang.exe')} run ${file}`;
   const options = signal ? { signal } : {};
   const child = spawn(cmd, { shell: true, ...options });
 

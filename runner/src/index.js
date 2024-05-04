@@ -1,6 +1,7 @@
 import { runBenchmarks, serveResults } from './bench.js';
 import {
   BUILD_CONFIG_RELEASE,
+  BUILD_CONFIG_RELEASE_PROFILED,
   SLANG_PROJ_DIR,
   SLANG_SAMPLE_FILE,
   SLANG_TEST_SUFFIX,
@@ -97,7 +98,7 @@ switch (cmd) {
       break;
     }
 
-    await buildSlangConfig(BUILD_CONFIG_RELEASE);
+    await buildSlangConfig(BUILD_CONFIG_RELEASE_PROFILED);
     await runBenchmarks(langPattern);
 
     if (!doNoServe) {
