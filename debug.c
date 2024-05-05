@@ -112,7 +112,7 @@ static int simple_instruction(const char* name, int offset) {
 
 // Prints an instruction that has one byte-sized operand.
 static int byte_instruction(const char* name, Chunk* chunk, int offset) {
-  uint16_t slot = chunk->code[offset + 1];
+  OPC_T slot = chunk->code[offset + 1];
   PRINT_OPCODE(name);
   PRINT_NUMBER(slot);
   PRINT_VALUE_STR("");
@@ -123,7 +123,7 @@ static int jump_instruction(const char* name,
                             int sign,
                             Chunk* chunk,
                             int offset) {
-  uint16_t jump = chunk->code[offset + 1];
+  OPC_T jump = chunk->code[offset + 1];
   char* jmp_str[13];
   sprintf(jmp_str, "%04d -> %04d", offset, offset + 3 + sign * jump);
   PRINT_OPCODE(name);
@@ -135,7 +135,7 @@ static int jump_instruction(const char* name,
 // Prints an instruction with one operand that is an index into the constant
 // table.
 static int constant_instruction(const char* name, Chunk* chunk, int offset) {
-  uint16_t constant_index = chunk->code[offset + 1];
+  OPC_T constant_index = chunk->code[offset + 1];
   PRINT_OPCODE(name);
   PRINT_NUMBER(constant_index);
   debug_print_value(chunk->constants.values[constant_index]);
@@ -144,7 +144,7 @@ static int constant_instruction(const char* name, Chunk* chunk, int offset) {
 
 static int closure_instruction(const char* name, Chunk* chunk, int offset) {
   offset++;
-  uint16_t constant = chunk->code[offset++];
+  OPC_T constant = chunk->code[offset++];
   PRINT_OPCODE(name);
   PRINT_NUMBER(constant);
   debug_print_value(chunk->constants.values[constant]);
@@ -168,8 +168,8 @@ static int closure_instruction(const char* name, Chunk* chunk, int offset) {
 }
 
 static int invoke_instruction(const char* name, Chunk* chunk, int offset) {
-  uint16_t constant = chunk->code[offset + 1];
-  uint16_t arg_count = chunk->code[offset + 2];
+  OPC_T constant = chunk->code[offset + 1];
+  OPC_T arg_count = chunk->code[offset + 2];
   PRINT_OPCODE(name);
   PRINT_NUMBER(constant);
   const char* method_str[VALUE_STR_LEN];
@@ -189,7 +189,7 @@ int disassemble_instruction(Chunk* chunk, int offset) {
     PRINT_LINE(chunk->lines[offset]);
   }
 
-  uint16_t instruction = chunk->code[offset];
+  OPC_T instruction = chunk->code[offset];
   switch (instruction) {
     case OP_CONSTANT:
       return constant_instruction("OP_CONSTANT", chunk, offset);

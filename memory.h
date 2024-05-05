@@ -5,7 +5,7 @@
 #include "object.h"
 
 #define GC_HEAP_GROW_FACTOR 2
-#define GC_DEFAULT_THRESHOLD 1024 * 1024 * 2
+#define GC_DEFAULT_THRESHOLD 1024 * 1024 * OPC_T_BYTES
 
 // Allocate memory for an array.
 #define ALLOCATE(type, count) (type*)reallocate(NULL, 0, sizeof(type) * (count))

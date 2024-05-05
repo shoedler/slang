@@ -323,7 +323,7 @@ static InterpretResult run() {
 #endif
 #endif
 
-    uint16_t instruction;
+    OPC_T instruction;
     switch (instruction = READ_ONE()) {
       case OP_CONSTANT: {
         Value constant = READ_CONSTANT();
@@ -343,7 +343,7 @@ static InterpretResult run() {
         pop();
         break;
       case OP_GET_LOCAL: {
-        uint16_t slot = READ_ONE();
+        OPC_T slot = READ_ONE();
         push(frame->slots[slot]);
         break;
       }
@@ -358,7 +358,7 @@ static InterpretResult run() {
         break;
       }
       case OP_GET_UPVALUE: {
-        uint16_t slot = READ_ONE();
+        OPC_T slot = READ_ONE();
         push(*frame->closure->upvalues[slot]->location);
         break;
       }
@@ -370,7 +370,7 @@ static InterpretResult run() {
         break;
       }
       case OP_SET_LOCAL: {
-        uint16_t slot = READ_ONE();
+        OPC_T slot = READ_ONE();
         frame->slots[slot] =
             peek(0);  // peek, because assignment is an expression!
         break;
@@ -387,7 +387,7 @@ static InterpretResult run() {
         break;
       }
       case OP_SET_UPVALUE: {
-        uint16_t slot = READ_ONE();
+        OPC_T slot = READ_ONE();
         *frame->closure->upvalues[slot]->location =
             peek(0);  // peek, because assignment is an expression!
         break;
@@ -565,18 +565,18 @@ static InterpretResult run() {
         break;
       }
       case OP_JUMP: {
-        uint16_t offset = READ_ONE();
+        OPC_T offset = READ_ONE();
         frame->ip += offset;
         break;
       }
       case OP_JUMP_IF_FALSE: {
-        uint16_t offset = READ_ONE();
+        OPC_T offset = READ_ONE();
         if (is_falsey(peek(0)))
           frame->ip += offset;
         break;
       }
       case OP_LOOP: {
-        uint16_t offset = READ_ONE();
+        OPC_T offset = READ_ONE();
         frame->ip -= offset;
         break;
       }
@@ -614,8 +614,8 @@ static InterpretResult run() {
 
         // Bring closure to life
         for (int i = 0; i < closure->upvalue_count; i++) {
-          uint16_t is_local = READ_ONE();
-          uint16_t index = READ_ONE();
+          OPC_T is_local = READ_ONE();
+          OPC_T index = READ_ONE();
           if (is_local) {
             closure->upvalues[i] = capture_upvalue(frame->slots + index);
           } else {

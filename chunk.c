@@ -10,12 +10,12 @@ void init_chunk(Chunk* chunk) {
   init_value_array(&chunk->constants);
 }
 
-void write_chunk(Chunk* chunk, uint16_t data, int line) {
+void write_chunk(Chunk* chunk, OPC_T data, int line) {
   if (chunk->capacity < chunk->count + 1) {
     int oldCapacity = chunk->capacity;
     chunk->capacity = GROW_CAPACITY(oldCapacity);
     chunk->code =
-        GROW_ARRAY(uint16_t, chunk->code, oldCapacity, chunk->capacity);
+        GROW_ARRAY(OPC_T, chunk->code, oldCapacity, chunk->capacity);
     chunk->lines = GROW_ARRAY(int, chunk->lines, oldCapacity, chunk->capacity);
   }
 
@@ -25,7 +25,7 @@ void write_chunk(Chunk* chunk, uint16_t data, int line) {
 }
 
 void free_chunk(Chunk* chunk) {
-  FREE_ARRAY(uint16_t, chunk->code, chunk->capacity);
+  FREE_ARRAY(OPC_T, chunk->code, chunk->capacity);
   FREE_ARRAY(int, chunk->lines, chunk->capacity);
   free_value_array(&chunk->constants);
   init_chunk(chunk);

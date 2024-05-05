@@ -56,7 +56,7 @@ typedef enum {
 typedef struct {
   int count;
   int capacity;
-  uint16_t* code;
+  OPC_T* code;
   int* lines;
   ValueArray constants;
 } Chunk;
@@ -69,7 +69,7 @@ void free_chunk(Chunk* chunk);
 
 // Write data to the chunk.
 // This will grow the chunk if necessary.
-void write_chunk(Chunk* chunk, uint16_t data, int line);
+void write_chunk(Chunk* chunk, OPC_T data, int line);
 
 // Add a value to the chunk's constant pool.
 // Returns the index of the value in the constant pool.

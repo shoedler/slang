@@ -46,6 +46,10 @@
     exit(1);                                        \
   } while (0)
 
+#define OPC_T uint8_t
+#define OPC_T_MAX UINT8_MAX
+#define OPC_T_BYTES (sizeof(OPC_T))
+
 // Feature flags
 
 // #define START_WITH_SAMPLE_SCRIPT

@@ -8,9 +8,9 @@
 // at UINT8_MAX for now.
 #define MAX_FN_ARGS UINT8_MAX
 
-#define MAX_CONSTANTS UINT16_MAX
-#define MAX_JUMP UINT16_MAX
-#define MAX_LIST_ITEMS UINT16_MAX
+#define MAX_CONSTANTS OPC_T_MAX
+#define MAX_JUMP OPC_T_MAX
+#define MAX_LIST_ITEMS OPC_T_MAX
 
 // This function is the main entry point of the compiler.
 // It compiles the given source code into bytecode and returns

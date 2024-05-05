@@ -49,7 +49,7 @@ typedef struct {
 
 // A struct declaring an upvalue.
 typedef struct {
-  uint16_t index;
+  OPC_T index;
   bool is_local;
 } Upvalue;
 
@@ -162,18 +162,18 @@ static bool match(TokenType type) {
 }
 
 // Writes an opcode or operand to the current chunk.
-static void emit_one(uint16_t data) {
+static void emit_one(OPC_T data) {
   write_chunk(current_chunk(), data, parser.previous.line);
 }
 
 // Writes two opcodes or operands to the current chunk.
-static void emit_two(uint16_t data1, uint16_t data2) {
+static void emit_two(OPC_T data1, OPC_T data2) {
   emit_one(data1);
   emit_one(data2);
 }
 
 // Emits a loop instruction.
-// The operand is a 16-bit offset.
+// The operand is a offset.
 // It is calculated by subtracting the current chunk's count from the offset of
 // the jump instruction.
 static void emit_loop(int loop_start) {
@@ -184,15 +184,15 @@ static void emit_loop(int loop_start) {
     error("Loop body too large.");
   }
 
-  emit_one((uint16_t)offset);
+  emit_one((OPC_T)offset);
 }
 
 // Emits a jump instruction and returns the offset of the jump instruction.
 // Along with the emitted jump instruction, a 16-bit placeholder for the
 // operand is emitted.
-static int emit_jump(uint16_t instruction) {
+static int emit_jump(OPC_T instruction) {
   emit_one(instruction);
-  emit_one(UINT16_MAX);
+  emit_one(OPC_T_MAX);
   return current_chunk()->count - 1;
 }
 
@@ -207,19 +207,19 @@ static void patch_jump(int offset) {
     error("Too much code to jump over.");
   }
 
-  current_chunk()->code[offset] = (uint16_t)jump;
+  current_chunk()->code[offset] = (OPC_T)jump;
 }
 
 // Adds a value to the current constant pool and returns its index.
 // Logs a compile error if the constant pool is full.
-static uint16_t make_constant(Value value) {
+static OPC_T make_constant(Value value) {
   int constant = add_constant(current_chunk(), value);
   if (constant > MAX_CONSTANTS) {
     error("Too many constants in one chunk.");
     return 0;
   }
 
-  return (uint16_t)constant;
+  return (OPC_T)constant;
 }
 
 // Adds value to the constant pool and emits a const instruction to load it.
@@ -320,21 +320,21 @@ static void statement();
 static void declaration();
 static void block();
 
-static uint16_t argument_list();
+static OPC_T argument_list();
 static ParseRule* get_rule(TokenType type);
 static void parse_precedence(Precedence precedence);
-static uint16_t string_constant(Token* name);
+static OPC_T string_constant(Token* name);
 static int resolve_local(Compiler* compiler, Token* name);
 static int resolve_upvalue(Compiler* compiler, Token* name);
-static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local);
-static uint16_t parse_variable(const char* error_message);
-static void define_variable(uint16_t global);
+static int add_upvalue(Compiler* compiler, OPC_T index, bool is_local);
+static OPC_T parse_variable(const char* error_message);
+static void define_variable(OPC_T global);
 
 // Compiles a function call expression.
 // The opening parenthesis has already been consumed and is referenced by the
 // previous token.
 static void call(bool can_assign) {
-  uint16_t arg_count = argument_list();
+  OPC_T arg_count = argument_list();
   emit_two(OP_CALL, arg_count);
 }
 
@@ -343,13 +343,13 @@ static void dot(bool can_assign) {
     consume(TOKEN_CTOR, "Expecting property name after '.'.");
   }
 
-  uint16_t name = string_constant(&parser.previous);
+  OPC_T name = string_constant(&parser.previous);
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();
     emit_two(OP_SET_PROPERTY, name);
   } else if (match(TOKEN_OPAR)) {
-    uint16_t arg_count = argument_list();
+    OPC_T arg_count = argument_list();
     emit_two(OP_INVOKE, name);
     emit_one(arg_count);
   } else {
@@ -415,7 +415,7 @@ static void list_literal(bool can_assign) {
   consume(TOKEN_CBRACK, "Expecting ']' after list literal.");
 
   if (count <= MAX_LIST_ITEMS) {
-    emit_two(OP_LIST_LITERAL, (uint16_t)count);
+    emit_two(OP_LIST_LITERAL, (OPC_T)count);
   } else {
     error_at_current(
         "Can't have more than MAX_LIST_ITEMS items in a list.");  // TODO
@@ -510,7 +510,7 @@ static void binary(bool can_assign) {
 // Compiles a variable. Generates bytecode to load a variable with the given
 // name onto the stack.
 static void named_variable(Token name, bool can_assign) {
-  uint16_t get_op, set_op;
+  OPC_T get_op, set_op;
   int arg = resolve_local(current, &name);
   if (arg != -1) {
     get_op = OP_GET_LOCAL;
@@ -526,9 +526,9 @@ static void named_variable(Token name, bool can_assign) {
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();
-    emit_two(set_op, (uint16_t)arg);
+    emit_two(set_op, (OPC_T)arg);
   } else {
-    emit_two(get_op, (uint16_t)arg);
+    emit_two(get_op, (OPC_T)arg);
   }
 }
 
@@ -557,11 +557,11 @@ static void base_(bool can_assign) {
   if (!match(TOKEN_ID)) {
     consume(TOKEN_CTOR, "Expecting base class method name.");
   }
-  uint16_t name = string_constant(&parser.previous);
+  OPC_T name = string_constant(&parser.previous);
 
   named_variable(synthetic_token("this"), false);
   if (match(TOKEN_OPAR)) {
-    uint16_t arg_count = argument_list();
+    OPC_T arg_count = argument_list();
     named_variable(synthetic_token(BASE_CLASS_KEYWORD), false);
     emit_two(OP_BASE_INVOKE, name);
     emit_one(arg_count);
@@ -592,7 +592,7 @@ static void function(bool can_assign, FunctionType type, ObjString* name) {
                                                                 // Interpolate
                                                                 // MAX_FN_ARGS
         }
-        uint16_t constant = parse_variable("Expecting parameter name.");
+        OPC_T constant = parse_variable("Expecting parameter name.");
         define_variable(constant);
       } while (match(TOKEN_COMMA));
     }
@@ -642,7 +642,7 @@ static void anonymous_function(bool can_assign) {
 static void method() {
   consume(TOKEN_FN, "Expecting method initializer.");
   consume(TOKEN_ID, "Expecting method name.");
-  uint16_t constant = string_constant(&parser.previous);
+  OPC_T constant = string_constant(&parser.previous);
   ObjString* method_name =
       copy_string(parser.previous.start, parser.previous.length);
 
@@ -652,7 +652,7 @@ static void method() {
 
 static void constructor() {
   consume(TOKEN_CTOR, "Expecting constructor.");
-  uint16_t constant = string_constant(&parser.previous);
+  OPC_T constant = string_constant(&parser.previous);
   // TODO (optimize): Maybe preload this? A constructor is always called the
   // the same name - so we could just load it once and then reuse it.
   ObjString* ctor_name =
@@ -783,7 +783,7 @@ static void parse_precedence(Precedence precedence) {
 }
 
 // Adds the token's lexeme to the constant pool and returns its index.
-static uint16_t string_constant(Token* name) {
+static OPC_T string_constant(Token* name) {
   return make_constant(OBJ_VAL(copy_string(name->start, name->length)));
 }
 
@@ -830,13 +830,13 @@ static int resolve_upvalue(Compiler* compiler, Token* name) {
   int local = resolve_local(compiler->enclosing, name);
   if (local != -1) {
     compiler->enclosing->locals[local].is_captured = true;
-    return add_upvalue(compiler, (uint16_t)local, true);
+    return add_upvalue(compiler, (OPC_T)local, true);
   }
 
   // Recurse on outer scopes (compilers) to maybe find the variable there
   int upvalue = resolve_upvalue(compiler->enclosing, name);
   if (upvalue != -1) {
-    return add_upvalue(compiler, (uint16_t)upvalue, false);
+    return add_upvalue(compiler, (OPC_T)upvalue, false);
   }
 
   return -1;
@@ -861,7 +861,7 @@ static void add_local(Token name) {
 // Checks whether the upvalue is already in the array. If so, it returns its
 // index. Otherwise, it adds it to the array and returns the new index.
 // Logs a compile error if the upvalue count exceeds the maximum and returns 0.
-static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
+static int add_upvalue(Compiler* compiler, OPC_T index, bool is_local) {
   int upvalue_count = compiler->function->upvalue_count;
 
   for (int i = 0; i < upvalue_count; i++) {
@@ -909,7 +909,7 @@ static void declare_local() {
 // Consumes a variable name and returns its index in the constant pool.
 // If it is a local variable, the function exits early with a dummy index of 0,
 // because there is no need to store it in the constant pool
-static uint16_t parse_variable(const char* error_message) {
+static OPC_T parse_variable(const char* error_message) {
   consume(TOKEN_ID, error_message);
 
   declare_local();
@@ -930,7 +930,7 @@ static void mark_initialized() {
 // Emits a define-global instruction if we are not in a local scope.
 // The variables index in the constant pool represents the operand of the
 // instruction.
-static void define_variable(uint16_t global) {
+static void define_variable(OPC_T global) {
   if (current->scope_depth > 0) {
     mark_initialized();
     return;
@@ -942,8 +942,8 @@ static void define_variable(uint16_t global) {
 // Compiles an argument list.
 // The opening parenthesis has already been consumed and is referenced by the
 // previous token.
-static uint16_t argument_list() {
-  uint16_t arg_count = 0;
+static OPC_T argument_list() {
+  OPC_T arg_count = 0;
   if (!check(TOKEN_CPAR)) {
     do {
       expression();
@@ -989,7 +989,7 @@ static void expression() {
 // Compiles a let declaration.
 // The let keyword has already been consumed at this point.
 static void statement_declaration_let() {
-  uint16_t global = parse_variable("Expecting variable name.");
+  OPC_T global = parse_variable("Expecting variable name.");
 
   if (match(TOKEN_ASSIGN)) {
     expression();
@@ -1004,7 +1004,7 @@ static void statement_declaration_let() {
 // The fn keyword has already been consumed at this point.
 // Since functions are first-class, this is similar to a variable declaration.
 static void statement_declaration_function() {
-  uint16_t global = parse_variable("Expecting variable name.");
+  OPC_T global = parse_variable("Expecting variable name.");
   ObjString* fn_name =
       copy_string(parser.previous.start, parser.previous.length);
 
@@ -1016,7 +1016,7 @@ static void statement_declaration_function() {
 static void statement_declaration_class() {
   consume(TOKEN_ID, "Expecting class name.");
   Token class_name = parser.previous;
-  uint16_t name_constant = string_constant(&parser.previous);
+  OPC_T name_constant = string_constant(&parser.previous);
   declare_local();
 
   emit_two(OP_CLASS, name_constant);
