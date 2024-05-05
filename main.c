@@ -33,7 +33,13 @@ static void run_file(const wchar_t *path)
   init_vm();
 
   char *source = read_file(path);
+
+  size_t baseline = vm.bytes_allocated;
   InterpretResult result = interpret(source);
+  size_t bytes_allocated = vm.bytes_allocated - baseline;
+
+  printf("%zu\n", bytes_allocated);
+
   free(source);
 
   switch (result)

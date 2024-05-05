@@ -36,9 +36,4 @@ while clock() < start + duration {
   i = 0
 }
 
-print "Batches of 10k:"
 print batches
-print "Sum:"
-print sum
-print "Duration:"
-print duration

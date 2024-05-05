@@ -6,12 +6,12 @@ const MSBUILD_EXE =
   '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\msbuild.exe"';
 const SLANG_PROJ_DIR = "C:\\Projects\\slang-opcode-width";
 
-const BUILD_CONFIGS = ["Release", "Debug"];
+const BUILD_CONFIG = "Release";
 const SLANG_BIN_DIR = SLANG_PROJ_DIR + "\\x64";
 const SLANG_BENCH_DIR = SLANG_PROJ_DIR + "\\bench";
 
 const SLANG_BENCH_SUFFIX = ".bench.sl";
-const BENCH_LOG_FILE = "bench-log.md";
+const BENCH_LOG_FILE = "bench-log.csv";
 
 const SLANG_BUILD_COMMAND = (config) =>
   `cd ${SLANG_PROJ_DIR} && ${MSBUILD_EXE} Slang.sln /p:Configuration=${config}`;
@@ -63,16 +63,6 @@ const buildSlang = async (config) => {
   return await runProcess(cmd, "Exiting. Build failed");
 };
 
-const gitStatus = async () => {
-  const formats = ["%ci", "%H", "%s"];
-  const cmd = `git log -1 --pretty=format:`;
-  console.log(`Getting git status`, `(Command: "${cmd}" and formats "${formats.join(", ")}")`);
-  const [date, hash, message] = await Promise.all(
-    formats.map((f) => runProcess(cmd + f, `Exiting. Git log faied`))
-  );
-  return { date, hash, message };
-};
-
 const getProcessorName = async () => {
   const cmd = "wmic cpu get name";
   console.log(`Getting processor name`, `(Command: "${cmd}")`);
@@ -80,40 +70,43 @@ const getProcessorName = async () => {
   return labelAndName.split("\r\n")[1].trim();
 };
 
+const getOpcodeSize = () => {
+  // It's a #define in common.h named #define OPC_T uint<n>_t
+  // We just extract the type after the macro name
+  const commonH = path.join(SLANG_PROJ_DIR, "common.h");
+  const commonHContent = fs.readFileSync(commonH, "utf8");
+  const match = commonHContent.match(/#define\s+OPC_T\s+([^\s]+)/);
+  if (!match) throw new Error(`Failed to find opcode size in ${commonH}`);
+  return match[1];
+};
+
 const run = async () => {
   const benchmarks = findBenchmarks();
+  const opcodeSize = getOpcodeSize();
+  const processorName = await getProcessorName();
 
-  for (const config of BUILD_CONFIGS) {
-    await buildSlang(config);
-  }
+  await buildSlang(BUILD_CONFIG);
 
   let benchResults = "";
-  benchResults += `# ${new Date().toISOString()}\n\n`;
 
-  const { date, hash, message } = await gitStatus();
-  benchResults += `- Commit Hash: \`${hash}\`\n`;
-  benchResults += `- Commit Date: \`${date}\`\n`;
-  benchResults += `- Commit Message: \`${message}\`\n`;
+  const addResult = (date, name, result) => {
+    benchResults += `${date.toISOString()},${processorName},${opcodeSize},${name},${result}\n`;
+  };
 
-  const processorName = await getProcessorName();
-  benchResults += `- Processor: \`${processorName}\`\n\n`;
+  for (const benchmark of benchmarks) {
+    const date = new Date();
 
-  benchResults += "| Benchmark | Config | Result |\n";
-  benchResults += "| --- | --- | --- |\n";
-  for (const config of BUILD_CONFIGS) {
-    console.log(`Running benchmarks with ${config}`);
-    for (const benchmark of benchmarks) {
-      console.log(`  ${benchmark}`);
+    for (let i = 0; i < 10; i++) {
+      console.log(`  ${benchmark}, run ${i + 1}/10`);
 
-      const cmd = `${path.join(SLANG_BIN_DIR, config, "Slang.exe")} run ${benchmark}`;
+      const cmd = `${path.join(SLANG_BIN_DIR, BUILD_CONFIG, "Slang.exe")} run ${benchmark}`;
       const out = await runProcess(cmd, "Exiting. Running benchmark failed");
-      const result = out.split("\r\n").join(" ");
+      const result = out.split("\r\n").join(",");
 
       const benchName = path.basename(benchmark, SLANG_BENCH_SUFFIX);
-      benchResults += `| ${benchName} | ${config} | \`${result}\` |\n`;
+      addResult(date, benchName, result);
     }
   }
-  benchResults += "\n";
 
   console.log(`Done. Writing results to ${path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE)}`);
 
