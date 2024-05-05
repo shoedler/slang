@@ -1,7 +1,7 @@
 cls Foo{}
 fn bar -> 1
 
-print try Bool()                           else error // [Expect] Expected 1 arguments but got 0.
+print try Bool()                           else error // [Expect] Expected 1 argument but got 0.
 print try Bool("123.0")                    else error // [Expect] true
 print try Bool("1kjhkjh2hkjhkj.....3hkj4") else error // [Expect] true
 print try Bool("false")                    else error // [Expect] true

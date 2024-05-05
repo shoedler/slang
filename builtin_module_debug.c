@@ -23,7 +23,7 @@ BUILTIN_FN_DOC(
     "Returns a " STR(TYPENAME_SEQ) " of all the values on the vms' stack. The top of the stack is the last element in the " STR(
         TYPENAME_SEQ) ".");
 BUILTIN_FN_IMPL(stack) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   UNUSED(argv);
 
   int stack_size = (int)(vm.stack_top - vm.stack - 1);
@@ -44,7 +44,7 @@ BUILTIN_FN_DOC(
     /* Description */
     "Returns the version of the current running vm.");
 BUILTIN_FN_IMPL(version) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   UNUSED(argv);
 
   return OBJ_VAL(copy_string(SLANG_VERSION, STR_LEN(SLANG_VERSION)));

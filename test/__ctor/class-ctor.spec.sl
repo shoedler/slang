@@ -1,7 +1,7 @@
 cls Foo{}
 fn bar -> 1
 
-print try Class()                           else error // [Expect] Cannot instantiate a class via Class.ctor.
+print try Class()                           else error // [Expect] Expected 1 argument but got 0.
 print try Class("123.0")                    else error // [Expect] Cannot instantiate a class via Class.ctor.
 print try Class("1kjhkjh2hkjhkj.....3hkj4") else error // [Expect] Cannot instantiate a class via Class.ctor.
 print try Class("false")                    else error // [Expect] Cannot instantiate a class via Class.ctor.

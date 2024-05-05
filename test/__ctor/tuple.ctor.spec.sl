@@ -1,7 +1,7 @@
 cls Foo{}
 fn bar -> 1
 
-print try Tuple()                           else error // [Expect] Expected 1 arguments but got 0.
+print try Tuple()                           else error // [Expect] Expected 1 argument but got 0.
 print try Tuple("123.0")                    else error // [Expect] Expected argument 0 of type Seq but got Str.
 print try Tuple("1kjhkjh2hkjhkj.....3hkj4") else error // [Expect] Expected argument 0 of type Seq but got Str.
 print try Tuple("false")                    else error // [Expect] Expected argument 0 of type Seq but got Str.

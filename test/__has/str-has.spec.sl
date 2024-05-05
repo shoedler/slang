@@ -1,5 +1,5 @@
 // No arguments
-print try {}.has() else error // [Expect] Expected 1 arguments but got 0.
+print try {}.has() else error // [Expect] Expected 1 argument but got 0.
 
 // Empty string
 print "".has("hello") // [Expect] false

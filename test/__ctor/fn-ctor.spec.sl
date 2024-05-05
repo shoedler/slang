@@ -1,7 +1,7 @@
 cls Foo{}
 fn bar -> 1
 
-print try Fn()                           else error // [Expect] Cannot instantiate a function via Fn.ctor.
+print try Fn()                           else error // [Expect] Expected 1 argument but got 0.
 print try Fn("123.0")                    else error // [Expect] Cannot instantiate a function via Fn.ctor.
 print try Fn("1kjhkjh2hkjhkj.....3hkj4") else error // [Expect] Cannot instantiate a function via Fn.ctor.
 print try Fn("false")                    else error // [Expect] Cannot instantiate a function via Fn.ctor.

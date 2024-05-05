@@ -46,8 +46,7 @@ BUILTIN_METHOD_DOC_OVERLOAD(
     /* Description */
     "Creates a new " STR(TYPENAME_SEQ) " from a " STR(TYPENAME_TUPLE) " of values.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_CTOR) {
-  BUILTIN_ARGC_EXACTLY(1)
-
+  UNUSED(argc);
   switch (argv[1].type) {
     case VAL_INT: {
       ValueArray items;
@@ -116,7 +115,6 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_NIL,
     /* Description */ "Pushes one or many values to a " STR(TYPENAME_SEQ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, push) {
-  BUILTIN_ARGC_AT_LEAST(1)
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
@@ -135,7 +133,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Pops and returns the last item of a " STR(TYPENAME_SEQ) ". Returns " STR(TYPENAME_NIL) " if it is empty.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
@@ -150,9 +148,9 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_OBJ,
     /* Description */
     "Removes and returns the item at 'index' from a " STR(TYPENAME_SEQ) ". Returns " STR(
-        TYPENAME_NIL) " if 'index' is out of bounds.");
+        TYPENAME_NIL) " if 'index' is out of bounds. Modifies the sequence.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, remove_at) {
-  BUILTIN_ARGC_EXACTLY(1)
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)
   BUILTIN_CHECK_ARG_AT(1, INT)
 

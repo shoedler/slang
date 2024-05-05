@@ -24,7 +24,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Converts the first argument to a " STR(TYPENAME_STRING) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_CTOR) {
-  BUILTIN_ARGC_EXACTLY(1);
+  UNUSED(argc);
   // Execute the to_str method on the argument
   push(argv[1]);                                                // Push the receiver for to_str, which is the ctors' argument
   Value result = exec_callable(typeof_(argv[1])->__to_str, 0);  // Convert to string
@@ -43,7 +43,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_STRING) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_TO_STR) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
 
   return argv[0];
@@ -57,7 +57,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Splits a " STR(TYPENAME_STRING) " into a " STR(TYPENAME_SEQ) " of substrings, using 'sep' as the delimiter.");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
-  BUILTIN_ARGC_EXACTLY(1)
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
   BUILTIN_CHECK_ARG_AT(1, STRING)
 
@@ -109,7 +109,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a new " STR(TYPENAME_STRING) " with leading and trailing whitespace removed.");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, trim) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
 
   ObjString* str = AS_STRING(argv[0]);
@@ -141,8 +141,8 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Returns true if the " STR(TYPENAME_STRING) " contains the substring 'subs'.");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_HAS) {
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
-  BUILTIN_ARGC_EXACTLY(1)
   BUILTIN_CHECK_ARG_AT(1, STRING)
 
   // Should align with prop_getter
@@ -177,7 +177,7 @@ BUILTIN_METHOD_DOC(
     STR(TYPENAME_STRING) " is returned. If 'end' is " STR(TYPENAME_NIL) ", all items from 'start' to the end of the " STR(
         TYPENAME_STRING) " are included.");
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
-  BUILTIN_ARGC_EXACTLY(2)
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
   BUILTIN_CHECK_ARG_AT(1, INT)
   if (IS_NIL(argv[2])) {

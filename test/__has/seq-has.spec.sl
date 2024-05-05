@@ -1,5 +1,5 @@
 // No arguments
-print try [1,2,3].has() else error // [Expect] Expected 1 arguments but got 0.
+print try [1,2,3].has() else error // [Expect] Expected 1 argument but got 0.
 
 // No items
 print [].has(1) // [Expect] false

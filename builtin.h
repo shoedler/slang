@@ -158,7 +158,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                               " if the " STR(TYPENAME_##type) " contains " doc_return_kind                                      \
                                                               " for which 'pred' evaluates to " VALUE_STR_TRUE ".");            \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, SP_METHOD_HAS) {                                                                         \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                                     \
+    UNUSED(argc);                                                                                                               \
     BUILTIN_CHECK_RECEIVER(type)                                                                                                \
                                                                                                                                 \
     ValueArray items;                                                                                                           \
@@ -201,7 +201,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
   BUILTIN_METHOD_DOC(TYPENAME_##type, SP_METHOD_TO_STR, "", TYPENAME_##type,                                            \
                      "Returns a " STR(TYPENAME_STRING) " representation of a " STR(TYPENAME_##type) ".");               \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, SP_METHOD_TO_STR) {                                                              \
-    BUILTIN_ARGC_EXACTLY(0)                                                                                             \
+    UNUSED(argc);                                                                                                       \
     BUILTIN_CHECK_RECEIVER(type)                                                                                        \
                                                                                                                         \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                \
@@ -259,7 +259,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     STR(TYPENAME_##type) " is returned. If 'end' is " STR(TYPENAME_NIL) ", all items from 'start' to the end of the " STR(\
         TYPENAME_##type) " are included."); \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, SP_METHOD_SLICE) {                                                                                                          \
-    BUILTIN_ARGC_EXACTLY(2)                                                                                                                                        \
+    UNUSED(argc);                                                                                                                                                  \
     BUILTIN_CHECK_RECEIVER(type)                                                                                                                                   \
     BUILTIN_CHECK_ARG_AT(1, INT)                                                                                                                                   \
     if (IS_NIL(argv[2])) {                                                                                                                                         \
@@ -316,7 +316,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                                   TYPENAME_##type) " for which 'pred' evaluates to " VALUE_STR_TRUE ". Returns " VALUE_STR_NIL \
                                                    " if no item satisfies the predicate.");                                    \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, index_of) {                                                                             \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                                    \
+    UNUSED(argc);                                                                                                              \
     BUILTIN_CHECK_RECEIVER(type)                                                                                               \
                                                                                                                                \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                       \
@@ -361,7 +361,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
       "Returns the first item of a " STR(TYPENAME_##type) " for which 'pred' evaluates to " VALUE_STR_TRUE ". Returns " STR( \
           TYPENAME_NIL) " if the " STR(TYPENAME_##type) " is empty or no item satisfies the predicate.");                    \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, first) {                                                                              \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                                  \
+    UNUSED(argc);                                                                                                            \
     BUILTIN_CHECK_RECEIVER(type)                                                                                             \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                                      \
                                                                                                                              \
@@ -399,7 +399,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
       "Returns the last item of a " STR(TYPENAME_##type) " for which 'pred' evaluates to " VALUE_STR_TRUE ". Returns " STR( \
           TYPENAME_NIL) " if the " STR(TYPENAME_##type) " is empty or no item satisfies the predicate.");                   \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, last) {                                                                              \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                                 \
+    UNUSED(argc);                                                                                                           \
     BUILTIN_CHECK_RECEIVER(type)                                                                                            \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                                     \
                                                                                                                             \
@@ -435,7 +435,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     "Executes 'fn' for each item in the " STR(TYPENAME_##type) ". 'fn' should take one or two arguments: "       \
     "the item and the index of the item. The latter is optional."); \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, each) {                                                                      \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                         \
+    UNUSED(argc);                                                                                                   \
     BUILTIN_CHECK_RECEIVER(type)                                                                                    \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
                                                                                                                     \
@@ -492,7 +492,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     STR(TYPENAME_##type) " with the mapped values. 'fn' should take one or two arguments: the item and the index of the "\
     "item. The latter is optional.");                                                                                             \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, map) {                                                                       \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                         \
+    UNUSED(argc);                                                                                                   \
     BUILTIN_CHECK_RECEIVER(type)                                                                                    \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
                                                                                                                     \
@@ -557,7 +557,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                                           "latter is "                                                                        \
                                           "optional.");                                                                       \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, filter) {                                                                              \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                                   \
+    UNUSED(argc);                                                                                                             \
     BUILTIN_CHECK_RECEIVER(type)                                                                                              \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                                       \
                                                                                                                               \
@@ -631,7 +631,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
       TYPENAME_##type, join, DOC_ARG("sep", TYPENAME_STRING), TYPENAME_STRING,                                      \
       "Joins the items of a " STR(TYPENAME_##type) " into a single " STR(TYPENAME_STRING) ", separated by 'sep'."); \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, join) {                                                                      \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                         \
+    UNUSED(argc);                                                                                                   \
     BUILTIN_CHECK_RECEIVER(type)                                                                                    \
     BUILTIN_CHECK_ARG_AT(1, STRING)                                                                                 \
                                                                                                                     \
@@ -689,7 +689,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                      "Reverses the items of a " STR(TYPENAME_##type) ". Returns a new " STR( \
                          TYPENAME_##type) " with the items in reverse order.");              \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, reverse) {                                            \
-    BUILTIN_ARGC_EXACTLY(0)                                                                  \
+    UNUSED(argc);                                                                            \
     BUILTIN_CHECK_RECEIVER(type)                                                             \
                                                                                              \
     ValueArray items    = LISTLIKE_GET_VALUEARRAY(argv[0]);                                  \
@@ -716,7 +716,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     " for every item in the " STR(TYPENAME_##type) ". 'fn' should take one or two arguments: the item and the index of the "\
     "item. The latter is optional. Returns " VALUE_STR_FALSE " if the " STR(TYPENAME_##type) " is empty.");                                                                                            \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, every) {                                                                    \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                        \
+    UNUSED(argc);                                                                                                  \
     BUILTIN_CHECK_RECEIVER(type)                                                                                   \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                            \
                                                                                                                    \
@@ -786,7 +786,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     " for at least one item in the " STR(TYPENAME_##type) ". 'fn' should take one or two arguments: the item and the index of the "\
     "item. The latter is optional. Returns " VALUE_STR_FALSE " if the " STR(TYPENAME_##type) " is empty.");                                                                                            \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, some) {                                                                     \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                        \
+    UNUSED(argc);                                                                                                  \
     BUILTIN_CHECK_RECEIVER(type)                                                                                   \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                            \
                                                                                                                    \
@@ -851,7 +851,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     " 'fn' should take two or three arguments: the accumulator, the item and the index. "\
     "The latter is optional. The initial value of the accumulator is 'initial'.");                                                                                             \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, reduce) {                                                                    \
-    BUILTIN_ARGC_EXACTLY(2)                                                                                         \
+    UNUSED(argc);                                                                                                   \
     BUILTIN_CHECK_RECEIVER(type)                                                                                    \
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(2)                                                                             \
                                                                                                                     \
@@ -906,7 +906,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
       TYPENAME_##type, count, DOC_ARG("pred", TYPENAME_FUNCTION->TYPENAME_BOOL), TYPENAME_INT,                          \
       "Returns the number of items in the " STR(TYPENAME_##type) " for which 'pred' evaluates to " VALUE_STR_TRUE "."); \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, count) {                                                                         \
-    BUILTIN_ARGC_EXACTLY(1)                                                                                             \
+    UNUSED(argc);                                                                                                       \
     BUILTIN_CHECK_RECEIVER(type)                                                                                        \
                                                                                                                         \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                \
@@ -961,7 +961,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     "Concatenates two " STR(TYPENAME_##type) "s. Returns a new " STR(TYPENAME_##type) " with the items of the receiver followed by the "\
     "items of 'other'.");                                                          \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, concat) {                                 \
-    BUILTIN_ARGC_EXACTLY(1)                                                      \
+    UNUSED(argc);                                                                \
     BUILTIN_CHECK_RECEIVER(type)                                                 \
     BUILTIN_CHECK_ARG_AT(1, type)                                                \
                                                                                  \

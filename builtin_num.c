@@ -4,7 +4,7 @@
 
 void register_builtin_num_class() {
   BUILTIN_REGISTER_BASE_CLASS(TYPENAME_NUM);
-  BUILTIN_REGISTER_METHOD(TYPENAME_NUM, SP_METHOD_CTOR, 0);
+  BUILTIN_REGISTER_METHOD(TYPENAME_NUM, SP_METHOD_CTOR, 1);
   BUILTIN_FINALIZE_CLASS(TYPENAME_NUM);
 }
 
@@ -39,7 +39,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Converts the first argument to a " STR(TYPENAME_INT) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_CTOR) {
-  BUILTIN_ARGC_EXACTLY(1)
+  UNUSED(argc);
 
   switch (argv[1].type) {
     case VAL_INT: return argv[1];
@@ -69,7 +69,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_INT) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_TO_STR) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(INT)
 
   char buffer[100];
@@ -95,7 +95,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Converts the first argument to a " STR(TYPENAME_FLOAT) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_CTOR) {
-  BUILTIN_ARGC_EXACTLY(1)
+  UNUSED(argc);
 
   switch (argv[1].type) {
     case VAL_INT: return FLOAT_VAL((double)AS_INT(argv[1]));
@@ -125,7 +125,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_FLOAT) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_TO_STR) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(FLOAT)
 
   char buffer[100];

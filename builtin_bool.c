@@ -19,8 +19,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Converts the first argument to a " STR(TYPENAME_BOOL) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_BOOL, SP_METHOD_CTOR) {
-  BUILTIN_ARGC_EXACTLY(1)
-
+  UNUSED(argc);
   if (is_falsey(argv[1])) {
     return BOOL_VAL(false);
   }
@@ -36,8 +35,8 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of a " STR(TYPENAME_BOOL) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_BOOL, SP_METHOD_TO_STR) {
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(BOOL)
-  BUILTIN_ARGC_EXACTLY(0)
 
   if (AS_BOOL(argv[0])) {
     ObjString* str_obj = copy_string(VALUE_STR_TRUE, STR_LEN(VALUE_STR_TRUE));

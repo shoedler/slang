@@ -33,7 +33,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_OBJ,
     /* Description */ "Returns a new empty " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_CTOR) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   // This is a base implementation, all objects which don't have a custom implementation will use this one.
   // Works nicely for all classes, because instances are ObjObjects. Any other value type, like primitives, are handled internally
   // and have their own constructors.
@@ -144,7 +144,6 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_STRING,
     /* Description */ "Returns a string representation of the " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
-  BUILTIN_ARGC_EXACTLY(0)
   // This is a base implementation, all objects which don't have a custom implementation will use this one.
   // So we don't check the receiver, because this implementation should accept any value.
 
@@ -195,7 +194,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_INT,
     /* Description */ "Returns the hash of the " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   return INT_VAL(hash_value(argv[0]));
 }
 
@@ -209,7 +208,7 @@ BUILTIN_METHOD_DOC(
     "Returns a " STR(TYPENAME_SEQ) " of key-value pairs (which are " STR(TYPENAME_SEQ) "s of length 2 ) of a " STR(
         TYPENAME_OBJ) ", containing all entries.");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
@@ -239,7 +238,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_SEQ,
     /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all keys of a " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, keys) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
@@ -266,7 +265,7 @@ BUILTIN_METHOD_DOC(
     /* Return Type */ TYPENAME_SEQ,
     /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all values of a " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, values) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);

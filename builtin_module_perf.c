@@ -20,7 +20,7 @@ BUILTIN_FN_DOC(
     /* Return Type */ TYPENAME_FLOAT,
     /* Description */ "High-precision clock function. Returns the current execution time in seconds.");
 BUILTIN_FN_IMPL(now) {
-  BUILTIN_ARGC_EXACTLY(0)
+  UNUSED(argc);
   UNUSED(argv);
 
   LARGE_INTEGER frequency;

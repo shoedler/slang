@@ -35,7 +35,7 @@ BUILTIN_METHOD_DOC(
     /* Description */
     "Creates a new " STR(TYPENAME_TUPLE) " from a " STR(TYPENAME_SEQ) " of values.");
 BUILTIN_METHOD_IMPL(TYPENAME_TUPLE, SP_METHOD_CTOR) {
-  BUILTIN_ARGC_EXACTLY(1)
+  UNUSED(argc);
   BUILTIN_CHECK_ARG_AT(1, SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[1]);

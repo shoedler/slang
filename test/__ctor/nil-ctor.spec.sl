@@ -1,7 +1,7 @@
 cls Foo{}
 fn bar -> 1
 
-print try Nil()                           else error // [Expect] Cannot instantiate nil via Nil.ctor.
+print try Nil()                           else error // [Expect] Expected 1 argument but got 0.
 print try Nil("123.0")                    else error // [Expect] Cannot instantiate nil via Nil.ctor.
 print try Nil("1kjhkjh2hkjhkj.....3hkj4") else error // [Expect] Cannot instantiate nil via Nil.ctor.
 print try Nil("false")                    else error // [Expect] Cannot instantiate nil via Nil.ctor.

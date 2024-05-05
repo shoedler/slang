@@ -341,14 +341,27 @@ ObjClass* typeof_(Value value) {
   return vm.__builtin_Obj_class;  // This field name was created via macro
 }
 
+// If [expected] is positive, [actual] must match exactly. If [expected] is negative, [actual] must be at least
+// the absolute value of [expected].
+#define CHECK_ARGS(expected, actual)                                                  \
+  if (expected >= 0 ? actual != expected : actual < -expected) {                      \
+    if (expected == 1) {                                                              \
+      runtime_error("Expected 1 argument but got %d.", actual);                       \
+    } else if (expected == -1) {                                                      \
+      runtime_error("Expected at least 1 argument but got %d.", actual);              \
+    } else if (expected < -1) {                                                       \
+      runtime_error("Expected at least %d arguments but got %d.", -expected, actual); \
+    } else {                                                                          \
+      runtime_error("Expected %d arguments but got %d.", expected, actual);           \
+    }                                                                                 \
+    return CALL_FAILED;                                                               \
+  }
+
 // Executes a call to a managed-code function or method by creating a new call frame and pushing it onto the
 // frame stack.
 // `Stack: ...[closure][arg0][arg1]...[argN]`
 static CallResult call_managed(ObjClosure* closure, int arg_count) {
-  if (arg_count != closure->function->arity) {
-    runtime_error("Expected %d arguments but got %d.", closure->function->arity, arg_count);
-    return CALL_FAILED;
-  }
+  CHECK_ARGS(closure->function->arity, arg_count);
 
   if (vm.frame_count == FRAMES_MAX) {
     runtime_error("Stack overflow.");
@@ -367,6 +380,8 @@ static CallResult call_managed(ObjClosure* closure, int arg_count) {
 // Calls a native function with the given number of arguments (on the stack).
 // `Stack: ...[native|receiver][arg0][arg1]...[argN]`
 static CallResult call_native(ObjNative* native, int arg_count) {
+  CHECK_ARGS(native->arity, arg_count);
+
   Value* args  = vm.stack_top - arg_count - 1;
   Value result = native->function(arg_count, args);
   vm.stack_top -= arg_count + 1;  // Remove args + fn or receiver
@@ -374,6 +389,8 @@ static CallResult call_native(ObjNative* native, int arg_count) {
 
   return CALL_RETURNED;
 }
+
+#undef CHECK_ARGS
 
 // Calls a callable managed or native value (function, method, class (ctor), etc.) with the given number of
 // arguments on the stack.

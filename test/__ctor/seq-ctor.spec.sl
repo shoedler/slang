@@ -1,7 +1,7 @@
 cls Foo{}
 fn bar -> 1
 
-print try Seq()                           else error // [Expect] Expected 1 arguments but got 0.
+print try Seq()                           else error // [Expect] Expected 1 argument but got 0.
 print try Seq("123.0")                    else error // [Expect] Expected argument 0 of type Int or Tuple but got Str.
 print try Seq("1kjhkjh2hkjhkj.....3hkj4") else error // [Expect] Expected argument 0 of type Int or Tuple but got Str.
 print try Seq("false")                    else error // [Expect] Expected argument 0 of type Int or Tuple but got Str.
