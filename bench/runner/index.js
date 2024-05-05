@@ -4,7 +4,7 @@ const path = require("path");
 
 const MSBUILD_EXE =
   '"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\msbuild.exe"';
-const SLANG_PROJ_DIR = "C:\\Projects\\slang";
+const SLANG_PROJ_DIR = "C:\\Projects\\slang-opcode-width";
 
 const BUILD_CONFIGS = ["Release", "Debug"];
 const SLANG_BIN_DIR = SLANG_PROJ_DIR + "\\x64";

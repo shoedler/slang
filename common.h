@@ -25,19 +25,22 @@
           __FILE__, __LINE__);
 
 #define INTERNAL_ERROR(format_literal, ...)              \
-  do {                                                   \
+  do                                                     \
+  {                                                      \
     ##PRINT_ERROR_HEADER("INTERNAL ERROR");              \
     fprintf(stderr, format_literal "\n", ##__VA_ARGS__); \
   } while (0)
 
 #define WINTERNAL_ERROR(wformat_literal, ...)               \
-  do {                                                      \
+  do                                                        \
+  {                                                         \
     ##PRINT_ERROR_HEADER("INTERNAL ERROR");                 \
     fwprintf(stderr, wformat_literal L"\n", ##__VA_ARGS__); \
   } while (0)
 
 #define NOT_IMPLEMENTED(what)                       \
-  do {                                              \
+  do                                                \
+  {                                                 \
     ##PRINT_ERROR_HEADER("NOT IMPLEMENTED ERROR");  \
     fprintf(stderr, "Not implemented: " what "\n"); \
     exit(1);                                        \
@@ -45,8 +48,8 @@
 
 // Feature flags
 
-#define START_WITH_SAMPLE_SCRIPT
-#define START_WITH_TESTS
+// #define START_WITH_SAMPLE_SCRIPT
+// #define START_WITH_TESTS
 
 // #define DEBUG_PRINT_TOKENS
 // #define DEBUG_TRACE_EXECUTION
