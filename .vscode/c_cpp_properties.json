@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "GCC",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "compilerPath": "C:/Projects/.dev/msys64/ucrt64/bin/gcc.exe",
+            "compilerArgs": [
+                "-Wall",
+                "-Wextra",
+                "-Werror",
+                "-std=c17",
+                "-m64"
+            ],
+            "cStandard": "c17",
+            "defines": [
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "intelliSenseMode": "windows-gcc-x86"
+        }
+    ],
+    "version": 4
+}

@@ -133,7 +133,7 @@ typedef struct {
 #define BOOL_VAL(value) ((Value){VAL_BOOL, {.boolean = value}})
 
 // The singleton nil value.
-#define NIL_VAL ((Value){VAL_NIL, {.integer = 0, .float_ = 0}})
+#define NIL_VAL ((Value){VAL_NIL, {.integer = 0}})
 
 // Converts a C long long into a value.
 #define INT_VAL(value) ((Value){VAL_INT, {.integer = value}})
@@ -150,7 +150,7 @@ typedef struct {
 // The singleton empty value.
 // Users will never see this value, it is used internally to represent empty buckets in the
 // hashtable.
-#define EMPTY_INTERNAL_VAL ((Value){VAL_EMPTY_INTERNAL, {.integer = 0, .float_ = 0}})
+#define EMPTY_INTERNAL_VAL ((Value){VAL_EMPTY_INTERNAL, {.integer = 0}})
 
 // Dynamic array of values. This represents the constant pool of a chunk.
 // See https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4

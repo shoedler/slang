@@ -54,7 +54,7 @@ void mark_obj(Obj* object) {
 
 #ifdef DEBUG_LOG_GC
   printf(ANSI_RED_STR("[GC] ") ANSI_YELLOW_STR("[MARK] ") "at %p, ", (void*)object);
-  printf("%s\n", typeof(OBJ_VAL(object))->name->chars);
+  printf("%s\n", typeof_(OBJ_VAL(object))->name->chars);
 #endif
 
   object->is_marked = true;
@@ -91,7 +91,7 @@ void mark_array(ValueArray* array) {
 static void blacken_object(Obj* object) {
 #ifdef DEBUG_LOG_GC
   printf(ANSI_RED_STR("[GC] ") ANSI_BLUE_STR("[BLACKEN] ") "at %p, ", (void*)object);
-  printf("%s\n", typeof(OBJ_VAL(object))->name->chars);
+  printf("%s\n", typeof_(OBJ_VAL(object))->name->chars);
 #endif
 
   switch (object->type) {

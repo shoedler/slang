@@ -69,7 +69,7 @@ static int byte_instruction(const char* name, Chunk* chunk, int offset) {
 
 static int jump_instruction(const char* name, int sign, Chunk* chunk, int offset) {
   uint16_t jump = chunk->code[offset + 1];
-  char* jmp_str[13];
+  char jmp_str[13];
   sprintf(jmp_str, "%04d -> %04d", offset, offset + 3 + sign * jump);
   PRINT_OPCODE(name);
   PRINT_NO_NUM();
@@ -115,7 +115,7 @@ static int closure_instruction(const char* name, Chunk* chunk, int offset) {
   for (int j = 0; j < function->upvalue_count; j++) {
     int is_local = chunk->code[offset++];
     int index    = chunk->code[offset++];
-    char* upval_str[VALUE_STR_LEN];
+    char upval_str[VALUE_STR_LEN];
     sprintf(upval_str, "%s %d", is_local ? "local" : "upvalue", index);
 
     printf("\n");
@@ -134,7 +134,8 @@ static int invoke_instruction(const char* name, Chunk* chunk, int offset) {
   uint16_t arg_count = chunk->code[offset + 2];
   PRINT_OPCODE(name);
   PRINT_NUMBER(constant);
-  const char* method_str[VALUE_STR_LEN];
+  char method_str[VALUE_STR_LEN];
+
   sprintf(method_str, "%s, %d args", AS_STRING(chunk->constants.values[constant])->chars, arg_count);
   PRINT_VALUE_STR(method_str);
 

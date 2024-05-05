@@ -1,6 +1,7 @@
 import { runBenchmarks, serveResults } from './bench.js';
 import {
   BUILD_CONFIG_RELEASE,
+  BUILD_CONFIG_RELEASE_PROFILED,
   SLANG_PROJ_DIR,
   SLANG_SAMPLE_FILE,
   SLANG_TEST_SUFFIX,
@@ -58,7 +59,7 @@ const checkGcStressFlagForTests = async () => {
 
 const hint = [
   'Available commands & options:',
-  '  - bench           Run benchmarks (Debug & Release) and serve results',
+  '  - bench           Run benchmarks (debug & release) and serve results',
   '    - serve         Only serve benchmark results',
   '    - no-serve      Run benchmarks without serving results',
   '    - <pattern>     Run language that matches the regex pattern',
@@ -70,7 +71,7 @@ const hint = [
   '  - watch-test      Watch test files',
   '    - <pattern>     Watch tests that match the regex pattern',
   '',
-  'Note: If not specified, the default configuration is Release',
+  'Note: If not specified, the default configuration is release',
 ];
 
 switch (cmd) {
@@ -97,7 +98,7 @@ switch (cmd) {
       break;
     }
 
-    await buildSlangConfig(BUILD_CONFIG_RELEASE);
+    await buildSlangConfig(BUILD_CONFIG_RELEASE_PROFILED);
     await runBenchmarks(langPattern);
 
     if (!doNoServe) {

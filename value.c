@@ -121,7 +121,7 @@ bool values_equal(Value a, Value b) {
       return false;
     }
     case VAL_EMPTY_INTERNAL: return true;
-    case VAL_HANDLER: INTERNAL_ERROR("Cannot compare a value to a error handler. Vm has leaked a stack value.");
+    case VAL_HANDLER: INTERNAL_ERROR("Cannot compare a value to a error handler. Vm has leaked a stack value."); return false;
     default: INTERNAL_ERROR("Unhandled comparison type: %d", a.type); return false;
   }
 }
@@ -167,6 +167,7 @@ int print_value_safe(FILE* f, Value value) {
       case VAL_INT: return fprintf(f, VALUE_STR_INT, AS_INT(value));
       case VAL_FLOAT: return fprintf(f, VALUE_STR_FLOAT, AS_FLOAT(value));
       case VAL_EMPTY_INTERNAL: return fprintf(f, VALUE_STR_EMPTY_INTERNAL);
+      default: break;
     }
 
     return fprintf(f, "<unknown value type %d>", value.type);

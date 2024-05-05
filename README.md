@@ -8,12 +8,13 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ### Syntax & Language Features
 
+- [ ] Implement `for ... in ...;` loops
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
-- [ ] Implement `for ... in ...;` loops
 - [ ] Add `const` (**_See Challenge 22.3_**)
 - [ ] Add destructuring to module imports.
 - [ ] Implement `Json` module
+- [ ] Implement `Math` module
 - [ ] Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`
 - [ ] Implement `Set` class
 - [ ] Implement `Set.add(Obj) -> Nil` as a builtin
@@ -26,22 +27,21 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
 - [ ] Implement `nameof` keyword. E.g. `nameof(foo)` returns `"foo"`. (**_See Challenge 22.1_**)
 - [ ] Implement `Float.nan` and `Float.inf` constants.
+- [ ] Implement `@doc "bla bla"` decorator to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing.
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
-- [ ] Implement a way to add a doc string to functions and classes (managed code). This involves defining a new syntax for such a thing. Maybe attributes? (e.g. `@doc "This is a doc string"`)
-- [ ] Implement iterators. Maybe a new builtin class. They should initialize these fields/methods: `__has_next`, `__next()`.
 
 ## Improvements
 
 - [ ] Add Tests with tabs in source code. Especially to test uncaught runtime error reporting.
-- [ ] Restructure test: compiler, vm (types, modules)
 - [ ] Add tests for `OP_MODULO`
 - [ ] Add tests for `Fn.bind(Obj)`
+- [ ] Restructure test: compiler, vm (types, modules)
 - [ ] (When `Gc` is implemented) Add some test cases where we call `Gc.collect()` to ensure that relevant objects are not collected.
 - [ ] Improve destructuring assignment:
   - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
 - [ ] Call `to_str` implicitly when adding a string to a non-string. Only if the left side is a string.
-- [ ] Remove in `VALUE_STR_CLASS` (`<Class X>`) the "Class" prefix from class type names.
+- [ ] Remove the "Class" prefix in `VALUE_STR_CLASS` to just return the class name. This is a bit more consistent with the rest of the code.
 - [ ] Use something else instead of `rint`, because it's not very precise. See _num-to-str.spec.sl_ for an example.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
@@ -67,6 +67,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 ## Ideas
 
 - [ ] Implement a register-based Vm https://www.lua.org/doc/jucs05.pdf
+- [ ] Implement an LSP server. Rough idea: Compile the source and generate the bytecode. Maybe with some heuristics. Like, don't recompile imported modules. We should be able to map a line + column position to a instruction, since we store the relevant information in a Token for each instruction. We should also be able to retrieve a list of possible strings to write next in the sourcecode - e.g. globals, methods etc.
 - [ ] Constant folding directly in the compiler
 - [ ] Implement a JIT compiler
 

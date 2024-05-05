@@ -80,7 +80,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the key
     push(object->fields.entries[i].key);  // Push the receiver (key at i) for to_str
-    ObjString* key_str = AS_STRING(exec_callable(typeof(object->fields.entries[i].key)->__to_str, 0));
+    ObjString* key_str = AS_STRING(exec_callable(typeof_(object->fields.entries[i].key)->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -89,7 +89,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the value
     push(object->fields.entries[i].value);  // Push the receiver (value at i) for to_str
-    ObjString* value_str = AS_STRING(exec_callable(typeof(object->fields.entries[i].value)->__to_str, 0));
+    ObjString* value_str = AS_STRING(exec_callable(typeof_(object->fields.entries[i].value)->__to_str, 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return NIL_VAL;
     }
@@ -159,7 +159,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
   }
 
   // This here is the catch-all for all values. We print the type-name and memory address of the value.
-  ObjString* t_name = typeof(argv[0])->name;
+  ObjString* t_name = typeof_(argv[0])->name;
 
   // Print the memory address of the object using (void*)AS_OBJ(argv[0]).
   // We need to know the size of the buffer to allocate, so we calculate it first.

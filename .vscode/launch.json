@@ -1,44 +1,83 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug: Run Sample (Windows)",
-      "type": "cppvsdbg",
+      "name": "Debug: Run Sample",
+      "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}\\x64\\Debug\\slang.exe",
+      "program": "${workspaceFolder}\\bin\\x64\\debug\\slang.exe",
       "args": ["run", "${workspaceFolder}\\sample.sl"],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
+      "cwd": "${fileDirname}",
       "environment": [],
-      "console": "integratedTerminal",
-      "preLaunchTask": "msbuild-build-vcxproj-debug",
+      "externalConsole": false,
+      "preLaunchTask": "gcc-make-debug",
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:/Projects/.dev/msys64/ucrt64/bin/gdb.exe",
+      "setupCommands": [
+          {
+              "description": "Enable pretty-printing for gdb",
+              "text": "-enable-pretty-printing",
+              "ignoreFailures": true
+          },
+          {
+              "description": "Set Disassembly Flavor to Intel",
+              "text": "-gdb-set disassembly-flavor intel",
+              "ignoreFailures": true
+          }
+      ]
     },
     {
-      "name": "Debug: Run REPL (Windows)",
-      "type": "cppvsdbg",
+      "name": "Debug: REPL",
+      "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}\\x64\\Debug\\slang.exe",
+      "program": "${workspaceFolder}\\bin\\x64\\debug\\slang.exe",
       "args": ["repl"],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
+      "cwd": "${fileDirname}",
       "environment": [],
-      "console": "integratedTerminal",
-      "preLaunchTask": "msbuild-build-vcxproj-debug",
+      "externalConsole": false,
+      "preLaunchTask": "gcc-make-debug",
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:/Projects/.dev/msys64/ucrt64/bin/gdb.exe",
+      "setupCommands": [
+          {
+              "description": "Enable pretty-printing for gdb",
+              "text": "-enable-pretty-printing",
+              "ignoreFailures": true
+          },
+          {
+              "description": "Set Disassembly Flavor to Intel",
+              "text": "-gdb-set disassembly-flavor intel",
+              "ignoreFailures": true
+          }
+      ]
     },
     {
-      "name": "Release: Run Sample (Windows)",
-      "type": "cppvsdbg",
+      "name": "Release: Run Sample",
+      "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}\\x64\\Release\\slang.exe",
+      "program": "${workspaceFolder}\\bin\\x64\\release\\slang.exe",
       "args": ["run", "${workspaceFolder}\\sample.sl"],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}",
+      "cwd": "${fileDirname}",
       "environment": [],
-      "console": "integratedTerminal",
-      "preLaunchTask": "msbuild-build-vcxproj-release",
+      "externalConsole": false,
+      "preLaunchTask": "gcc-make-release",
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:/Projects/.dev/msys64/ucrt64/bin/gdb.exe",
+      "setupCommands": [
+          {
+              "description": "Enable pretty-printing for gdb",
+              "text": "-enable-pretty-printing",
+              "ignoreFailures": true
+          },
+          {
+              "description": "Set Disassembly Flavor to Intel",
+              "text": "-gdb-set disassembly-flavor intel",
+              "ignoreFailures": true
+          }
+      ]
     },
   ]
 }

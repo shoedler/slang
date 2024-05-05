@@ -26,8 +26,8 @@ BUILTIN_METHOD_DOC(
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_CTOR) {
   BUILTIN_ARGC_EXACTLY(1);
   // Execute the to_str method on the argument
-  push(argv[1]);                                               // Push the receiver for to_str, which is the ctors' argument
-  Value result = exec_callable(typeof(argv[1])->__to_str, 0);  // Convert to string
+  push(argv[1]);                                                // Push the receiver for to_str, which is the ctors' argument
+  Value result = exec_callable(typeof_(argv[1])->__to_str, 0);  // Convert to string
   if (vm.flags & VM_FLAG_HAS_ERROR) {
     return NIL_VAL;
   }

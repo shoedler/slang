@@ -159,7 +159,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                                                               " for which 'pred' evaluates to " VALUE_STR_TRUE ".");            \
   BUILTIN_METHOD_IMPL(TYPENAME_##type, SP_METHOD_HAS) {                                                                         \
     BUILTIN_ARGC_EXACTLY(1)                                                                                                     \
-    BUILTIN_CHECK_RECEIVER(##type)                                                                                              \
+    BUILTIN_CHECK_RECEIVER(type)                                                                                                \
                                                                                                                                 \
     ValueArray items;                                                                                                           \
     BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                                \
@@ -212,7 +212,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     for (int i = 0; i < items.count; i++) {                                                                             \
       /* Execute the to_str method on the item */                                                                       \
       push(items.values[i]); /* Push the receiver (item at i) for to_str */                                             \
-      ObjString* item_str = AS_STRING(exec_callable(typeof(items.values[i])->__to_str, 0));                             \
+      ObjString* item_str = AS_STRING(exec_callable(typeof_(items.values[i])->__to_str, 0));                            \
       if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                               \
         return NIL_VAL;                                                                                                 \
       }                                                                                                                 \
@@ -648,7 +648,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
       if (!IS_STRING(items.values[i])) {                                                                            \
         /* Execute the to_str method on the item */                                                                 \
         push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                                   \
-        item_str = AS_STRING(exec_callable(typeof(items.values[i])->__to_str, 0));                                  \
+        item_str = AS_STRING(exec_callable(typeof_(items.values[i])->__to_str, 0));                                 \
         if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                         \
           return NIL_VAL;                                                                                           \
         }                                                                                                           \

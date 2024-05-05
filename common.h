@@ -7,18 +7,22 @@
 
 // Debug feature flags
 
-// #define DEBUG_PRINT_TOKENS      // Print the tokens the scanner produces
-// #define DEBUG_PRINT_CODE        // Print all compiled bytecode chunks
-// #define DEBUG_TRACE_EXECUTION   // Print the execution of the Vm, including stack traces.
+// #define DEBUG_PRINT_TOKENS  // Print the tokens the scanner produces
+// #define DEBUG_PRINT_CODE  // Print all compiled bytecode chunks
+// #define DEBUG_TRACE_EXECUTION  // Print the execution of the Vm, including stack traces.
 
-#define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
+// #define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
 // #define DEBUG_LOG_GC              // Log the Gc's activity
 // #define DEBUG_LOG_GC_FREE         // Log what objects are being freed by the Gc
 // #define DEBUG_LOG_GC_ALLOCATIONS  // Log what objects are being allocated.
 
 // Feature flags
 
-#define ENABLE_COLOR_OUTPUT  // Enable ANSI-colored output in terminal
+// #define ENABLE_COLOR_OUTPUT  // Enable ANSI-colored output in terminal
+
+// Constants
+
+#define SLANG_VERSION "v0.0.1"
 
 // Exit codes
 
@@ -53,19 +57,19 @@
 #define ANSI_COLOR_RESET ""
 #endif
 
-#define ANSI_RED_STR(str) ANSI_COLOR_RED##str##ANSI_COLOR_RESET
-#define ANSI_GREEN_STR(str) ANSI_COLOR_GREEN##str##ANSI_COLOR_RESET
-#define ANSI_YELLOW_STR(str) ANSI_COLOR_YELLOW##str##ANSI_COLOR_RESET
-#define ANSI_BLUE_STR(str) ANSI_COLOR_BLUE##str##ANSI_COLOR_RESET
-#define ANSI_MAGENTA_STR(str) ANSI_COLOR_MAGENTA##str##ANSI_COLOR_RESET
-#define ANSI_CYAN_STR(str) ANSI_COLOR_CYAN##str##ANSI_COLOR_RESET
+#define ANSI_RED_STR(str) ANSI_COLOR_RED str ANSI_COLOR_RESET
+#define ANSI_GREEN_STR(str) ANSI_COLOR_GREEN str ANSI_COLOR_RESET
+#define ANSI_YELLOW_STR(str) ANSI_COLOR_YELLOW str ANSI_COLOR_RESET
+#define ANSI_BLUE_STR(str) ANSI_COLOR_BLUE str ANSI_COLOR_RESET
+#define ANSI_MAGENTA_STR(str) ANSI_COLOR_MAGENTA str ANSI_COLOR_RESET
+#define ANSI_CYAN_STR(str) ANSI_COLOR_CYAN str ANSI_COLOR_RESET
 
 // Utility macros
 
-#define ___PRINT_ERROR_HEADER(type) fprintf(stderr, ##ANSI_RED_STR(type) " at "##ANSI_YELLOW_STR("%s(%u): "), __FILE__, __LINE__);
+#define ___PRINT_ERROR_HEADER(type) fprintf(stderr, ANSI_RED_STR(type) " at " ANSI_YELLOW_STR("%s(%u): "), __FILE__, __LINE__);
 #define INTERNAL_ERROR(format_literal, ...)              \
   do {                                                   \
-    ##___PRINT_ERROR_HEADER("INTERNAL ERROR");           \
+    ___PRINT_ERROR_HEADER("INTERNAL ERROR");             \
     fprintf(stderr, format_literal "\n", ##__VA_ARGS__); \
   } while (0)
 

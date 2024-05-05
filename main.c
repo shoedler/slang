@@ -35,6 +35,7 @@ void usage() {
   printf("Usage: slang <args>\n");
   printf("  run  <path> Run script at <path>\n");
   printf("  repl        Run REPL\n");
+  printf("  --version   Print version\n");
   exit(EBAD_USAGE);
 }
 
@@ -48,6 +49,8 @@ int main(int argc, char* argv[]) {
     init_vm();
     run_file(argv[2], "main");
     free_vm();
+  } else if (argc == 2 && strcmp(argv[1], "--version") == 0) {
+    printf("slang %s\n", SLANG_VERSION);
   } else {
     usage();
   }
