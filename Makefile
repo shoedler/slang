@@ -12,12 +12,12 @@ LDFLAGS=-m64
 LIBS=-lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -luuid -lodbc32 -lodbccp32
 
 # Source files and output
-SOURCES=$(wildcard *.c)
-OBJECTS=$(SOURCES:.c=.o)
 DEBUG_EXEC=bin/x64/debug/slang.exe
 RELEASE_EXEC=bin/x64/release/slang.exe
 DEBUG_DIR=bin/x64/debug/
 RELEASE_DIR=bin/x64/release/
+SOURCES=$(wildcard *.c)
+OBJECTS=$(SOURCES:.c=.o)
 DEBUG_OBJECTS=$(addprefix $(DEBUG_DIR), $(OBJECTS))
 RELEASE_OBJECTS=$(addprefix $(RELEASE_DIR), $(OBJECTS))
 DEBUG_DEP_DIR=$(DEBUG_DIR).deps/
@@ -35,9 +35,9 @@ DEBUG_LDFLAGS=$(LDFLAGS) -g
 RELEASE_CFLAGS=$(CFLAGS) -O3 -march=native -DNDEBUG -flto=20 # Arbirary, could be retrieved with $(shell nproc) on linux or $(NUMBER_OF_PROCESSORS) on windows
 RELEASE_LDFLAGS=$(LDFLAGS) -fprofile-use -flto=20 # Arbirary, could be retrieved with $(shell nproc) on linux or $(NUMBER_OF_PROCESSORS) on windows
 
-.PHONY: all clean debug release release-profiled setup
+.PHONY: all clean clean-profile debug release release-profiled setup
 
-all: setup debug release
+all: setup debug release-profiled
 
 setup:
 	@$(MKDIR) $(DEBUG_DIR)
@@ -50,11 +50,13 @@ debug: setup $(DEBUG_EXEC)
 release: setup $(RELEASE_EXEC)
 
 release-profiled:
-	@echo "Building with profile generation..."
+	@echo "Cleaning..."
 	@$(MAKE) clean
+	@$(MAKE) clean-profile
+	@echo "Building with profile generation..."
 	@$(MAKE) release CFLAGS="$(RELEASE_CFLAGS) -fprofile-generate" LDFLAGS="$(RELEASE_LDFLAGS) -fprofile-generate"
 	@echo "Gathering profile data..."
-	@$(RELEASE_EXEC) run profile/profile.sl
+	$(RELEASE_EXEC) run profile/profile.sl
 	@echo "Building with profile usage..."
 	@$(MAKE) clean
 	@$(MAKE) release CFLAGS="$(RELEASE_CFLAGS) -fprofile-use" LDFLAGS="$(RELEASE_LDFLAGS) -fprofile-use"
@@ -80,3 +82,6 @@ clean:
 	@$(RM) $(RELEASE_OBJECTS) $(RELEASE_EXEC)
 	@$(RM) -r $(DEBUG_DEP_DIR)
 	@$(RM) -r $(RELEASE_DEP_DIR)
+
+clean-profile:
+	@$(RM) $(RELEASE_OBJECTS:.o=.gcda)
