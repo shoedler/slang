@@ -32,16 +32,16 @@ print [1,2,3].map(fn (x) { })                  // [Expect] [nil, nil, nil]
 print ["a","b","c"].map(fn (x, i) -> ({i: x})) // [Expect] [{0: a}, {1: b}, {2: c}]
 
 // Side effects
-let a = [1,2,3]
+let b = [1,2,3]
 print a.map(fn(x) {
-  a = [4,5,6]
+  b = [4,5,6]
   ret x == 6
 }) // [Expect] [false, false, false]
-print a // [Expect] [4, 5, 6]
+print b // [Expect] [4, 5, 6]
 
 // Fuzzy test to try to trigger the GC
-let a = [1,2,3]
-print a.map(fn (x) {
+let c = [1,2,3]
+print c.map(fn (x) {
   let trigger_gc = {1: "a", 2: "b", 3: "c"} // by creating a new object
   ret trigger_gc[x]
 }) // [Expect] [a, b, c]

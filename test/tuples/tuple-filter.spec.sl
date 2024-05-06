@@ -28,18 +28,18 @@ print (5,6,8).filter(storage.store)  // [Expect] (6, 8)
 print storage.cache                  // [Expect] [1, 3, 4, 5, 6, 8]
 
 // Side effects
-let a = (1,2,3)
-print a.filter(fn (x) { a = (9, 9, 9) }) // [Expect] ()
-print a                             // [Expect] (9, 9, 9)
+let b = (1,2,3)
+print b.filter(fn (x) { b = (9, 9, 9) }) // [Expect] ()
+print b                             // [Expect] (9, 9, 9)
 
 // Fuzzy test to try to trigger the GC
-let a = (1,2,3)
-print a.filter(fn (x) {
-  let trigger_gc = {"a": 2} // by creating a new object
-  let k = trigger_gc["a"]
+let c = (1,2,3)
+print c.filter(fn (x) {
+  let trigger_gc = {"c": 2} // by cracting a new object
+  let k = trigger_gc["c"]
   ret x == k
 }) // [Expect] (2)
 
 // Still makes a new tuple, even if the filter matches all elements. But since they are tuples, they are equal.
-let a = (1,2,3)
-print (a.filter(fn (x) -> true) == a) // [Expect] true
+let d = (1,2,3)
+print (d.filter(fn (x) -> true) == d) // [Expect] true

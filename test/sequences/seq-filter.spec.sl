@@ -28,13 +28,13 @@ print [5,6,8].filter(storage.store)  // [Expect] [6, 8]
 print storage.cache                  // [Expect] [1, 3, 4, 5, 6, 8]
 
 // Side effects
-let a = [1,2,3]
-print a.filter(fn(x) { a.push(x) }) // [Expect] []
-print a                             // [Expect] [1, 2, 3, 1, 2, 3]
+let b = [1,2,3]
+print b.filter(fn(x) { b.push(x) }) // [Expect] []
+print b                             // [Expect] [1, 2, 3, 1, 2, 3]
 
 // Fuzzy test to try to trigger the GC
-let a = [1,2,3]
-print a.filter(fn (x) {
+let c = [1,2,3]
+print c.filter(fn (x) {
   let trigger_gc = {"a": 2} // by creating a new object
   let k = trigger_gc["a"]
   ret x == k

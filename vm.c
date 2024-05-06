@@ -1176,7 +1176,10 @@ static Value run() {
       }
       case OP_DEFINE_GLOBAL: {
         ObjString* name = READ_STRING();
-        hashtable_set(frame->globals, OBJ_VAL(name), peek(0));
+        if (!hashtable_set(frame->globals, OBJ_VAL(name), peek(0))) {
+          runtime_error("Variable '%s' is already defined.", name->chars);
+          goto finish_error;
+        }
         pop();
         break;
       }
