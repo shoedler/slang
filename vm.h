@@ -84,7 +84,10 @@ typedef struct {
   ObjClass* BUILTIN_CLASS(TYPENAME_TUPLE);     // Special class: The tuple class
   ObjClass* BUILTIN_CLASS(TYPENAME_STRING);    // Special class: The string class
   ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // Special class: The function class
-  ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // Special class: The class class
+  ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // Special class: The class class¨
+
+  ObjClass* BUILTIN_CLASS(Upvalue);  // Unused, just for pointer comparison
+  ObjClass* BUILTIN_CLASS(Handler);  // Unused, just for pointer comparison
 
   ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);  // The module class
 
@@ -154,17 +157,13 @@ void runtime_error(const char* format, ...);
 //
 // For native functions, the result will be available "immediately", but for managed code we have to execute the new call frame
 // (which was provided by call_managed) to get to the result.
-Value exec_callable(Obj* callable, int arg_count);
+Value exec_callable(Value callable, int arg_count);
 
 // Defines a native function in the given table.
 void define_native(HashTable* table, const char* name, NativeFn function, const char* doc, int arity);
 
-// Defines an object in the given table.
-void define_obj(HashTable* table, const char* name, Obj* obj);
-
-// Retrieves the class of a value. Everything in slang is an 'object', so this function will always return
-// a class.
-ObjClass* typeof_(Value value);
+// Defines a value in the given table.
+void define_value(HashTable* table, const char* name, Value value);
 
 // Determines whether a value is falsey. We consider nil and false to be falsey,
 // and everything else to be truthy.
@@ -219,4 +218,214 @@ bool value_get_index();
 // You should test if the error flag is set after this function, because it might have set it.
 bool value_set_index();
 
+// Integer Value
+static inline Value int_value(long long value) {
+  return (Value){.type = vm.__builtin_Int_class, {.integer = value}};
+}
+static inline bool IS_INT(Value value) {
+  return value.type == vm.__builtin_Int_class;
+}
+
+// Float Value
+static inline Value float_value(double value) {
+  return (Value){.type = vm.__builtin_Float_class, {.float_ = value}};
+}
+static inline bool IS_FLOAT(Value value) {
+  return value.type == vm.__builtin_Float_class;
+}
+
+// Bool Value
+static inline Value bool_value(bool value) {
+  return (Value){.type = vm.__builtin_Bool_class, {.boolean = value}};
+}
+static inline bool IS_BOOL(Value value) {
+  return value.type == vm.__builtin_Bool_class;
+}
+
+// Nil Value
+static inline Value nil_value() {
+  return (Value){.type = vm.__builtin_Nil_class};
+}
+static inline bool IS_NIL(Value value) {
+  return value.type == vm.__builtin_Nil_class;
+}
+
+// Empty Internal Value
+static inline Value empty_internal_value() {
+  return (Value){.type = NULL};
+}
+static inline bool IS_EMPTY_INTERNAL(Value value) {
+  return value.type == NULL;
+}
+
+// Seq Value
+static inline Value seq_value(ObjSeq* value) {
+  return (Value){.type = vm.__builtin_Seq_class, {.obj = (Obj*)value}};
+}
+static inline bool IS_SEQ(Value value) {
+  return value.type == vm.__builtin_Seq_class;
+}
+
+// Tuple Value
+static inline Value tuple_value(ObjTuple* value) {
+  return (Value){.type = vm.__builtin_Tuple_class, {.obj = (Obj*)value}};
+}
+static inline bool IS_TUPLE(Value value) {
+  return value.type == vm.__builtin_Tuple_class;
+}
+
+// String Value
+static inline Value str_value(ObjString* value) {
+  return (Value){.type = vm.__builtin_Str_class, {.obj = (Obj*)value}};
+}
+static inline bool IS_STRING(Value value) {
+  return value.type == vm.__builtin_Str_class;
+}
+
+// Function Value
+// TODO: Remove this, it's only confusing in contrast to fn_value(). This was inteded to be used when we want to wrap a
+// ObjFunction in a Value. But, Closure, Native and BoundMethod are also functions, and for these we use fn_value().
+static inline Value function_value(ObjFunction* value) {
+  return (Value){.type = vm.__builtin_Fn_class, {.obj = (Obj*)value}};
+}
+static inline bool IS_FUNCTION(Value value) {
+  return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_FUNCTION;
+}
+
+// Closure Value
+// TODO: Remove this, it's only confusing in contrast to fn_value(). This was inteded to be used when we want to wrap a
+// Objclosure in a Value. But, Function, Native and BoundMethod are also functions, and for these we use fn_value().
+static inline Value closure_value(ObjClosure* value) {
+  return (Value){.type = vm.__builtin_Fn_class, {.obj = (Obj*)value}};
+}
+static inline bool IS_CLOSURE(Value value) {
+  return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_CLOSURE;
+}
+
+// Native Value
+// TODO: Remove this, it's only confusing in contrast to fn_value(). This was inteded to be used when we want to wrap a
+// ObjNative in a Value. But, Closure, Function and BoundMethod are also functions, and for these we use fn_value().
+static inline Value native_value(ObjNative* value) {
+  return (Value){.type = vm.__builtin_Fn_class, {.obj = (Obj*)value}};
+}
+static inline bool IS_NATIVE(Value value) {
+  return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_NATIVE;
+}
+
+// Bound Method Value
+// TODO: Remove this, it's only confusing in contrast to fn_value(). This was inteded to be used when we want to wrap a
+// ObjBoundMethod in a Value. But, Closure, Native and Funcion are also functions, and for these we use fn_value().
+static inline Value bound_method_value(ObjBoundMethod* value) {
+  return (Value){.type = vm.__builtin_Fn_class, {.obj = (Obj*)value}};
+}
+static inline bool IS_BOUND_METHOD(Value value) {
+  return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_BOUND_METHOD;
+}
+
+// Class Value
+static inline Value class_value(ObjClass* value) {
+  return (Value){.type = vm.__builtin_Class_class, {.obj = (Obj*)value}};
+}
+static inline bool IS_CLASS(Value value) {
+  return value.type == vm.__builtin_Class_class;
+}
+
+// Object Value
+static inline Value obj_value(ObjObject* value) {
+  return (Value){.type = vm.__builtin_Obj_class, {.obj = (Obj*)value}};
+}
+static inline bool IS_OBJ(Value value) {
+  return value.type == vm.__builtin_Obj_class;
+}
+
+// Handler Value
+static inline Value handler_value(uint16_t value) {
+  return (Value){.type = vm.__builtin_Handler_class, {.handler = value}};
+}
+static inline bool IS_HANDLER(Value value) {
+  return value.type == vm.__builtin_Handler_class;
+}
+
+// Utility functions for values
+
+static inline bool IS_NON_OBJECT(Value value) {
+  // TODO: Remove this. This cannot be used anywhere, bc it's extremely slow.
+  return value.type == vm.__builtin_Nil_class || value.type == vm.__builtin_Bool_class || value.type == vm.__builtin_Int_class ||
+         value.type == vm.__builtin_Float_class || value.type == vm.__builtin_Handler_class || value.type == NULL;
+}
+
+static inline bool IS_INSTANCE(Value value) {
+  // TODO: Remove this. This cannot be used anywhere, bc it's extremely slow.
+  return value.type != vm.__builtin_Obj_class && value.type != vm.__builtin_Nil_class && value.type != vm.__builtin_Str_class &&
+         value.type != vm.__builtin_Class_class && value.type != vm.__builtin_Fn_class && value.type != vm.__builtin_Bool_class &&
+         value.type != vm.__builtin_Num_class && value.type != vm.__builtin_Int_class && value.type != vm.__builtin_Float_class &&
+         value.type != vm.__builtin_Upvalue_class && value.type != vm.__builtin_Handler_class &&
+         value.type != vm.__builtin_Seq_class && value.type != vm.__builtin_Tuple_class;
+}
+static inline Value instance_value(ObjObject* instance) {
+  return (Value){.type = instance->instance_class, {.obj = (Obj*)instance}};
+}
+
+// Float or int is a number.
+static inline bool is_num(Value value) {
+  return IS_INT(value) || IS_FLOAT(value);
+}
+
+// Function, closure, native or bound method is a function.
+// [fn] must be of one these types.
+static inline Value fn_value(Obj* fn) {
+  return (Value){.type = vm.__builtin_Fn_class, {.obj = fn}};
+}
+// Function, closure, native or bound method is a function.
+static inline bool is_fn(Value value) {
+  return value.type == vm.__builtin_Fn_class;
+}
+
+// Callables are fn's or classes.
+static inline bool IS_CALLABLE(Value value) {
+  return is_fn(value) || IS_CLASS(value);
+}
+
+// Get the arity of a callable
+static inline int callable_get_arity(Value callable) {
+  if (IS_CLASS(callable)) {
+    Obj* ctor = AS_CLASS(callable)->__ctor;
+    if (ctor == NULL) {
+      return 0;
+    }
+    return callable_get_arity(fn_value(ctor));
+  }
+  if (IS_BOUND_METHOD(callable)) {
+    return callable_get_arity(fn_value(AS_BOUND_METHOD(callable)->method));
+  }
+  if (IS_NATIVE(callable)) {
+    return AS_NATIVE(callable)->arity;
+  }
+  if (IS_CLOSURE(callable)) {
+    return AS_CLOSURE(callable)->function->arity;
+  }
+  if (IS_FUNCTION(callable)) {
+    return AS_FUNCTION(callable)->arity;
+  }
+
+  INTERNAL_ERROR("Unhandled callable type: %s", callable.type->name->chars);
+  return 0;
+}
+
+static inline ObjString* fn_get_name(Value fn) {
+  if (IS_BOUND_METHOD(fn)) {
+    fn = fn_value((Obj*)AS_BOUND_METHOD(fn)->method);
+  }
+  if (IS_CLOSURE(fn)) {
+    fn = fn_value((Obj*)AS_CLOSURE(fn)->function);
+  }
+  if (IS_NATIVE(fn)) {
+    return AS_NATIVE(fn)->name;
+  }
+  if (IS_FUNCTION(fn)) {
+    return AS_FUNCTION(fn)->name;
+  }
+  INTERNAL_ERROR("Unhandled function type: %s", fn.type->name->chars);
+  return NULL;
+}
 #endif

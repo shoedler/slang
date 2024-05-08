@@ -136,7 +136,7 @@ const forceDeleteDirectory = async (dirPath, signal) => {
  * @returns {Promise<string>} - Promise that resolves when build completes
  */
 export const buildSlangConfig = async (config, signal = null, abortOnError = true) => {
-  const cmd = `make -C ${SLANG_PROJ_DIR} config=${config}`;
+  const cmd = `make -C ${SLANG_PROJ_DIR} ${config}`;
   await forceDeleteDirectory(path.join(SLANG_BIN_DIR, config), signal);
   info(`Building slang ${config}`, `Command: "${cmd}"`);
   return await runProcess(cmd, `Building config "${config}" failed`, signal, abortOnError);

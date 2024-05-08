@@ -3,8 +3,7 @@
 #include "common.h"
 #include "vm.h"
 
-void register_builtin_str_class() {
-  BUILTIN_REGISTER_CLASS(TYPENAME_STRING, TYPENAME_OBJ);
+void finalize_builtin_str_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_HAS, 1);
@@ -26,10 +25,10 @@ BUILTIN_METHOD_DOC(
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_CTOR) {
   UNUSED(argc);
   // Execute the to_str method on the argument
-  push(argv[1]);                                                // Push the receiver for to_str, which is the ctors' argument
-  Value result = exec_callable(typeof_(argv[1])->__to_str, 0);  // Convert to string
+  push(argv[1]);  // Push the receiver for to_str, which is the ctors' argument
+  Value result = exec_callable(fn_value(argv[1].type->__to_str), 0);  // Convert to string
   if (vm.flags & VM_FLAG_HAS_ERROR) {
-    return NIL_VAL;
+    return nil_value();
   }
 
   return result;
@@ -68,22 +67,22 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
   if (sep->length == 0) {
     ValueArray items = prealloc_value_array(str->length);
     ObjSeq* seq      = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
-    push(OBJ_VAL(seq));                   // GC Protection
+    push(seq_value(seq));                 // GC Protection
     for (int i = 0; i < str->length; i++) {
-      seq->items.values[i] = OBJ_VAL(copy_string(str->chars + i, 1));
+      seq->items.values[i] = str_value(copy_string(str->chars + i, 1));
     }
 
     return pop();  // The seq
   }
 
   ObjSeq* seq = new_seq();
-  push(OBJ_VAL(seq));  // GC Protection
+  push(seq_value(seq));  // GC Protection
 
   // Split the string by looking for the separator at each character
   int start = 0;
   for (int i = 0; i < str->length; i++) {
     if (strncmp(str->chars + i, sep->chars, sep->length) == 0) {
-      Value item = OBJ_VAL(copy_string(str->chars + start, i - start));
+      Value item = str_value(copy_string(str->chars + start, i - start));
       push(item);  // GC Protection
       write_value_array(&seq->items, item);
       pop();  // The item
@@ -93,13 +92,13 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
 
   // Add the last part of the string aswell - same behavior as Js.
   // TODO (optimize): Maybe remove this? "123".split("3") -> ["12", ""], but without this it would be ["12"]
-  Value item = OBJ_VAL(copy_string(str->chars + start, str->length - start));
+  Value item = str_value(copy_string(str->chars + start, str->length - start));
   push(item);  // GC Protection
   write_value_array(&seq->items, item);
   pop();  // The item
 
   pop();  // The seq
-  return OBJ_VAL(seq);
+  return seq_value(seq);
 }
 
 BUILTIN_METHOD_DOC(
@@ -129,7 +128,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, trim) {
   }
 
   ObjString* trimmed = copy_string(str->chars + start, end - start + 1);
-  return OBJ_VAL(trimmed);
+  return str_value(trimmed);
 }
 
 // Built-in method to check if a value has a property
@@ -150,19 +149,19 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_HAS) {
   ObjString* substr = AS_STRING(argv[1]);
 
   if (substr->length == 0) {
-    return BOOL_VAL(true);
+    return bool_value(true);
   }
   if (substr->length > str->length) {
-    return BOOL_VAL(false);
+    return bool_value(false);
   }
 
   for (int i = 0; i < str->length - substr->length + 1; i++) {
     if (strncmp(str->chars + i, substr->chars, substr->length) == 0) {
-      return BOOL_VAL(true);
+      return bool_value(true);
     }
   }
 
-  return BOOL_VAL(false);
+  return bool_value(false);
 }
 
 // Builtin method to slice a string
@@ -181,7 +180,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
   BUILTIN_CHECK_RECEIVER(STRING)
   BUILTIN_CHECK_ARG_AT(1, INT)
   if (IS_NIL(argv[2])) {
-    argv[2] = INT_VAL(AS_STRING(argv[0])->length);
+    argv[2] = int_value(AS_STRING(argv[0])->length);
   }
   BUILTIN_CHECK_ARG_AT(2, INT)
 
@@ -189,11 +188,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
   int count      = str->length;
 
   if (count == 0) {
-    return OBJ_VAL(copy_string("", 0));
+    return str_value(copy_string("", 0));
   }
 
-  int start = (int)AS_INT(argv[1]);
-  int end   = (int)AS_INT(argv[2]);
+  int start = (int)argv[1].as.integer;
+  int end   = (int)argv[2].as.integer;
 
   // Handle negative indices
   if (start < 0) {
@@ -213,11 +212,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
 
   // Handle invalid or 0 length ranges
   if (start >= end) {
-    return OBJ_VAL(copy_string("", 0));
+    return str_value(copy_string("", 0));
   }
 
   char* start_ptr       = str->chars + start;
   int length            = end - start;
   ObjString* sliced_str = copy_string(start_ptr, length);
-  return OBJ_VAL(sliced_str);
+  return str_value(sliced_str);
 }

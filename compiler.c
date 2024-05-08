@@ -429,7 +429,7 @@ static void compound_assignment() {
 // The inc/dec operator is in the previous token.
 static void inc_dec() {
   TokenKind op_type = parser.previous.type;
-  emit_constant_here(INT_VAL(1));
+  emit_constant_here(int_value(1));
 
   switch (op_type) {
     case TOKEN_PLUS_PLUS: emit_one_here(OP_ADD); break;
@@ -495,7 +495,7 @@ static void indexing(bool can_assign) {
   // Since the first number in a slice is optional, we need to check if the indexing starts with a '..'
   if (match(TOKEN_DOTDOT)) {
     slice_started = true;
-    emit_constant_here(INT_VAL(0));  // Start index.
+    emit_constant_here(int_value(0));  // Start index.
   }
 
   // Either the index or the slice end.
@@ -687,34 +687,34 @@ static void number(bool can_assign) {
     // See if it's a hexadecimal, binary, or octal number.
     if ((kind == 'x' || kind == 'X')) {
       long long value = strtoll(parser.previous.start + 2, NULL, 16);
-      emit_constant_here(INT_VAL(value));
+      emit_constant_here(int_value(value));
       return;
     } else if ((kind == 'b' || kind == 'B')) {
       long long value = strtoll(parser.previous.start + 2, NULL, 2);
-      emit_constant_here(INT_VAL(value));
+      emit_constant_here(int_value(value));
       return;
     } else if ((kind == 'o' || kind == 'O')) {
       long long value = strtoll(parser.previous.start + 2, NULL, 8);
-      emit_constant_here(INT_VAL(value));
+      emit_constant_here(int_value(value));
       return;
     }
   }
 
   // Check if the number is a float.
-  bool is_float = false;
+  bool IS_FLOAT = false;
   for (int i = 0; i < parser.previous.length; i++) {
     if (parser.previous.start[i] == '.') {
-      is_float = true;
+      IS_FLOAT = true;
       break;
     }
   }
 
-  if (is_float) {
+  if (IS_FLOAT) {
     double value = strtod(parser.previous.start, NULL);
-    emit_constant_here(FLOAT_VAL(value));
+    emit_constant_here(float_value(value));
   } else {
     long long int value = strtoll(parser.previous.start, NULL, 10);
-    emit_constant_here(INT_VAL(value));
+    emit_constant_here(int_value(value));
   }
 }
 
@@ -768,7 +768,7 @@ static void string(bool can_assign) {
   } while (match(TOKEN_STRING));
 
   // Emit the string constant.
-  emit_constant_here(OBJ_VAL(copy_string(str_bytes, (int)str_length)));
+  emit_constant_here(str_value(copy_string(str_bytes, (int)str_length)));
 
   // Cleanup
   FREE_ARRAY(char, str_bytes, str_capacity);
@@ -961,7 +961,7 @@ static void function(bool can_assign, FunctionType type) {
 
   ObjFunction* function = end_compiler();  // Also handles end of scope. (end_scope())
 
-  emit_two_here(OP_CLOSURE, make_constant(OBJ_VAL(function)));
+  emit_two_here(OP_CLOSURE, make_constant(fn_value((Obj*)function)));
   for (int i = 0; i < function->upvalue_count; i++) {
     emit_one_here(compiler.upvalues[i].is_local ? 1 : 0);
     emit_one_here(compiler.upvalues[i].index);
@@ -1187,7 +1187,7 @@ static void parse_precedence(Precedence precedence) {
 
 // Adds the token's lexeme to the constant pool and returns its index.
 static uint16_t string_constant(Token* name) {
-  return make_constant(OBJ_VAL(copy_string(name->start, name->length)));
+  return make_constant(str_value(copy_string(name->start, name->length)));
 }
 
 // Checks whether the text content of two tokens is equal.
@@ -1658,8 +1658,8 @@ static void statement_import() {
 
   if (match(TOKEN_FROM)) {
     consume(TOKEN_STRING, "Expecting file name.");
-    uint16_t file_constant = make_constant(OBJ_VAL(copy_string(parser.previous.start + 1,
-                                                               parser.previous.length - 2)));  // +1 and -2 to strip the quotes
+    uint16_t file_constant = make_constant(str_value(copy_string(parser.previous.start + 1,
+                                                                 parser.previous.length - 2)));  // +1 and -2 to strip the quotes
     emit_two(OP_IMPORT_FROM, name_constant, error_start);
     emit_one(file_constant, error_start);
   } else {
@@ -1798,7 +1798,7 @@ static void destructuring_assignment(DestructureType type) {
 
     // Emit code to get the index from the rhs. For objs, we use the variable name as the operand for OP_GET_INDEX. For
     // seqs, we use the variables index.
-    Value payload = type == DESTRUCTURE_OBJ ? OBJ_VAL(copy_string(var->name.start, var->name.length)) : INT_VAL(var->index);
+    Value payload = type == DESTRUCTURE_OBJ ? str_value(copy_string(var->name.start, var->name.length)) : int_value(var->index);
     if (var->is_rest) {
       emit_constant(payload, error_start);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][current_index]
       emit_one(OP_NIL, error_start);        // [RhsVal][RhsVal][current_index] -> [RhsVal][RhsVal][current_index][nil]

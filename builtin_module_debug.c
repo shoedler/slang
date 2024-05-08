@@ -8,7 +8,7 @@ BUILTIN_DECLARE_FN(version);
 
 void register_builtin_debug_module() {
   ObjObject* debug_module = make_module(NULL, "Debug");
-  define_obj(&vm.modules, "Debug", (Obj*)debug_module);
+  define_value(&vm.modules, "Debug", instance_value(debug_module));
 
   BUILTIN_REGISTER_FN(debug_module, stack, 0);
   BUILTIN_REGISTER_FN(debug_module, version, 0);
@@ -47,5 +47,5 @@ BUILTIN_FN_IMPL(version) {
   UNUSED(argc);
   UNUSED(argv);
 
-  return OBJ_VAL(copy_string(SLANG_VERSION, STR_LEN(SLANG_VERSION)));
+  return str_value(copy_string(SLANG_VERSION, STR_LEN(SLANG_VERSION)));
 }

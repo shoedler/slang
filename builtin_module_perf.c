@@ -8,7 +8,7 @@ BUILTIN_DECLARE_FN(now);
 
 void register_builtin_perf_module() {
   ObjObject* perf_module = make_module(NULL, "Perf");
-  define_obj(&vm.modules, "Perf", (Obj*)perf_module);
+  define_value(&vm.modules, "Perf", instance_value(perf_module));
 
   BUILTIN_REGISTER_FN(perf_module, now, 0);
 }
@@ -28,5 +28,5 @@ BUILTIN_FN_IMPL(now) {
   QueryPerformanceFrequency(&frequency);
   QueryPerformanceCounter(&now);
 
-  return FLOAT_VAL((double)now.QuadPart / frequency.QuadPart);
+  return float_value((double)now.QuadPart / frequency.QuadPart);
 }

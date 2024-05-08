@@ -10,7 +10,7 @@ BUILTIN_DECLARE_FN(join_path);
 
 void register_builtin_file_module() {
   ObjObject* file_module = make_module(NULL, "File");
-  define_obj(&vm.modules, "File", (Obj*)file_module);
+  define_value(&vm.modules, "File", instance_value(file_module));
 
   BUILTIN_REGISTER_FN(file_module, read, 1);
   BUILTIN_REGISTER_FN(file_module, write, 2);
@@ -32,15 +32,15 @@ BUILTIN_FN_IMPL(read) {
 
   if (!file_exists(path)) {
     runtime_error("File '%s' does not exist.", path);
-    return NIL_VAL;
+    return nil_value();
   }
 
   char* content = read_file_safe(path);
   if (content == NULL) {
-    return NIL_VAL;
+    return nil_value();
   }
 
-  Value result = OBJ_VAL(copy_string(content, (int)strlen(content)));
+  Value result = str_value(copy_string(content, (int)strlen(content)));
   free(content);
   return result;
 }
@@ -60,7 +60,7 @@ BUILTIN_FN_IMPL(write) {
   BUILTIN_CHECK_ARG_AT(2, STRING);
 
   bool success = write_file(AS_CSTRING(argv[1]), AS_CSTRING(argv[2]));
-  return BOOL_VAL(success);
+  return bool_value(success);
 }
 
 BUILTIN_FN_DOC(
@@ -75,7 +75,7 @@ BUILTIN_FN_IMPL(exists) {
   BUILTIN_CHECK_ARG_AT(1, STRING);
 
   bool exists = file_exists(AS_CSTRING(argv[1]));
-  return BOOL_VAL(exists);
+  return bool_value(exists);
 }
 
 BUILTIN_FN_DOC(
@@ -93,10 +93,10 @@ BUILTIN_FN_IMPL(join_path) {
 
   char* joined = join_path(AS_CSTRING(argv[1]), AS_CSTRING(argv[2]));
   if (joined == NULL) {
-    return NIL_VAL;
+    return nil_value();
   }
 
-  Value result = OBJ_VAL(copy_string(joined, (int)strlen(joined)));
+  Value result = str_value(copy_string(joined, (int)strlen(joined)));
   free(joined);
   return result;
 }

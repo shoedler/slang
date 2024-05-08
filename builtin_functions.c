@@ -21,7 +21,7 @@ BUILTIN_FN_IMPL(clock) {
   UNUSED(argc);
   UNUSED(argv);
 
-  return FLOAT_VAL((double)clock() / CLOCKS_PER_SEC);
+  return float_value((double)clock() / CLOCKS_PER_SEC);
 }
 
 // Native cwd function.
@@ -36,12 +36,12 @@ BUILTIN_FN_IMPL(cwd) {
   UNUSED(argv);
 
   if (vm.module == NULL) {
-    return NIL_VAL;
+    return nil_value();
   }
 
   Value cwd;
   if (!hashtable_get_by_string(&vm.module->fields, vm.special_prop_names[SPECIAL_PROP_FILE_PATH], &cwd)) {
-    return NIL_VAL;
+    return nil_value();
   }
 
   return cwd;
@@ -59,9 +59,9 @@ BUILTIN_FN_IMPL(log) {
   for (int i = 1; i <= argc; i++) {
     // Execute the to_str method on the receiver
     push(argv[i]);  // Load the receiver onto the stack
-    ObjString* str = AS_STRING(exec_callable(typeof_(argv[i])->__to_str, 0));
+    ObjString* str = AS_STRING(exec_callable(fn_value(argv[i].type->__to_str), 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
-      return NIL_VAL;
+      return nil_value();
     }
 
     printf("%s", str->chars);
@@ -70,7 +70,7 @@ BUILTIN_FN_IMPL(log) {
     }
   }
   printf("\n");
-  return NIL_VAL;
+  return nil_value();
 }
 
 // Native type of.
@@ -82,6 +82,6 @@ BUILTIN_FN_DOC(
 BUILTIN_FN_IMPL(typeof) {
   UNUSED(argc);
 
-  ObjClass* klass = typeof_(argv[1]);
-  return OBJ_VAL(klass);
+  ObjClass* klass = argv[1].type;
+  return class_value(klass);
 }

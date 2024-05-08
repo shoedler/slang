@@ -40,7 +40,7 @@ void write_value_array(ValueArray* array, Value value) {
 
 Value pop_value_array(ValueArray* array) {
   if (array->count == 0) {
-    return NIL_VAL;
+    return nil_value();
   }
   array->count--;
   Value value = array->values[array->count];
@@ -50,7 +50,7 @@ Value pop_value_array(ValueArray* array) {
 
 Value remove_at_value_array(ValueArray* array, int index) {
   if (index < 0 || index >= array->count) {
-    return NIL_VAL;
+    return nil_value();
   }
   Value value = array->values[index];
   array->count--;
@@ -66,7 +66,7 @@ void free_value_array(ValueArray* array) {
   init_value_array(array);
 }
 
-bool is_int(double number, long long* integer) {
+bool float_is_int(double number, long long* integer) {
   double dint = rint(number);
   *integer    = (long long)dint;
   return number == dint;
@@ -106,24 +106,32 @@ bool values_equal(Value a, Value b) {
     return false;
   }
 
-  switch (a.type) {
-    case VAL_BOOL: return AS_BOOL(a) == AS_BOOL(b);
-    case VAL_NIL: return true;
-    case VAL_INT: return AS_INT(a) == AS_INT(b);
-    case VAL_FLOAT: return AS_FLOAT(a) == AS_FLOAT(b);
-    case VAL_OBJ: {
-      if (IS_STRING(a) && IS_STRING(b)) {
-        return AS_STRING(a) == AS_STRING(b);  // Works, because strings are interned
-      }
-      if (IS_OBJ(a) && IS_OBJ(b)) {
-        return AS_OBJ(a)->hash == AS_OBJ(b)->hash;
-      }
-      return false;
-    }
-    case VAL_EMPTY_INTERNAL: return true;
-    case VAL_HANDLER: INTERNAL_ERROR("Cannot compare a value to a error handler. Vm has leaked a stack value."); return false;
-    default: INTERNAL_ERROR("Unhandled comparison type: %d", a.type); return false;
+  if (IS_NIL(a)) {
+    return true;
   }
+  if (IS_EMPTY_INTERNAL(a)) {
+    return true;
+  }
+
+  if (IS_BOOL(a)) {
+    return a.as.boolean == b.as.boolean;
+  }
+  if (IS_INT(a)) {
+    return a.as.integer == b.as.integer;
+  }
+  if (IS_FLOAT(a)) {
+    return a.as.float_ == b.as.float_;
+  }
+  if (IS_STRING(a)) {
+    return AS_STRING(a) == AS_STRING(b);  // Works, because strings are interned
+  }
+  if (IS_HANDLER(a)) {
+    INTERNAL_ERROR("Cannot compare a value to a error handler. Vm has leaked a stack value.");
+    return false;
+  }
+
+  // We trust that all non-object types are handled above.
+  return a.as.obj->hash == b.as.obj->hash;
 }
 
 // Hashes a double. Borrowed from Lua.
@@ -145,112 +153,136 @@ static uint64_t hash_int(long long value) {
 }
 
 uint64_t hash_value(Value value) {
-  // TODO (optimize): This is hot, maybe we can do better?
-  switch (value.type) {
-    case VAL_BOOL: return AS_BOOL(value) ? 977 : 479;  // Prime numbers. Selected based on trial and error.
-    case VAL_NIL: return 2;
-    case VAL_INT: return hash_int(AS_INT(value));
-    case VAL_FLOAT: return hash_double(AS_FLOAT(value));
-    case VAL_OBJ: return AS_OBJ(value)->hash;
-    case VAL_EMPTY_INTERNAL: return 0;
-    default: INTERNAL_ERROR("Unhandled hash type: %d", value.type); return 0;
+  if (IS_EMPTY_INTERNAL(value)) {
+    return 0;
   }
+
+  if (IS_NIL(value)) {
+    return 2;
+  }
+  if (IS_BOOL(value)) {
+    return value.as.boolean ? 977 : 479;  // Prime numbers. Selected based on trial and error.
+  }
+  if (IS_INT(value)) {
+    return hash_int(value.as.integer);
+  }
+  if (IS_FLOAT(value)) {
+    return hash_double(value.as.float_);
+  }
+
+  // We trust that all non-object types are handled above.
+  return value.as.obj->hash;
 }
 
 int print_value_safe(FILE* f, Value value) {
-  // TODO (refactor): Use nested switch-case (value.type) and for VAL_OBJ, switch-case (OBJ_TYPE(value))
-  if (!IS_OBJ(value)) {
-    switch (value.type) {
-      case VAL_BOOL: return fprintf(f, AS_BOOL(value) ? VALUE_STR_TRUE : VALUE_STR_FALSE);
-      case VAL_NIL: return fprintf(f, VALUE_STR_NIL);
-      case VAL_HANDLER: return fprintf(f, VALUE_STRFMT_HANDLER, AS_HANDLER(value));
-      case VAL_INT: return fprintf(f, VALUE_STR_INT, AS_INT(value));
-      case VAL_FLOAT: return fprintf(f, VALUE_STR_FLOAT, AS_FLOAT(value));
-      case VAL_EMPTY_INTERNAL: return fprintf(f, VALUE_STR_EMPTY_INTERNAL);
-      default: break;
-    }
-
-    return fprintf(f, "<unknown value type %d>", value.type);
+  if (IS_BOOL(value)) {
+    return fprintf(f, value.as.boolean ? VALUE_STR_TRUE : VALUE_STR_FALSE);
+  }
+  if (IS_NIL(value)) {
+    return fprintf(f, VALUE_STR_NIL);
+  }
+  if (IS_HANDLER(value)) {
+    return fprintf(f, VALUE_STRFMT_HANDLER, value.as.handler);
+  }
+  if (IS_INT(value)) {
+    return fprintf(f, VALUE_STR_INT, value.as.integer);
+  }
+  if (IS_FLOAT(value)) {
+    return fprintf(f, VALUE_STR_FLOAT, value.as.float_);
+  }
+  if (IS_EMPTY_INTERNAL(value)) {
+    return fprintf(f, VALUE_STR_EMPTY_INTERNAL);
   }
 
-  switch (OBJ_TYPE(value)) {
-    case OBJ_STRING: return fprintf(f, "%s", AS_CSTRING(value));
-    case OBJ_FUNCTION: return fprintf(f, VALUE_STRFMT_FUNCTION, AS_FUNCTION(value)->name->chars);
-    case OBJ_CLOSURE: return fprintf(f, VALUE_STRFMT_FUNCTION, AS_CLOSURE(value)->function->name->chars);
-    case OBJ_CLASS: return fprintf(f, VALUE_STRFMT_CLASS, AS_CLASS(value)->name->chars);
-    case OBJ_NATIVE: return fprintf(f, VALUE_STRFMT_NATIVE, AS_NATIVE(value)->name->chars);
-    case OBJ_BOUND_METHOD: {
-      ObjBoundMethod* bound = AS_BOUND_METHOD(value);
-      if (bound->method == NULL) {
-        return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(corrupt)");
-      }
-
-      if (bound->method->type == OBJ_CLOSURE) {
-        if (((ObjClosure*)bound->method)->function->name != NULL) {
-          return fprintf(f, VALUE_STRFMT_BOUND_METHOD, ((ObjClosure*)bound->method)->function->name->chars);
-        } else {
-          return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(corrupt closure)");
-        }
-      } else if (bound->method->type == OBJ_NATIVE) {
-        return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(native)");
-      } else {
-        return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(unknown)");
-      }
-    }
-    case OBJ_TUPLE:
-    case OBJ_SEQ: {
-      const char* start;
-      const char* delim;
-      const char* end;
-
-      if (IS_SEQ(value)) {
-        start = VALUE_STR_SEQ_START;
-        delim = VALUE_STR_SEQ_DELIM;
-        end   = VALUE_STR_SEQ_END;
-      } else {
-        start = VALUE_STR_TUPLE_START;
-        delim = VALUE_STR_TUPLE_DELIM;
-        end   = VALUE_STR_TUPLE_END;
-      }
-
-      ValueArray items = LISTLIKE_GET_VALUEARRAY(value);
-
-      int written = fprintf(f, start);
-      for (int i = 0; i < items.count; i++) {
-        written += print_value_safe(f, items.values[i]);
-        if (i < items.count - 1) {
-          written += fprintf(f, delim);
-        }
-      }
-      written += fprintf(f, end);
-      return written;
-    }
-    case OBJ_OBJECT: {
-      ObjObject* object = AS_OBJECT(value);
-      if (OBJECT_IS_INSTANCE(object)) {
-        return fprintf(f, VALUE_STRFTM_INSTANCE, AS_OBJECT(value)->klass->name->chars);
-      }
-
-      int written   = fprintf(f, VALUE_STR_OBJECT_START);
-      int processed = 0;
-      for (int i = 0; i < object->fields.capacity; i++) {
-        if (IS_EMPTY_INTERNAL(object->fields.entries[i].key)) {
-          continue;
-        }
-        Entry* entry = &object->fields.entries[i];
-
-        written += print_value_safe(f, entry->key);
-        written += fprintf(f, VALUE_STR_OBJECT_SEPARATOR);
-        written += print_value_safe(f, entry->value);
-
-        if (processed < object->fields.count - 1) {
-          written += fprintf(f, VALUE_STR_OBJECT_DELIM);
-        }
-        processed++;
-      }
-      written += fprintf(f, VALUE_STR_OBJECT_END);
-      return written;
-    }
-    default: return fprintf(f, VALUE_STRFMT_OBJ, "Unknown", (void*)AS_OBJ(value));
+  if (IS_STRING(value)) {
+    return fprintf(f, "%s", AS_CSTRING(value));
   }
+  if (IS_CLOSURE(value)) {
+    return fprintf(f, VALUE_STRFMT_FUNCTION, AS_CLOSURE(value)->function->name->chars);
+  }
+  if (IS_FUNCTION(value)) {
+    return fprintf(f, VALUE_STRFMT_FUNCTION, AS_FUNCTION(value)->name->chars);
+  }
+  if (IS_CLASS(value)) {
+    return fprintf(f, VALUE_STRFMT_CLASS, AS_CLASS(value)->name->chars);
+  }
+  if (IS_NATIVE(value)) {
+    return fprintf(f, VALUE_STRFMT_NATIVE, AS_NATIVE(value)->name->chars);
+  }
+  if (IS_BOUND_METHOD(value)) {
+    ObjBoundMethod* bound = AS_BOUND_METHOD(value);
+    if (bound->method == NULL) {
+      return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(corrupt)");
+    }
+
+    if (bound->method->type == OBJ_GC_CLOSURE) {
+      if (((ObjClosure*)bound->method)->function->name != NULL) {
+        return fprintf(f, VALUE_STRFMT_BOUND_METHOD, ((ObjClosure*)bound->method)->function->name->chars);
+      } else {
+        return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(corrupt closure)");
+      }
+    } else if (bound->method->type == OBJ_GC_NATIVE) {
+      return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(native)");
+    } else {
+      return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(unknown)");
+    }
+  }
+
+  if (IS_TUPLE(value) || IS_SEQ(value)) {
+    const char* start;
+    const char* delim;
+    const char* end;
+
+    if (IS_SEQ(value)) {
+      start = VALUE_STR_SEQ_START;
+      delim = VALUE_STR_SEQ_DELIM;
+      end   = VALUE_STR_SEQ_END;
+    } else {
+      start = VALUE_STR_TUPLE_START;
+      delim = VALUE_STR_TUPLE_DELIM;
+      end   = VALUE_STR_TUPLE_END;
+    }
+
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(value);
+
+    int written = fprintf(f, start);
+    for (int i = 0; i < items.count; i++) {
+      written += print_value_safe(f, items.values[i]);
+      if (i < items.count - 1) {
+        written += fprintf(f, delim);
+      }
+    }
+    written += fprintf(f, end);
+    return written;
+  }
+
+  if (IS_INSTANCE(value)) {
+    return fprintf(f, VALUE_STRFTM_INSTANCE, value.type->name->chars);
+  }
+
+  if (IS_OBJ(value)) {
+    ObjObject* object = AS_OBJECT(value);
+
+    int written   = fprintf(f, VALUE_STR_OBJECT_START);
+    int processed = 0;
+    for (int i = 0; i < object->fields.capacity; i++) {
+      if (IS_EMPTY_INTERNAL(object->fields.entries[i].key)) {
+        continue;
+      }
+      Entry* entry = &object->fields.entries[i];
+
+      written += print_value_safe(f, entry->key);
+      written += fprintf(f, VALUE_STR_OBJECT_SEPARATOR);
+      written += print_value_safe(f, entry->value);
+
+      if (processed < object->fields.count - 1) {
+        written += fprintf(f, VALUE_STR_OBJECT_DELIM);
+      }
+      processed++;
+    }
+    written += fprintf(f, VALUE_STR_OBJECT_END);
+    return written;
+  }
+
+  return fprintf(f, "<unknown value type %s>", value.type->name->chars);
 }

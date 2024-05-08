@@ -4,8 +4,7 @@
 #include "common.h"
 #include "vm.h"
 
-void register_builtin_seq_class() {
-  BUILTIN_REGISTER_CLASS(TYPENAME_SEQ, TYPENAME_OBJ);
+void finalize_builtin_seq_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_HAS, 1);
@@ -47,46 +46,42 @@ BUILTIN_METHOD_DOC_OVERLOAD(
     "Creates a new " STR(TYPENAME_SEQ) " from a " STR(TYPENAME_TUPLE) " of values.");
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_CTOR) {
   UNUSED(argc);
-  switch (argv[1].type) {
-    case VAL_INT: {
-      ValueArray items;
-      init_value_array(&items);
-      ObjSeq* seq = take_seq(&items);
-      push(OBJ_VAL(seq));  // GC Protection
+  if (IS_INT(argv[1])) {
+    ValueArray items;
+    init_value_array(&items);
+    ObjSeq* seq = take_seq(&items);
+    push(seq_value(seq));  // GC Protection
 
-      int count = (int)AS_INT(argv[1]);
-      for (int i = 0; i < count; i++) {
-        write_value_array(&seq->items, NIL_VAL);
-      }
-
-      pop();  // The seq
-      return OBJ_VAL(seq);
+    int count = (int)argv[1].as.integer;
+    for (int i = 0; i < count; i++) {
+      write_value_array(&seq->items, nil_value());
     }
-    case VAL_OBJ: {
-      if (IS_TUPLE(argv[1])) {
-        ObjTuple* tuple = AS_TUPLE(argv[1]);
 
-        ValueArray items = prealloc_value_array(tuple->items.count);
+    pop();  // The seq
+    return seq_value(seq);
+  }
 
-        // We can use memcpy here because the items array is already preallocated
-        memcpy(items.values, tuple->items.values, tuple->items.count * sizeof(Value));
+  if (IS_TUPLE(argv[1])) {
+    ObjTuple* tuple = AS_TUPLE(argv[1]);
 
-        ObjSeq* seq = take_seq(&items);
-        return OBJ_VAL(seq);
-      }
-    }
-    default: break;
+    ValueArray items = prealloc_value_array(tuple->items.count);
+
+    // We can use memcpy here because the items array is already preallocated
+    memcpy(items.values, tuple->items.values, tuple->items.count * sizeof(Value));
+
+    ObjSeq* seq = take_seq(&items);
+    return seq_value(seq);
   }
 
   // TODO: Make a macro for this error message
   runtime_error("Expected argument 0 of type " STR(TYPENAME_INT) " or " STR(TYPENAME_TUPLE) " but got %s.",
-                typeof_(argv[1])->name->chars);
-  return NIL_VAL;
+                argv[1].type->name->chars);
+  return nil_value();
 }
 
 #define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value) items = AS_SEQ(value)->items
-#define BUILTIN_LISTLIKE_NEW_EMPTY() new_seq()
-#define BUILTIN_LISTLIKE_TAKE_ARRAY(value_array) take_seq(&value_array)
+#define BUILTIN_LISTLIKE_NEW_EMPTY() seq_value(new_seq())
+#define BUILTIN_LISTLIKE_TAKE_ARRAY(value_array) seq_value(take_seq(&value_array))
 BUILTIN_ENUMERABLE_HAS(SEQ, "an item")
 BUILTIN_LISTLIKE_SLICE(SEQ)
 BUILTIN_LISTLIKE_TO_STR(SEQ, VALUE_STR_SEQ_START, VALUE_STR_SEQ_DELIM, VALUE_STR_SEQ_END)
@@ -121,7 +116,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, push) {
   for (int i = 1; i <= argc; i++) {
     write_value_array(&seq->items, argv[i]);
   }
-  return NIL_VAL;
+  return nil_value();
 }
 
 // Built-in method to pop a value from a sequence
@@ -155,11 +150,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, remove_at) {
   BUILTIN_CHECK_ARG_AT(1, INT)
 
   ObjSeq* seq     = AS_SEQ(argv[0]);
-  long long index = AS_INT(argv[1]);
+  long long index = argv[1].as.integer;
 
   if (index > INT32_MAX || index < INT32_MIN) {
     runtime_error("Index %lld surpasses the maximum value of %d.", index, INT32_MAX);
-    return NIL_VAL;
+    return nil_value();
   }
 
   return remove_at_value_array(&seq->items, (int)index);  // Does bounds checking

@@ -7,12 +7,11 @@
   if (!is_fn(argv[0])) {                                                                                   \
     runtime_error("Expected receiver of type " STR(TYPENAME_FUNCTION) ", " STR(TYPENAME_CLOSURE) ", " STR( \
                       TYPENAME_NATIVE) " or " STR(TYPENAME_BOUND_METHOD) ", but got %s.",                  \
-                  typeof_(argv[0])->name->chars);                                                          \
-    return NIL_VAL;                                                                                        \
+                  argv[0].type->name->chars);                                                              \
+    return nil_value();                                                                                    \
   }
 
-void register_builtin_fn_class() {
-  BUILTIN_REGISTER_CLASS(TYPENAME_FUNCTION, TYPENAME_OBJ);
+void finalize_builtin_fn_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_HAS, 1);
@@ -33,7 +32,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_CTOR) {
   UNUSED(argc);
   UNUSED(argv);
   runtime_error("Cannot instantiate a function via " STR(TYPENAME_FUNCTION) "." STR(SP_METHOD_CTOR) ".");
-  return NIL_VAL;
+  return nil_value();
 }
 
 // Built-in method to convert a fn to a string
@@ -55,12 +54,12 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_TO_STR) {
 
   // Bound methods can be closures or native functions
   if (IS_BOUND_METHOD(fn)) {
-    fn = OBJ_VAL(AS_BOUND_METHOD(fn)->method);
+    fn = fn_value((Obj*)AS_BOUND_METHOD(fn)->method);
   }
 
   // Closures are functions
   if (IS_CLOSURE(fn)) {
-    fn = OBJ_VAL(AS_CLOSURE(fn)->function);
+    fn = fn_value((Obj*)AS_CLOSURE(fn)->function);
   }
 
   // Native functions
@@ -75,7 +74,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_TO_STR) {
   if (name == NULL || name->chars == NULL) {
     name = copy_string("???", 3);
   }
-  push(OBJ_VAL(name));  // GC Protection
+  push(str_value(name));  // GC Protection
 
   size_t buf_size = fmt_len + name->length;
   char* chars     = malloc(buf_size);
@@ -87,7 +86,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_TO_STR) {
 
   free(chars);
   pop();  // Name str
-  return OBJ_VAL(str_obj);
+  return str_value(str_obj);
 }
 
 // Built-in method to check if a value has a property
@@ -104,22 +103,21 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_HAS) {
   BUILTIN_CHECK_ARG_AT(1, STRING)
 
   ObjString* name = AS_STRING(argv[1]);
-  Obj* fn         = AS_OBJ(argv[0]);
 
   // Execute the value_get_property function to see if the fn has the thing. We use this approach to make sure the two are
   // aligned and return the same result.
-  push(OBJ_VAL(fn));
+  push(argv[0]);
   if (value_get_property(name)) {
     pop();  // The result
-    return BOOL_VAL(true);
+    return bool_value(true);
   }
   if (vm.flags & VM_FLAG_HAS_ERROR) {
-    return NIL_VAL;
+    return nil_value();
   }
 
   pop();  // The fn
 
-  return BOOL_VAL(false);
+  return bool_value(false);
 }
 
 // Built-in method to bind a function to a receiver
@@ -136,5 +134,5 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, bind) {
   BUILTIN_CHECK_ARG_AT(1, OBJ)
 
   Value bind_target = argv[1];
-  return OBJ_VAL(new_bound_method(bind_target, AS_OBJ(argv[0])));
+  return fn_value((Obj*)new_bound_method(bind_target, argv[0].as.obj));
 }

@@ -4,16 +4,7 @@
 #include "common.h"
 #include "vm.h"
 
-void register_builtin_obj_class() {
-  // Create the object class
-  vm.__builtin_Obj_class = new_class(copy_string(STR(TYPENAME_OBJ), STR_LEN(STR(TYPENAME_OBJ))), NULL);
-
-  // Create the builtin obj instance
-  vm.builtin = new_instance(vm.__builtin_Obj_class);
-
-  define_obj(&vm.builtin->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
-  define_obj(&vm.builtin->fields, STR(TYPENAME_OBJ), (Obj*)vm.__builtin_Obj_class);
-
+void finalize_builtin_obj_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_CTOR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_HAS, 1);
@@ -44,12 +35,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_CTOR) {
 static Value instance_object_to_str(int argc, Value* argv) {
   UNUSED(argc);
 
-  ObjObject* object = AS_OBJECT(argv[0]);
-  ObjString* name   = object->klass->name;
+  ObjString* name = (argv[0]).type->name;
   if (name == NULL || name->chars == NULL) {
     name = copy_string("???", 3);
   }
-  push(OBJ_VAL(name));
+  push(str_value(name));
 
   size_t buf_size = VALUE_STRFTM_INSTANCE_LEN + name->length;
   char* chars     = malloc(buf_size);
@@ -60,7 +50,7 @@ static Value instance_object_to_str(int argc, Value* argv) {
 
   free(chars);
   pop();  // Name str
-  return OBJ_VAL(str_obj);
+  return str_value(str_obj);
 }
 
 static Value anonymous_object_to_str(int argc, Value* argv) {
@@ -80,18 +70,18 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the key
     push(object->fields.entries[i].key);  // Push the receiver (key at i) for to_str
-    ObjString* key_str = AS_STRING(exec_callable(typeof_(object->fields.entries[i].key)->__to_str, 0));
+    ObjString* key_str = AS_STRING(exec_callable(fn_value(object->fields.entries[i].key.type->__to_str), 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
-      return NIL_VAL;
+      return nil_value();
     }
 
-    push(OBJ_VAL(key_str));  // GC Protection
+    push(str_value(key_str));  // GC Protection
 
     // Execute the to_str method on the value
     push(object->fields.entries[i].value);  // Push the receiver (value at i) for to_str
-    ObjString* value_str = AS_STRING(exec_callable(typeof_(object->fields.entries[i].value)->__to_str, 0));
+    ObjString* value_str = AS_STRING(exec_callable(fn_value(object->fields.entries[i].value.type->__to_str), 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
-      return NIL_VAL;
+      return nil_value();
     }
 
     pop();  // Key str
@@ -132,7 +122,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
                                         // we need to make sure that the string is
                                         // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
   free(chars);
-  return OBJ_VAL(str_obj);
+  return str_value(str_obj);
 }
 
 // Built-in method to convert an object to a string. This one is special in that is is the toplevel to_str -
@@ -145,43 +135,40 @@ BUILTIN_METHOD_DOC(
     /* Description */ "Returns a string representation of the " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
   // This is a base implementation, all objects which don't have a custom implementation will use this one.
-  // So we don't check the receiver, because this implementation should accept any value.
+  // Anything that came here is at least a ObjObject, because every other value-type has an internal to_str implementation.
 
   // Handle anonymous objects and instance objects differently
-  if (IS_OBJECT(argv[0])) {
-    ObjObject* object = AS_OBJECT(argv[0]);
-    if (OBJECT_IS_INSTANCE(object)) {
-      return instance_object_to_str(argc, argv);
-    } else {
-      return anonymous_object_to_str(argc, argv);
-    }
+  if (IS_OBJ(argv[0])) {
+    return anonymous_object_to_str(argc, argv);
+  } else {
+    return instance_object_to_str(argc, argv);
   }
 
   // This here is the catch-all for all values. We print the type-name and memory address of the value.
-  ObjString* t_name = typeof_(argv[0])->name;
+  ObjString* t_name = argv[0].type->name;
 
   // Print the memory address of the object using (void*)AS_OBJ(argv[0]).
   // We need to know the size of the buffer to allocate, so we calculate it first.
-  size_t adr_str_len = snprintf(NULL, 0, "%p", (void*)AS_OBJ(argv[0]));
+  size_t adr_str_len = snprintf(NULL, 0, "%p", (void*)argv[0].as.obj);
 
   size_t buf_size = VALUE_STRFMT_OBJ_LEN + t_name->length + adr_str_len;
   char* chars     = malloc(buf_size);
-  snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name->chars, (void*)AS_OBJ(argv[0]));
+  snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name->chars, (void*)argv[0].as.obj);
   // Intuitively, you'd expect to use take_string here, but we don't know where malloc
   // allocates the memory - we don't want this block in our own memory pool.
   ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
 
   free(chars);
-  return OBJ_VAL(str_obj);
+  return str_value(str_obj);
 }
 
-#define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value)             \
-  /* Execute the 'keys' method on the receiver */             \
-  push(argv[0]); /* Receiver */                               \
-  Value seq = exec_callable((Obj*)copy_string("keys", 4), 0); \
-  if (vm.flags & VM_FLAG_HAS_ERROR) {                         \
-    return NIL_VAL;                                           \
-  }                                                           \
+#define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value)                  \
+  /* Execute the 'keys' method on the receiver */                  \
+  push(argv[0]); /* Receiver */                                    \
+  Value seq = exec_callable(str_value(copy_string("keys", 4)), 0); \
+  if (vm.flags & VM_FLAG_HAS_ERROR) {                              \
+    return nil_value();                                            \
+  }                                                                \
   items = AS_SEQ(seq)->items;
 BUILTIN_ENUMERABLE_HAS(OBJ, "a key")
 #undef BUILTIN_ENUMERABLE_GET_VALUE_ARRAY
@@ -195,7 +182,7 @@ BUILTIN_METHOD_DOC(
     /* Description */ "Returns the hash of the " STR(TYPENAME_OBJ) ".");
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
   UNUSED(argc);
-  return INT_VAL(hash_value(argv[0]));
+  return int_value(hash_value(argv[0]));
 }
 
 // Built-in method to retrieve all entries of an object.
@@ -214,7 +201,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
   ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
-  push(OBJ_VAL(seq));                    // GC Protection
+  push(seq_value(seq));                  // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
@@ -244,7 +231,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, keys) {
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
   ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
-  push(OBJ_VAL(seq));                    // GC Protection
+  push(seq_value(seq));                  // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
@@ -271,7 +258,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, values) {
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
   ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
-  push(OBJ_VAL(seq));                    // GC Protection
+  push(seq_value(seq));                  // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {

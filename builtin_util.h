@@ -43,11 +43,11 @@
 #define BUILTIN_REGISTER_CLASS(class_name, base_class)                                                 \
   vm.BUILTIN_CLASS(class_name) =                                                                       \
       new_class(copy_string(STR(class_name), STR_LEN(STR(class_name))), vm.BUILTIN_CLASS(base_class)); \
-  define_obj(&vm.builtin->fields, STR(class_name), (Obj*)vm.BUILTIN_CLASS(class_name));
+  define_value(&vm.builtin->fields, STR(class_name), class_value(vm.BUILTIN_CLASS(class_name)));
 // Register a built-in base class in the VM, by adding it to the built-in object's field table.
 #define BUILTIN_REGISTER_BASE_CLASS(class_name)                                                           \
   vm.BUILTIN_CLASS(class_name) = new_class(copy_string(STR(class_name), STR_LEN(STR(class_name))), NULL); \
-  define_obj(&vm.builtin->fields, STR(class_name), (Obj*)vm.BUILTIN_CLASS(class_name));
+  define_value(&vm.builtin->fields, STR(class_name), class_value(vm.BUILTIN_CLASS(class_name)));
 // Register a built-in method in the VM, by adding it to the built-in class's method table.
 #define BUILTIN_REGISTER_METHOD(class_name, method_name, arity)                                                    \
   define_native(&vm.BUILTIN_CLASS(class_name)->methods, STR(method_name), BUILTIN_METHOD(class_name, method_name), \
@@ -81,23 +81,23 @@
 //
 // Macros for argument checking in built-in functions.
 //
-#define BUILTIN_CHECK_RECEIVER(type)                                                                                \
-  if (!IS_##type(argv[0])) {                                                                                        \
-    runtime_error("Expected receiver of type " STR(TYPENAME_##type) " but got %s.", typeof_(argv[0])->name->chars); \
-    return NIL_VAL;                                                                                                 \
+#define BUILTIN_CHECK_RECEIVER(uc_type)                                                                              \
+  if (!IS_##uc_type(argv[0])) {                                                                                      \
+    runtime_error("Expected receiver of type " STR(TYPENAME_##uc_type) " but got %s.", (argv[0]).type->name->chars); \
+    return nil_value();                                                                                              \
   }
 
-#define BUILTIN_CHECK_ARG_AT(index, type)                                                         \
-  if (!IS_##type(argv[index])) {                                                                  \
-    runtime_error("Expected argument %d of type " STR(TYPENAME_##type) " but got %s.", index - 1, \
-                  typeof_(argv[index])->name->chars);                                             \
-    return NIL_VAL;                                                                               \
+#define BUILTIN_CHECK_ARG_AT(index, uc_type)                                                         \
+  if (!IS_##uc_type(argv[index])) {                                                                  \
+    runtime_error("Expected argument %d of type " STR(TYPENAME_##uc_type) " but got %s.", index - 1, \
+                  (argv[index]).type->name->chars);                                                  \
+    return nil_value();                                                                              \
   }
 
-#define BUILTIN_CHECK_ARG_AT_IS_CALLABLE(index)                                                                     \
-  if (!IS_CALLABLE(argv[index])) {                                                                                  \
-    runtime_error("Expected argument %d to be callable but got %s.", index - 1, typeof_(argv[index])->name->chars); \
-    return NIL_VAL;                                                                                                 \
+#define BUILTIN_CHECK_ARG_AT_IS_CALLABLE(index)                                                                 \
+  if (!IS_CALLABLE(argv[index])) {                                                                              \
+    runtime_error("Expected argument %d to be callable but got %s.", index - 1, argv[index].type->name->chars); \
+    return nil_value();                                                                                         \
   }
 
 #endif

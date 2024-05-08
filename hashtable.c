@@ -2,6 +2,7 @@
 #include <memory.h>
 #include "memory.h"
 #include "value.h"
+#include "vm.h"
 
 void init_hashtable(HashTable* table) {
   table->count    = 0;
@@ -48,8 +49,8 @@ static Entry* find_entry(Entry* entries, int capacity, Value key) {
 static void adjust_capacity(HashTable* table, int capacity) {
   Entry* entries = ALLOCATE(Entry, capacity);
   for (int i = 0; i < capacity; i++) {
-    entries[i].key   = EMPTY_INTERNAL_VAL;
-    entries[i].value = NIL_VAL;
+    entries[i].key   = empty_internal_value();
+    entries[i].value = nil_value();
   }
 
   table->count = 0;
@@ -149,8 +150,8 @@ bool hashtable_delete(HashTable* table, Value key) {
   }
 
   // Place a tombstone in the entry.
-  entry->key   = EMPTY_INTERNAL_VAL;
-  entry->value = BOOL_VAL(true);
+  entry->key   = empty_internal_value();
+  entry->value = bool_value(true);
   return true;
 }
 
@@ -196,7 +197,7 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
 void hashtable_remove_white(HashTable* table) {
   for (int i = 0; i < table->capacity; i++) {
     Entry* entry = &table->entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key) && !(AS_OBJ(entry->key))->is_marked) {
+    if (!IS_EMPTY_INTERNAL(entry->key) && !(entry->key.as.obj->is_marked)) {
       hashtable_delete(table, entry->key);
     }
   }

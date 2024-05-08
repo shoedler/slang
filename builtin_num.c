@@ -2,8 +2,7 @@
 #include "common.h"
 #include "vm.h"
 
-void register_builtin_num_class() {
-  BUILTIN_REGISTER_BASE_CLASS(TYPENAME_NUM);
+void finalize_builtin_num_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_NUM, SP_METHOD_CTOR, 1);
   BUILTIN_FINALIZE_CLASS(TYPENAME_NUM);
 }
@@ -20,11 +19,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_NUM, SP_METHOD_CTOR) {
   UNUSED(argc);
   UNUSED(argv);
   runtime_error("Cannot instantiate a number via " STR(TYPENAME_NUM) "." STR(SP_METHOD_CTOR) ".");
-  return NIL_VAL;
+  return nil_value();
 }
 
-void register_builtin_int_class() {
-  BUILTIN_REGISTER_CLASS(TYPENAME_INT, TYPENAME_NUM);
+void finalize_builtin_int_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_INT, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_INT, SP_METHOD_TO_STR, 0);
   BUILTIN_FINALIZE_CLASS(TYPENAME_INT);
@@ -41,24 +39,24 @@ BUILTIN_METHOD_DOC(
 BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_CTOR) {
   UNUSED(argc);
 
-  switch (argv[1].type) {
-    case VAL_INT: return argv[1];
-    case VAL_FLOAT: return INT_VAL((long long)AS_FLOAT(argv[1]));
-    case VAL_BOOL: return AS_BOOL(argv[1]) ? INT_VAL(1) : INT_VAL(0);
-    case VAL_NIL: return INT_VAL(0);
-    case VAL_OBJ: {
-      switch (AS_OBJ(argv[1])->type) {
-        case OBJ_STRING: {
-          ObjString* str = AS_STRING(argv[1]);
-          return INT_VAL((long long)string_to_double(str->chars, str->length));
-        }
-        default: break;
-      }
-    }
-    default: break;
+  if (IS_INT(argv[1])) {
+    return argv[1];
+  }
+  if (IS_FLOAT(argv[1])) {
+    return int_value((long long)argv[1].as.float_);
+  }
+  if (IS_BOOL(argv[1])) {
+    return int_value(argv[1].as.boolean ? 1 : 0);
+  }
+  if (IS_NIL(argv[1])) {
+    return int_value(0);
+  }
+  if (IS_STRING(argv[1])) {
+    ObjString* str = AS_STRING(argv[1]);
+    return int_value((long long)string_to_double(str->chars, str->length));
   }
 
-  return INT_VAL(0);
+  return int_value(0);
 }
 
 // Built-in method to convert a number to a string
@@ -73,14 +71,13 @@ BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_TO_STR) {
   BUILTIN_CHECK_RECEIVER(INT)
 
   char buffer[100];
-  int len = snprintf(buffer, sizeof(buffer), VALUE_STR_INT, AS_INT(argv[0]));
+  int len = snprintf(buffer, sizeof(buffer), VALUE_STR_INT, argv[0].as.integer);
 
   ObjString* str_obj = copy_string(buffer, len);
-  return OBJ_VAL(str_obj);
+  return str_value(str_obj);
 }
 
-void register_builtin_float_class() {
-  BUILTIN_REGISTER_CLASS(TYPENAME_FLOAT, TYPENAME_NUM);
+void finalize_builtin_float_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_FLOAT, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_FLOAT, SP_METHOD_TO_STR, 0);
   BUILTIN_FINALIZE_CLASS(TYPENAME_FLOAT);
@@ -97,24 +94,24 @@ BUILTIN_METHOD_DOC(
 BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_CTOR) {
   UNUSED(argc);
 
-  switch (argv[1].type) {
-    case VAL_INT: return FLOAT_VAL((double)AS_INT(argv[1]));
-    case VAL_FLOAT: return argv[1];
-    case VAL_BOOL: return AS_BOOL(argv[1]) ? FLOAT_VAL(1) : FLOAT_VAL(0);
-    case VAL_NIL: return FLOAT_VAL(0);
-    case VAL_OBJ: {
-      switch (AS_OBJ(argv[1])->type) {
-        case OBJ_STRING: {
-          ObjString* str = AS_STRING(argv[1]);
-          return FLOAT_VAL(string_to_double(str->chars, str->length));
-        }
-        default: break;
-      }
-    }
-    default: break;
+  if (IS_INT(argv[1])) {
+    return float_value((double)argv[1].as.integer);
+  }
+  if (IS_FLOAT(argv[1])) {
+    return argv[1];
+  }
+  if (IS_BOOL(argv[1])) {
+    return float_value(argv[1].as.boolean ? 1.0 : 0.0);
+  }
+  if (IS_NIL(argv[1])) {
+    return float_value(0.0);
+  }
+  if (IS_STRING(argv[1])) {
+    ObjString* str = AS_STRING(argv[1]);
+    return float_value(string_to_double(str->chars, str->length));
   }
 
-  return FLOAT_VAL(0);
+  return float_value(0.0);
 }
 
 // Built-in method to convert a number to a string
@@ -129,7 +126,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_TO_STR) {
   BUILTIN_CHECK_RECEIVER(FLOAT)
 
   char buffer[100];
-  int len = snprintf(buffer, sizeof(buffer), VALUE_STR_FLOAT, AS_FLOAT(argv[0]));
+  int len = snprintf(buffer, sizeof(buffer), VALUE_STR_FLOAT, argv[0].as.float_);
 
   // Remove trailing zeros. Ugh...
   // TODO (optimize): This is not very efficient, find a better way to do this
@@ -142,5 +139,5 @@ BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_TO_STR) {
   }
 
   ObjString* str_obj = copy_string(buffer, len);
-  return OBJ_VAL(str_obj);
+  return str_value(str_obj);
 }

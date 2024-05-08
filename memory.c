@@ -54,7 +54,7 @@ void mark_obj(Obj* object) {
 
 #ifdef DEBUG_LOG_GC
   printf(ANSI_RED_STR("[GC] ") ANSI_YELLOW_STR("[MARK] ") "at %p, ", (void*)object);
-  printf("%s\n", typeof_(OBJ_VAL(object))->name->chars);
+  printf("%s\n", typeof_(OBJ_GC_VAL(object))->name->chars);
 #endif
 
   object->is_marked = true;
@@ -73,8 +73,8 @@ void mark_obj(Obj* object) {
 }
 
 void mark_value(Value value) {
-  if (IS_OBJ(value)) {
-    mark_obj(AS_OBJ(value));
+  if (!IS_NON_OBJECT(value)) {
+    mark_obj(value.as.obj);
   }
 }
 
@@ -91,17 +91,17 @@ void mark_array(ValueArray* array) {
 static void blacken_object(Obj* object) {
 #ifdef DEBUG_LOG_GC
   printf(ANSI_RED_STR("[GC] ") ANSI_BLUE_STR("[BLACKEN] ") "at %p, ", (void*)object);
-  printf("%s\n", typeof_(OBJ_VAL(object))->name->chars);
+  printf("%s\n", typeof_(OBJ_GC_VAL(object))->name->chars);
 #endif
 
   switch (object->type) {
-    case OBJ_BOUND_METHOD: {
+    case OBJ_GC_BOUND_METHOD: {
       ObjBoundMethod* bound = (ObjBoundMethod*)object;
       mark_value(bound->receiver);
       mark_obj((Obj*)bound->method);
       break;
     }
-    case OBJ_CLASS: {
+    case OBJ_GC_CLASS: {
       ObjClass* klass = (ObjClass*)object;
       mark_obj((Obj*)klass->name);
       mark_obj((Obj*)klass->base);
@@ -109,7 +109,7 @@ static void blacken_object(Obj* object) {
       mark_hashtable(&klass->static_methods);
       break;
     }
-    case OBJ_CLOSURE: {
+    case OBJ_GC_CLOSURE: {
       ObjClosure* closure = (ObjClosure*)object;
       mark_obj((Obj*)closure->function);
       for (int i = 0; i < closure->upvalue_count; i++) {
@@ -117,7 +117,7 @@ static void blacken_object(Obj* object) {
       }
       break;
     }
-    case OBJ_FUNCTION: {
+    case OBJ_GC_FUNCTION: {
       ObjFunction* function = (ObjFunction*)object;
       mark_obj((Obj*)function->name);
       mark_obj((Obj*)function->doc);
@@ -125,30 +125,30 @@ static void blacken_object(Obj* object) {
       mark_array(&function->chunk.constants);
       break;
     }
-    case OBJ_OBJECT: {
+    case OBJ_GC_OBJECT: {
       ObjObject* object_ = (ObjObject*)object;
-      mark_obj((Obj*)object_->klass);
+      mark_obj((Obj*)object_->instance_class);
       mark_hashtable(&object_->fields);
       break;
     }
-    case OBJ_UPVALUE: mark_value(((ObjUpvalue*)object)->closed); break;
-    case OBJ_SEQ: {
+    case OBJ_GC_UPVALUE: mark_value(((ObjUpvalue*)object)->closed); break;
+    case OBJ_GC_SEQ: {
       ObjSeq* seq = (ObjSeq*)object;
       mark_array(&seq->items);
       break;
     }
-    case OBJ_TUPLE: {
+    case OBJ_GC_TUPLE: {
       ObjTuple* tuple = (ObjTuple*)object;
       mark_array(&tuple->items);
       break;
     }
-    case OBJ_NATIVE: {
+    case OBJ_GC_NATIVE: {
       ObjNative* native = (ObjNative*)object;
       mark_obj((Obj*)native->name);
       mark_obj((Obj*)native->doc);
       break;
     }
-    case OBJ_STRING: break;
+    case OBJ_GC_STRING: break;
     default:
       break;  // TODO (recovery): What do we do here? Throw? Probably yes, bc we
               // need to mark all objects
@@ -163,52 +163,52 @@ static void free_object(Obj* object) {
 #endif
 
   switch (object->type) {
-    case OBJ_BOUND_METHOD: FREE(ObjBoundMethod, object); break;
-    case OBJ_CLASS: {
+    case OBJ_GC_BOUND_METHOD: FREE(ObjBoundMethod, object); break;
+    case OBJ_GC_CLASS: {
       ObjClass* klass = (ObjClass*)object;
       free_hashtable(&klass->methods);
       free_hashtable(&klass->static_methods);
       FREE(ObjClass, object);
       break;
     }
-    case OBJ_CLOSURE: {
+    case OBJ_GC_CLOSURE: {
       ObjClosure* closure = (ObjClosure*)object;
       FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalue_count);
       FREE(ObjClosure, object);
       break;
     }
-    case OBJ_FUNCTION: {
+    case OBJ_GC_FUNCTION: {
       ObjFunction* function = (ObjFunction*)object;
       free_chunk(&function->chunk);
       FREE(ObjFunction, object);
       break;
     }
-    case OBJ_OBJECT: {
+    case OBJ_GC_OBJECT: {
       ObjObject* object_ = (ObjObject*)object;
       free_hashtable(&object_->fields);
       FREE(ObjObject, object);
       break;
     }
-    case OBJ_NATIVE: FREE(ObjNative, object); break;
-    case OBJ_STRING: {
+    case OBJ_GC_NATIVE: FREE(ObjNative, object); break;
+    case OBJ_GC_STRING: {
       ObjString* string = (ObjString*)object;
       FREE_ARRAY(char, string->chars, string->length + 1);
       FREE(ObjString, object);
       break;
     }
-    case OBJ_SEQ: {
+    case OBJ_GC_SEQ: {
       ObjSeq* seq = (ObjSeq*)object;
       free_value_array(&seq->items);
       FREE(ObjSeq, object);
       break;
     }
-    case OBJ_TUPLE: {
+    case OBJ_GC_TUPLE: {
       ObjTuple* tuple = (ObjTuple*)object;
       free_value_array(&tuple->items);
       FREE(ObjTuple, object);
       break;
     }
-    case OBJ_UPVALUE: FREE(ObjUpvalue, object); break;
+    case OBJ_GC_UPVALUE: FREE(ObjUpvalue, object); break;
     default: INTERNAL_ERROR("Don't know how to free unknown object type: %d", object->type);
   }
 }
@@ -277,6 +277,8 @@ static void mark_roots() {
   BUILTIN_MARK_CLASS(TYPENAME_MODULE);
   BUILTIN_MARK_CLASS(TYPENAME_FUNCTION);
   BUILTIN_MARK_CLASS(TYPENAME_CLASS);
+  BUILTIN_MARK_CLASS(Upvalue);
+  BUILTIN_MARK_CLASS(Handler);
 #undef BUILTIN_MARK_CLASS
 
   // And the compiler roots. The GC can run while compiling, so we need to mark

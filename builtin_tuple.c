@@ -4,8 +4,7 @@
 #include "common.h"
 #include "vm.h"
 
-void register_builtin_tuple_class() {
-  BUILTIN_REGISTER_CLASS(TYPENAME_TUPLE, TYPENAME_OBJ);
+void finalize_builtin_tuple_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, SP_METHOD_HAS, 1);
@@ -46,12 +45,12 @@ BUILTIN_METHOD_IMPL(TYPENAME_TUPLE, SP_METHOD_CTOR) {
   memcpy(items.values, seq->items.values, seq->items.count * sizeof(Value));
 
   ObjTuple* tuple = take_tuple(&items);
-  return OBJ_VAL(tuple);
+  return tuple_value(tuple);
 }
 
 #define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value) items = AS_TUPLE(value)->items
-#define BUILTIN_LISTLIKE_NEW_EMPTY() new_tuple()
-#define BUILTIN_LISTLIKE_TAKE_ARRAY(value_array) take_tuple(&value_array)
+#define BUILTIN_LISTLIKE_NEW_EMPTY() tuple_value(new_tuple())
+#define BUILTIN_LISTLIKE_TAKE_ARRAY(value_array) tuple_value(take_tuple(&value_array))
 BUILTIN_ENUMERABLE_HAS(TUPLE, "an item")
 BUILTIN_LISTLIKE_SLICE(TUPLE)
 BUILTIN_LISTLIKE_TO_STR(TUPLE, VALUE_STR_TUPLE_START, VALUE_STR_TUPLE_DELIM, VALUE_STR_TUPLE_END)

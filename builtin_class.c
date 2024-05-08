@@ -3,8 +3,7 @@
 #include "common.h"
 #include "vm.h"
 
-void register_builtin_class_class() {
-  BUILTIN_REGISTER_CLASS(TYPENAME_CLASS, TYPENAME_OBJ);
+void finalize_builtin_class_class() {
   BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_CTOR, 1);
   BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_TO_STR, 0);
   BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_HAS, 1);
@@ -24,7 +23,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_CTOR) {
   UNUSED(argc);
   UNUSED(argv);
   runtime_error("Cannot instantiate a class via " STR(TYPENAME_CLASS) "." STR(SP_METHOD_CTOR) ".");
-  return NIL_VAL;
+  return nil_value();
 }
 
 // Built-in method to convert a class to a string
@@ -43,7 +42,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_TO_STR) {
   if (name == NULL || name->chars == NULL) {
     name = copy_string("???", 3);
   }
-  push(OBJ_VAL(name));
+  push(str_value(name));
 
   size_t buf_size = VALUE_STRFMT_CLASS_LEN + name->length;
   char* chars     = malloc(buf_size);
@@ -54,7 +53,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_TO_STR) {
 
   free(chars);
   pop();  // Name str
-  return OBJ_VAL(str_obj);
+  return str_value(str_obj);
 }
 
 // Built-in method to check if a class has a method
@@ -75,16 +74,16 @@ BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_HAS) {
 
   // Execute the value_get_property function to see if the class has the thing. We use this approach to make sure the two are
   // aligned and return the same result.
-  push(OBJ_VAL(klass));
+  push(class_value(klass));
   if (value_get_property(name)) {
     pop();  // The result
-    return BOOL_VAL(true);
+    return bool_value(true);
   }
   if (vm.flags & VM_FLAG_HAS_ERROR) {
-    return NIL_VAL;
+    return nil_value();
   }
 
   pop();  // The class
 
-  return BOOL_VAL(false);
+  return bool_value(false);
 }

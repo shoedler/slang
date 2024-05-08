@@ -6,6 +6,18 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Roadmap for Version 1.0
 
+### RT Type-checking To Do
+
+- [ ] Move all `AS_<TYPE>` obj-macros to vm.h. Make all `static inline <type> bla()` Value functions macros, or at least verify that there is no performance loss for using static inline functions vs macros.
+- [ ] Rename all `__builtin_<Type>_class` fields to `internal_<Type>_class` in vm.h.
+- [ ] Rename `BUILTIN_` Macros to `INTERNAL_` Macros in vm.h. `BUILTIN_` should only be used for the built-in functions. Since the base-types are now mandatory for the Vm to work, they are a part of the internal implementation.
+- [ ] Get rid of all switches over `ObjGcType` outside of memory.c. This should be done using a quick-access function on the respective base class. E.g. for calls, we should implement `__call` on all `ObjClass`es and then manage HOW to call them in there.
+- [ ] Get rid of all `if (is_<Type>()) ...  else if (is_<Type>()) ...` and implement a quick-access function for this. E.g. for `values_equal` we could implement a `__values_equal` function on the base class. Same for `__hash` and so on. Same goes for `__mark` and `__free`.
+- [ ] Implement syntax for type annotations. E.g. `let x: Int = 1`. We'll check as much as possible at compile-time. Locals are already cared for, because they live on the stack and are not referenced by a name. All locals are resolved during compile time. The only exception being locals that are not initialized with a value. That should be allowed, but the type must be declared. E.g. `let x: Int`. This is a bit more flexible than C# and a bit less flexible than TypeScript. We'll see how it goes.
+- [ ] Implement a solution for functions. We should introduce a signature field in fn objects. The sig struct should probably consist of: `args: ObjClass**` to store the types of the arguments, `ret: ObjClass*` to store the return type of the function, `argc: int` to store the number of arguments.
+- [ ] Introduce type-modifiers. `?` for nullable, and maybe something for exact type match. This should be done as a flag on the `Value` struct. Maybe make a `Type` struct that holds the `ObjClass*` and the flags. This could then also be used for function signatures.
+- [ ] Actually add typechecking and remove all `BUILTIN_CHECK_ARG` things.
+
 ### Syntax & Language Features
 
 - [ ] Implement `for ... in ...;` loops

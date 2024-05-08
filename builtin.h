@@ -9,37 +9,37 @@
 extern void register_builtin_functions();
 
 // Registers the built-in object class and its methods.
-extern void register_builtin_obj_class();
+extern void finalize_builtin_obj_class();
 
 // Registers the built-in nil class and its methods.
-extern void register_builtin_nil_class();
+extern void finalize_builtin_nil_class();
 
 // Registers the built-in bool class and its methods.
-extern void register_builtin_bool_class();
+extern void finalize_builtin_bool_class();
 
 // Registers the built-in number class and its methods.
-extern void register_builtin_num_class();
+extern void finalize_builtin_num_class();
 
 // Registers the built-in int class and its methods.
-extern void register_builtin_int_class();
+extern void finalize_builtin_int_class();
 
 // Registers the built-in float class and its methods.
-extern void register_builtin_float_class();
+extern void finalize_builtin_float_class();
 
 // Registers the built-in string class and its methods.
-extern void register_builtin_str_class();
+extern void finalize_builtin_str_class();
 
 // Registers the built-in seq class and its methods.
-extern void register_builtin_seq_class();
+extern void finalize_builtin_seq_class();
 
 // Registers the built-in tuple class and its methods.
-extern void register_builtin_tuple_class();
+extern void finalize_builtin_tuple_class();
 
 // Registers the built-in fn class and its methods.
-extern void register_builtin_fn_class();
+extern void finalize_builtin_fn_class();
 
 // Registers the built-in class class and its methods.
-extern void register_builtin_class_class();
+extern void finalize_builtin_class_class();
 
 // Registers the built-in file module
 extern void register_builtin_file_module();
@@ -164,7 +164,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     ValueArray items;                                                                                                           \
     BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                                                                \
     if (items.count == 0) {                                                                                                     \
-      return BOOL_VAL(false);                                                                                                   \
+      return bool_value(false);                                                                                                 \
     }                                                                                                                           \
                                                                                                                                 \
     int count = items.count; /* We need to store this. Might change during the loop */                                          \
@@ -175,34 +175,34 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
         /* Execute the provided function on the item */                                                                         \
         push(argv[1]);         /* Push the function */                                                                          \
         push(items.values[i]); /* Push the item */                                                                              \
-        Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                                       \
+        Value result = exec_callable(argv[1], 1);                                                                               \
         if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                                     \
-          return NIL_VAL; /* Propagate the error */                                                                             \
+          return nil_value(); /* Propagate the error */                                                                         \
         }                                                                                                                       \
         /* We don't use is_falsey here, because we want a boolean value. */                                                     \
-        if (IS_BOOL(result) && AS_BOOL(result)) {                                                                               \
-          return BOOL_VAL(true);                                                                                                \
+        if (IS_BOOL(result) && result.as.boolean) {                                                                             \
+          return bool_value(true);                                                                                              \
         }                                                                                                                       \
       }                                                                                                                         \
     } else {                                                                                                                    \
       /* Value equality */                                                                                                      \
       for (int i = 0; i < count; i++) {                                                                                         \
         if (values_equal(argv[1], items.values[i])) {                                                                           \
-          return BOOL_VAL(true);                                                                                                \
+          return bool_value(true);                                                                                              \
         }                                                                                                                       \
       }                                                                                                                         \
     }                                                                                                                           \
                                                                                                                                 \
-    return BOOL_VAL(false);                                                                                                     \
+    return bool_value(false);                                                                                                   \
   }
 
 // Implementation for the 'to_str' method for listlike objects (Objects that have a 'ValueArray items' field).
-#define BUILTIN_LISTLIKE_TO_STR(type, start_chars, delim_chars, end_chars)                                              \
-  BUILTIN_METHOD_DOC(TYPENAME_##type, SP_METHOD_TO_STR, "", TYPENAME_##type,                                            \
-                     "Returns a " STR(TYPENAME_STRING) " representation of a " STR(TYPENAME_##type) ".");               \
-  BUILTIN_METHOD_IMPL(TYPENAME_##type, SP_METHOD_TO_STR) {                                                              \
+#define BUILTIN_LISTLIKE_TO_STR(uc_type, start_chars, delim_chars, end_chars)                                           \
+  BUILTIN_METHOD_DOC(TYPENAME_##uc_type, SP_METHOD_TO_STR, "", TYPENAME_##uc_type,                                      \
+                     "Returns a " STR(TYPENAME_STRING) " representation of a " STR(TYPENAME_##uc_type) ".");            \
+  BUILTIN_METHOD_IMPL(TYPENAME_##uc_type, SP_METHOD_TO_STR) {                                                           \
     UNUSED(argc);                                                                                                       \
-    BUILTIN_CHECK_RECEIVER(type)                                                                                        \
+    BUILTIN_CHECK_RECEIVER(uc_type)                                                                                     \
                                                                                                                         \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                \
     size_t buf_size  = 64; /* Start with a reasonable size */                                                           \
@@ -212,9 +212,9 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     for (int i = 0; i < items.count; i++) {                                                                             \
       /* Execute the to_str method on the item */                                                                       \
       push(items.values[i]); /* Push the receiver (item at i) for to_str */                                             \
-      ObjString* item_str = AS_STRING(exec_callable(typeof_(items.values[i])->__to_str, 0));                            \
+      ObjString* item_str = AS_STRING(exec_callable(fn_value(items.values[i].type->__to_str), 0));                      \
       if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                               \
-        return NIL_VAL;                                                                                                 \
+        return nil_value();                                                                                             \
       }                                                                                                                 \
                                                                                                                         \
       /* Expand chars to fit the separator plus the next item */                                                        \
@@ -245,7 +245,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                                                                  /* we need to make sure that the string is */          \
     /* null-terminated. Also, if it's < 64 chars long, we need to shorten the length. */                                \
     free(chars);                                                                                                        \
-    return OBJ_VAL(str_obj);                                                                                            \
+    return str_value(str_obj);                                                                                          \
   }
 
 // Implementation for the 'slice' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
@@ -263,7 +263,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_RECEIVER(type)                                                                                                                                   \
     BUILTIN_CHECK_ARG_AT(1, INT)                                                                                                                                   \
     if (IS_NIL(argv[2])) {                                                                                                                                         \
-      argv[2] = INT_VAL(AS_##type(argv[0])->items.count);                                                                                                          \
+      argv[2] = int_value(AS_##type(argv[0])->items.count);                                                                                                        \
     }                                                                                                                                                              \
     BUILTIN_CHECK_ARG_AT(2, INT)                                                                                                                                   \
                                                                                                                                                                    \
@@ -271,11 +271,11 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     int count        = items.count;                                                                                                                                \
                                                                                                                                                                    \
     if (count == 0) {                                                                                                                                              \
-      return OBJ_VAL(BUILTIN_LISTLIKE_NEW_EMPTY());                                                                                                                \
+      return BUILTIN_LISTLIKE_NEW_EMPTY();                                                                                                                         \
     }                                                                                                                                                              \
                                                                                                                                                                    \
-    int start = (int)AS_INT(argv[1]);                                                                                                                              \
-    int end   = (int)AS_INT(argv[2]);                                                                                                                              \
+    int start = (int)argv[1].as.integer;                                                                                                                           \
+    int end   = (int)argv[2].as.integer;                                                                                                                           \
                                                                                                                                                                    \
     /* Handle negative indices */                                                                                                                                  \
     if (start < 0) {                                                                                                                                               \
@@ -295,7 +295,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                                                                                                                                                                    \
     /* Handle invalid or 0 length ranges */                                                                                                                        \
     if (start >= end) {                                                                                                                                            \
-      return OBJ_VAL(BUILTIN_LISTLIKE_NEW_EMPTY());                                                                                                                \
+      return BUILTIN_LISTLIKE_NEW_EMPTY();                                                                                                                         \
     }                                                                                                                                                              \
     ValueArray sliced = prealloc_value_array(end - start);                                                                                                         \
     for (int i = start; i < end; i++) {                                                                                                                            \
@@ -303,7 +303,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     }                                                                                                                                                              \
                                                                                                                                                                    \
     /* No need for GC protection - taking an array will not trigger a GC. */                                                                                       \
-    return OBJ_VAL(BUILTIN_LISTLIKE_TAKE_ARRAY(sliced));                                                                                                           \
+    return BUILTIN_LISTLIKE_TAKE_ARRAY(sliced);                                                                                                                    \
   }
 
 // Implementation for the 'index_of' method for listlike objects (Objects that have a 'ValueArray items' field).
@@ -321,7 +321,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                                                                                                                                \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                       \
     if (items.count == 0) {                                                                                                    \
-      return NIL_VAL;                                                                                                          \
+      return nil_value();                                                                                                      \
     }                                                                                                                          \
                                                                                                                                \
     int count = items.count; /* We need to store this, because the listlike might change during the loop */                    \
@@ -332,26 +332,26 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
         /* Execute the provided function on the item */                                                                        \
         push(argv[1]);         /* Push the function */                                                                         \
         push(items.values[i]); /* Push the item */                                                                             \
-        Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                                      \
+        Value result = exec_callable(argv[1], 1);                                                                              \
         if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                                    \
-          return NIL_VAL; /* Propagate the error */                                                                            \
+          return nil_value(); /* Propagate the error */                                                                        \
         }                                                                                                                      \
                                                                                                                                \
         /* We don't use is_falsey here, because we want to check for a boolean value. */                                       \
-        if (IS_BOOL(result) && AS_BOOL(result)) {                                                                              \
-          return INT_VAL(i);                                                                                                   \
+        if (IS_BOOL(result) && result.as.boolean) {                                                                            \
+          return int_value(i);                                                                                                 \
         }                                                                                                                      \
       }                                                                                                                        \
     } else {                                                                                                                   \
       /* Value equality */                                                                                                     \
       for (int i = 0; i < count; i++) {                                                                                        \
         if (values_equal(argv[1], items.values[i])) {                                                                          \
-          return INT_VAL(i);                                                                                                   \
+          return int_value(i);                                                                                                 \
         }                                                                                                                      \
       }                                                                                                                        \
     }                                                                                                                          \
                                                                                                                                \
-    return NIL_VAL;                                                                                                            \
+    return nil_value();                                                                                                        \
   }
 
 // Implementation for the 'first' method for listlike objects (Objects that have a 'ValueArray items' field).
@@ -367,7 +367,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                                                                                                                              \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                     \
     if (items.count == 0) {                                                                                                  \
-      return NIL_VAL;                                                                                                        \
+      return nil_value();                                                                                                    \
     }                                                                                                                        \
                                                                                                                              \
     int count = items.count; /* We need to store this, because the listlike might change during the loop */                  \
@@ -377,18 +377,18 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
       /* Execute the provided function on the item */                                                                        \
       push(argv[1]);         /* Push the function */                                                                         \
       push(items.values[i]); /* Push the item */                                                                             \
-      Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                                      \
+      Value result = exec_callable(argv[1], 1);                                                                              \
       if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                                    \
-        return NIL_VAL; /* Propagate the error */                                                                            \
+        return nil_value(); /* Propagate the error */                                                                        \
       }                                                                                                                      \
                                                                                                                              \
       /* We don't use is_falsey here, because we want to check for a boolean value. */                                       \
-      if (IS_BOOL(result) && AS_BOOL(result)) {                                                                              \
+      if (IS_BOOL(result) && result.as.boolean) {                                                                            \
         return items.values[i];                                                                                              \
       }                                                                                                                      \
     }                                                                                                                        \
                                                                                                                              \
-    return NIL_VAL;                                                                                                          \
+    return nil_value();                                                                                                      \
   }
 
 // Implementation for the 'last' method for listlike objects (Objects that have a 'ValueArray items' field).
@@ -405,7 +405,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                                                                                                                             \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                    \
     if (items.count == 0) {                                                                                                 \
-      return NIL_VAL;                                                                                                       \
+      return nil_value();                                                                                                   \
     }                                                                                                                       \
                                                                                                                             \
     int count = items.count; /* We need to store this, because the listlike might change during the loop */                 \
@@ -415,18 +415,18 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
       /* Execute the provided function on the item */                                                                       \
       push(argv[1]);         /* Push the function */                                                                        \
       push(items.values[i]); /* Push the item */                                                                            \
-      Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                                     \
+      Value result = exec_callable(argv[1], 1);                                                                             \
       if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                                   \
-        return NIL_VAL; /* Propagate the error */                                                                           \
+        return nil_value(); /* Propagate the error */                                                                       \
       }                                                                                                                     \
                                                                                                                             \
       /* We don't use is_falsey here, because we want to check for a boolean value. */                                      \
-      if (IS_BOOL(result) && AS_BOOL(result)) {                                                                             \
+      if (IS_BOOL(result) && result.as.boolean) {                                                                           \
         return items.values[i];                                                                                             \
       }                                                                                                                     \
     }                                                                                                                       \
                                                                                                                             \
-    return NIL_VAL;                                                                                                         \
+    return nil_value();                                                                                                     \
   }
 
 // Implementation for the 'each' method for listlike objects (Objects that have a 'ValueArray items' field).
@@ -440,7 +440,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
                                                                                                                     \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                            \
-    int fn_arity     = callable_get_arity(AS_OBJ(argv[1]));                                                         \
+    int fn_arity     = callable_get_arity(argv[1]);                                                                 \
     int count        = items.count; /* We need to store this, because the listlike might change during the loop */  \
                                                                                                                     \
     /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                        \
@@ -450,9 +450,9 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           /* Execute the provided function on the item */                                                           \
           push(argv[1]);         /* Push the function */                                                            \
           push(items.values[i]); /* arg0: Push the item */                                                          \
-          exec_callable(AS_OBJ(argv[1]), 1);                                                                        \
+          exec_callable(argv[1], 1);                                                                                \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                       \
-            return NIL_VAL; /* Propagate the error */                                                               \
+            return nil_value(); /* Propagate the error */                                                           \
           }                                                                                                         \
         }                                                                                                           \
         break;                                                                                                      \
@@ -462,21 +462,21 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           /* Execute the provided function on the item */                                                           \
           push(argv[1]);         /* Push the function */                                                            \
           push(items.values[i]); /* arg0 (1): Push the item */                                                      \
-          push(INT_VAL(i));      /* arg1 (2): Push the index */                                                     \
-          exec_callable(AS_OBJ(argv[1]), 2);                                                                        \
+          push(int_value(i));    /* arg1 (2): Push the index */                                                     \
+          exec_callable(argv[1], 2);                                                                                \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                       \
-            return NIL_VAL; /* Propagate the error */                                                               \
+            return nil_value(); /* Propagate the error */                                                           \
           }                                                                                                         \
         }                                                                                                           \
         break;                                                                                                      \
       }                                                                                                             \
       default: {                                                                                                    \
         runtime_error("Function passed to \"" STR(each) "\" must take 1 or 2 arguments, but got %d.", fn_arity);    \
-        return NIL_VAL;                                                                                             \
+        return nil_value();                                                                                         \
       }                                                                                                             \
     }                                                                                                               \
                                                                                                                     \
-    return NIL_VAL;                                                                                                 \
+    return nil_value();                                                                                             \
   }
 
 // Implementation for the 'map' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these macros
@@ -497,7 +497,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
                                                                                                                     \
     ValueArray items  = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
-    int fn_arity      = callable_get_arity(AS_OBJ(argv[1]));                                                        \
+    int fn_arity      = callable_get_arity(argv[1]);                                                                \
     int count         = items.count; /* We need to store this, because the listlike might change during the loop */ \
     ValueArray mapped = prealloc_value_array(count);                                                                \
                                                                                                                     \
@@ -508,9 +508,9 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           /* Execute the provided function on the item */                                                           \
           push(argv[1]);         /* Push the function */                                                            \
           push(items.values[i]); /* arg0 (1): Push the item */                                                      \
-          mapped.values[i] = exec_callable(AS_OBJ(argv[1]), 1);                                                     \
+          mapped.values[i] = exec_callable(argv[1], 1);                                                             \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                       \
-            return NIL_VAL; /* Propagate the error */                                                               \
+            return nil_value(); /* Propagate the error */                                                           \
           }                                                                                                         \
           push(mapped.values[i]); /* GC Protection */                                                               \
         }                                                                                                           \
@@ -521,10 +521,10 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           /* Execute the provided function on the item */                                                           \
           push(argv[1]);         /* Push the function */                                                            \
           push(items.values[i]); /* arg0 (1): Push the item */                                                      \
-          push(INT_VAL(i));      /* arg1 (2): Push the index */                                                     \
-          mapped.values[i] = exec_callable(AS_OBJ(argv[1]), 2);                                                     \
+          push(int_value(i));    /* arg1 (2): Push the index */                                                     \
+          mapped.values[i] = exec_callable(argv[1], 2);                                                             \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                       \
-            return NIL_VAL; /* Propagate the error */                                                               \
+            return nil_value(); /* Propagate the error */                                                           \
           }                                                                                                         \
           push(mapped.values[i]); /* GC Protection */                                                               \
         }                                                                                                           \
@@ -532,12 +532,12 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
       }                                                                                                             \
       default: {                                                                                                    \
         runtime_error("Function passed to \"" STR(map) "\" must take 1 or 2 arguments, but got %d.", fn_arity);     \
-        return NIL_VAL;                                                                                             \
+        return nil_value();                                                                                         \
       }                                                                                                             \
     }                                                                                                               \
                                                                                                                     \
     /* Take at the end so that tuples calc their hash correctly */                                                  \
-    push(OBJ_VAL(BUILTIN_LISTLIKE_TAKE_ARRAY(mapped)));                                                             \
+    push(BUILTIN_LISTLIKE_TAKE_ARRAY(mapped));                                                                      \
     Value result = pop();                                                                                           \
                                                                                                                     \
     /* Remove the values which were pushed for GC Protection */                                                     \
@@ -562,7 +562,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                                       \
                                                                                                                               \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                      \
-    int fn_arity     = callable_get_arity(AS_OBJ(argv[1]));                                                                   \
+    int fn_arity     = callable_get_arity(argv[1]);                                                                           \
     int count        = items.count; /* We need to store this, because the listlike might change during the loop */            \
                                                                                                                               \
     ValueArray filtered_items;                                                                                                \
@@ -576,13 +576,13 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           /* Execute the provided function on the item */                                                                     \
           push(argv[1]);         /* Push the function */                                                                      \
           push(items.values[i]); /* arg0 (1): Push the item */                                                                \
-          Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                                   \
+          Value result = exec_callable(argv[1], 1);                                                                           \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                                 \
-            return NIL_VAL; /* Propagate the error */                                                                         \
+            return nil_value(); /* Propagate the error */                                                                     \
           }                                                                                                                   \
                                                                                                                               \
           /* We don't use is_falsey here, because we want to check for a boolean value. */                                    \
-          if (IS_BOOL(result) && AS_BOOL(result)) {                                                                           \
+          if (IS_BOOL(result) && result.as.boolean) {                                                                         \
             push(result); /* GC Protection */                                                                                 \
             filtered_count++;                                                                                                 \
             write_value_array(&filtered_items, items.values[i]);                                                              \
@@ -595,14 +595,14 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           /* Execute the provided function on the item */                                                                     \
           push(argv[1]);         /* Push the function */                                                                      \
           push(items.values[i]); /* arg0 (1): Push the item */                                                                \
-          push(INT_VAL(i));      /* arg1 (2): Push the index */                                                               \
-          Value result = exec_callable(AS_OBJ(argv[1]), 2);                                                                   \
+          push(int_value(i));    /* arg1 (2): Push the index */                                                               \
+          Value result = exec_callable(argv[1], 2);                                                                           \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                                 \
-            return NIL_VAL; /* Propagate the error */                                                                         \
+            return nil_value(); /* Propagate the error */                                                                     \
           }                                                                                                                   \
                                                                                                                               \
           /* We don't use is_falsey here, because we want to check for a boolean value. */                                    \
-          if (IS_BOOL(result) && AS_BOOL(result)) {                                                                           \
+          if (IS_BOOL(result) && result.as.boolean) {                                                                         \
             push(result); /* GC Protection */                                                                                 \
             filtered_count++;                                                                                                 \
             write_value_array(&filtered_items, items.values[i]);                                                              \
@@ -612,12 +612,12 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
       }                                                                                                                       \
       default: {                                                                                                              \
         runtime_error("Function passed to \"" STR(filter) "\" must take 1 or 2 arguments, but got %d.", fn_arity);            \
-        return NIL_VAL;                                                                                                       \
+        return nil_value();                                                                                                   \
       }                                                                                                                       \
     }                                                                                                                         \
                                                                                                                               \
     /* Take at the end so that tuples calc their hash correctly */                                                            \
-    push(OBJ_VAL(BUILTIN_LISTLIKE_TAKE_ARRAY(filtered_items)));                                                               \
+    push(BUILTIN_LISTLIKE_TAKE_ARRAY(filtered_items));                                                                        \
     Value result = pop();                                                                                                     \
                                                                                                                               \
     /* Remove the values which were pushed for GC Protection */                                                               \
@@ -626,59 +626,59 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
   }
 
 // Implementation for the 'join' method for listlike objects (Objects that have a 'ValueArray items' field).
-#define BUILTIN_LISTLIKE_JOIN(type)                                                                                 \
-  BUILTIN_METHOD_DOC(                                                                                               \
-      TYPENAME_##type, join, DOC_ARG("sep", TYPENAME_STRING), TYPENAME_STRING,                                      \
-      "Joins the items of a " STR(TYPENAME_##type) " into a single " STR(TYPENAME_STRING) ", separated by 'sep'."); \
-  BUILTIN_METHOD_IMPL(TYPENAME_##type, join) {                                                                      \
-    UNUSED(argc);                                                                                                   \
-    BUILTIN_CHECK_RECEIVER(type)                                                                                    \
-    BUILTIN_CHECK_ARG_AT(1, STRING)                                                                                 \
-                                                                                                                    \
-    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                            \
-    ObjString* sep   = AS_STRING(argv[1]);                                                                          \
-                                                                                                                    \
-    size_t buf_size = 64; /* Start with a reasonable size */                                                        \
-    char* chars     = malloc(buf_size);                                                                             \
-    chars[0]        = '\0'; /* Start with an empty string, so we can use strcat */                                  \
-                                                                                                                    \
-    for (int i = 0; i < items.count; i++) {                                                                         \
-      /* Maybe this is faster (checking if the item is a string)  - unsure though */                                \
-      ObjString* item_str = NULL;                                                                                   \
-      if (!IS_STRING(items.values[i])) {                                                                            \
-        /* Execute the to_str method on the item */                                                                 \
-        push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                                   \
-        item_str = AS_STRING(exec_callable(typeof_(items.values[i])->__to_str, 0));                                 \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                         \
-          return NIL_VAL;                                                                                           \
-        }                                                                                                           \
-      } else {                                                                                                      \
-        item_str = AS_STRING(items.values[i]);                                                                      \
-      }                                                                                                             \
-                                                                                                                    \
-      /* Expand chars to fit the separator plus the next item */                                                    \
-      size_t new_buf_size = strlen(chars) + item_str->length + sep->length; /* Consider the separator */            \
-                                                                                                                    \
-      /* Expand if necessary */                                                                                     \
-      if (new_buf_size > buf_size) {                                                                                \
-        buf_size        = new_buf_size;                                                                             \
-        size_t old_size = strlen(chars);                                                                            \
-        chars           = realloc(chars, buf_size);                                                                 \
-        chars[old_size] = '\0'; /* Ensure null-termination at the end of the old string */                          \
-      }                                                                                                             \
-                                                                                                                    \
-      /* Append the string */                                                                                       \
-      strcat(chars, item_str->chars);                                                                               \
-      if (i < items.count - 1) {                                                                                    \
-        strcat(chars, sep->chars);                                                                                  \
-      }                                                                                                             \
-    }                                                                                                               \
-                                                                                                                    \
-    /* Intuitively, you'd expect to use take_string here, but we don't know where malloc */                         \
-    /* allocates the memory - we don't want this block in our own memory pool. */                                   \
-    ObjString* str_obj = copy_string(chars, (int)strlen(chars));                                                    \
-    free(chars);                                                                                                    \
-    return OBJ_VAL(str_obj);                                                                                        \
+#define BUILTIN_LISTLIKE_JOIN(uc_type)                                                                                 \
+  BUILTIN_METHOD_DOC(                                                                                                  \
+      TYPENAME_##uc_type, join, DOC_ARG("sep", TYPENAME_STRING), TYPENAME_STRING,                                      \
+      "Joins the items of a " STR(TYPENAME_##uc_type) " into a single " STR(TYPENAME_STRING) ", separated by 'sep'."); \
+  BUILTIN_METHOD_IMPL(TYPENAME_##uc_type, join) {                                                                      \
+    UNUSED(argc);                                                                                                      \
+    BUILTIN_CHECK_RECEIVER(uc_type)                                                                                    \
+    BUILTIN_CHECK_ARG_AT(1, STRING)                                                                                    \
+                                                                                                                       \
+    ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                               \
+    ObjString* sep   = AS_STRING(argv[1]);                                                                             \
+                                                                                                                       \
+    size_t buf_size = 64; /* Start with a reasonable size */                                                           \
+    char* chars     = malloc(buf_size);                                                                                \
+    chars[0]        = '\0'; /* Start with an empty string, so we can use strcat */                                     \
+                                                                                                                       \
+    for (int i = 0; i < items.count; i++) {                                                                            \
+      /* Maybe this is faster (checking if the item is a string)  - unsure though */                                   \
+      ObjString* item_str = NULL;                                                                                      \
+      if (!IS_STRING(items.values[i])) {                                                                               \
+        /* Execute the to_str method on the item */                                                                    \
+        push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                                      \
+        item_str = AS_STRING(exec_callable(fn_value(items.values[i].type->__to_str), 0));                              \
+        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                            \
+          return nil_value();                                                                                          \
+        }                                                                                                              \
+      } else {                                                                                                         \
+        item_str = AS_STRING(items.values[i]);                                                                         \
+      }                                                                                                                \
+                                                                                                                       \
+      /* Expand chars to fit the separator plus the next item */                                                       \
+      size_t new_buf_size = strlen(chars) + item_str->length + sep->length; /* Consider the separator */               \
+                                                                                                                       \
+      /* Expand if necessary */                                                                                        \
+      if (new_buf_size > buf_size) {                                                                                   \
+        buf_size        = new_buf_size;                                                                                \
+        size_t old_size = strlen(chars);                                                                               \
+        chars           = realloc(chars, buf_size);                                                                    \
+        chars[old_size] = '\0'; /* Ensure null-termination at the end of the old string */                             \
+      }                                                                                                                \
+                                                                                                                       \
+      /* Append the string */                                                                                          \
+      strcat(chars, item_str->chars);                                                                                  \
+      if (i < items.count - 1) {                                                                                       \
+        strcat(chars, sep->chars);                                                                                     \
+      }                                                                                                                \
+    }                                                                                                                  \
+                                                                                                                       \
+    /* Intuitively, you'd expect to use take_string here, but we don't know where malloc */                            \
+    /* allocates the memory - we don't want this block in our own memory pool. */                                      \
+    ObjString* str_obj = copy_string(chars, (int)strlen(chars));                                                       \
+    free(chars);                                                                                                       \
+    return str_value(str_obj);                                                                                         \
   }
 
 // Implementation for the 'reverse' method for listlike objects (Objects that have a 'ValueArray items' field). Requires these
@@ -701,7 +701,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     }                                                                                        \
                                                                                              \
     /* No need for GC protection - taking an array will not trigger a GC. */                 \
-    return OBJ_VAL(BUILTIN_LISTLIKE_TAKE_ARRAY(reversed));                                   \
+    return BUILTIN_LISTLIKE_TAKE_ARRAY(reversed);                                            \
   }
 
 // Implementation for the 'every' method for listlike objects (Objects that have a 'ValueArray items' field).
@@ -721,7 +721,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                            \
                                                                                                                    \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
-    int fn_arity     = callable_get_arity(AS_OBJ(argv[1]));                                                        \
+    int fn_arity     = callable_get_arity(argv[1]);                                                                \
     int count        = items.count; /* We need to store this, because the listlike might change during the loop */ \
                                                                                                                    \
     /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                       \
@@ -731,14 +731,14 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           /* Execute the provided function on the item */                                                          \
           push(argv[1]);         /* Push the function */                                                           \
           push(items.values[i]); /* arg0 (1): Push the item */                                                     \
-          Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                        \
+          Value result = exec_callable(argv[1], 1);                                                                \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
-            return NIL_VAL; /* Propagate the error */                                                              \
+            return nil_value(); /* Propagate the error */                                                          \
           }                                                                                                        \
                                                                                                                    \
           /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
-          if (!IS_BOOL(result) || !AS_BOOL(result)) {                                                              \
-            return BOOL_VAL(false);                                                                                \
+          if (!IS_BOOL(result) || !result.as.boolean) {                                                            \
+            return bool_value(false);                                                                              \
           }                                                                                                        \
         }                                                                                                          \
         break;                                                                                                     \
@@ -748,29 +748,29 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           /* Execute the provided function on the item */                                                          \
           push(argv[1]);         /* Push the function */                                                           \
           push(items.values[i]); /* arg0 (1): Push the item */                                                     \
-          push(INT_VAL(i));      /* arg1 (2): Push the index */                                                    \
-          Value result = exec_callable(AS_OBJ(argv[1]), 2);                                                        \
+          push(int_value(i));    /* arg1 (2): Push the index */                                                    \
+          Value result = exec_callable(argv[1], 2);                                                                \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
-            return NIL_VAL; /* Propagate the error */                                                              \
+            return nil_value(); /* Propagate the error */                                                          \
           }                                                                                                        \
                                                                                                                    \
           /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
-          if (!IS_BOOL(result) || !AS_BOOL(result)) {                                                              \
-            return BOOL_VAL(false);                                                                                \
+          if (!IS_BOOL(result) || !result.as.boolean) {                                                            \
+            return bool_value(false);                                                                              \
           }                                                                                                        \
         }                                                                                                          \
         break;                                                                                                     \
       }                                                                                                            \
       default: {                                                                                                   \
         runtime_error("Function passed to \"" STR(every) "\" must take 1 or 2 arguments, but got %d.", fn_arity);  \
-        return NIL_VAL;                                                                                            \
+        return nil_value();                                                                                        \
       }                                                                                                            \
     }                                                                                                              \
     if (fn_arity > 1) {                                                                                            \
     } else {                                                                                                       \
     }                                                                                                              \
                                                                                                                    \
-    return BOOL_VAL(true);                                                                                         \
+    return bool_value(true);                                                                                       \
   }
 
 // Implementation for the 'some' method for listlike objects (Objects that have a 'ValueArray items' field).
@@ -791,7 +791,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     BUILTIN_CHECK_ARG_AT_IS_CALLABLE(1)                                                                            \
                                                                                                                    \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
-    int fn_arity     = callable_get_arity(AS_OBJ(argv[1]));                                                        \
+    int fn_arity     = callable_get_arity(argv[1]);                                                                \
     int count        = items.count; /* We need to store this, because the listlike might change during the loop */ \
                                                                                                                    \
     /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                       \
@@ -801,14 +801,14 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           /* Execute the provided function on the item */                                                          \
           push(argv[1]);         /* Push the function */                                                           \
           push(items.values[i]); /* arg0 (1): Push the item */                                                     \
-          Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                        \
+          Value result = exec_callable(argv[1], 1);                                                                \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
-            return NIL_VAL; /* Propagate the error */                                                              \
+            return nil_value(); /* Propagate the error */                                                          \
           }                                                                                                        \
                                                                                                                    \
           /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
-          if (IS_BOOL(result) && AS_BOOL(result)) {                                                                \
-            return BOOL_VAL(true);                                                                                 \
+          if (IS_BOOL(result) && result.as.boolean) {                                                              \
+            return bool_value(true);                                                                               \
           }                                                                                                        \
         }                                                                                                          \
         break;                                                                                                     \
@@ -818,26 +818,26 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           /* Execute the provided function on the item */                                                          \
           push(argv[1]);         /* Push the function */                                                           \
           push(items.values[i]); /* arg0 (1): Push the item */                                                     \
-          push(INT_VAL(i));      /* arg1 (2): Push the index */                                                    \
-          Value result = exec_callable(AS_OBJ(argv[1]), 2);                                                        \
+          push(int_value(i));    /* arg1 (2): Push the index */                                                    \
+          Value result = exec_callable(argv[1], 2);                                                                \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
-            return NIL_VAL; /* Propagate the error */                                                              \
+            return nil_value(); /* Propagate the error */                                                          \
           }                                                                                                        \
                                                                                                                    \
           /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
-          if (IS_BOOL(result) && AS_BOOL(result)) {                                                                \
-            return BOOL_VAL(true);                                                                                 \
+          if (IS_BOOL(result) && result.as.boolean) {                                                              \
+            return bool_value(true);                                                                               \
           }                                                                                                        \
         }                                                                                                          \
         break;                                                                                                     \
       }                                                                                                            \
       default: {                                                                                                   \
         runtime_error("Function passed to \"" STR(some) "\" must take 1 or 2 arguments, but got %d.", fn_arity);   \
-        return NIL_VAL;                                                                                            \
+        return nil_value();                                                                                        \
       }                                                                                                            \
     }                                                                                                              \
                                                                                                                    \
-    return BOOL_VAL(false);                                                                                        \
+    return bool_value(false);                                                                                      \
   }
 
 // Implementation for the 'reduce' method for listlike objects (Objects that have a 'ValueArray items' field).
@@ -857,7 +857,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                                                                                                                     \
     ValueArray items  = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
     Value accumulator = argv[1];                                                                                    \
-    int fn_arity      = callable_get_arity(AS_OBJ(argv[2]));                                                        \
+    int fn_arity      = callable_get_arity(argv[2]);                                                                \
     int count         = items.count; /* We need to store this, because the listlike might change during the loop */ \
                                                                                                                     \
     /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                        \
@@ -868,9 +868,9 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           push(argv[2]);         /* Push the function */                                                            \
           push(accumulator);     /* arg0 (1): Push the accumulator */                                               \
           push(items.values[i]); /* arg1 (2): Push the item */                                                      \
-          accumulator = exec_callable(AS_OBJ(argv[2]), 2);                                                          \
+          accumulator = exec_callable(argv[2], 2);                                                                  \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                       \
-            return NIL_VAL; /* Propagate the error */                                                               \
+            return nil_value(); /* Propagate the error */                                                           \
           }                                                                                                         \
         }                                                                                                           \
         break;                                                                                                      \
@@ -881,17 +881,17 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
           push(argv[2]);         /* Push the function */                                                            \
           push(accumulator);     /* arg0 (1): Push the accumulator */                                               \
           push(items.values[i]); /* arg1 (2): Push the item */                                                      \
-          push(INT_VAL(i));      /* arg2 (3): Push the index */                                                     \
-          accumulator = exec_callable(AS_OBJ(argv[2]), 3);                                                          \
+          push(int_value(i));    /* arg2 (3): Push the index */                                                     \
+          accumulator = exec_callable(argv[2], 3);                                                                  \
           if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                       \
-            return NIL_VAL; /* Propagate the error */                                                               \
+            return nil_value(); /* Propagate the error */                                                           \
           }                                                                                                         \
         }                                                                                                           \
         break;                                                                                                      \
       }                                                                                                             \
       default: {                                                                                                    \
         runtime_error("Function passed to \"" STR(reduce) "\" must take 2 or 3 arguments, but got %d.", fn_arity);  \
-        return NIL_VAL;                                                                                             \
+        return nil_value();                                                                                         \
       }                                                                                                             \
     }                                                                                                               \
                                                                                                                     \
@@ -911,17 +911,17 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
                                                                                                                         \
     ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                \
     if (items.count == 0) {                                                                                             \
-      return INT_VAL(0);                                                                                                \
+      return int_value(0);                                                                                              \
     }                                                                                                                   \
                                                                                                                         \
     int count       = items.count; /* We need to store this, because the listlike might change during the loop */       \
     int occurrences = 0;                                                                                                \
                                                                                                                         \
     if (IS_CALLABLE(argv[1])) {                                                                                         \
-      int fn_arity = callable_get_arity(AS_OBJ(argv[1]));                                                               \
+      int fn_arity = callable_get_arity(argv[1]);                                                                       \
       if (fn_arity != 1) {                                                                                              \
         runtime_error("Function passed to \"" STR(count) "\" must take 1 argument, but got %d.", fn_arity);             \
-        return NIL_VAL;                                                                                                 \
+        return nil_value();                                                                                             \
       }                                                                                                                 \
                                                                                                                         \
       /* Function predicate */                                                                                          \
@@ -929,13 +929,13 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
         /* Execute the provided function on the item */                                                                 \
         push(argv[1]);         /* Push the function */                                                                  \
         push(items.values[i]); /* Push the item */                                                                      \
-        Value result = exec_callable(AS_OBJ(argv[1]), 1);                                                               \
+        Value result = exec_callable(argv[1], 1);                                                                       \
         if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                             \
-          return NIL_VAL; /* Propagate the error */                                                                     \
+          return nil_value(); /* Propagate the error */                                                                 \
         }                                                                                                               \
                                                                                                                         \
         /* We don't use is_falsey here, because we want to check for a boolean value. */                                \
-        if (IS_BOOL(result) && AS_BOOL(result)) {                                                                       \
+        if (IS_BOOL(result) && result.as.boolean) {                                                                     \
           occurrences++;                                                                                                \
         }                                                                                                               \
       }                                                                                                                 \
@@ -948,7 +948,7 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
       }                                                                                                                 \
     }                                                                                                                   \
                                                                                                                         \
-    return INT_VAL(occurrences);                                                                                        \
+    return int_value(occurrences);                                                                                      \
   }
 
 // Implementation for the 'concat' method for listlike objects (Objects that have a 'ValueArray items' field).
@@ -979,5 +979,5 @@ BUILTIN_DECLARE_METHOD(TYPENAME_TUPLE, concat);
     }                                                                            \
                                                                                  \
     /* No need for GC protection - taking an array will not trigger a GC. */     \
-    return OBJ_VAL(BUILTIN_LISTLIKE_TAKE_ARRAY(concatenated));                   \
+    return BUILTIN_LISTLIKE_TAKE_ARRAY(concatenated);                            \
   }
