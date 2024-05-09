@@ -8,9 +8,11 @@ BUILTIN_DECLARE_FN(write);
 BUILTIN_DECLARE_FN(exists);
 BUILTIN_DECLARE_FN(join_path);
 
+#define MODULE_NAME File
+
 void register_builtin_file_module() {
-  ObjObject* file_module = make_module(NULL, "File");
-  define_value(&vm.modules, "File", instance_value(file_module));
+  ObjObject* file_module = make_module(NULL, STR(MODULE_NAME));
+  define_value(&vm.modules, STR(MODULE_NAME), instance_value(file_module));
 
   BUILTIN_REGISTER_FN(file_module, read, 1);
   BUILTIN_REGISTER_FN(file_module, write, 2);
@@ -18,11 +20,10 @@ void register_builtin_file_module() {
   BUILTIN_REGISTER_FN(file_module, join_path, 2);
 }
 
-BUILTIN_FN_DOC(
-    /* Fn Name     */ read,
-    /* Arguments   */ DOC_ARG("path", TYPENAME_STRING),
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Reads the content of a file and returns it as a string. Throws an error if the file does not exist.");
+/**
+ * MODULE_NAME.read(path: TYPENAME_STRING) -> TYPENAME_STRING
+ * @brief Reads the content of a file and returns it as a string. Throws an error if the file does not exist.
+ */
 BUILTIN_FN_IMPL(read) {
   UNUSED(argc);
   UNUSED(argv);
@@ -45,14 +46,11 @@ BUILTIN_FN_IMPL(read) {
   return result;
 }
 
-BUILTIN_FN_DOC(
-    /* Fn Name     */ write,
-    /* Arguments   */ DOC_ARG("path", TYPENAME_STRING) DOC_ARG_SEP DOC_ARG("content", TYPENAME_STRING),
-    /* Return Type */ TYPENAME_BOOL,
-    /* Description */
-    "Writes the 'content' to a file at 'path'. If the file does not exist, it will be created. Overwrites "
-    "the file if it "
-    "exists. Returns " VALUE_STR_TRUE " on success, " VALUE_STR_FALSE " otherwise.");
+/**
+ * MODULE_NAME.write(path: TYPENAME_STRING, content: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Writes the 'content' to a file at 'path'. If the file does not exist, it will be created. Overwrites the file if it
+ * exists. Returns VALUE_STR_TRUE on success, VALUE_STR_FALSE otherwise.
+ */
 BUILTIN_FN_IMPL(write) {
   UNUSED(argc);
   UNUSED(argv);
@@ -63,12 +61,10 @@ BUILTIN_FN_IMPL(write) {
   return bool_value(success);
 }
 
-BUILTIN_FN_DOC(
-    /* Fn Name     */ exists,
-    /* Arguments   */ DOC_ARG("path", TYPENAME_STRING),
-    /* Return Type */ TYPENAME_BOOL,
-    /* Description */
-    "Returns " VALUE_STR_TRUE " if the file at 'path' exists, " VALUE_STR_FALSE " otherwise.");
+/**
+ * MODULE_NAME.exists(path: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Returns VALUE_STR_TRUE if the file at 'path' exists, VALUE_STR_FALSE otherwise.
+ */
 BUILTIN_FN_IMPL(exists) {
   UNUSED(argc);
   UNUSED(argv);
@@ -78,13 +74,11 @@ BUILTIN_FN_IMPL(exists) {
   return bool_value(exists);
 }
 
-BUILTIN_FN_DOC(
-    /* Fn Name     */ join_path,
-    /* Arguments   */ DOC_ARG("path1", TYPENAME_STRING) DOC_ARG_SEP DOC_ARG("path2", TYPENAME_STRING),
-    /* Return Type */ TYPENAME_STRING | TYPENAME_NIL,
-    /* Description */
-    "Joins two paths together and returns the result or " STR(TYPENAME_NIL) " if joining failed. The paths are joined with the system's path "
-    "separator.");
+/**
+ * MODULE_NAME.join_path(path1: TYPENAME_STRING, path2: TYPENAME_STRING) -> TYPENAME_STRING | TYPENAME_NIL
+ * @brief Joins two paths together and returns the result or TYPENAME_NIL, if joining failed. The paths are joined with the
+ * system's path separator.
+ */
 BUILTIN_FN_IMPL(join_path) {
   UNUSED(argc);
   UNUSED(argv);

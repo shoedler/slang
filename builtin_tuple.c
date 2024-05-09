@@ -25,14 +25,10 @@ void finalize_builtin_tuple_class() {
   BUILTIN_FINALIZE_CLASS(TYPENAME_TUPLE);
 }
 
-// Built-in tuple constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_TUPLE,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ DOC_ARG("seq", TYPENAME_SEQ),
-    /* Return Type */ TYPENAME_TUPLE,
-    /* Description */
-    "Creates a new " STR(TYPENAME_TUPLE) " from a " STR(TYPENAME_SEQ) " of values.");
+/**
+ * TYPENAME_TUPLE.SP_METHOD_CTOR(seq: TYPENAME_SEQ) -> TYPENAME_TUPLE
+ * @brief Creates a new TYPENAME_TUPLE from a TYPENAME_SEQ of values.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_TUPLE, SP_METHOD_CTOR) {
   UNUSED(argc);
   BUILTIN_CHECK_ARG_AT(1, SEQ)

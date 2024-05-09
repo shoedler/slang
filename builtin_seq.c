@@ -29,21 +29,13 @@ void finalize_builtin_seq_class() {
   BUILTIN_FINALIZE_CLASS(TYPENAME_SEQ);
 }
 
-// Built-in seq constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ DOC_ARG("len", TYPENAME_INT),
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */
-    "Creates a new " STR(TYPENAME_NIL) "-initialized " STR(TYPENAME_SEQ) " of length 'len'.")
-BUILTIN_METHOD_DOC_OVERLOAD(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ DOC_ARG("tuple", TYPENAME_TUPLE),
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */
-    "Creates a new " STR(TYPENAME_SEQ) " from a " STR(TYPENAME_TUPLE) " of values.");
+/**
+ * TYPENAME_SEQ.SP_METHOD_CTOR(len: TYPENAME_INT) -> TYPENAME_SEQ
+ * @brief Creates a new TYPENAME_NIL-initialized TYPENAME_SEQ of length 'len'.
+ *
+ * TYPENAME_SEQ.SP_METHOD_CTOR(tuple: TYPENAME_TUPLE) -> TYPENAME_SEQ
+ * @brief Creates a new TYPENAME_SEQ from a TYPENAME_TUPLE of values.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_CTOR) {
   UNUSED(argc);
   if (IS_INT(argv[1])) {
@@ -102,13 +94,10 @@ BUILTIN_LISTLIKE_CONCAT(SEQ)
 #undef BUILTIN_LISTLIKE_NEW_EMPTY
 #undef BUILTIN_LISTLIKE_TAKE_ARRAY
 
-// Built-in method to push an arbitrary amount of values onto a sequence
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ push,
-    /* Arguments   */ DOC_ARG("arg1", TYPENAME_OBJ) DOC_ARG_SEP DOC_ARG_REST,
-    /* Return Type */ TYPENAME_NIL,
-    /* Description */ "Pushes one or many values to a " STR(TYPENAME_SEQ) ".");
+/**
+ * TYPENAME_SEQ.push(arg1: TYPENAME_VALUE, ...args: TYPENAME_VALUE) -> TYPENAME_NIL
+ * @brief Pushes one or many values to a TYPENAME_SEQ.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, push) {
   BUILTIN_CHECK_RECEIVER(SEQ)
 
@@ -119,14 +108,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, push) {
   return nil_value();
 }
 
-// Built-in method to pop a value from a sequence
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ pop,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_OBJ,
-    /* Description */
-    "Pops and returns the last item of a " STR(TYPENAME_SEQ) ". Returns " STR(TYPENAME_NIL) " if it is empty.");
+/**
+ * TYPENAME_SEQ.pop() -> TYPENAME_VALUE
+ * @brief Pops and returns the last item of a TYPENAME_SEQ. Returns TYPENAME_NIL if it is empty.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)
@@ -135,15 +120,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
   return pop_value_array(&seq->items);  // Does bounds checking
 }
 
-// Built-in method to remove a value from a sequence at a given index
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_SEQ,
-    /* Name        */ remove_at,
-    /* Arguments   */ DOC_ARG("index", TYPENAME_INT),
-    /* Return Type */ TYPENAME_OBJ,
-    /* Description */
-    "Removes and returns the item at 'index' from a " STR(TYPENAME_SEQ) ". Returns " STR(
-        TYPENAME_NIL) " if 'index' is out of bounds. Modifies the sequence.");
+/**
+ * TYPENAME_SEQ.remove_at(index: TYPENAME_INT) -> TYPENAME_VALUE
+ * @brief Removes and returns the item at 'index' from a TYPENAME_SEQ. Returns TYPENAME_NIL if 'index' is out of bounds.
+ * Modifies the TYPENAME_SEQ.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_SEQ, remove_at) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(SEQ)

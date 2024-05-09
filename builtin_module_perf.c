@@ -6,19 +6,19 @@
 
 BUILTIN_DECLARE_FN(now);
 
+#define MODULE_NAME Perf
+
 void register_builtin_perf_module() {
-  ObjObject* perf_module = make_module(NULL, "Perf");
-  define_value(&vm.modules, "Perf", instance_value(perf_module));
+  ObjObject* perf_module = make_module(NULL, STR(MODULE_NAME));
+  define_value(&vm.modules, STR(MODULE_NAME), instance_value(perf_module));
 
   BUILTIN_REGISTER_FN(perf_module, now, 0);
 }
 
-// Native high-precision clock function. Only works on Windows.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ now,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_FLOAT,
-    /* Description */ "High-precision clock function. Returns the current execution time in seconds.");
+/**
+ * MODULE_NAME.now() -> TYPENAME_FLOAT
+ * @brief High-precision clock function. Returns the current execution time in seconds.
+ */
 BUILTIN_FN_IMPL(now) {
   UNUSED(argc);
   UNUSED(argv);

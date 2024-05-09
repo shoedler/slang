@@ -10,6 +10,7 @@ typedef struct ObjSeq ObjSeq;
 typedef struct ObjTuple ObjTuple;
 typedef struct ObjClass ObjClass;
 
+#define TYPENAME_VALUE Value
 #define TYPENAME_OBJ Obj
 #define TYPENAME_FLOAT Float
 #define TYPENAME_INT Int

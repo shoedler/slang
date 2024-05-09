@@ -6,22 +6,21 @@
 BUILTIN_DECLARE_FN(stack);
 BUILTIN_DECLARE_FN(version);
 
+#define MODULE_NAME Debug
+
 void register_builtin_debug_module() {
-  ObjObject* debug_module = make_module(NULL, "Debug");
-  define_value(&vm.modules, "Debug", instance_value(debug_module));
+  ObjObject* debug_module = make_module(NULL, STR(MODULE_NAME));
+  define_value(&vm.modules, STR(MODULE_NAME), instance_value(debug_module));
 
   BUILTIN_REGISTER_FN(debug_module, stack, 0);
   BUILTIN_REGISTER_FN(debug_module, version, 0);
 }
 
-// Native stack function.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ stack,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */
-    "Returns a " STR(TYPENAME_SEQ) " of all the values on the vms' stack. The top of the stack is the last element in the " STR(
-        TYPENAME_SEQ) ".");
+/**
+ * MODULE_NAME.stack() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ of all the values on the vms' stack. The top of the stack is the last element in the
+ * TYPENAME_SEQ.
+ */
 BUILTIN_FN_IMPL(stack) {
   UNUSED(argc);
   UNUSED(argv);
@@ -36,13 +35,10 @@ BUILTIN_FN_IMPL(stack) {
   return pop();
 }
 
-// Native version function.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ version,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STR,
-    /* Description */
-    "Returns the version of the current running vm.");
+/**
+ * MODULE_NAME.version() -> TYPENAME_STRING
+ * @brief Returns the version of the current running vm.
+ */
 BUILTIN_FN_IMPL(version) {
   UNUSED(argc);
   UNUSED(argv);

@@ -14,14 +14,10 @@ void finalize_builtin_str_class() {
   BUILTIN_FINALIZE_CLASS(TYPENAME_STRING);
 }
 
-// Built-in string constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */
-    "Converts the first argument to a " STR(TYPENAME_STRING) ".");
+/**
+ * TYPENAME_STRING.SP_METHOD_CTOR(value: TYPENAME_OBJ) -> TYPENAME_STRING
+ * @brief Converts the first argument to a TYPENAME_STRING.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_CTOR) {
   UNUSED(argc);
   // Execute the to_str method on the argument
@@ -34,13 +30,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_CTOR) {
   return result;
 }
 
-// Built-in method to convert a string to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ SP_METHOD_TO_STR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of a " STR(TYPENAME_STRING) ".");
+/**
+ * TYPENAME_STRING.SP_METHOD_TO_STR() -> TYPENAME_STRING
+ * @brief Returns a string representation of a TYPENAME_STRING.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_TO_STR) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
@@ -48,13 +41,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_TO_STR) {
   return argv[0];
 }
 
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ split,
-    /* Arguments   */ DOC_ARG("sep", TYPENAME_STRING),
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */
-    "Splits a " STR(TYPENAME_STRING) " into a " STR(TYPENAME_SEQ) " of substrings, using 'sep' as the delimiter.");
+/**
+ * TYPENAME_STRING.split(sep: TYPENAME_STRING) -> TYPENAME_SEQ
+ * @brief Splits a TYPENAME_STRING into a TYPENAME_SEQ of substrings, using 'sep' as the delimiter.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
@@ -101,12 +91,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
   return seq_value(seq);
 }
 
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ trim,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a new " STR(TYPENAME_STRING) " with leading and trailing whitespace removed.");
+/**
+ * TYPENAME_STRING.trim() -> TYPENAME_STRING
+ * @brief Returns a new TYPENAME_STRING with leading and trailing whitespace (' ', \\f, \\n, \\r, \\t, \\v) removed.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, trim) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
@@ -131,14 +119,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, trim) {
   return str_value(trimmed);
 }
 
-// Built-in method to check if a value has a property
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ SP_METHOD_HAS,
-    /* Arguments   */ DOC_ARG("subs", TYPENAME_STRING),
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */
-    "Returns true if the " STR(TYPENAME_STRING) " contains the substring 'subs'.");
+/**
+ * TYPENAME_STRING.SP_METHOD_HAS(subs: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Returns true if the TYPENAME_STRING contains the substring 'subs'.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_HAS) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)
@@ -164,17 +148,12 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_HAS) {
   return bool_value(false);
 }
 
-// Builtin method to slice a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_STRING,
-    /* Name        */ SP_METHOD_SLICE,
-    /* Arguments   */ DOC_ARG("start", TYPENAME_INT) DOC_ARG_SEP DOC_ARG("end", TYPENAME_INT | TYPENAME_NIL),
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */
-    "Returns a new " STR(TYPENAME_STRING) " containing the items from 'start' to 'end' ('end' is exclusive)."
-    " 'end' can be negative to count from the end of the " STR(TYPENAME_STRING) ". If 'start' is greater than or equal to 'end', an empty "
-    STR(TYPENAME_STRING) " is returned. If 'end' is " STR(TYPENAME_NIL) ", all items from 'start' to the end of the " STR(
-        TYPENAME_STRING) " are included.");
+/**
+ * TYPENAME_STRING.SP_METHOD_SLICE(start: TYPENAME_INT, end: TYPENAME_INT | TYPENAME_NIL) -> TYPENAME_STRING
+ * @brief Returns a new TYPENAME_STRING containing the items from 'start' to 'end' ('end' is exclusive).
+ * 'end' can be negative to count from the end of the TYPENAME_STRING. If 'start' is greater than or equal to 'end', an empty
+ * TYPENAME_STRING is returned. If 'end' is TYPENAME_NIL, all items from 'start' to the end of the TYPENAME_STRING are included.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(STRING)

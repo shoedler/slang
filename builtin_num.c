@@ -7,14 +7,10 @@ void finalize_builtin_num_class() {
   BUILTIN_FINALIZE_CLASS(TYPENAME_NUM);
 }
 
-// Built-in Num constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_NUM,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NUM,
-    /* Description */
-    "No-op constructor for " STR(TYPENAME_NUM) ".");
+/**
+ * TYPENAME_NUM.SP_METHOD_CTOR() -> TYPENAME_NUM
+ * @brief No-op constructor for TYPENAME_NUM.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_NUM, SP_METHOD_CTOR) {
   UNUSED(argc);
   UNUSED(argv);
@@ -28,14 +24,10 @@ void finalize_builtin_int_class() {
   BUILTIN_FINALIZE_CLASS(TYPENAME_INT);
 }
 
-// Built-in number constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_INT,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_INT,
-    /* Description */
-    "Converts the first argument to a " STR(TYPENAME_INT) ".");
+/**
+ * TYPENAME_INT.SP_METHOD_CTOR() -> TYPENAME_INT
+ * @brief No-op constructor for TYPENAME_INT.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_CTOR) {
   UNUSED(argc);
 
@@ -59,13 +51,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_CTOR) {
   return int_value(0);
 }
 
-// Built-in method to convert a number to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_INT,
-    /* Name        */ SP_METHOD_TO_STR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of a " STR(TYPENAME_INT) ".");
+/**
+ * TYPENAME_INT.SP_METHOD_TO_STR() -> TYPENAME_STRING
+ * @brief Returns a string representation of an TYPENAME_INT.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_TO_STR) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(INT)
@@ -83,14 +72,10 @@ void finalize_builtin_float_class() {
   BUILTIN_FINALIZE_CLASS(TYPENAME_FLOAT);
 }
 
-// Built-in number constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_FLOAT,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_FLOAT,
-    /* Description */
-    "Converts the first argument to a " STR(TYPENAME_FLOAT) ".");
+/**
+ * TYPENAME_FLOAT.SP_METHOD_CTOR() -> TYPENAME_FLOAT
+ * @brief No-op constructor for TYPENAME_FLOAT.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_CTOR) {
   UNUSED(argc);
 
@@ -114,13 +99,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_CTOR) {
   return float_value(0.0);
 }
 
-// Built-in method to convert a number to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_FLOAT,
-    /* Name        */ SP_METHOD_TO_STR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of a " STR(TYPENAME_FLOAT) ".");
+/**
+ * TYPENAME_FLOAT.SP_METHOD_TO_STR() -> TYPENAME_STRING
+ * @brief Returns a string representation of a TYPENAME_FLOAT.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_TO_STR) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(FLOAT)

@@ -11,12 +11,10 @@ void register_builtin_functions() {
   BUILTIN_REGISTER_FN(vm.builtin, cwd, 0);
 }
 
-// Native clock function.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ clock,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_FLOAT,
-    /* Description */ "Returns the current execution time in seconds.");
+/**
+ * clock() -> TYPENAME_FLOAT
+ * @brief Returns the current execution time in seconds.
+ */
 BUILTIN_FN_IMPL(clock) {
   UNUSED(argc);
   UNUSED(argv);
@@ -24,13 +22,10 @@ BUILTIN_FN_IMPL(clock) {
   return float_value((double)clock() / CLOCKS_PER_SEC);
 }
 
-// Native cwd function.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ cwd,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */
-    "Returns the current working directory or " STR(TYPENAME_NIL) " if no module is active.");
+/**
+ * cwd() -> TYPENAME_STRING
+ * @brief Returns the current working directory or TYPENAME_NIL if no module is active.
+ */
 BUILTIN_FN_IMPL(cwd) {
   UNUSED(argc);
   UNUSED(argv);
@@ -47,12 +42,10 @@ BUILTIN_FN_IMPL(cwd) {
   return cwd;
 }
 
-// Native print function.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ log,
-    /* Arguments   */ DOC_ARG("arg1", TYPENAME_OBJ) DOC_ARG_SEP DOC_ARG_REST,
-    /* Return Type */ TYPENAME_NIL,
-    /* Description */ "Prints the arguments to the console.");
+/**
+ * log(arg1: TYPENAME_VALUE, ...args: TYPENAME_VALUE) -> TYPENAME_NIL
+ * @brief Prints the arguments to the console.
+ */
 BUILTIN_FN_IMPL(log) {
   // Since argv[0] contains the receiver or function, we start at 1 and run that, even if we have only one
   // arg. Basically, arguments are 1 indexed for native function
@@ -73,12 +66,10 @@ BUILTIN_FN_IMPL(log) {
   return nil_value();
 }
 
-// Native type of.
-BUILTIN_FN_DOC(
-    /* Fn Name     */ typeof,
-    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_CLASS,
-    /* Description */ "Returns the class of the value.");
+/**
+ * typeof(value: TYPENAME_VALUE) -> TYPENAME_CLASS
+ * @brief Returns the class of the value.
+ */
 BUILTIN_FN_IMPL(typeof) {
   UNUSED(argc);
 

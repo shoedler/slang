@@ -238,8 +238,6 @@
 // validators.num = 2
 // print [1,3,4].has(validators.is_num_3)
 
-// print [].has.__doc
-
 // // 
 // // Seq.first
 // //
@@ -419,26 +417,7 @@
 // print cwd()
 // print std.__file_path
 
-// print Nil.ctor.__doc
-// print Bool.ctor.__doc
-// print Num.ctor.__doc
-// print Str.ctor.__doc
-// print Seq.ctor.__doc
-// print Obj.ctor.__doc
 
-// // These have no docstrings:
-// print "".to_str.__doc
-// print "".len.__doc
-// print (fn->1).__doc
-// print sample_fn.__doc
-// print [1,23].__doc
-// print Sample.__doc
-// print Sample().__doc
-
-// print clock.__doc
-// print typeof.__doc
-// print cwd.__doc
-// print log.__doc
 
 // print "--------------------------------------------------------------------------------"
 // print "Objs"

@@ -23,7 +23,6 @@
 
 #define SP_PROP_LEN len
 #define SP_PROP_NAME __name
-#define SP_PROP_DOC __doc
 #define SP_PROP_FILE_PATH __file_path
 #define SP_PROP_MODULE_NAME __module_name
 
@@ -160,7 +159,7 @@ void runtime_error(const char* format, ...);
 Value exec_callable(Value callable, int arg_count);
 
 // Defines a native function in the given table.
-void define_native(HashTable* table, const char* name, NativeFn function, const char* doc, int arity);
+void define_native(HashTable* table, const char* name, NativeFn function, int arity);
 
 // Defines a value in the given table.
 void define_value(HashTable* table, const char* name, Value value);

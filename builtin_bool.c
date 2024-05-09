@@ -9,14 +9,10 @@ void finalize_builtin_bool_class() {
   BUILTIN_FINALIZE_CLASS(TYPENAME_BOOL);
 }
 
-// Built-in bool constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_BOOL,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ DOC_ARG("value", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_BOOL,
-    /* Description */
-    "Converts the first argument to a " STR(TYPENAME_BOOL) ".");
+/**
+ * TYPENAME_BOOL.SP_METHOD_CTOR(value: TYPENAME_VALUE) -> TYPENAME_BOOL
+ * @brief Converts the first argument to a TYPENAME_BOOL.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_BOOL, SP_METHOD_CTOR) {
   UNUSED(argc);
   if (is_falsey(argv[1])) {
@@ -26,13 +22,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_BOOL, SP_METHOD_CTOR) {
   return bool_value(true);
 }
 
-// Built-in method to convert a value to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_BOOL,
-    /* Name        */ SP_METHOD_TO_STR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of a " STR(TYPENAME_BOOL) ".");
+/**
+ * TYPENAME_BOOL.SP_METHOD_TO_STR() -> TYPENAME_STRING
+ * @brief Returns a string representation of a TYPENAME_BOOL.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_BOOL, SP_METHOD_TO_STR) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(BOOL)

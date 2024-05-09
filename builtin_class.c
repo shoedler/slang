@@ -11,14 +11,10 @@ void finalize_builtin_class_class() {
   BUILTIN_FINALIZE_CLASS(TYPENAME_CLASS);
 }
 
-// Built-in class constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_CLASS,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_CLASS,
-    /* Description */
-    "No-op constructor for " STR(TYPENAME_CLASS) ".");
+/**
+ * TYPENAME_CLASS.SP_METHOD_CTOR() -> TYPENAME_CLASS
+ * @brief No-op constructor for TYPENAME_CLASS.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_CTOR) {
   UNUSED(argc);
   UNUSED(argv);
@@ -26,13 +22,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_CTOR) {
   return nil_value();
 }
 
-// Built-in method to convert a class to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_CLASS,
-    /* Name        */ SP_METHOD_TO_STR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of " STR(TYPENAME_CLASS) ".");
+/**
+ * TYPENAME_CLASS.SP_METHOD_TO_STR() -> TYPENAME_STRING
+ * @brief Returns a string representation of a TYPENAME_CLASS.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_TO_STR) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(CLASS)
@@ -56,14 +49,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_TO_STR) {
   return str_value(str_obj);
 }
 
-// Built-in method to check if a class has a method
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_CLASS,
-    /* Name        */ SP_METHOD_HAS,
-    /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
-    /* Return Type */ TYPENAME_BOOL,
-    /* Description */
-    "Returns " STR(TYPENAME_TRUE) " if the class has a property with the given name, " STR(TYPENAME_FALSE) " otherwise.");
+/**
+ * TYPENAME_CLASS.SP_METHOD_HAS(name: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Returns VALUE_STR_TRUE if the class has a property with the given name, VALUE_STR_FALSE otherwise.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_HAS) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(CLASS)

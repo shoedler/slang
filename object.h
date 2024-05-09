@@ -90,7 +90,6 @@ typedef struct {
   int upvalue_count;
   Chunk chunk;
   ObjString* name;
-  ObjString* doc;
   struct ObjObject* globals_context;
 } ObjFunction;
 
@@ -106,7 +105,6 @@ typedef struct {
   Obj obj;
   NativeFn function;
   ObjString* name;
-  ObjString* doc;
   int arity;
 } ObjNative;
 
@@ -192,7 +190,7 @@ ObjTuple* new_tuple();
 
 // Creates, initializes and allocates a new native function object. Might
 // trigger garbage collection.
-ObjNative* new_native(NativeFn function, ObjString* name, ObjString* doc, int arity);
+ObjNative* new_native(NativeFn function, ObjString* name, int arity);
 
 // Creates, initializes and allocates a new upvalue object. Might trigger
 // garbage collection.

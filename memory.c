@@ -120,7 +120,6 @@ static void blacken_object(Obj* object) {
     case OBJ_GC_FUNCTION: {
       ObjFunction* function = (ObjFunction*)object;
       mark_obj((Obj*)function->name);
-      mark_obj((Obj*)function->doc);
       mark_obj((Obj*)function->globals_context);
       mark_array(&function->chunk.constants);
       break;
@@ -145,7 +144,6 @@ static void blacken_object(Obj* object) {
     case OBJ_GC_NATIVE: {
       ObjNative* native = (ObjNative*)object;
       mark_obj((Obj*)native->name);
-      mark_obj((Obj*)native->doc);
       break;
     }
     case OBJ_GC_STRING: break;

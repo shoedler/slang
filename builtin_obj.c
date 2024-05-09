@@ -16,13 +16,10 @@ void finalize_builtin_obj_class() {
   BUILTIN_FINALIZE_CLASS(TYPENAME_OBJ);
 }
 
-// Built-in obj constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_OBJ,
-    /* Description */ "Returns a new empty " STR(TYPENAME_OBJ) ".");
+/**
+ * TYPENAME_OBJ.SP_METHOD_CTOR() -> TYPENAME_OBJ
+ * @brief returns a new empty TYPENAME_OBJ.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_CTOR) {
   UNUSED(argc);
   // This is a base implementation, all objects which don't have a custom implementation will use this one.
@@ -125,14 +122,10 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
   return str_value(str_obj);
 }
 
-// Built-in method to convert an object to a string. This one is special in that is is the toplevel to_str -
-// there's no abstraction over it. This is why we have some special cases here for our internal types.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ SP_METHOD_TO_STR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of the " STR(TYPENAME_OBJ) ".");
+/**
+ * TYPENAME_OBJ.SP_METHOD_TO_STR() -> TYPENAME_STRING
+ * @brief Returns a string representation of the TYPENAME_OBJ.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
   // This is a base implementation, all objects which don't have a custom implementation will use this one.
   // Anything that came here is at least a ObjObject, because every other value-type has an internal to_str implementation.
@@ -173,27 +166,20 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
 BUILTIN_ENUMERABLE_HAS(OBJ, "a key")
 #undef BUILTIN_ENUMERABLE_GET_VALUE_ARRAY
 
-// Built-in method to return the hash of an object.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ hash,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_INT,
-    /* Description */ "Returns the hash of the " STR(TYPENAME_OBJ) ".");
+/**
+ * TYPENAME_OBJ.SP_METHOD_HAS(key: TYPENAME_VALUE) -> TYPENAME_BOOL
+ * @brief Returns VALUE_STR_TRUE if the object has a key with the given name, VALUE_STR_FALSE otherwise.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
   UNUSED(argc);
   return int_value(hash_value(argv[0]));
 }
 
-// Built-in method to retrieve all entries of an object.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ entries,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */
-    "Returns a " STR(TYPENAME_SEQ) " of key-value pairs (which are " STR(TYPENAME_SEQ) "s of length 2 ) of a " STR(
-        TYPENAME_OBJ) ", containing all entries.");
+/**
+ * TYPENAME_OBJ.entries() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ of key-value pairs (which are TYPENAME_SEQs of length 2) of an TYPENAME_OBJ, containing all
+ * entries.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(OBJ)
@@ -217,13 +203,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
   return pop();  // The seq
 }
 
-// Built-in method to retrieve all keys of an object.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ keys,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all keys of a " STR(TYPENAME_OBJ) ".");
+/**
+ * TYPENAME_OBJ.keys() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ of all keys of an TYPENAME_OBJ.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, keys) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(OBJ)
@@ -244,13 +227,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, keys) {
   return pop();  // The seq
 }
 
-// Built-in method to retrieve all values of an object.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ values,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all values of a " STR(TYPENAME_OBJ) ".");
+/**
+ * TYPENAME_OBJ.values() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ of all values of an TYPENAME_OBJ.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_OBJ, values) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(OBJ)

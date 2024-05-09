@@ -9,14 +9,10 @@ void finalize_builtin_nil_class() {
   BUILTIN_FINALIZE_CLASS(TYPENAME_NIL);
 }
 
-// Built-in nil constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_NIL,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_NIL,
-    /* Description */
-    "<Not supported>");
+/**
+ * TYPENAME_NIL.SP_METHOD_CTOR() -> TYPENAME_NIL
+ * @brief No-op constructor for TYPENAME_NIL.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_NIL, SP_METHOD_CTOR) {
   UNUSED(argc);
   UNUSED(argv);
@@ -24,13 +20,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_NIL, SP_METHOD_CTOR) {
   return nil_value();
 }
 
-// Built-in method to convert a nil to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_NIL,
-    /* Name        */ SP_METHOD_TO_STR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of " STR(TYPENAME_NIL) ".");
+/**
+ * TYPENAME_NIL.SP_METHOD_TO_STR() -> TYPENAME_STRING
+ * @brief Returns a string representation of TYPENAME_NIL.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_NIL, SP_METHOD_TO_STR) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER(NIL)

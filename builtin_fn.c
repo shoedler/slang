@@ -20,14 +20,10 @@ void finalize_builtin_fn_class() {
   BUILTIN_FINALIZE_CLASS(TYPENAME_FUNCTION);
 }
 
-// Built-in fn constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_FUNCTION,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_FUNCTION,
-    /* Description */
-    "No-op constructor for " STR(TYPENAME_FUNCTION) ".");
+/**
+ * TYPENAME_FUNCTION.SP_METHOD_CTOR() -> TYPENAME_FUNCTION
+ * @brief No-op constructor for TYPENAME_FUNCTION.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_CTOR) {
   UNUSED(argc);
   UNUSED(argv);
@@ -35,13 +31,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_CTOR) {
   return nil_value();
 }
 
-// Built-in method to convert a fn to a string
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_FUNCTION,
-    /* Name        */ SP_METHOD_TO_STR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of " STR(TYPENAME_FUNCTION) ".");
+/**
+ * TYPENAME_FUNCTION.SP_METHOD_TO_STR() -> TYPENAME_STRING
+ * @brief Returns a string representation of a TYPENAME_FUNCTION.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_TO_STR) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER_IS_FN()
@@ -89,14 +82,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_TO_STR) {
   return str_value(str_obj);
 }
 
-// Built-in method to check if a value has a property
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_FUNCTION,
-    /* Name        */ SP_METHOD_HAS,
-    /* Arguments   */ DOC_ARG("name", TYPENAME_STRING),
-    /* Return Type */ TYPENAME_FUNCTION,
-    /* Description */
-    "Returns " STR(TYPENAME_TRUE) " if the fn has a property with the given name, " STR(TYPENAME_FALSE) " otherwise.");
+/**
+ * TYPENAME_FUNCTION.SP_METHOD_HAS(name: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Returns VALUE_STR_TRUE if the function has a property with the given name, VALUE_STR_FALSE otherwise.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_HAS) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER_IS_FN()
@@ -120,14 +109,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_HAS) {
   return bool_value(false);
 }
 
-// Built-in method to bind a function to a receiver
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_FUNCTION,
-    /* Name        */ bind,
-    /* Arguments   */ DOC_ARG("bind_target", TYPENAME_OBJ),
-    /* Return Type */ TYPENAME_BOUND_METHOD,
-    /* Description */
-    "Returns a new " STR(TYPENAME_BOUND_METHOD) " with the given bind_target (receiver) bound to the function.");
+/**
+ * TYPENAME_FUNCTION.bind(bind_target: OBJ) -> TYPENAME_BOUND_METHOD
+ * @brief Returns a new TYPENAME_BOUND_METHOD with the given bind_target (receiver) bound to the function.
+ */
 BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, bind) {
   UNUSED(argc);
   BUILTIN_CHECK_RECEIVER_IS_FN()

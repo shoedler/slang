@@ -141,18 +141,15 @@ static void exit_with_compile_error() {
   exit(ECOMPILE_ERROR);
 }
 
-void define_native(HashTable* table, const char* name, NativeFn function, const char* doc, int arity) {
+void define_native(HashTable* table, const char* name, NativeFn function, int arity) {
   Value key           = str_value(copy_string(name, (int)strlen(name)));
-  ObjString* doc_str  = copy_string(doc, (int)strlen(doc));
   ObjString* name_str = copy_string(name, (int)strlen(name));
-  Value value         = fn_value((Obj*)new_native(function, name_str, doc_str, arity));
+  Value value         = fn_value((Obj*)new_native(function, name_str, arity));
 
   push(key);
   push(value);
-  push(str_value(doc_str));
   push(str_value(name_str));
   hashtable_set(table, key, value);
-  pop();
   pop();
   pop();
   pop();
@@ -320,7 +317,6 @@ void init_vm() {
   memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
   vm.special_prop_names[SPECIAL_PROP_LEN]         = copy_string(STR(SP_PROP_LEN), STR_LEN(STR(SP_PROP_LEN)));
   vm.special_prop_names[SPECIAL_PROP_NAME]        = copy_string(STR(SP_PROP_NAME), STR_LEN(STR(SP_PROP_NAME)));
-  vm.special_prop_names[SPECIAL_PROP_DOC]         = copy_string(STR(SP_PROP_DOC), STR_LEN(STR(SP_PROP_DOC)));
   vm.special_prop_names[SPECIAL_PROP_FILE_PATH]   = copy_string(STR(SP_PROP_FILE_PATH), STR_LEN(STR(SP_PROP_FILE_PATH)));
   vm.special_prop_names[SPECIAL_PROP_MODULE_NAME] = copy_string(STR(SP_PROP_MODULE_NAME), STR_LEN(STR(SP_PROP_MODULE_NAME)));
 
