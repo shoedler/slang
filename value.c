@@ -256,10 +256,6 @@ int print_value_safe(FILE* f, Value value) {
     return written;
   }
 
-  if (IS_INSTANCE(value)) {
-    return fprintf(f, VALUE_STRFTM_INSTANCE, value.type->name->chars);
-  }
-
   if (IS_OBJ(value)) {
     ObjObject* object = AS_OBJECT(value);
 
@@ -284,5 +280,6 @@ int print_value_safe(FILE* f, Value value) {
     return written;
   }
 
-  return fprintf(f, "<unknown value type %s>", value.type->name->chars);
+  // Everything else is an instance.
+  return fprintf(f, VALUE_STRFTM_INSTANCE, value.type->name->chars);
 }

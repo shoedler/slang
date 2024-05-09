@@ -282,42 +282,18 @@ static inline bool IS_STRING(Value value) {
   return value.type == vm.__builtin_Str_class;
 }
 
-// Function Value
-// TODO: Remove this, it's only confusing in contrast to fn_value(). This was inteded to be used when we want to wrap a
-// ObjFunction in a Value. But, Closure, Native and BoundMethod are also functions, and for these we use fn_value().
-static inline Value function_value(ObjFunction* value) {
-  return (Value){.type = vm.__builtin_Fn_class, {.obj = (Obj*)value}};
-}
 static inline bool IS_FUNCTION(Value value) {
   return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_FUNCTION;
 }
 
-// Closure Value
-// TODO: Remove this, it's only confusing in contrast to fn_value(). This was inteded to be used when we want to wrap a
-// Objclosure in a Value. But, Function, Native and BoundMethod are also functions, and for these we use fn_value().
-static inline Value closure_value(ObjClosure* value) {
-  return (Value){.type = vm.__builtin_Fn_class, {.obj = (Obj*)value}};
-}
 static inline bool IS_CLOSURE(Value value) {
   return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_CLOSURE;
 }
 
-// Native Value
-// TODO: Remove this, it's only confusing in contrast to fn_value(). This was inteded to be used when we want to wrap a
-// ObjNative in a Value. But, Closure, Function and BoundMethod are also functions, and for these we use fn_value().
-static inline Value native_value(ObjNative* value) {
-  return (Value){.type = vm.__builtin_Fn_class, {.obj = (Obj*)value}};
-}
 static inline bool IS_NATIVE(Value value) {
   return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_NATIVE;
 }
 
-// Bound Method Value
-// TODO: Remove this, it's only confusing in contrast to fn_value(). This was inteded to be used when we want to wrap a
-// ObjBoundMethod in a Value. But, Closure, Native and Funcion are also functions, and for these we use fn_value().
-static inline Value bound_method_value(ObjBoundMethod* value) {
-  return (Value){.type = vm.__builtin_Fn_class, {.obj = (Obj*)value}};
-}
 static inline bool IS_BOUND_METHOD(Value value) {
   return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_BOUND_METHOD;
 }

@@ -145,7 +145,7 @@ void define_native(HashTable* table, const char* name, NativeFn function, const 
   Value key           = str_value(copy_string(name, (int)strlen(name)));
   ObjString* doc_str  = copy_string(doc, (int)strlen(doc));
   ObjString* name_str = copy_string(name, (int)strlen(name));
-  Value value         = native_value(new_native(function, name_str, doc_str, arity));
+  Value value         = fn_value((Obj*)new_native(function, name_str, doc_str, arity));
 
   push(key);
   push(value);
@@ -573,7 +573,7 @@ static bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method) {
   }
 
   ObjBoundMethod* bound = new_bound_method(peek(0), method.as.obj);
-  *bound_method         = bound_method_value(bound);
+  *bound_method         = fn_value((Obj*)bound);
   return true;
 }
 
@@ -1437,7 +1437,7 @@ static Value run() {
       case OP_CLOSURE: {
         ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
         ObjClosure* closure   = new_closure(function);
-        push(closure_value(closure));
+        push(fn_value((Obj*)closure));
 
         // Bring closure to life
         for (int i = 0; i < closure->upvalue_count; i++) {
