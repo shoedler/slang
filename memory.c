@@ -261,23 +261,23 @@ static void mark_roots() {
     mark_obj((Obj*)(vm.special_prop_names[i]));
   }
 
-// And the base classes
-#define BUILTIN_MARK_CLASS(name) mark_obj((Obj*)vm.BUILTIN_CLASS(name))
-  BUILTIN_MARK_CLASS(TYPENAME_OBJ);
-  BUILTIN_MARK_CLASS(TYPENAME_NIL);
-  BUILTIN_MARK_CLASS(TYPENAME_BOOL);
-  BUILTIN_MARK_CLASS(TYPENAME_NUM);
-  BUILTIN_MARK_CLASS(TYPENAME_INT);
-  BUILTIN_MARK_CLASS(TYPENAME_FLOAT);
-  BUILTIN_MARK_CLASS(TYPENAME_STRING);
-  BUILTIN_MARK_CLASS(TYPENAME_SEQ);
-  BUILTIN_MARK_CLASS(TYPENAME_TUPLE);
-  BUILTIN_MARK_CLASS(TYPENAME_MODULE);
-  BUILTIN_MARK_CLASS(TYPENAME_FUNCTION);
-  BUILTIN_MARK_CLASS(TYPENAME_CLASS);
-  BUILTIN_MARK_CLASS(Upvalue);
-  BUILTIN_MARK_CLASS(Handler);
-#undef BUILTIN_MARK_CLASS
+  // And the base classes
+  mark_obj((Obj*)vm.obj_class);
+  mark_obj((Obj*)vm.num_class);
+  mark_obj((Obj*)vm.int_class);
+  mark_obj((Obj*)vm.float_class);
+  mark_obj((Obj*)vm.bool_class);
+  mark_obj((Obj*)vm.nil_class);
+  mark_obj((Obj*)vm.seq_class);
+  mark_obj((Obj*)vm.tuple_class);
+  mark_obj((Obj*)vm.str_class);
+  mark_obj((Obj*)vm.fn_class);
+  mark_obj((Obj*)vm.class_class);
+
+  mark_obj((Obj*)vm.upvalue_class);
+  mark_obj((Obj*)vm.handler_class);
+
+  mark_obj((Obj*)vm.module_class);
 
   // And the compiler roots. The GC can run while compiling, so we need to mark
   // the compiler's internal state as well.

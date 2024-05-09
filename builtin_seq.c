@@ -4,29 +4,49 @@
 #include "common.h"
 #include "vm.h"
 
-void finalize_builtin_seq_class() {
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_CTOR, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_TO_STR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_HAS, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, SP_METHOD_SLICE, 2);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, push, -1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, pop, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, remove_at, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, index_of, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, first, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, last, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, each, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, map, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, filter, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, join, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, reverse, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, every, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, some, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, reduce, 2);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, count, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_SEQ, concat, 1);
+static Value seq_ctor(int argc, Value argv[]);
+static Value seq_to_str(int argc, Value argv[]);
+static Value seq_has(int argc, Value argv[]);
+static Value seq_slice(int argc, Value argv[]);
+static Value seq_push(int argc, Value argv[]);
+static Value seq_pop(int argc, Value argv[]);
+static Value seq_remove_at(int argc, Value argv[]);
+static Value seq_index_of(int argc, Value argv[]);
+static Value seq_first(int argc, Value argv[]);
+static Value seq_last(int argc, Value argv[]);
+static Value seq_each(int argc, Value argv[]);
+static Value seq_map(int argc, Value argv[]);
+static Value seq_filter(int argc, Value argv[]);
+static Value seq_join(int argc, Value argv[]);
+static Value seq_reverse(int argc, Value argv[]);
+static Value seq_every(int argc, Value argv[]);
+static Value seq_some(int argc, Value argv[]);
+static Value seq_reduce(int argc, Value argv[]);
+static Value seq_count(int argc, Value argv[]);
+static Value seq_concat(int argc, Value argv[]);
 
-  BUILTIN_FINALIZE_CLASS(TYPENAME_SEQ);
+void finalize_native_seq_class() {
+  define_native(&vm.seq_class->methods, STR(SP_METHOD_CTOR), seq_ctor, 1);
+  define_native(&vm.seq_class->methods, STR(SP_METHOD_TO_STR), seq_to_str, 0);
+  define_native(&vm.seq_class->methods, STR(SP_METHOD_HAS), seq_has, 1);
+  define_native(&vm.seq_class->methods, STR(SP_METHOD_SLICE), seq_slice, 2);
+  define_native(&vm.seq_class->methods, "push", seq_push, -1);
+  define_native(&vm.seq_class->methods, "pop", seq_pop, 0);
+  define_native(&vm.seq_class->methods, "remove_at", seq_remove_at, 1);
+  define_native(&vm.seq_class->methods, "index_of", seq_index_of, 1);
+  define_native(&vm.seq_class->methods, "first", seq_first, 1);
+  define_native(&vm.seq_class->methods, "last", seq_last, 1);
+  define_native(&vm.seq_class->methods, "each", seq_each, 1);
+  define_native(&vm.seq_class->methods, "map", seq_map, 1);
+  define_native(&vm.seq_class->methods, "filter", seq_filter, 1);
+  define_native(&vm.seq_class->methods, "join", seq_join, 1);
+  define_native(&vm.seq_class->methods, "reverse", seq_reverse, 0);
+  define_native(&vm.seq_class->methods, "every", seq_every, 1);
+  define_native(&vm.seq_class->methods, "some", seq_some, 1);
+  define_native(&vm.seq_class->methods, "reduce", seq_reduce, 2);
+  define_native(&vm.seq_class->methods, "count", seq_count, 1);
+  define_native(&vm.seq_class->methods, "concat", seq_concat, 1);
+  finalize_new_class(vm.seq_class);
 }
 
 /**
@@ -36,7 +56,7 @@ void finalize_builtin_seq_class() {
  * TYPENAME_SEQ.SP_METHOD_CTOR(tuple: TYPENAME_TUPLE) -> TYPENAME_SEQ
  * @brief Creates a new TYPENAME_SEQ from a TYPENAME_TUPLE of values.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_CTOR) {
+static Value seq_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   if (IS_INT(argv[1])) {
     ValueArray items;
@@ -71,35 +91,67 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, SP_METHOD_CTOR) {
   return nil_value();
 }
 
-#define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value) items = AS_SEQ(value)->items
-#define BUILTIN_LISTLIKE_NEW_EMPTY() seq_value(new_seq())
-#define BUILTIN_LISTLIKE_TAKE_ARRAY(value_array) seq_value(take_seq(&value_array))
-BUILTIN_ENUMERABLE_HAS(SEQ, "an item")
-BUILTIN_LISTLIKE_SLICE(SEQ)
-BUILTIN_LISTLIKE_TO_STR(SEQ, VALUE_STR_SEQ_START, VALUE_STR_SEQ_DELIM, VALUE_STR_SEQ_END)
-BUILTIN_LISTLIKE_INDEX_OF(SEQ)
-BUILTIN_LISTLIKE_FIRST(SEQ)
-BUILTIN_LISTLIKE_LAST(SEQ)
-BUILTIN_LISTLIKE_EACH(SEQ)
-BUILTIN_LISTLIKE_MAP(SEQ)
-BUILTIN_LISTLIKE_FILTER(SEQ)
-BUILTIN_LISTLIKE_JOIN(SEQ)
-BUILTIN_LISTLIKE_REVERSE(SEQ)
-BUILTIN_LISTLIKE_EVERY(SEQ)
-BUILTIN_LISTLIKE_SOME(SEQ)
-BUILTIN_LISTLIKE_REDUCE(SEQ)
-BUILTIN_LISTLIKE_COUNT(SEQ)
-BUILTIN_LISTLIKE_CONCAT(SEQ)
-#undef BUILTIN_ENUMERABLE_GET_VALUE_ARRAY
-#undef BUILTIN_LISTLIKE_NEW_EMPTY
-#undef BUILTIN_LISTLIKE_TAKE_ARRAY
+#define NATIVE_ENUMERABLE_GET_VALUE_ARRAY(value) items = AS_SEQ(value)->items
+#define NATIVE_LISTLIKE_NEW_EMPTY() seq_value(new_seq())
+#define NATIVE_LISTLIKE_TAKE_ARRAY(value_array) seq_value(take_seq(&value_array))
+static Value seq_has(int argc, Value argv[]) {
+  NATIVE_ENUMERABLE_HAS_BODY(SEQ);
+}
+static Value seq_slice(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_SLICE_BODY(SEQ);
+}
+static Value seq_to_str(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_TO_STR_BODY(SEQ, VALUE_STR_SEQ_START, VALUE_STR_SEQ_DELIM, VALUE_STR_SEQ_END);
+}
+static Value seq_index_of(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_INDEX_OF_BODY(SEQ);
+}
+static Value seq_first(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_FIRST_BODY(SEQ);
+}
+static Value seq_last(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_LAST_BODY(SEQ);
+}
+static Value seq_each(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_EACH_BODY(SEQ);
+}
+static Value seq_map(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_MAP_BODY(SEQ);
+}
+static Value seq_filter(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_FILTER_BODY(SEQ);
+}
+static Value seq_join(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_JOIN_BODY(SEQ);
+}
+static Value seq_reverse(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_REVERSE_BODY(SEQ);
+}
+static Value seq_every(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_EVERY_BODY(SEQ);
+}
+static Value seq_some(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_SOME_BODY(SEQ);
+}
+static Value seq_reduce(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_REDUCE_BODY(SEQ);
+}
+static Value seq_count(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_COUNT_BODY(SEQ);
+}
+static Value seq_concat(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_CONCAT_BODY(SEQ);
+}
+#undef NATIVE_ENUMERABLE_GET_VALUE_ARRAY
+#undef NATIVE_LISTLIKE_NEW_EMPTY
+#undef NATIVE_LISTLIKE_TAKE_ARRAY
 
 /**
  * TYPENAME_SEQ.push(arg1: TYPENAME_VALUE, ...args: TYPENAME_VALUE) -> TYPENAME_NIL
  * @brief Pushes one or many values to a TYPENAME_SEQ.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, push) {
-  BUILTIN_CHECK_RECEIVER(SEQ)
+static Value seq_push(int argc, Value argv[]) {
+  NATIVE_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
   for (int i = 1; i <= argc; i++) {
@@ -112,9 +164,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, push) {
  * TYPENAME_SEQ.pop() -> TYPENAME_VALUE
  * @brief Pops and returns the last item of a TYPENAME_SEQ. Returns TYPENAME_NIL if it is empty.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
+static Value seq_pop(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(SEQ)
+  NATIVE_CHECK_RECEIVER(SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
   return pop_value_array(&seq->items);  // Does bounds checking
@@ -125,10 +177,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_SEQ, pop) {
  * @brief Removes and returns the item at 'index' from a TYPENAME_SEQ. Returns TYPENAME_NIL if 'index' is out of bounds.
  * Modifies the TYPENAME_SEQ.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_SEQ, remove_at) {
+static Value seq_remove_at(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(SEQ)
-  BUILTIN_CHECK_ARG_AT(1, INT)
+  NATIVE_CHECK_RECEIVER(SEQ)
+  NATIVE_CHECK_ARG_AT(1, INT)
 
   ObjSeq* seq     = AS_SEQ(argv[0]);
   long long index = argv[1].as.integer;

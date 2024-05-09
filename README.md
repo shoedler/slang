@@ -6,17 +6,29 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Roadmap for Version 1.0
 
-### RT Type-checking To Do
+### RT Type-checking
 
-- [ ] Move all `AS_<TYPE>` obj-macros to vm.h. Make all `static inline <type> bla()` Value functions macros, or at least verify that there is no performance loss for using static inline functions vs macros.
-- [ ] Rename all `__builtin_<Type>_class` fields to `internal_<Type>_class` in vm.h.
-- [ ] Rename `BUILTIN_` Macros to `INTERNAL_` Macros in vm.h. `BUILTIN_` should only be used for the built-in functions. Since the base-types are now mandatory for the Vm to work, they are a part of the internal implementation.
+#### Preparations
+
+- [ ] Make all `static inline <type> bla()` Value functions macros, or at least verify that there is no performance loss for using static inline functions vs macros.
+- [ ] Rename _builtin_ files to `type_<Type>.c` and `module_<Module>.c`?
 - [ ] Get rid of all switches over `ObjGcType` outside of memory.c. This should be done using a quick-access function on the respective base class. E.g. for calls, we should implement `__call` on all `ObjClass`es and then manage HOW to call them in there.
-- [ ] Get rid of all `if (is_<Type>()) ...  else if (is_<Type>()) ...` and implement a quick-access function for this. E.g. for `values_equal` we could implement a `__values_equal` function on the base class. Same for `__hash` and so on. Same goes for `__mark` and `__free`.
+- [ ] Get rid of all `if (is_<Type>()) ...  else if (is_<Type>()) ...` and implement a quick-access function on the base class.
+  - [ ] `__gc_mark`: How to mark the value for the garbage collector. In `mark_value`, just check if `value.type->__gc_mark != NULL` and call it.
+  - [ ] `__eq`: How to compare two values of the same type. All Types require this. Just call it in `values_equal`.
+  - [ ] `__hash`: How to hash the value. All Types require this. Just call it in `hash_value`.
+  - [ ] `__call`: How to call the value. In `call_value`, just check if `value.type->__call != NULL` and call it.
+  - [ ] `__get`: How to get a property of the value. In `OP_GET_PROPERTY`, just check if `value.type->__get != NULL` and call it.
+  - [ ] `__set`: How to set a property of the value. In `OP_SET_PROPERTY`, just check if `value.type->__set != NULL` and call it.
+  - [ ] `__get_subs`: How to get an index of the value. In `OP_GET_SUBSCRIPT`, just check if `value.type->__get_subs != NULL` and call it.
+  - [ ] `__set_subs`: How to set an index of the value. In `OP_SET_SUBSCRIPT`, just check if `value.type->__set_subs != NULL` and call it.
+
+#### Type-checking
+
 - [ ] Implement syntax for type annotations. E.g. `let x: Int = 1`. We'll check as much as possible at compile-time. Locals are already cared for, because they live on the stack and are not referenced by a name. All locals are resolved during compile time. The only exception being locals that are not initialized with a value. That should be allowed, but the type must be declared. E.g. `let x: Int`. This is a bit more flexible than C# and a bit less flexible than TypeScript. We'll see how it goes.
 - [ ] Implement a solution for functions. We should introduce a signature field in fn objects. The sig struct should probably consist of: `args: ObjClass**` to store the types of the arguments, `ret: ObjClass*` to store the return type of the function, `argc: int` to store the number of arguments.
 - [ ] Introduce type-modifiers. `?` for nullable, and maybe something for exact type match. This should be done as a flag on the `Value` struct. Maybe make a `Type` struct that holds the `ObjClass*` and the flags. This could then also be used for function signatures.
-- [ ] Actually add typechecking and remove all `BUILTIN_CHECK_ARG` things.
+- [ ] Actually add typechecking and remove all `NATIVE_CHECK_ARG` things.
 
 ### Syntax & Language Features
 
@@ -67,7 +79,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Use `memcpy` for concat and such (See `Seq(Tuple)` ctor for an example). Check for for-loops in the builtin methods.
 - [ ] Make stringification faster.
 - [ ] Inline `push()`, `peek()` and `pop()` in the Vm.
-- [ ] Make a `BUILTIN_METHOD_RUNTIME_ERROR(class_name, method_name)` macro, which throws a runtime error with a nice prefix and always returns `NIL_VAL`. Use this in all `BUILTIN_METHOD_IMPL` functions.
+- [ ] Make a `NATIVE_METHOD_RUNTIME_ERROR(class_name, method_name)` macro, which throws a runtime error with a nice prefix and always returns `NIL_VAL`. Use this in all `NATIVE_METHOD_IMPL` functions.
 - [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Store strings as flexible array members (**_See Challenge 19.1_**)

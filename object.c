@@ -226,7 +226,7 @@ ObjTuple* take_tuple(ValueArray* items) {
 
 ObjObject* take_object(HashTable* fields) {
   ObjObject* object      = ALLOCATE_OBJ(ObjObject, OBJ_GC_OBJECT);
-  object->instance_class = vm.__builtin_Obj_class;
+  object->instance_class = vm.obj_class;
   object->fields         = *fields;
   return object;
 }

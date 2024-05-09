@@ -3,17 +3,17 @@
 #include "file.h"
 #include "vm.h"
 
-BUILTIN_DECLARE_FN(stack);
-BUILTIN_DECLARE_FN(version);
+static Value native_debug_stack(int argc, Value argv[]);
+static Value native_debug_version(int argc, Value argv[]);
 
 #define MODULE_NAME Debug
 
-void register_builtin_debug_module() {
+void register_native_debug_module() {
   ObjObject* debug_module = make_module(NULL, STR(MODULE_NAME));
   define_value(&vm.modules, STR(MODULE_NAME), instance_value(debug_module));
 
-  BUILTIN_REGISTER_FN(debug_module, stack, 0);
-  BUILTIN_REGISTER_FN(debug_module, version, 0);
+  define_native(&debug_module->fields, "stack", native_debug_stack, 0);
+  define_native(&debug_module->fields, "version", native_debug_version, 0);
 }
 
 /**
@@ -21,7 +21,7 @@ void register_builtin_debug_module() {
  * @brief Returns a TYPENAME_SEQ of all the values on the vms' stack. The top of the stack is the last element in the
  * TYPENAME_SEQ.
  */
-BUILTIN_FN_IMPL(stack) {
+static Value native_debug_stack(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
 
@@ -39,7 +39,7 @@ BUILTIN_FN_IMPL(stack) {
  * MODULE_NAME.version() -> TYPENAME_STRING
  * @brief Returns the version of the current running vm.
  */
-BUILTIN_FN_IMPL(version) {
+static Value native_debug_version(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
 

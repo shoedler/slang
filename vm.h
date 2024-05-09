@@ -73,22 +73,22 @@ typedef struct {
   ObjObject* module;  // The current module
   int exit_on_frame;  // Index of the frame to exit on
 
-  ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);       // Base class: The obj class
-  ObjClass* BUILTIN_CLASS(TYPENAME_NUM);       // Base class: The number class
-  ObjClass* BUILTIN_CLASS(TYPENAME_INT);       //  class: The int class
-  ObjClass* BUILTIN_CLASS(TYPENAME_FLOAT);     //  class: The float class
-  ObjClass* BUILTIN_CLASS(TYPENAME_BOOL);      // Base class: The bool class
-  ObjClass* BUILTIN_CLASS(TYPENAME_NIL);       // Base class: The nil class
-  ObjClass* BUILTIN_CLASS(TYPENAME_SEQ);       // Special class: The sequence class
-  ObjClass* BUILTIN_CLASS(TYPENAME_TUPLE);     // Special class: The tuple class
-  ObjClass* BUILTIN_CLASS(TYPENAME_STRING);    // Special class: The string class
-  ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // Special class: The function class
-  ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // Special class: The class class¨
+  ObjClass* obj_class;    // Base class: The obj class
+  ObjClass* num_class;    // Base class: The num class
+  ObjClass* int_class;    // Num-class: The int class
+  ObjClass* float_class;  // Num-class: The float class
+  ObjClass* bool_class;   // Base class: The bool class
+  ObjClass* nil_class;    // Base class: The nil class
+  ObjClass* seq_class;    // Base class: The sequence class
+  ObjClass* tuple_class;  // Base class: The tuple class
+  ObjClass* str_class;    // Base class: The string class
+  ObjClass* fn_class;     // Base class: The function class
+  ObjClass* class_class;  // Base class: The class class
 
-  ObjClass* BUILTIN_CLASS(Upvalue);  // Unused, just for pointer comparison
-  ObjClass* BUILTIN_CLASS(Handler);  // Unused, just for pointer comparison
+  ObjClass* upvalue_class;  // Unused, just for pointer comparison
+  ObjClass* handler_class;  // Unused, just for pointer comparison
 
-  ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);  // The module class
+  ObjClass* module_class;  // Obj-class: The module class
 
   ObjObject* builtin;                                   // The builtin (builtin things) object instance
   ObjString* special_method_names[SPECIAL_METHOD_MAX];  // Special method names for quick access
@@ -219,34 +219,34 @@ bool value_set_index();
 
 // Integer Value
 static inline Value int_value(long long value) {
-  return (Value){.type = vm.__builtin_Int_class, {.integer = value}};
+  return (Value){.type = vm.int_class, {.integer = value}};
 }
 static inline bool IS_INT(Value value) {
-  return value.type == vm.__builtin_Int_class;
+  return value.type == vm.int_class;
 }
 
 // Float Value
 static inline Value float_value(double value) {
-  return (Value){.type = vm.__builtin_Float_class, {.float_ = value}};
+  return (Value){.type = vm.float_class, {.float_ = value}};
 }
 static inline bool IS_FLOAT(Value value) {
-  return value.type == vm.__builtin_Float_class;
+  return value.type == vm.float_class;
 }
 
 // Bool Value
 static inline Value bool_value(bool value) {
-  return (Value){.type = vm.__builtin_Bool_class, {.boolean = value}};
+  return (Value){.type = vm.bool_class, {.boolean = value}};
 }
 static inline bool IS_BOOL(Value value) {
-  return value.type == vm.__builtin_Bool_class;
+  return value.type == vm.bool_class;
 }
 
 // Nil Value
 static inline Value nil_value() {
-  return (Value){.type = vm.__builtin_Nil_class};
+  return (Value){.type = vm.nil_class};
 }
 static inline bool IS_NIL(Value value) {
-  return value.type == vm.__builtin_Nil_class;
+  return value.type == vm.nil_class;
 }
 
 // Empty Internal Value
@@ -259,83 +259,118 @@ static inline bool IS_EMPTY_INTERNAL(Value value) {
 
 // Seq Value
 static inline Value seq_value(ObjSeq* value) {
-  return (Value){.type = vm.__builtin_Seq_class, {.obj = (Obj*)value}};
+  return (Value){.type = vm.seq_class, {.obj = (Obj*)value}};
 }
 static inline bool IS_SEQ(Value value) {
-  return value.type == vm.__builtin_Seq_class;
+  return value.type == vm.seq_class;
 }
 
 // Tuple Value
 static inline Value tuple_value(ObjTuple* value) {
-  return (Value){.type = vm.__builtin_Tuple_class, {.obj = (Obj*)value}};
+  return (Value){.type = vm.tuple_class, {.obj = (Obj*)value}};
 }
 static inline bool IS_TUPLE(Value value) {
-  return value.type == vm.__builtin_Tuple_class;
+  return value.type == vm.tuple_class;
 }
 
 // String Value
 static inline Value str_value(ObjString* value) {
-  return (Value){.type = vm.__builtin_Str_class, {.obj = (Obj*)value}};
+  return (Value){.type = vm.str_class, {.obj = (Obj*)value}};
 }
 static inline bool IS_STRING(Value value) {
-  return value.type == vm.__builtin_Str_class;
+  return value.type == vm.str_class;
 }
 
 static inline bool IS_FUNCTION(Value value) {
-  return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_FUNCTION;
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_FUNCTION;
 }
 
 static inline bool IS_CLOSURE(Value value) {
-  return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_CLOSURE;
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_CLOSURE;
 }
 
 static inline bool IS_NATIVE(Value value) {
-  return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_NATIVE;
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_NATIVE;
 }
 
 static inline bool IS_BOUND_METHOD(Value value) {
-  return value.type == vm.__builtin_Fn_class && value.as.obj->type == OBJ_GC_BOUND_METHOD;
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_BOUND_METHOD;
 }
 
 // Class Value
 static inline Value class_value(ObjClass* value) {
-  return (Value){.type = vm.__builtin_Class_class, {.obj = (Obj*)value}};
+  return (Value){.type = vm.class_class, {.obj = (Obj*)value}};
 }
 static inline bool IS_CLASS(Value value) {
-  return value.type == vm.__builtin_Class_class;
+  return value.type == vm.class_class;
 }
 
 // Object Value
 static inline Value obj_value(ObjObject* value) {
-  return (Value){.type = vm.__builtin_Obj_class, {.obj = (Obj*)value}};
+  return (Value){.type = vm.obj_class, {.obj = (Obj*)value}};
 }
 static inline bool IS_OBJ(Value value) {
-  return value.type == vm.__builtin_Obj_class;
+  return value.type == vm.obj_class;
 }
 
 // Handler Value
 static inline Value handler_value(uint16_t value) {
-  return (Value){.type = vm.__builtin_Handler_class, {.handler = value}};
+  return (Value){.type = vm.handler_class, {.handler = value}};
 }
 static inline bool IS_HANDLER(Value value) {
-  return value.type == vm.__builtin_Handler_class;
+  return value.type == vm.handler_class;
 }
 
+// Converts a value into a bound method. Value must be of type bound method.
+#define AS_BOUND_METHOD(value) ((ObjBoundMethod*)(value.as.obj))
+
+// Converts a value into a class. Value must be of type class.
+#define AS_CLASS(value) ((ObjClass*)(value.as.obj))
+
+// Converts a value into a closure. Value must be of type closure.
+#define AS_CLOSURE(value) ((ObjClosure*)(value.as.obj))
+
+// Converts a value into a sequence. Value must be of type sequence.
+#define AS_SEQ(value) ((ObjSeq*)(value.as.obj))
+
+// Converts a value into a tuple. Value must be of type tuple.
+#define AS_TUPLE(value) ((ObjTuple*)(value.as.obj))
+
+// Gets the value array of a listlike object (Seq, Tuple).
+// Hack: Just cast to ObjSeq* and access the items field, because the layout is the same.
+#define LISTLIKE_GET_VALUEARRAY(value) ((ObjSeq*)(value.as.obj))->items
+
+// Converts a value into a function. Value must be of type function.
+#define AS_FUNCTION(value) ((ObjFunction*)(value.as.obj))
+
+// Converts a value into an object. Value must be of type object.
+#define AS_OBJECT(value) ((ObjObject*)(value.as.obj))
+
+// Converts a value into a native function. Value must be of type native function.
+#define AS_NATIVE(value) (((ObjNative*)(value.as.obj)))
+
+// Converts a value into a string. Value must be of type string.
+#define AS_STRING(value) ((ObjString*)(value.as.obj))
+
+// Converts a value into a C string. Value must be of type string.
+#define AS_CSTRING(value) (((ObjString*)(value.as.obj))->chars)
+
+//
 // Utility functions for values
+//
 
 static inline bool IS_NON_OBJECT(Value value) {
   // TODO: Remove this. This cannot be used anywhere, bc it's extremely slow.
-  return value.type == vm.__builtin_Nil_class || value.type == vm.__builtin_Bool_class || value.type == vm.__builtin_Int_class ||
-         value.type == vm.__builtin_Float_class || value.type == vm.__builtin_Handler_class || value.type == NULL;
+  return value.type == vm.nil_class || value.type == vm.bool_class || value.type == vm.int_class ||
+         value.type == vm.float_class || value.type == vm.handler_class || value.type == NULL;
 }
 
 static inline bool IS_INSTANCE(Value value) {
   // TODO: Remove this. This cannot be used anywhere, bc it's extremely slow.
-  return value.type != vm.__builtin_Obj_class && value.type != vm.__builtin_Nil_class && value.type != vm.__builtin_Str_class &&
-         value.type != vm.__builtin_Class_class && value.type != vm.__builtin_Fn_class && value.type != vm.__builtin_Bool_class &&
-         value.type != vm.__builtin_Num_class && value.type != vm.__builtin_Int_class && value.type != vm.__builtin_Float_class &&
-         value.type != vm.__builtin_Upvalue_class && value.type != vm.__builtin_Handler_class &&
-         value.type != vm.__builtin_Seq_class && value.type != vm.__builtin_Tuple_class;
+  return value.type != vm.obj_class && value.type != vm.nil_class && value.type != vm.str_class && value.type != vm.class_class &&
+         value.type != vm.fn_class && value.type != vm.bool_class && value.type != vm.num_class && value.type != vm.int_class &&
+         value.type != vm.float_class && value.type != vm.upvalue_class && value.type != vm.handler_class &&
+         value.type != vm.seq_class && value.type != vm.tuple_class;
 }
 static inline Value instance_value(ObjObject* instance) {
   return (Value){.type = instance->instance_class, {.obj = (Obj*)instance}};
@@ -349,11 +384,11 @@ static inline bool is_num(Value value) {
 // Function, closure, native or bound method is a function.
 // [fn] must be of one these types.
 static inline Value fn_value(Obj* fn) {
-  return (Value){.type = vm.__builtin_Fn_class, {.obj = fn}};
+  return (Value){.type = vm.fn_class, {.obj = fn}};
 }
 // Function, closure, native or bound method is a function.
 static inline bool is_fn(Value value) {
-  return value.type == vm.__builtin_Fn_class;
+  return value.type == vm.fn_class;
 }
 
 // Callables are fn's or classes.

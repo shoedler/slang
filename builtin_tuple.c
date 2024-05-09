@@ -4,34 +4,52 @@
 #include "common.h"
 #include "vm.h"
 
-void finalize_builtin_tuple_class() {
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, SP_METHOD_CTOR, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, SP_METHOD_TO_STR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, SP_METHOD_HAS, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, SP_METHOD_SLICE, 2);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, index_of, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, first, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, last, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, each, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, map, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, filter, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, join, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, reverse, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, every, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, some, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, reduce, 2);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, count, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_TUPLE, concat, 1);
-  BUILTIN_FINALIZE_CLASS(TYPENAME_TUPLE);
+static Value tuple_ctor(int argc, Value argv[]);
+static Value tuple_to_str(int argc, Value argv[]);
+static Value tuple_has(int argc, Value argv[]);
+static Value tuple_slice(int argc, Value argv[]);
+static Value tuple_index_of(int argc, Value argv[]);
+static Value tuple_first(int argc, Value argv[]);
+static Value tuple_last(int argc, Value argv[]);
+static Value tuple_each(int argc, Value argv[]);
+static Value tuple_map(int argc, Value argv[]);
+static Value tuple_filter(int argc, Value argv[]);
+static Value tuple_join(int argc, Value argv[]);
+static Value tuple_reverse(int argc, Value argv[]);
+static Value tuple_every(int argc, Value argv[]);
+static Value tuple_some(int argc, Value argv[]);
+static Value tuple_reduce(int argc, Value argv[]);
+static Value tuple_count(int argc, Value argv[]);
+static Value tuple_concat(int argc, Value argv[]);
+
+void finalize_native_tuple_class() {
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_CTOR), tuple_ctor, 1);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_TO_STR), tuple_to_str, 0);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_HAS), tuple_has, 1);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_SLICE), tuple_slice, 2);
+  define_native(&vm.tuple_class->methods, "index_of", tuple_index_of, 1);
+  define_native(&vm.tuple_class->methods, "first", tuple_first, 1);
+  define_native(&vm.tuple_class->methods, "last", tuple_last, 1);
+  define_native(&vm.tuple_class->methods, "each", tuple_each, 1);
+  define_native(&vm.tuple_class->methods, "map", tuple_map, 1);
+  define_native(&vm.tuple_class->methods, "filter", tuple_filter, 1);
+  define_native(&vm.tuple_class->methods, "join", tuple_join, 1);
+  define_native(&vm.tuple_class->methods, "reverse", tuple_reverse, 0);
+  define_native(&vm.tuple_class->methods, "every", tuple_every, 1);
+  define_native(&vm.tuple_class->methods, "some", tuple_some, 1);
+  define_native(&vm.tuple_class->methods, "reduce", tuple_reduce, 2);
+  define_native(&vm.tuple_class->methods, "count", tuple_count, 1);
+  define_native(&vm.tuple_class->methods, "concat", tuple_concat, 1);
+  finalize_new_class(vm.tuple_class);
 }
 
 /**
  * TYPENAME_TUPLE.SP_METHOD_CTOR(seq: TYPENAME_SEQ) -> TYPENAME_TUPLE
  * @brief Creates a new TYPENAME_TUPLE from a TYPENAME_SEQ of values.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_TUPLE, SP_METHOD_CTOR) {
+static Value tuple_ctor(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_ARG_AT(1, SEQ)
+  NATIVE_CHECK_ARG_AT(1, SEQ)
 
   ObjSeq* seq = AS_SEQ(argv[1]);
 
@@ -44,25 +62,57 @@ BUILTIN_METHOD_IMPL(TYPENAME_TUPLE, SP_METHOD_CTOR) {
   return tuple_value(tuple);
 }
 
-#define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value) items = AS_TUPLE(value)->items
-#define BUILTIN_LISTLIKE_NEW_EMPTY() tuple_value(new_tuple())
-#define BUILTIN_LISTLIKE_TAKE_ARRAY(value_array) tuple_value(take_tuple(&value_array))
-BUILTIN_ENUMERABLE_HAS(TUPLE, "an item")
-BUILTIN_LISTLIKE_SLICE(TUPLE)
-BUILTIN_LISTLIKE_TO_STR(TUPLE, VALUE_STR_TUPLE_START, VALUE_STR_TUPLE_DELIM, VALUE_STR_TUPLE_END)
-BUILTIN_LISTLIKE_INDEX_OF(TUPLE)
-BUILTIN_LISTLIKE_FIRST(TUPLE)
-BUILTIN_LISTLIKE_LAST(TUPLE)
-BUILTIN_LISTLIKE_EACH(TUPLE)
-BUILTIN_LISTLIKE_MAP(TUPLE)
-BUILTIN_LISTLIKE_FILTER(TUPLE)
-BUILTIN_LISTLIKE_JOIN(TUPLE)
-BUILTIN_LISTLIKE_REVERSE(TUPLE)
-BUILTIN_LISTLIKE_EVERY(TUPLE)
-BUILTIN_LISTLIKE_SOME(TUPLE)
-BUILTIN_LISTLIKE_REDUCE(TUPLE)
-BUILTIN_LISTLIKE_COUNT(TUPLE)
-BUILTIN_LISTLIKE_CONCAT(TUPLE)
-#undef BUILTIN_ENUMERABLE_GET_VALUE_ARRAY
-#undef BUILTIN_LISTLIKE_NEW_EMPTY
-#undef BUILTIN_LISTLIKE_TAKE_ARRAY
+#define NATIVE_ENUMERABLE_GET_VALUE_ARRAY(value) items = AS_TUPLE(value)->items
+#define NATIVE_LISTLIKE_NEW_EMPTY() tuple_value(new_tuple())
+#define NATIVE_LISTLIKE_TAKE_ARRAY(value_array) tuple_value(take_tuple(&value_array))
+static Value tuple_has(int argc, Value argv[]) {
+  NATIVE_ENUMERABLE_HAS_BODY(TUPLE);
+}
+static Value tuple_slice(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_SLICE_BODY(TUPLE);
+}
+static Value tuple_to_str(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_TO_STR_BODY(TUPLE, VALUE_STR_TUPLE_START, VALUE_STR_TUPLE_DELIM, VALUE_STR_TUPLE_END);
+}
+static Value tuple_index_of(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_INDEX_OF_BODY(TUPLE);
+}
+static Value tuple_first(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_FIRST_BODY(TUPLE);
+}
+static Value tuple_last(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_LAST_BODY(TUPLE);
+}
+static Value tuple_each(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_EACH_BODY(TUPLE);
+}
+static Value tuple_map(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_MAP_BODY(TUPLE);
+}
+static Value tuple_filter(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_FILTER_BODY(TUPLE);
+}
+static Value tuple_join(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_JOIN_BODY(TUPLE);
+}
+static Value tuple_reverse(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_REVERSE_BODY(TUPLE);
+}
+static Value tuple_every(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_EVERY_BODY(TUPLE);
+}
+static Value tuple_some(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_SOME_BODY(TUPLE);
+}
+static Value tuple_reduce(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_REDUCE_BODY(TUPLE);
+}
+static Value tuple_count(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_COUNT_BODY(TUPLE);
+}
+static Value tuple_concat(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_CONCAT_BODY(TUPLE);
+}
+#undef NATIVE_ENUMERABLE_GET_VALUE_ARRAY
+#undef NATIVE_LISTLIKE_NEW_EMPTY
+#undef NATIVE_LISTLIKE_TAKE_ARRAY

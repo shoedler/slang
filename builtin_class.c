@@ -3,19 +3,22 @@
 #include "common.h"
 #include "vm.h"
 
-void finalize_builtin_class_class() {
-  BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_CTOR, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_TO_STR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_CLASS, SP_METHOD_HAS, 1);
+static Value class_ctor(int argc, Value argv[]);
+static Value class_to_str(int argc, Value argv[]);
+static Value class_has(int argc, Value argv[]);
 
-  BUILTIN_FINALIZE_CLASS(TYPENAME_CLASS);
+void finalize_native_class_class() {
+  define_native(&vm.class_class->methods, STR(SP_METHOD_CTOR), class_ctor, 1);
+  define_native(&vm.class_class->methods, STR(SP_METHOD_TO_STR), class_to_str, 0);
+  define_native(&vm.class_class->methods, STR(SP_METHOD_HAS), class_has, 1);
+  finalize_new_class(vm.class_class);
 }
 
 /**
  * TYPENAME_CLASS.SP_METHOD_CTOR() -> TYPENAME_CLASS
  * @brief No-op constructor for TYPENAME_CLASS.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_CTOR) {
+static Value class_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
   runtime_error("Cannot instantiate a class via " STR(TYPENAME_CLASS) "." STR(SP_METHOD_CTOR) ".");
@@ -26,9 +29,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_CTOR) {
  * TYPENAME_CLASS.SP_METHOD_TO_STR() -> TYPENAME_STRING
  * @brief Returns a string representation of a TYPENAME_CLASS.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_TO_STR) {
+static Value class_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(CLASS)
+  NATIVE_CHECK_RECEIVER(CLASS)
 
   ObjClass* klass = AS_CLASS(argv[0]);
   ObjString* name = klass->name;
@@ -53,10 +56,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_TO_STR) {
  * TYPENAME_CLASS.SP_METHOD_HAS(name: TYPENAME_STRING) -> TYPENAME_BOOL
  * @brief Returns VALUE_STR_TRUE if the class has a property with the given name, VALUE_STR_FALSE otherwise.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_CLASS, SP_METHOD_HAS) {
+static Value class_has(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(CLASS)
-  BUILTIN_CHECK_ARG_AT(1, STRING)
+  NATIVE_CHECK_RECEIVER(CLASS)
+  NATIVE_CHECK_ARG_AT(1, STRING)
 
   ObjString* name = AS_STRING(argv[1]);
   ObjClass* klass = AS_CLASS(argv[0]);

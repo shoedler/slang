@@ -2,33 +2,45 @@
 #include "common.h"
 #include "vm.h"
 
-void finalize_builtin_num_class() {
-  BUILTIN_REGISTER_METHOD(TYPENAME_NUM, SP_METHOD_CTOR, 1);
-  BUILTIN_FINALIZE_CLASS(TYPENAME_NUM);
+static Value num_ctor(int argc, Value argv[]);
+static Value int_ctor(int argc, Value argv[]);
+static Value int_to_str(int argc, Value argv[]);
+static Value float_ctor(int argc, Value argv[]);
+static Value float_to_str(int argc, Value argv[]);
+
+void finalize_native_num_class() {
+  define_native(&vm.num_class->methods, STR(SP_METHOD_CTOR), num_ctor, 1);
+  finalize_new_class(vm.num_class);
+}
+
+void finalize_native_int_class() {
+  define_native(&vm.int_class->methods, STR(SP_METHOD_CTOR), int_ctor, 1);
+  define_native(&vm.int_class->methods, STR(SP_METHOD_TO_STR), int_to_str, 0);
+  finalize_new_class(vm.int_class);
+}
+
+void finalize_native_float_class() {
+  define_native(&vm.float_class->methods, STR(SP_METHOD_CTOR), float_ctor, 1);
+  define_native(&vm.float_class->methods, STR(SP_METHOD_TO_STR), float_to_str, 0);
+  finalize_new_class(vm.float_class);
 }
 
 /**
  * TYPENAME_NUM.SP_METHOD_CTOR() -> TYPENAME_NUM
  * @brief No-op constructor for TYPENAME_NUM.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_NUM, SP_METHOD_CTOR) {
+static Value num_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
   runtime_error("Cannot instantiate a number via " STR(TYPENAME_NUM) "." STR(SP_METHOD_CTOR) ".");
   return nil_value();
 }
 
-void finalize_builtin_int_class() {
-  BUILTIN_REGISTER_METHOD(TYPENAME_INT, SP_METHOD_CTOR, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_INT, SP_METHOD_TO_STR, 0);
-  BUILTIN_FINALIZE_CLASS(TYPENAME_INT);
-}
-
 /**
  * TYPENAME_INT.SP_METHOD_CTOR() -> TYPENAME_INT
  * @brief No-op constructor for TYPENAME_INT.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_CTOR) {
+static Value int_ctor(int argc, Value argv[]) {
   UNUSED(argc);
 
   if (IS_INT(argv[1])) {
@@ -55,9 +67,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_CTOR) {
  * TYPENAME_INT.SP_METHOD_TO_STR() -> TYPENAME_STRING
  * @brief Returns a string representation of an TYPENAME_INT.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_TO_STR) {
+static Value int_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(INT)
+  NATIVE_CHECK_RECEIVER(INT)
 
   char buffer[100];
   int len = snprintf(buffer, sizeof(buffer), VALUE_STR_INT, argv[0].as.integer);
@@ -66,17 +78,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_INT, SP_METHOD_TO_STR) {
   return str_value(str_obj);
 }
 
-void finalize_builtin_float_class() {
-  BUILTIN_REGISTER_METHOD(TYPENAME_FLOAT, SP_METHOD_CTOR, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_FLOAT, SP_METHOD_TO_STR, 0);
-  BUILTIN_FINALIZE_CLASS(TYPENAME_FLOAT);
-}
-
 /**
  * TYPENAME_FLOAT.SP_METHOD_CTOR() -> TYPENAME_FLOAT
  * @brief No-op constructor for TYPENAME_FLOAT.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_CTOR) {
+static Value float_ctor(int argc, Value argv[]) {
   UNUSED(argc);
 
   if (IS_INT(argv[1])) {
@@ -103,9 +109,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_CTOR) {
  * TYPENAME_FLOAT.SP_METHOD_TO_STR() -> TYPENAME_STRING
  * @brief Returns a string representation of a TYPENAME_FLOAT.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_FLOAT, SP_METHOD_TO_STR) {
+static Value float_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(FLOAT)
+  NATIVE_CHECK_RECEIVER(FLOAT)
 
   char buffer[100];
   int len = snprintf(buffer, sizeof(buffer), VALUE_STR_FLOAT, argv[0].as.float_);

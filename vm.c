@@ -244,19 +244,19 @@ void init_vm() {
   // Register the built-in classes
   // Names are null, because we cannot intern them yet. At this point hashtables won't work, bc without the base classes the the
   // hashtable cannot compare the keys.
-  vm.__builtin_Obj_class     = new_class(NULL, NULL);
-  vm.__builtin_Nil_class     = new_class(NULL, NULL);
-  vm.__builtin_Str_class     = new_class(NULL, NULL);
-  vm.__builtin_Class_class   = new_class(NULL, NULL);
-  vm.__builtin_Fn_class      = new_class(NULL, NULL);
-  vm.__builtin_Bool_class    = new_class(NULL, NULL);
-  vm.__builtin_Num_class     = new_class(NULL, NULL);
-  vm.__builtin_Int_class     = new_class(NULL, vm.__builtin_Num_class);
-  vm.__builtin_Float_class   = new_class(NULL, vm.__builtin_Num_class);
-  vm.__builtin_Upvalue_class = new_class(NULL, NULL);
-  vm.__builtin_Handler_class = new_class(NULL, NULL);
-  vm.__builtin_Seq_class     = new_class(NULL, NULL);
-  vm.__builtin_Tuple_class   = new_class(NULL, NULL);
+  vm.obj_class     = new_class(NULL, NULL);
+  vm.nil_class     = new_class(NULL, NULL);
+  vm.str_class     = new_class(NULL, NULL);
+  vm.class_class   = new_class(NULL, NULL);
+  vm.fn_class      = new_class(NULL, NULL);
+  vm.bool_class    = new_class(NULL, NULL);
+  vm.num_class     = new_class(NULL, NULL);
+  vm.int_class     = new_class(NULL, vm.num_class);
+  vm.float_class   = new_class(NULL, vm.num_class);
+  vm.upvalue_class = new_class(NULL, NULL);
+  vm.handler_class = new_class(NULL, NULL);
+  vm.seq_class     = new_class(NULL, NULL);
+  vm.tuple_class   = new_class(NULL, NULL);
 
   // Now, we can intern the names. Hashtables are now usable.
   ObjString* obj_name     = copy_string(STR(TYPENAME_OBJ), STR_LEN(STR(TYPENAME_OBJ)));
@@ -274,38 +274,38 @@ void init_vm() {
   ObjString* tuple_name   = copy_string(STR(TYPENAME_TUPLE), STR_LEN(STR(TYPENAME_TUPLE)));
 
   // ...and assign them to the classes
-  vm.__builtin_Obj_class->name     = obj_name;
-  vm.__builtin_Nil_class->name     = nil_name;
-  vm.__builtin_Str_class->name     = str_name;
-  vm.__builtin_Class_class->name   = class_name;
-  vm.__builtin_Fn_class->name      = fn_name;
-  vm.__builtin_Bool_class->name    = bool_name;
-  vm.__builtin_Num_class->name     = num_name;
-  vm.__builtin_Int_class->name     = int_name;
-  vm.__builtin_Float_class->name   = float_name;
-  vm.__builtin_Upvalue_class->name = upvalue_name;
-  vm.__builtin_Handler_class->name = handler_name;
-  vm.__builtin_Seq_class->name     = seq_name;
-  vm.__builtin_Tuple_class->name   = tuple_name;
+  vm.obj_class->name     = obj_name;
+  vm.nil_class->name     = nil_name;
+  vm.str_class->name     = str_name;
+  vm.class_class->name   = class_name;
+  vm.fn_class->name      = fn_name;
+  vm.bool_class->name    = bool_name;
+  vm.num_class->name     = num_name;
+  vm.int_class->name     = int_name;
+  vm.float_class->name   = float_name;
+  vm.upvalue_class->name = upvalue_name;
+  vm.handler_class->name = handler_name;
+  vm.seq_class->name     = seq_name;
+  vm.tuple_class->name   = tuple_name;
 
   // Create the builtin obj instance. Used to access all the builtin stuff.
-  vm.builtin = new_instance(vm.__builtin_Obj_class);
+  vm.builtin = new_instance(vm.obj_class);
 
   // Register the builtin classes in the builtin object
   define_value(&vm.builtin->fields, INSTANCENAME_BUILTIN, instance_value(vm.builtin));
-  hashtable_set(&vm.builtin->fields, str_value(obj_name), class_value(vm.__builtin_Obj_class));
-  hashtable_set(&vm.builtin->fields, str_value(nil_name), class_value(vm.__builtin_Nil_class));
-  hashtable_set(&vm.builtin->fields, str_value(str_name), class_value(vm.__builtin_Str_class));
-  hashtable_set(&vm.builtin->fields, str_value(class_name), class_value(vm.__builtin_Class_class));
-  hashtable_set(&vm.builtin->fields, str_value(fn_name), class_value(vm.__builtin_Fn_class));
-  hashtable_set(&vm.builtin->fields, str_value(bool_name), class_value(vm.__builtin_Bool_class));
-  hashtable_set(&vm.builtin->fields, str_value(num_name), class_value(vm.__builtin_Num_class));
-  hashtable_set(&vm.builtin->fields, str_value(int_name), class_value(vm.__builtin_Int_class));
-  hashtable_set(&vm.builtin->fields, str_value(float_name), class_value(vm.__builtin_Float_class));
-  hashtable_set(&vm.builtin->fields, str_value(upvalue_name), class_value(vm.__builtin_Upvalue_class));
-  hashtable_set(&vm.builtin->fields, str_value(handler_name), class_value(vm.__builtin_Handler_class));
-  hashtable_set(&vm.builtin->fields, str_value(seq_name), class_value(vm.__builtin_Seq_class));
-  hashtable_set(&vm.builtin->fields, str_value(tuple_name), class_value(vm.__builtin_Tuple_class));
+  hashtable_set(&vm.builtin->fields, str_value(obj_name), class_value(vm.obj_class));
+  hashtable_set(&vm.builtin->fields, str_value(nil_name), class_value(vm.nil_class));
+  hashtable_set(&vm.builtin->fields, str_value(str_name), class_value(vm.str_class));
+  hashtable_set(&vm.builtin->fields, str_value(class_name), class_value(vm.class_class));
+  hashtable_set(&vm.builtin->fields, str_value(fn_name), class_value(vm.fn_class));
+  hashtable_set(&vm.builtin->fields, str_value(bool_name), class_value(vm.bool_class));
+  hashtable_set(&vm.builtin->fields, str_value(num_name), class_value(vm.num_class));
+  hashtable_set(&vm.builtin->fields, str_value(int_name), class_value(vm.int_class));
+  hashtable_set(&vm.builtin->fields, str_value(float_name), class_value(vm.float_class));
+  hashtable_set(&vm.builtin->fields, str_value(upvalue_name), class_value(vm.upvalue_class));
+  hashtable_set(&vm.builtin->fields, str_value(handler_name), class_value(vm.handler_class));
+  hashtable_set(&vm.builtin->fields, str_value(seq_name), class_value(vm.seq_class));
+  hashtable_set(&vm.builtin->fields, str_value(tuple_name), class_value(vm.tuple_class));
 
   // Build the reserved words lookup table
   memset(vm.special_method_names, 0, sizeof(vm.special_method_names));
@@ -321,32 +321,32 @@ void init_vm() {
   vm.special_prop_names[SPECIAL_PROP_MODULE_NAME] = copy_string(STR(SP_PROP_MODULE_NAME), STR_LEN(STR(SP_PROP_MODULE_NAME)));
 
   // Register the built-in classes
-  finalize_builtin_obj_class();
+  finalize_native_obj_class();
 
   // Create the module class
-  ObjString* module_name    = copy_string(STR(TYPENAME_MODULE), STR_LEN(STR(TYPENAME_MODULE)));
-  vm.__builtin_Module_class = new_class(module_name, vm.__builtin_Obj_class);
-  hashtable_set(&vm.builtin->fields, str_value(module_name), class_value(vm.__builtin_Module_class));
-  finalize_new_class(vm.__builtin_Module_class);
+  ObjString* module_name = copy_string(STR(TYPENAME_MODULE), STR_LEN(STR(TYPENAME_MODULE)));
+  vm.module_class        = new_class(module_name, vm.obj_class);
+  hashtable_set(&vm.builtin->fields, str_value(module_name), class_value(vm.module_class));
+  finalize_new_class(vm.module_class);
 
   // Register the built-in functions
-  register_builtin_functions();
+  register_native_functions();
 
-  finalize_builtin_nil_class();
-  finalize_builtin_bool_class();
-  finalize_builtin_num_class();
-  finalize_builtin_int_class();
-  finalize_builtin_float_class();
-  finalize_builtin_seq_class();
-  finalize_builtin_tuple_class();
-  finalize_builtin_str_class();
-  finalize_builtin_fn_class();
-  finalize_builtin_class_class();
+  finalize_native_nil_class();
+  finalize_native_bool_class();
+  finalize_native_num_class();
+  finalize_native_int_class();
+  finalize_native_float_class();
+  finalize_native_seq_class();
+  finalize_native_tuple_class();
+  finalize_native_str_class();
+  finalize_native_fn_class();
+  finalize_native_class_class();
 
   // Register built-in modules
-  register_builtin_file_module();
-  register_builtin_perf_module();
-  register_builtin_debug_module();
+  register_native_file_module();
+  register_native_perf_module();
+  register_native_debug_module();
 
   vm.flags &= ~VM_FLAG_PAUSE_GC;  // Unpause
 
@@ -660,7 +660,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   }
 
   // Not cached, so we need to load it. First, we need to get the current working directory
-  Value cwd = BUILTIN_FN(cwd)(0, NULL);
+  Value cwd = native_cwd(0, NULL);
   if (IS_NIL(cwd)) {
     runtime_error(
         "Could not import module '%s'. Could not get current working directory, because there is no "
@@ -718,7 +718,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   vm.exit_on_frame        = previous_exit_frame;
 
   // Check if the module is actually a module
-  if (!(module.type == vm.__builtin_Module_class)) {
+  if (!(module.type == vm.module_class)) {
     free(module_to_load_path);
     runtime_error("Could not import module '%s'. Expected module type", module_name->chars);
     return false;
@@ -1471,7 +1471,7 @@ static Value run() {
       }
       case OP_CLASS: {
         // Initially, a class always inherits from Obj
-        ObjClass* klass = new_class(READ_STRING(), vm.__builtin_Obj_class);
+        ObjClass* klass = new_class(READ_STRING(), vm.obj_class);
         push(class_value(klass));
         hashtable_add_all(&klass->base->methods, &klass->methods);
         break;
@@ -1613,7 +1613,7 @@ static Value run() {
 
 ObjObject* make_module(const char* source_path, const char* module_name) {
   ObjObject* prev_module = vm.module;
-  ObjObject* module      = new_instance(vm.__builtin_Module_class);
+  ObjObject* module      = new_instance(vm.module_class);
 
   // We need to have the new module active for the duration of the module creation.
   // We'll restore it afterwards.

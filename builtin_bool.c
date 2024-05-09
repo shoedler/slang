@@ -2,18 +2,20 @@
 #include "common.h"
 #include "vm.h"
 
-void finalize_builtin_bool_class() {
-  BUILTIN_REGISTER_METHOD(TYPENAME_BOOL, SP_METHOD_CTOR, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_BOOL, SP_METHOD_TO_STR, 0);
+static Value bool_ctor(int argc, Value argv[]);
+static Value bool_to_str(int argc, Value argv[]);
 
-  BUILTIN_FINALIZE_CLASS(TYPENAME_BOOL);
+void finalize_native_bool_class() {
+  define_native(&vm.bool_class->methods, STR(SP_METHOD_CTOR), bool_ctor, 1);
+  define_native(&vm.bool_class->methods, STR(SP_METHOD_TO_STR), bool_to_str, 0);
+  finalize_new_class(vm.bool_class);
 }
 
 /**
  * TYPENAME_BOOL.SP_METHOD_CTOR(value: TYPENAME_VALUE) -> TYPENAME_BOOL
  * @brief Converts the first argument to a TYPENAME_BOOL.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_BOOL, SP_METHOD_CTOR) {
+static Value bool_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   if (is_falsey(argv[1])) {
     return bool_value(false);
@@ -26,9 +28,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_BOOL, SP_METHOD_CTOR) {
  * TYPENAME_BOOL.SP_METHOD_TO_STR() -> TYPENAME_STRING
  * @brief Returns a string representation of a TYPENAME_BOOL.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_BOOL, SP_METHOD_TO_STR) {
+static Value bool_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(BOOL)
+  NATIVE_CHECK_RECEIVER(BOOL)
 
   if (argv[0].as.boolean) {
     ObjString* str_obj = copy_string(VALUE_STR_TRUE, STR_LEN(VALUE_STR_TRUE));

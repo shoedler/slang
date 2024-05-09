@@ -4,22 +4,22 @@
 #include "file.h"
 #include "vm.h"
 
-BUILTIN_DECLARE_FN(now);
+static Value native_perf_now(int argc, Value argv[]);
 
 #define MODULE_NAME Perf
 
-void register_builtin_perf_module() {
+void register_native_perf_module() {
   ObjObject* perf_module = make_module(NULL, STR(MODULE_NAME));
   define_value(&vm.modules, STR(MODULE_NAME), instance_value(perf_module));
 
-  BUILTIN_REGISTER_FN(perf_module, now, 0);
+  define_native(&perf_module->fields, "now", native_perf_now, 0);
 }
 
 /**
  * MODULE_NAME.now() -> TYPENAME_FLOAT
  * @brief High-precision clock function. Returns the current execution time in seconds.
  */
-BUILTIN_FN_IMPL(now) {
+static Value native_perf_now(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
 

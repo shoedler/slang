@@ -4,29 +4,20 @@
 #include "common.h"
 #include "vm.h"
 
-void register_builtin_functions() {
-  BUILTIN_REGISTER_FN(vm.builtin, clock, 0);
-  BUILTIN_REGISTER_FN(vm.builtin, log, -1);
-  BUILTIN_REGISTER_FN(vm.builtin, typeof, 1);
-  BUILTIN_REGISTER_FN(vm.builtin, cwd, 0);
+void register_native_functions() {
+  define_native(&vm.builtin->fields, "clock", native_clock, 0);
+  define_native(&vm.builtin->fields, "log", native_log, -1);
+  define_native(&vm.builtin->fields, "typeof", native_typeof, 1);
+  define_native(&vm.builtin->fields, "cwd", native_cwd, 0);
 }
 
-/**
- * clock() -> TYPENAME_FLOAT
- * @brief Returns the current execution time in seconds.
- */
-BUILTIN_FN_IMPL(clock) {
+Value native_clock(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
-
   return float_value((double)clock() / CLOCKS_PER_SEC);
 }
 
-/**
- * cwd() -> TYPENAME_STRING
- * @brief Returns the current working directory or TYPENAME_NIL if no module is active.
- */
-BUILTIN_FN_IMPL(cwd) {
+Value native_cwd(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
 
@@ -42,11 +33,7 @@ BUILTIN_FN_IMPL(cwd) {
   return cwd;
 }
 
-/**
- * log(arg1: TYPENAME_VALUE, ...args: TYPENAME_VALUE) -> TYPENAME_NIL
- * @brief Prints the arguments to the console.
- */
-BUILTIN_FN_IMPL(log) {
+Value native_log(int argc, Value argv[]) {
   // Since argv[0] contains the receiver or function, we start at 1 and run that, even if we have only one
   // arg. Basically, arguments are 1 indexed for native function
   for (int i = 1; i <= argc; i++) {
@@ -66,13 +53,8 @@ BUILTIN_FN_IMPL(log) {
   return nil_value();
 }
 
-/**
- * typeof(value: TYPENAME_VALUE) -> TYPENAME_CLASS
- * @brief Returns the class of the value.
- */
-BUILTIN_FN_IMPL(typeof) {
+Value native_typeof(int argc, Value argv[]) {
   UNUSED(argc);
-
   ObjClass* klass = argv[1].type;
   return class_value(klass);
 }

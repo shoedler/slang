@@ -3,7 +3,7 @@
 #include "common.h"
 #include "vm.h"
 
-#define BUILTIN_CHECK_RECEIVER_IS_FN()                                                                     \
+#define NATIVE_CHECK_RECEIVER_IS_FN()                                                                      \
   if (!is_fn(argv[0])) {                                                                                   \
     runtime_error("Expected receiver of type " STR(TYPENAME_FUNCTION) ", " STR(TYPENAME_CLOSURE) ", " STR( \
                       TYPENAME_NATIVE) " or " STR(TYPENAME_BOUND_METHOD) ", but got %s.",                  \
@@ -11,20 +11,24 @@
     return nil_value();                                                                                    \
   }
 
-void finalize_builtin_fn_class() {
-  BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_CTOR, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_TO_STR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, SP_METHOD_HAS, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_FUNCTION, bind, 1);
+static Value fn_ctor(int argc, Value argv[]);
+static Value fn_to_str(int argc, Value argv[]);
+static Value fn_has(int argc, Value argv[]);
+static Value fn_bind(int argc, Value argv[]);
 
-  BUILTIN_FINALIZE_CLASS(TYPENAME_FUNCTION);
+void finalize_native_fn_class() {
+  define_native(&vm.fn_class->methods, STR(SP_METHOD_CTOR), fn_ctor, 1);
+  define_native(&vm.fn_class->methods, STR(SP_METHOD_TO_STR), fn_to_str, 0);
+  define_native(&vm.fn_class->methods, STR(SP_METHOD_HAS), fn_has, 1);
+  define_native(&vm.fn_class->methods, "bind", fn_bind, 1);
+  finalize_new_class(vm.fn_class);
 }
 
 /**
  * TYPENAME_FUNCTION.SP_METHOD_CTOR() -> TYPENAME_FUNCTION
  * @brief No-op constructor for TYPENAME_FUNCTION.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_CTOR) {
+static Value fn_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
   runtime_error("Cannot instantiate a function via " STR(TYPENAME_FUNCTION) "." STR(SP_METHOD_CTOR) ".");
@@ -35,9 +39,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_CTOR) {
  * TYPENAME_FUNCTION.SP_METHOD_TO_STR() -> TYPENAME_STRING
  * @brief Returns a string representation of a TYPENAME_FUNCTION.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_TO_STR) {
+static Value fn_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER_IS_FN()
+  NATIVE_CHECK_RECEIVER_IS_FN()
 
   Value fn = argv[0];
 
@@ -86,10 +90,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_TO_STR) {
  * TYPENAME_FUNCTION.SP_METHOD_HAS(name: TYPENAME_STRING) -> TYPENAME_BOOL
  * @brief Returns VALUE_STR_TRUE if the function has a property with the given name, VALUE_STR_FALSE otherwise.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_HAS) {
+static Value fn_has(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER_IS_FN()
-  BUILTIN_CHECK_ARG_AT(1, STRING)
+  NATIVE_CHECK_RECEIVER_IS_FN()
+  NATIVE_CHECK_ARG_AT(1, STRING)
 
   ObjString* name = AS_STRING(argv[1]);
 
@@ -113,10 +117,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, SP_METHOD_HAS) {
  * TYPENAME_FUNCTION.bind(bind_target: OBJ) -> TYPENAME_BOUND_METHOD
  * @brief Returns a new TYPENAME_BOUND_METHOD with the given bind_target (receiver) bound to the function.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_FUNCTION, bind) {
+static Value fn_bind(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER_IS_FN()
-  BUILTIN_CHECK_ARG_AT(1, OBJ)
+  NATIVE_CHECK_RECEIVER_IS_FN()
+  NATIVE_CHECK_ARG_AT(1, OBJ)
 
   Value bind_target = argv[1];
   return fn_value((Obj*)new_bound_method(bind_target, argv[0].as.obj));

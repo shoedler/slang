@@ -6,50 +6,6 @@
 #include "hashtable.h"
 #include "value.h"
 
-// Converts a value into a bound method.
-// Value must be of type bound method.
-#define AS_BOUND_METHOD(value) ((ObjBoundMethod*)(value.as.obj))
-
-// Converts a value into a class.
-// Value must be of type class.
-#define AS_CLASS(value) ((ObjClass*)(value.as.obj))
-
-// Converts a value into a closure.
-// Value must be of type closure.
-#define AS_CLOSURE(value) ((ObjClosure*)(value.as.obj))
-
-// Converts a value into a sequence.
-// Value must be of type sequence.
-#define AS_SEQ(value) ((ObjSeq*)(value.as.obj))
-
-// Converts a value into a tuple.
-// Value must be of type tuple.
-#define AS_TUPLE(value) ((ObjTuple*)(value.as.obj))
-
-// Gets the value array of a listlike object (Seq, Tuple).
-// Hack: Just cast to ObjSeq* and access the items field, because the layout is the same.
-#define LISTLIKE_GET_VALUEARRAY(value) ((ObjSeq*)(value.as.obj))->items
-
-// Converts a value into a function.
-// Value must be of type function.
-#define AS_FUNCTION(value) ((ObjFunction*)(value.as.obj))
-
-// Converts a value into an object.
-// Value must be of type object.
-#define AS_OBJECT(value) ((ObjObject*)(value.as.obj))
-
-// Converts a value into a native function.
-// Value must be of type native function.
-#define AS_NATIVE(value) (((ObjNative*)(value.as.obj)))
-
-// Converts a value into a string.
-// Value must be of type string.
-#define AS_STRING(value) ((ObjString*)(value.as.obj))
-
-// Converts a value into a C string.
-// Value must be of type string.
-#define AS_CSTRING(value) (((ObjString*)(value.as.obj))->chars)
-
 // The type of an object. Tells the garbage collector how to free the object.
 typedef enum {
   OBJ_GC_CLASS,
@@ -140,8 +96,6 @@ typedef struct ObjClass {
   Obj* __has;
   Obj* __to_str;
   Obj* __slice;
-
-  void* invoke;
 } ObjClass;
 
 typedef struct ObjObject {

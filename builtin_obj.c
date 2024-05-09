@@ -4,23 +4,30 @@
 #include "common.h"
 #include "vm.h"
 
-void finalize_builtin_obj_class() {
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_CTOR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_TO_STR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_HAS, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, hash, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, entries, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, keys, 0);
+static Value obj_ctor(int argc, Value argv[]);
+static Value obj_to_str(int argc, Value argv[]);
+static Value obj_has(int argc, Value argv[]);
+static Value obj_hash(int argc, Value argv[]);
+static Value obj_entries(int argc, Value argv[]);
+static Value obj_values(int argc, Value argv[]);
+static Value obj_keys(int argc, Value argv[]);
 
-  BUILTIN_FINALIZE_CLASS(TYPENAME_OBJ);
+void finalize_native_obj_class() {
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_CTOR), obj_ctor, 0);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_TO_STR), obj_to_str, 0);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_HAS), obj_has, 1);
+  define_native(&vm.obj_class->methods, "hash", obj_hash, 0);
+  define_native(&vm.obj_class->methods, "entries", obj_entries, 0);
+  define_native(&vm.obj_class->methods, "values", obj_values, 0);
+  define_native(&vm.obj_class->methods, "keys", obj_keys, 0);
+  finalize_new_class(vm.obj_class);
 }
 
 /**
  * TYPENAME_OBJ.SP_METHOD_CTOR() -> TYPENAME_OBJ
  * @brief returns a new empty TYPENAME_OBJ.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_CTOR) {
+static Value obj_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   // This is a base implementation, all objects which don't have a custom implementation will use this one.
   // Works nicely for all classes, because instances are ObjObjects. Any other value type, like primitives, are handled internally
@@ -126,7 +133,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
  * TYPENAME_OBJ.SP_METHOD_TO_STR() -> TYPENAME_STRING
  * @brief Returns a string representation of the TYPENAME_OBJ.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
+static Value obj_to_str(int argc, Value argv[]) {
   // This is a base implementation, all objects which don't have a custom implementation will use this one.
   // Anything that came here is at least a ObjObject, because every other value-type has an internal to_str implementation.
 
@@ -155,7 +162,7 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
   return str_value(str_obj);
 }
 
-#define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value)                  \
+#define NATIVE_ENUMERABLE_GET_VALUE_ARRAY(value)                   \
   /* Execute the 'keys' method on the receiver */                  \
   push(argv[0]); /* Receiver */                                    \
   Value seq = exec_callable(str_value(copy_string("keys", 4)), 0); \
@@ -163,14 +170,16 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
     return nil_value();                                            \
   }                                                                \
   items = AS_SEQ(seq)->items;
-BUILTIN_ENUMERABLE_HAS(OBJ, "a key")
-#undef BUILTIN_ENUMERABLE_GET_VALUE_ARRAY
+static Value obj_has(int argc, Value argv[]) {
+  NATIVE_ENUMERABLE_HAS_BODY(OBJ)
+}
+#undef NATIVE_ENUMERABLE_GET_VALUE_ARRAY
 
 /**
- * TYPENAME_OBJ.SP_METHOD_HAS(key: TYPENAME_VALUE) -> TYPENAME_BOOL
- * @brief Returns VALUE_STR_TRUE if the object has a key with the given name, VALUE_STR_FALSE otherwise.
+ * TYPENAME_OBJ.SP_METHOD_HASH() -> TYPENAME_INT
+ * @brief Returns the hash of the TYPENAME_OBJ.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
+static Value obj_hash(int argc, Value argv[]) {
   UNUSED(argc);
   return int_value(hash_value(argv[0]));
 }
@@ -180,9 +189,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
  * @brief Returns a TYPENAME_SEQ of key-value pairs (which are TYPENAME_SEQs of length 2) of an TYPENAME_OBJ, containing all
  * entries.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
+static Value obj_entries(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(OBJ)
+  NATIVE_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
@@ -207,9 +216,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
  * TYPENAME_OBJ.keys() -> TYPENAME_SEQ
  * @brief Returns a TYPENAME_SEQ of all keys of an TYPENAME_OBJ.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, keys) {
+static Value obj_keys(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(OBJ)
+  NATIVE_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
@@ -231,9 +240,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, keys) {
  * TYPENAME_OBJ.values() -> TYPENAME_SEQ
  * @brief Returns a TYPENAME_SEQ of all values of an TYPENAME_OBJ.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, values) {
+static Value obj_values(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(OBJ)
+  NATIVE_CHECK_RECEIVER(OBJ)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);

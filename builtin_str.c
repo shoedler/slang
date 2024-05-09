@@ -3,22 +3,28 @@
 #include "common.h"
 #include "vm.h"
 
-void finalize_builtin_str_class() {
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_CTOR, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_TO_STR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_HAS, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, SP_METHOD_SLICE, 2);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, split, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_STRING, trim, 0);
+static Value str_ctor(int argc, Value argv[]);
+static Value str_to_str(int argc, Value argv[]);
+static Value str_has(int argc, Value argv[]);
+static Value str_slice(int argc, Value argv[]);
+static Value str_split(int argc, Value argv[]);
+static Value str_trim(int argc, Value argv[]);
 
-  BUILTIN_FINALIZE_CLASS(TYPENAME_STRING);
+void finalize_native_str_class() {
+  define_native(&vm.str_class->methods, STR(SP_METHOD_CTOR), str_ctor, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_TO_STR), str_to_str, 0);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_HAS), str_has, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_SLICE), str_slice, 2);
+  define_native(&vm.str_class->methods, "split", str_split, 1);
+  define_native(&vm.str_class->methods, "trim", str_trim, 0);
+  finalize_new_class(vm.str_class);
 }
 
 /**
  * TYPENAME_STRING.SP_METHOD_CTOR(value: TYPENAME_OBJ) -> TYPENAME_STRING
  * @brief Converts the first argument to a TYPENAME_STRING.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_CTOR) {
+static Value str_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   // Execute the to_str method on the argument
   push(argv[1]);  // Push the receiver for to_str, which is the ctors' argument
@@ -34,9 +40,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_CTOR) {
  * TYPENAME_STRING.SP_METHOD_TO_STR() -> TYPENAME_STRING
  * @brief Returns a string representation of a TYPENAME_STRING.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_TO_STR) {
+static Value str_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(STRING)
+  NATIVE_CHECK_RECEIVER(STRING)
 
   return argv[0];
 }
@@ -45,10 +51,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_TO_STR) {
  * TYPENAME_STRING.split(sep: TYPENAME_STRING) -> TYPENAME_SEQ
  * @brief Splits a TYPENAME_STRING into a TYPENAME_SEQ of substrings, using 'sep' as the delimiter.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
+static Value str_split(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(STRING)
-  BUILTIN_CHECK_ARG_AT(1, STRING)
+  NATIVE_CHECK_RECEIVER(STRING)
+  NATIVE_CHECK_ARG_AT(1, STRING)
 
   ObjString* str = AS_STRING(argv[0]);
   ObjString* sep = AS_STRING(argv[1]);
@@ -95,9 +101,9 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, split) {
  * TYPENAME_STRING.trim() -> TYPENAME_STRING
  * @brief Returns a new TYPENAME_STRING with leading and trailing whitespace (' ', \\f, \\n, \\r, \\t, \\v) removed.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, trim) {
+static Value str_trim(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(STRING)
+  NATIVE_CHECK_RECEIVER(STRING)
 
   ObjString* str = AS_STRING(argv[0]);
   int start      = 0;
@@ -123,10 +129,10 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, trim) {
  * TYPENAME_STRING.SP_METHOD_HAS(subs: TYPENAME_STRING) -> TYPENAME_BOOL
  * @brief Returns true if the TYPENAME_STRING contains the substring 'subs'.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_HAS) {
+static Value str_has(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(STRING)
-  BUILTIN_CHECK_ARG_AT(1, STRING)
+  NATIVE_CHECK_RECEIVER(STRING)
+  NATIVE_CHECK_ARG_AT(1, STRING)
 
   // Should align with prop_getter
   ObjString* str    = AS_STRING(argv[0]);
@@ -154,14 +160,14 @@ BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_HAS) {
  * 'end' can be negative to count from the end of the TYPENAME_STRING. If 'start' is greater than or equal to 'end', an empty
  * TYPENAME_STRING is returned. If 'end' is TYPENAME_NIL, all items from 'start' to the end of the TYPENAME_STRING are included.
  */
-BUILTIN_METHOD_IMPL(TYPENAME_STRING, SP_METHOD_SLICE) {
+static Value str_slice(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(STRING)
-  BUILTIN_CHECK_ARG_AT(1, INT)
+  NATIVE_CHECK_RECEIVER(STRING)
+  NATIVE_CHECK_ARG_AT(1, INT)
   if (IS_NIL(argv[2])) {
     argv[2] = int_value(AS_STRING(argv[0])->length);
   }
-  BUILTIN_CHECK_ARG_AT(2, INT)
+  NATIVE_CHECK_ARG_AT(2, INT)
 
   ObjString* str = AS_STRING(argv[0]);
   int count      = str->length;
