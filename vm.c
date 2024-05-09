@@ -328,8 +328,10 @@ void init_vm() {
   finalize_builtin_obj_class();
 
   // Create the module class
-  BUILTIN_REGISTER_CLASS(TYPENAME_MODULE, TYPENAME_OBJ);
-  BUILTIN_FINALIZE_CLASS(TYPENAME_MODULE);
+  ObjString* module_name    = copy_string(STR(TYPENAME_MODULE), STR_LEN(STR(TYPENAME_MODULE)));
+  vm.__builtin_Module_class = new_class(module_name, vm.__builtin_Obj_class);
+  hashtable_set(&vm.builtin->fields, str_value(module_name), class_value(vm.__builtin_Module_class));
+  finalize_new_class(vm.__builtin_Module_class);
 
   // Register the built-in functions
   register_builtin_functions();

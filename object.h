@@ -142,6 +142,8 @@ typedef struct ObjClass {
   Obj* __has;
   Obj* __to_str;
   Obj* __slice;
+
+  void* invoke;
 } ObjClass;
 
 typedef struct ObjObject {

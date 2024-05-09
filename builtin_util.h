@@ -39,15 +39,6 @@
   extern const char* BUILTIN_FN_DOC_STR(name); \
   extern Value BUILTIN_FN(name)(int argc, Value argv[]);
 
-// Register a built-in class in the VM, by adding it to the built-in object's field table.
-#define BUILTIN_REGISTER_CLASS(class_name, base_class)                                                 \
-  vm.BUILTIN_CLASS(class_name) =                                                                       \
-      new_class(copy_string(STR(class_name), STR_LEN(STR(class_name))), vm.BUILTIN_CLASS(base_class)); \
-  define_value(&vm.builtin->fields, STR(class_name), class_value(vm.BUILTIN_CLASS(class_name)));
-// Register a built-in base class in the VM, by adding it to the built-in object's field table.
-#define BUILTIN_REGISTER_BASE_CLASS(class_name)                                                           \
-  vm.BUILTIN_CLASS(class_name) = new_class(copy_string(STR(class_name), STR_LEN(STR(class_name))), NULL); \
-  define_value(&vm.builtin->fields, STR(class_name), class_value(vm.BUILTIN_CLASS(class_name)));
 // Register a built-in method in the VM, by adding it to the built-in class's method table.
 #define BUILTIN_REGISTER_METHOD(class_name, method_name, arity)                                                    \
   define_native(&vm.BUILTIN_CLASS(class_name)->methods, STR(method_name), BUILTIN_METHOD(class_name, method_name), \
