@@ -2,13 +2,22 @@
 #include "common.h"
 #include "vm.h"
 
+static bool nil_get_prop(Value receiver, ObjString* name, Value* result);
+
 static Value nil_ctor(int argc, Value argv[]);
 static Value nil_to_str(int argc, Value argv[]);
 
 void finalize_native_nil_class() {
+  vm.nil_class->get_property = nil_get_prop;
+
   define_native(&vm.nil_class->methods, STR(SP_METHOD_CTOR), nil_ctor, 1);
   define_native(&vm.nil_class->methods, STR(SP_METHOD_TO_STR), nil_to_str, 0);
   finalize_new_class(vm.nil_class);
+}
+
+static bool nil_get_prop(Value receiver, ObjString* name, Value* result) {
+  UNUSED(receiver);
+  NATIVE_DEFAULT_GET_PROP_BODY(vm.nil_class)
 }
 
 /**

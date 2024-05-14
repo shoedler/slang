@@ -7,7 +7,7 @@ let a = A()
 
 // Cannot access methods / static methods via get-indexing.
 print a["x"]                // [Expect] nil
-print try A["y"] else error // [Expect] Type Class does not support get-indexing with Str.
+print try A["y"] else error // [Expect] Type Class does not support get-indexing.
 
 // Stack check. Only the toplevel fn should be in the stack at this point.
 // Added this bc there were some bugs in value_get_property, value_set_property, value_get_index and value_set_index

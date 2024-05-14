@@ -656,4 +656,4 @@
 // print A()["b"]      // [Expect] 2
 
 
-print "Goodbye, World!"
+print 0.to_str

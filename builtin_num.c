@@ -2,6 +2,10 @@
 #include "common.h"
 #include "vm.h"
 
+static bool num_get_prop(Value receiver, ObjString* name, Value* result);
+static bool int_get_prop(Value receiver, ObjString* name, Value* result);
+static bool float_get_prop(Value receiver, ObjString* name, Value* result);
+
 static Value num_ctor(int argc, Value argv[]);
 static Value int_ctor(int argc, Value argv[]);
 static Value int_to_str(int argc, Value argv[]);
@@ -9,20 +13,41 @@ static Value float_ctor(int argc, Value argv[]);
 static Value float_to_str(int argc, Value argv[]);
 
 void finalize_native_num_class() {
+  vm.num_class->get_property = num_get_prop;
+
   define_native(&vm.num_class->methods, STR(SP_METHOD_CTOR), num_ctor, 1);
   finalize_new_class(vm.num_class);
 }
 
 void finalize_native_int_class() {
+  vm.int_class->get_property = int_get_prop;
+
   define_native(&vm.int_class->methods, STR(SP_METHOD_CTOR), int_ctor, 1);
   define_native(&vm.int_class->methods, STR(SP_METHOD_TO_STR), int_to_str, 0);
   finalize_new_class(vm.int_class);
 }
 
 void finalize_native_float_class() {
+  vm.float_class->get_property = float_get_prop;
+
   define_native(&vm.float_class->methods, STR(SP_METHOD_CTOR), float_ctor, 1);
   define_native(&vm.float_class->methods, STR(SP_METHOD_TO_STR), float_to_str, 0);
   finalize_new_class(vm.float_class);
+}
+
+static bool num_get_prop(Value receiver, ObjString* name, Value* result) {
+  UNUSED(receiver);
+  NATIVE_DEFAULT_GET_PROP_BODY(vm.num_class)
+}
+
+static bool int_get_prop(Value receiver, ObjString* name, Value* result) {
+  UNUSED(receiver);
+  NATIVE_DEFAULT_GET_PROP_BODY(vm.int_class)
+}
+
+static bool float_get_prop(Value receiver, ObjString* name, Value* result) {
+  UNUSED(receiver);
+  NATIVE_DEFAULT_GET_PROP_BODY(vm.float_class)
 }
 
 /**

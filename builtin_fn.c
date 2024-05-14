@@ -11,17 +11,29 @@
     return nil_value();                                                                                    \
   }
 
+static bool fn_get_prop(Value receiver, ObjString* name, Value* result);
+
 static Value fn_ctor(int argc, Value argv[]);
 static Value fn_to_str(int argc, Value argv[]);
 static Value fn_has(int argc, Value argv[]);
 static Value fn_bind(int argc, Value argv[]);
 
 void finalize_native_fn_class() {
+  vm.fn_class->get_property = fn_get_prop;
+
   define_native(&vm.fn_class->methods, STR(SP_METHOD_CTOR), fn_ctor, 1);
   define_native(&vm.fn_class->methods, STR(SP_METHOD_TO_STR), fn_to_str, 0);
   define_native(&vm.fn_class->methods, STR(SP_METHOD_HAS), fn_has, 1);
   define_native(&vm.fn_class->methods, "bind", fn_bind, 1);
   finalize_new_class(vm.fn_class);
+}
+
+static bool fn_get_prop(Value receiver, ObjString* name, Value* result) {
+  if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
+    *result = str_value(fn_get_name(receiver));
+    return true;
+  }
+  NATIVE_DEFAULT_GET_PROP_BODY(vm.fn_class)
 }
 
 /**
@@ -97,18 +109,15 @@ static Value fn_has(int argc, Value argv[]) {
 
   ObjString* name = AS_STRING(argv[1]);
 
-  // Execute the value_get_property function to see if the fn has the thing. We use this approach to make sure the two are
+  // Execute the fn_get_prop function to see if the fn has the thing. We use this approach to make sure the two are
   // aligned and return the same result.
-  push(argv[0]);
-  if (value_get_property(name)) {
-    pop();  // The result
+  Value result;
+  if (fn_get_prop(argv[0], name, &result)) {
     return bool_value(true);
   }
   if (vm.flags & VM_FLAG_HAS_ERROR) {
     return nil_value();
   }
-
-  pop();  // The fn
 
   return bool_value(false);
 }

@@ -506,14 +506,25 @@ static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_co
 // `Stack: ...[receiver][arg0][arg1]...[argN]`
 static CallResult invoke(ObjString* name, int arg_count) {
   Value receiver = peek(arg_count);
+  Value method;
+
+  if (hashtable_get_by_string(&receiver.type->methods, name, &method)) {
+    switch (method.as.obj->type) {
+      case OBJ_GC_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
+      case OBJ_GC_NATIVE: return call_native(AS_NATIVE(method), arg_count);
+      default: {
+        runtime_error("Cannot invoke method of type %s on class", method.type->name->chars);
+        return CALL_FAILED;
+      }
+    }
+  }
 
   // Handle static methods on classes
-  Value static_method;
   if (IS_CLASS(receiver)) {
     ObjClass* klass = AS_CLASS(receiver);
-    if (hashtable_get_by_string(&klass->static_methods, name, &static_method)) {
-      vm.stack_top[-arg_count - 1] = static_method;
-      return call_value(static_method, arg_count);
+    if (hashtable_get_by_string(&klass->static_methods, name, &method)) {
+      vm.stack_top[-arg_count - 1] = method;
+      return call_value(method, arg_count);
     }
   }
 
@@ -521,14 +532,16 @@ static CallResult invoke(ObjString* name, int arg_count) {
     ObjObject* object = AS_OBJECT(receiver);
 
     // It could be a field which is callable, we need to check that first
-    Value callable;
-    if (hashtable_get_by_string(&object->fields, name, &callable)) {
-      vm.stack_top[-arg_count - 1] = callable;
-      return call_value(callable, arg_count);
+    if (hashtable_get_by_string(&object->fields, name, &method)) {
+      vm.stack_top[-arg_count - 1] = method;
+      return call_value(method, arg_count);
     }
   }
 
-  return invoke_from_class(receiver.type, name, arg_count);
+  bool is_base = receiver.type->base == NULL;
+  runtime_error("Undefined method '%s' in type %s%s.", name->chars, receiver.type->name->chars,
+                is_base ? "" : " or any of its parent classes");
+  return CALL_FAILED;
 }
 
 // Executes a callframe by running the bytecode until it returns a value or an error occurs.
@@ -561,9 +574,7 @@ Value exec_callable(Value callable, int arg_count) {
   return nil_value();
 }
 
-// Binds a method to an instance by creating a new bound method object from the instance and the method name.
-// The stack is unchanged.
-static bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method) {
+bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method) {
   Value method;
   if (!hashtable_get_by_string(&klass->methods, name, &method)) {
     *bound_method = nil_value();
@@ -747,212 +758,6 @@ static void concatenate() {
   pop();  // b
   pop();  // a
   push(str_value(result));
-}
-
-bool value_get_property(ObjString* name) {
-  Value receiver = peek(0);
-  Value result;
-
-  // Primitive types have no properties, but you can still access the methods of their class.
-  if (IS_OBJ(receiver) || IS_INSTANCE(receiver)) {
-    // Can be an instance or a plain object
-    ObjObject* object = AS_OBJECT(receiver);
-    if (hashtable_get_by_string(&object->fields, name, &result)) {
-      goto done_getting_property;
-    }
-    if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-      result = int_value(object->fields.count);
-      goto done_getting_property;
-    }
-  } else if (IS_CLASS(receiver)) {
-    ObjClass* klass = AS_CLASS(receiver);
-    if (hashtable_get_by_string(&klass->static_methods, name, &result)) {
-      goto done_getting_property;
-    }
-    // You can also get a constructor, unbound
-    if (name == vm.special_method_names[SPECIAL_METHOD_CTOR]) {
-      if (!hashtable_get_by_string(&klass->methods, name, &result)) {
-        result = nil_value();
-      }
-      goto done_getting_property;
-    }
-    if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
-      result = str_value(klass->name);
-      goto done_getting_property;
-    }
-  } else if (is_fn(receiver)) {
-    if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
-      result = str_value(fn_get_name(receiver));
-      goto done_getting_property;
-    }
-  } else if (IS_SEQ(receiver) || IS_TUPLE(receiver)) {
-    if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-      ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver);
-      result           = int_value(items.count);
-      goto done_getting_property;
-    }
-  } else if (IS_STRING(receiver)) {
-    if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-      ObjString* string = AS_STRING(receiver);
-      result            = int_value(string->length);
-      goto done_getting_property;
-    }
-  }
-
-  // For every value, you can access it's classes' methods
-  if (bind_method(receiver.type, name, &result)) {
-    goto done_getting_property;
-  }
-
-  return false;
-
-done_getting_property:
-  pop();  // Pop receiver
-  push(result);
-  return true;
-}
-
-bool value_set_property(ObjString* name) {
-  Value receiver = peek(1);
-  Value value    = peek(0);
-
-  // TODO (optimize): Maybe remove this check for reserved words. We could just allow the user to override these things. This is
-  // tightly bound to the retrieval of properties, because if we check the special props before the fields, they would always
-  // return the internal value. Currently tough, we check the fields first, because most of the time you probably want to get
-  // fields you've defined as a user. So, getting a special property would yield the value the user assigned. This is bad, because
-  // you could override e.g. the length property and cause the vm to segfault.
-
-  // Check if it is a reserved property.
-  for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
-    if (name == vm.special_prop_names[i]) {  // We can just compare pointers, because strings are interned.
-      runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, receiver.type->name->chars);
-      return false;
-    }
-  }
-
-  if (IS_OBJ(receiver) || IS_INSTANCE(receiver)) {
-    ObjObject* object = AS_OBJECT(receiver);
-    hashtable_set(&object->fields, str_value(name), value);
-    goto done_setting_property;
-  }
-
-  return false;
-
-done_setting_property:
-  pop();        // Pop value
-  pop();        // Pop receiver
-  push(value);  // Push the value back onto the stack, because assignment is an expression
-  return true;
-}
-
-bool value_get_index() {
-  Value receiver = peek(1);
-  Value index    = peek(0);
-  Value result;
-
-  if (IS_OBJ(receiver) || IS_INSTANCE(receiver)) {
-    ObjObject* object = AS_OBJECT(receiver);
-    if (hashtable_get(&object->fields, index, &result)) {
-      goto done_getting_index;
-    }
-    result = nil_value();
-    goto done_getting_index;
-  } else if (IS_SEQ(receiver) || IS_TUPLE(receiver)) {
-    // Hack: Just cast to a sequence, because ObjTuple has the same layout.
-    ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver);
-
-    if (!IS_INT(index)) {
-      return false;
-    }
-
-    long long i = index.as.integer;
-    if (i >= items.count) {
-      result = nil_value();
-      goto done_getting_index;
-    }
-
-    // Negative index
-    if (i < 0) {
-      i += items.count;
-    }
-    if (i < 0) {
-      result = nil_value();
-      goto done_getting_index;
-    }
-
-    result = items.values[i];
-    goto done_getting_index;
-  } else if (IS_STRING(receiver)) {
-    ObjString* string = AS_STRING(receiver);
-
-    if (!IS_INT(index)) {
-      false;
-    }
-
-    long long i = index.as.integer;
-    if (i >= string->length) {
-      result = nil_value();
-      goto done_getting_index;
-    }
-
-    // Negative index
-    if (i < 0) {
-      i += string->length;
-    }
-    if (i < 0) {
-      result = nil_value();
-      goto done_getting_index;
-    }
-
-    ObjString* char_str = copy_string(string->chars + i, 1);
-    result              = str_value(char_str);
-    goto done_getting_index;
-  }
-
-  return false;
-
-done_getting_index:
-  pop();  // Pop receiver (or index, if it got swapped)
-  pop();  // Pop index (or receiver, if it got swapped)
-  push(result);
-  return true;
-}
-
-bool value_set_index() {
-  Value receiver = peek(2);
-  Value index    = peek(1);
-  Value value    = peek(0);
-
-  if (IS_OBJ(receiver) || IS_INSTANCE(receiver)) {
-    ObjObject* object = AS_OBJECT(receiver);
-    hashtable_set(&object->fields, index, value);
-    goto done_setting_index;
-  } else if (IS_SEQ(receiver)) {
-    if (!IS_INT(index)) {
-      runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_INT) "s, but got %s.", index.type->name->chars);
-      return false;
-    }
-
-    long long i = index.as.integer;
-    ObjSeq* seq = AS_SEQ(receiver);
-
-    if (i < 0 || i >= seq->items.count) {
-      runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
-      return false;
-    }
-
-    seq->items.values[i] = value;
-    goto done_setting_index;
-  }
-
-  return false;
-
-done_setting_index:
-  pop();        // Pop value
-  pop();        // Pop index
-  pop();        // Pop receiver
-  push(value);  // Push the value back onto the stack, because assignment is an expression
-  return true;
 }
 
 // Handles errors in the virtual machine.
@@ -1193,45 +998,105 @@ static Value run() {
         break;
       }
       case OP_GET_INDEX: {
-        if (value_get_index()) {
+        Value receiver = peek(1);
+        Value index    = peek(0);
+        Value result;
+        if (receiver.type->get_subscript != NULL && receiver.type->get_subscript(receiver, index, &result)) {
+          pop();
+          pop();
+          push(result);
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_get_index set an error
+
+        // Handle errors
+        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe get_subscript set an error
           goto finish_error;
         }
-        runtime_error("Type %s does not support get-indexing with %s.", peek(1).type->name->chars, peek(0).type->name->chars);
+        if (receiver.type->get_subscript == NULL) {
+          runtime_error("Type %s does not support get-indexing.", receiver.type->name->chars);
+          goto finish_error;
+        }
+        runtime_error("Type %s does not support get-indexing with %s.", receiver.type->name->chars, index.type->name->chars);
         goto finish_error;
       }
       case OP_SET_INDEX: {
-        if (value_set_index()) {
+        Value receiver = peek(2);
+        Value index    = peek(1);
+        Value result   = peek(0);
+        if (receiver.type->set_subscript != NULL && receiver.type->set_subscript(receiver, index, &result)) {
+          pop();
+          pop();
+          pop();
+          push(result);  // Assignments are expressions
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_set_index set an error
+
+        // Handle errors
+        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe set_subscript set an error
           goto finish_error;
         }
-        runtime_error("Type %s does not support set-indexing with %s.", peek(2).type->name->chars, peek(1).type->name->chars);
+        if (receiver.type->set_subscript == NULL) {
+          runtime_error("Type %s does not support set-indexing.", receiver.type->name->chars);
+          goto finish_error;
+        }
+        runtime_error("Type %s does not support set-indexing with %s.", receiver.type->name->chars, index.type->name->chars);
         goto finish_error;
       }
       case OP_GET_PROPERTY: {
         ObjString* name = READ_STRING();
-        if (value_get_property(name)) {
-          break;
-        }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Will never happen: value_get_property never sets an error. Just a precaution.
+        Value receiver  = peek(0);
+        Value result;
+        if (!receiver.type->get_property(receiver, name, &result)) {
+          // Handle errors
+          if (vm.flags & VM_FLAG_HAS_ERROR) {  // Will never happen: no get_property impl sets an error. Just a precaution.
+            goto finish_error;
+          }
+          // get_property returned false, so the property does not exist
+          runtime_error("Property '%s' does not exist on value of type %s.", name->chars, receiver.type->name->chars);
           goto finish_error;
         }
-        runtime_error("Property '%s' does not exist on value of type %s.", name->chars, peek(0).type->name->chars);
-        goto finish_error;
+        pop();
+        push(result);
+        break;
       }
       case OP_SET_PROPERTY: {
         ObjString* name = READ_STRING();
-        if (value_set_property(name)) {
+        Value receiver  = peek(1);
+        Value result    = peek(0);
+
+        // TODO (optimize): Maybe remove this check for reserved words. We could just allow the user to override these things.
+        // This is
+        // tightly bound to the retrieval of properties, because if we check the special props before the fields, they would
+        // always return the internal value. Currently tough, we check the fields first, because most of the time you probably
+        // want to get fields you've defined as a user. So, getting a special property would yield the value the user assigned.
+        // This is bad, because you could override e.g. the length property and cause the vm to segfault.
+
+        // Check if it is a reserved property.
+        for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
+          if (name == vm.special_prop_names[i]) {  // We can just compare pointers, because strings are interned.
+            runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, receiver.type->name->chars);
+            goto finish_error;
+          }
+        }
+
+        if (receiver.type->set_property != NULL && receiver.type->set_property(receiver, name, &result)) {
+          pop();
+          pop();
+          push(result);  // Assignments are expressions
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_set_property set an error
+
+        // Handle errors
+        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe set_property set an error
           goto finish_error;
         }
-        runtime_error("Type %s does not support property-set access.", peek(1).type->name->chars);
+        if (receiver.type->set_property == NULL) {
+          runtime_error("Type %s does not support property-set access.", receiver.type->name->chars);
+          goto finish_error;
+        }
+        // set_property returned false, so the property does not exist.
+        // Will never happen, bc we don't have value-types that can't "find" the properties: They'd just get created.
+        runtime_error("Property '%s' does not exist on value of type %s.", name->chars, receiver.type->name->chars);
         goto finish_error;
       }
       case OP_IMPORT_FROM: {

@@ -2,13 +2,22 @@
 #include "common.h"
 #include "vm.h"
 
+static bool bool_get_prop(Value receiver, ObjString* name, Value* result);
+
 static Value bool_ctor(int argc, Value argv[]);
 static Value bool_to_str(int argc, Value argv[]);
 
 void finalize_native_bool_class() {
+  vm.bool_class->get_property = bool_get_prop;
+
   define_native(&vm.bool_class->methods, STR(SP_METHOD_CTOR), bool_ctor, 1);
   define_native(&vm.bool_class->methods, STR(SP_METHOD_TO_STR), bool_to_str, 0);
   finalize_new_class(vm.bool_class);
+}
+
+static bool bool_get_prop(Value receiver, ObjString* name, Value* result) {
+  UNUSED(receiver);
+  NATIVE_DEFAULT_GET_PROP_BODY(vm.bool_class)
 }
 
 /**

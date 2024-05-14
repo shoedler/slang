@@ -3,15 +3,38 @@
 #include "common.h"
 #include "vm.h"
 
+static bool class_get_prop(Value receiver, ObjString* name, Value* result);
+
 static Value class_ctor(int argc, Value argv[]);
 static Value class_to_str(int argc, Value argv[]);
 static Value class_has(int argc, Value argv[]);
 
 void finalize_native_class_class() {
+  vm.class_class->get_property = class_get_prop;
+
   define_native(&vm.class_class->methods, STR(SP_METHOD_CTOR), class_ctor, 1);
   define_native(&vm.class_class->methods, STR(SP_METHOD_TO_STR), class_to_str, 0);
   define_native(&vm.class_class->methods, STR(SP_METHOD_HAS), class_has, 1);
   finalize_new_class(vm.class_class);
+}
+
+static bool class_get_prop(Value receiver, ObjString* name, Value* result) {
+  ObjClass* klass = AS_CLASS(receiver);
+  if (hashtable_get_by_string(&klass->static_methods, name, result)) {
+    return true;
+  }
+  // You can also get a class' ctor. Obviously, it'll not get bound to the class
+  if (name == vm.special_method_names[SPECIAL_METHOD_CTOR]) {
+    *result = klass->__ctor == NULL ? nil_value() : fn_value(klass->__ctor);
+    return true;
+  }
+  if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
+    *result = str_value(klass->name);
+    return true;
+  }
+  NATIVE_DEFAULT_GET_PROP_BODY(vm.class_class)
+
+  return false;
 }
 
 /**
@@ -62,20 +85,16 @@ static Value class_has(int argc, Value argv[]) {
   NATIVE_CHECK_ARG_AT(1, STRING)
 
   ObjString* name = AS_STRING(argv[1]);
-  ObjClass* klass = AS_CLASS(argv[0]);
 
-  // Execute the value_get_property function to see if the class has the thing. We use this approach to make sure the two are
+  // Execute the class_get_prop function to see if the class has the thing. We use this approach to make sure the two are
   // aligned and return the same result.
-  push(class_value(klass));
-  if (value_get_property(name)) {
-    pop();  // The result
+  Value result;
+  if (class_get_prop(argv[0], name, &result)) {
     return bool_value(true);
   }
   if (vm.flags & VM_FLAG_HAS_ERROR) {
     return nil_value();
   }
-
-  pop();  // The class
 
   return bool_value(false);
 }

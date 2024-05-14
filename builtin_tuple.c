@@ -4,6 +4,9 @@
 #include "common.h"
 #include "vm.h"
 
+static bool tuple_get_prop(Value receiver, ObjString* name, Value* result);
+static bool tuple_get_subs(Value receiver, Value index, Value* result);
+
 static Value tuple_ctor(int argc, Value argv[]);
 static Value tuple_to_str(int argc, Value argv[]);
 static Value tuple_has(int argc, Value argv[]);
@@ -23,6 +26,9 @@ static Value tuple_count(int argc, Value argv[]);
 static Value tuple_concat(int argc, Value argv[]);
 
 void finalize_native_tuple_class() {
+  vm.tuple_class->get_property  = tuple_get_prop;
+  vm.tuple_class->get_subscript = tuple_get_subs;
+
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_CTOR), tuple_ctor, 1);
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_TO_STR), tuple_to_str, 0);
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_HAS), tuple_has, 1);
@@ -41,6 +47,14 @@ void finalize_native_tuple_class() {
   define_native(&vm.tuple_class->methods, "count", tuple_count, 1);
   define_native(&vm.tuple_class->methods, "concat", tuple_concat, 1);
   finalize_new_class(vm.tuple_class);
+}
+
+static bool tuple_get_prop(Value receiver, ObjString* name, Value* result) {
+  NATIVE_LISTLIKE_GET_PROP_BODY()
+}
+
+static bool tuple_get_subs(Value receiver, Value index, Value* result) {
+  NATIVE_LISTLIKE_GET_SUBS_BODY()
 }
 
 /**

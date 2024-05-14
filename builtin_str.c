@@ -3,6 +3,9 @@
 #include "common.h"
 #include "vm.h"
 
+static bool str_get_prop(Value receiver, ObjString* name, Value* result);
+static bool str_get_subs(Value receiver, Value index, Value* result);
+
 static Value str_ctor(int argc, Value argv[]);
 static Value str_to_str(int argc, Value argv[]);
 static Value str_has(int argc, Value argv[]);
@@ -11,6 +14,9 @@ static Value str_split(int argc, Value argv[]);
 static Value str_trim(int argc, Value argv[]);
 
 void finalize_native_str_class() {
+  vm.str_class->get_property  = str_get_prop;
+  vm.str_class->get_subscript = str_get_subs;
+
   define_native(&vm.str_class->methods, STR(SP_METHOD_CTOR), str_ctor, 1);
   define_native(&vm.str_class->methods, STR(SP_METHOD_TO_STR), str_to_str, 0);
   define_native(&vm.str_class->methods, STR(SP_METHOD_HAS), str_has, 1);
@@ -18,6 +24,42 @@ void finalize_native_str_class() {
   define_native(&vm.str_class->methods, "split", str_split, 1);
   define_native(&vm.str_class->methods, "trim", str_trim, 0);
   finalize_new_class(vm.str_class);
+}
+
+static bool str_get_prop(Value receiver, ObjString* name, Value* result) {
+  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+    ObjString* str = AS_STRING(receiver);
+    *result        = int_value(str->length);
+    return true;
+  }
+  NATIVE_DEFAULT_GET_PROP_BODY(vm.str_class)
+}
+
+static bool str_get_subs(Value receiver, Value index, Value* result) {
+  ObjString* string = AS_STRING(receiver);
+
+  if (!IS_INT(index)) {
+    false;
+  }
+
+  long long i = index.as.integer;
+  if (i >= string->length) {
+    *result = nil_value();
+    return true;
+  }
+
+  // Negative index
+  if (i < 0) {
+    i += string->length;
+  }
+  if (i < 0) {
+    *result = nil_value();
+    return true;
+  }
+
+  ObjString* char_str = copy_string(string->chars + i, 1);
+  *result             = str_value(char_str);
+  return true;
 }
 
 /**

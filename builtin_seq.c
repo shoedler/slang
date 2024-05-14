@@ -4,6 +4,10 @@
 #include "common.h"
 #include "vm.h"
 
+static bool seq_get_prop(Value receiver, ObjString* name, Value* result);
+static bool seq_get_subs(Value receiver, Value index, Value* result);
+static bool seq_set_subs(Value receiver, Value index, Value* result);
+
 static Value seq_ctor(int argc, Value argv[]);
 static Value seq_to_str(int argc, Value argv[]);
 static Value seq_has(int argc, Value argv[]);
@@ -26,6 +30,10 @@ static Value seq_count(int argc, Value argv[]);
 static Value seq_concat(int argc, Value argv[]);
 
 void finalize_native_seq_class() {
+  vm.seq_class->get_property  = seq_get_prop;
+  vm.seq_class->get_subscript = seq_get_subs;
+  vm.seq_class->set_subscript = seq_set_subs;
+
   define_native(&vm.seq_class->methods, STR(SP_METHOD_CTOR), seq_ctor, 1);
   define_native(&vm.seq_class->methods, STR(SP_METHOD_TO_STR), seq_to_str, 0);
   define_native(&vm.seq_class->methods, STR(SP_METHOD_HAS), seq_has, 1);
@@ -47,6 +55,32 @@ void finalize_native_seq_class() {
   define_native(&vm.seq_class->methods, "count", seq_count, 1);
   define_native(&vm.seq_class->methods, "concat", seq_concat, 1);
   finalize_new_class(vm.seq_class);
+}
+
+static bool seq_get_prop(Value receiver, ObjString* name, Value* result) {
+  NATIVE_LISTLIKE_GET_PROP_BODY()
+}
+
+static bool seq_get_subs(Value receiver, Value index, Value* result) {
+  NATIVE_LISTLIKE_GET_SUBS_BODY()
+}
+
+static bool seq_set_subs(Value receiver, Value index, Value* result) {
+  if (!IS_INT(index)) {
+    runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_INT) "s, but got %s.", index.type->name->chars);
+    return false;
+  }
+
+  long long i = index.as.integer;
+  ObjSeq* seq = AS_SEQ(receiver);
+
+  if (i < 0 || i >= seq->items.count) {
+    runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
+    return false;
+  }
+
+  seq->items.values[i] = *result;
+  return true;
 }
 
 /**

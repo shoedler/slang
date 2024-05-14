@@ -84,12 +84,22 @@ typedef struct {
   int upvalue_count;
 } ObjClosure;
 
+typedef bool (*GetPropFn)(Value receiver, ObjString* name, Value* result);
+typedef bool (*SetPropFn)(Value receiver, ObjString* name, Value* result);
+typedef bool (*GetSubscriptFn)(Value receiver, Value index, Value* result);
+typedef bool (*SetSubscriptFn)(Value receiver, Value index, Value* result);
+
 typedef struct ObjClass {
   Obj obj;
   ObjString* name;
   HashTable methods;
   HashTable static_methods;
   struct ObjClass* base;
+
+  GetPropFn get_property;
+  SetPropFn set_property;
+  GetSubscriptFn get_subscript;
+  SetSubscriptFn set_subscript;
 
   // Special methods for quick access.
   Obj* __ctor;

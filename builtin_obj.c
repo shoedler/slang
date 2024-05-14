@@ -4,6 +4,11 @@
 #include "common.h"
 #include "vm.h"
 
+static bool obj_get_prop(Value receiver, ObjString* name, Value* result);
+static bool obj_set_prop(Value receiver, ObjString* name, Value* result);
+static bool obj_get_subs(Value receiver, Value index, Value* result);
+static bool obj_set_subs(Value receiver, Value index, Value* result);
+
 static Value obj_ctor(int argc, Value argv[]);
 static Value obj_to_str(int argc, Value argv[]);
 static Value obj_has(int argc, Value argv[]);
@@ -13,6 +18,11 @@ static Value obj_values(int argc, Value argv[]);
 static Value obj_keys(int argc, Value argv[]);
 
 void finalize_native_obj_class() {
+  vm.obj_class->get_property  = obj_get_prop;
+  vm.obj_class->set_property  = obj_set_prop;
+  vm.obj_class->get_subscript = obj_get_subs;
+  vm.obj_class->set_subscript = obj_set_subs;
+
   define_native(&vm.obj_class->methods, STR(SP_METHOD_CTOR), obj_ctor, 0);
   define_native(&vm.obj_class->methods, STR(SP_METHOD_TO_STR), obj_to_str, 0);
   define_native(&vm.obj_class->methods, STR(SP_METHOD_HAS), obj_has, 1);
@@ -21,6 +31,40 @@ void finalize_native_obj_class() {
   define_native(&vm.obj_class->methods, "values", obj_values, 0);
   define_native(&vm.obj_class->methods, "keys", obj_keys, 0);
   finalize_new_class(vm.obj_class);
+}
+
+static bool obj_get_prop(Value receiver, ObjString* name, Value* result) {
+  ObjObject* object = AS_OBJECT(receiver);
+  if (hashtable_get_by_string(&object->fields, name, result)) {
+    return true;
+  }
+  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+    *result = int_value(object->fields.count);
+    return true;
+  }
+  NATIVE_DEFAULT_GET_PROP_BODY(
+      receiver.type)  // We must use the receiver's type instead of vm.obj_class here: Instances are ObjObjects.
+}
+
+static bool obj_set_prop(Value receiver, ObjString* name, Value* result) {
+  ObjObject* object = AS_OBJECT(receiver);
+  hashtable_set(&object->fields, str_value(name), *result);
+  return true;
+}
+
+static bool obj_get_subs(Value receiver, Value index, Value* result) {
+  ObjObject* object = AS_OBJECT(receiver);
+  if (hashtable_get(&object->fields, index, result)) {
+    return true;
+  }
+  *result = nil_value();
+  return true;
+}
+
+static bool obj_set_subs(Value receiver, Value index, Value* result) {
+  ObjObject* object = AS_OBJECT(receiver);
+  hashtable_set(&object->fields, index, *result);
+  return true;
 }
 
 /**
