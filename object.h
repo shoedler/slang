@@ -84,10 +84,14 @@ typedef struct {
   int upvalue_count;
 } ObjClosure;
 
+// Prop-getter. Returns true if the property was found, false otherwise.
 typedef bool (*GetPropFn)(Value receiver, ObjString* name, Value* result);
-typedef bool (*SetPropFn)(Value receiver, ObjString* name, Value* result);
+// Prop-setter. Returns false if an error occurred, true otherwise.
+typedef bool (*SetPropFn)(Value receiver, ObjString* name, Value value);
+// Subscript-getter. Returns false if an error occurred, true otherwise.
 typedef bool (*GetSubscriptFn)(Value receiver, Value index, Value* result);
-typedef bool (*SetSubscriptFn)(Value receiver, Value index, Value* result);
+// Subscript-setter. Returns false if an error occurred, true otherwise.
+typedef bool (*SetSubscriptFn)(Value receiver, Value index, Value value);
 
 typedef struct ObjClass {
   Obj obj;

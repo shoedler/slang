@@ -105,13 +105,19 @@ extern Value native_typeof(int argc, Value argv[]);
   }
 
 //
-// Macros for native listlike accessors
+// Macros for default accessor implementations.
 //
+
 #define NATIVE_DEFAULT_GET_PROP_BODY(class) \
   if (bind_method(class, name, result)) {   \
     return true;                            \
   }                                         \
   return false;
+#define NATIVE_DEFAULT_SET_PROP_BODY()
+
+//
+// Macros for native listlike accessors
+//
 
 #define NATIVE_LISTLIKE_GET_PROP_BODY()                   \
   if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {  \
@@ -121,27 +127,30 @@ extern Value native_typeof(int argc, Value argv[]);
   }                                                       \
   NATIVE_DEFAULT_GET_PROP_BODY(result->type)
 
-#define NATIVE_LISTLIKE_GET_SUBS_BODY()                 \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver); \
-  if (!IS_INT(index)) {                                 \
-    return false;                                       \
-  }                                                     \
-  long long i = index.as.integer;                       \
-  if (i >= items.count) {                               \
-    *result = nil_value();                              \
-    return true;                                        \
-  }                                                     \
-                                                        \
-  /* Negative index */                                  \
-  if (i < 0) {                                          \
-    i += items.count;                                   \
-  }                                                     \
-  if (i < 0) {                                          \
-    *result = nil_value();                              \
-    return true;                                        \
-  }                                                     \
-  *result = items.values[i];                            \
+#define NATIVE_LISTLIKE_GET_SUBS_BODY()                                                                 \
+  ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver);                                                 \
+  if (!IS_INT(index)) {                                                                                 \
+    runtime_error("Type %s does not support get-subscripting with %s. Expected " STR(TYPENAME_INT) ".", \
+                  receiver.type->name->chars, index.type->name->chars);                                 \
+    return false;                                                                                       \
+  }                                                                                                     \
+  long long i = index.as.integer;                                                                       \
+  if (i >= items.count) {                                                                               \
+    *result = nil_value();                                                                              \
+    return true;                                                                                        \
+  }                                                                                                     \
+                                                                                                        \
+  /* Negative index */                                                                                  \
+  if (i < 0) {                                                                                          \
+    i += items.count;                                                                                   \
+  }                                                                                                     \
+  if (i < 0) {                                                                                          \
+    *result = nil_value();                                                                              \
+    return true;                                                                                        \
+  }                                                                                                     \
+  *result = items.values[i];                                                                            \
   return true;
+
 //
 // Macros for native enumerable and listlike methods.
 //

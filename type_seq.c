@@ -6,7 +6,7 @@
 
 static bool seq_get_prop(Value receiver, ObjString* name, Value* result);
 static bool seq_get_subs(Value receiver, Value index, Value* result);
-static bool seq_set_subs(Value receiver, Value index, Value* result);
+static bool seq_set_subs(Value receiver, Value index, Value value);
 
 static Value seq_ctor(int argc, Value argv[]);
 static Value seq_to_str(int argc, Value argv[]);
@@ -65,9 +65,10 @@ static bool seq_get_subs(Value receiver, Value index, Value* result) {
   NATIVE_LISTLIKE_GET_SUBS_BODY()
 }
 
-static bool seq_set_subs(Value receiver, Value index, Value* result) {
+static bool seq_set_subs(Value receiver, Value index, Value value) {
   if (!IS_INT(index)) {
-    runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_INT) "s, but got %s.", index.type->name->chars);
+    runtime_error("Type %s does not support set-subscripting with %s. Expected " STR(TYPENAME_INT) ".",
+                  receiver.type->name->chars, index.type->name->chars);
     return false;
   }
 
@@ -79,7 +80,7 @@ static bool seq_set_subs(Value receiver, Value index, Value* result) {
     return false;
   }
 
-  seq->items.values[i] = *result;
+  seq->items.values[i] = value;
   return true;
 }
 

@@ -998,7 +998,7 @@ static Value run() {
         Value receiver = peek(2);
         Value index    = peek(1);
         Value result   = peek(0);
-        if (receiver.type->set_subscript != NULL && receiver.type->set_subscript(receiver, index, &result)) {
+        if (receiver.type->set_subscript != NULL && receiver.type->set_subscript(receiver, index, result)) {
           pop();
           pop();
           pop();
@@ -1054,7 +1054,7 @@ static Value run() {
           }
         }
 
-        if (receiver.type->set_property != NULL && receiver.type->set_property(receiver, name, &result)) {
+        if (receiver.type->set_property != NULL && receiver.type->set_property(receiver, name, result)) {
           pop();
           pop();
           push(result);  // Assignments are expressions

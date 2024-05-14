@@ -5,9 +5,9 @@
 #include "vm.h"
 
 static bool obj_get_prop(Value receiver, ObjString* name, Value* result);
-static bool obj_set_prop(Value receiver, ObjString* name, Value* result);
+static bool obj_set_prop(Value receiver, ObjString* name, Value value);
 static bool obj_get_subs(Value receiver, Value index, Value* result);
-static bool obj_set_subs(Value receiver, Value index, Value* result);
+static bool obj_set_subs(Value receiver, Value index, Value value);
 
 static Value obj_ctor(int argc, Value argv[]);
 static Value obj_to_str(int argc, Value argv[]);
@@ -46,9 +46,9 @@ static bool obj_get_prop(Value receiver, ObjString* name, Value* result) {
       receiver.type)  // We must use the receiver's type instead of vm.obj_class here: Instances are ObjObjects.
 }
 
-static bool obj_set_prop(Value receiver, ObjString* name, Value* result) {
+static bool obj_set_prop(Value receiver, ObjString* name, Value value) {
   ObjObject* object = AS_OBJECT(receiver);
-  hashtable_set(&object->fields, str_value(name), *result);
+  hashtable_set(&object->fields, str_value(name), value);
   return true;
 }
 
@@ -61,9 +61,9 @@ static bool obj_get_subs(Value receiver, Value index, Value* result) {
   return true;
 }
 
-static bool obj_set_subs(Value receiver, Value index, Value* result) {
+static bool obj_set_subs(Value receiver, Value index, Value value) {
   ObjObject* object = AS_OBJECT(receiver);
-  hashtable_set(&object->fields, index, *result);
+  hashtable_set(&object->fields, index, value);
   return true;
 }
 

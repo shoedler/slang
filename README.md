@@ -11,9 +11,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 #### Preparations
 
 - [ ] Use `bool` return value to indicate an error on `get_property`, instead of indicating "Property not found"
-- [ ] Test if it's faster to have default `set_subs`, `get_subs` and `set_property` functions which throw an error and omitting the `NULL` check for those functions.
-- [ ] Don't accept a pointer to 'result' in `set_...` functions. Just pass by value.
-
+- [ ] Make default `set_subs`, `get_subs` and `set_property` functions which throw an error. Omit the `NULL` check. (like `get_property` does now)
 - [ ] Make all `static inline <type> bla()` Value functions macros, or at least verify that there is no performance loss for using static inline functions vs macros.
 - [ ] Get rid of all switches over `ObjGcType` outside of memory.c. This should be done using a quick-access function on the respective base class. E.g. for calls, we should implement `__call` on all `ObjClass`es and then manage HOW to call them in there.
 - [ ] Get rid of all `if (is_<Type>()) ...  else if (is_<Type>()) ...` and implement a quick-access function on the base class.
