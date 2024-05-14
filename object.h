@@ -110,7 +110,7 @@ typedef struct ObjClass {
 
 typedef struct ObjObject {
   Obj obj;
-  ObjClass* instance_class;
+  ObjClass* instance_class;  // Only used for garbage collection, to be able to mark the class of an object.
   HashTable fields;
 } ObjObject;
 

@@ -655,5 +655,21 @@
 // print A()["a"]      // [Expect] 1
 // print A()["b"]      // [Expect] 2
 
+cls A {
+  fn foo() {
+    print "A.foo()"
+  }
+}
 
-print 0.to_str
+cls B : A {}
+
+cls C : B {
+  fn foo() {
+    print "C.foo()"
+    base.foo()
+  }
+}
+
+C().foo()
+// [Expect] C.foo()
+// [Expect] A.foo()

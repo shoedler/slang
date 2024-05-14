@@ -1,2 +1,2 @@
-print try (nil.has(nil)) else error // [Expect] Undefined method 'has' in type Nil.
+print try (nil.has(nil)) else error // [Expect] Undefined callable 'has' in type Nil.
 print try ("to_str" in nil) else error // [Expect] Type Nil does not support the 'in' operator. It must implement 'has'.

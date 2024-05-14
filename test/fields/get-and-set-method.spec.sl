@@ -16,7 +16,7 @@ let method = foo.method
 // Setting a property shadows the instance method.
 foo.method = foo.other
 foo.method(1)
-// [Expect] other
+// [Expect] method
 // [Expect] 1
 
 // The old method handle still points to the original method.

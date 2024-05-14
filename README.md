@@ -13,6 +13,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Use `bool` return value to indicate an error on `get_property`, instead of indicating "Property not found"
 - [ ] Test if it's faster to have default `set_subs`, `get_subs` and `set_property` functions which throw an error and omitting the `NULL` check for those functions.
 - [ ] Don't accept a pointer to 'result' in `set_...` functions. Just pass by value.
+- [ ] Rename `indexing` to `subscripting`, bc we don't actually have indexing, since our subscripting is zero-based.
 
 - [ ] Make all `static inline <type> bla()` Value functions macros, or at least verify that there is no performance loss for using static inline functions vs macros.
 - [ ] Rename _builtin_ files to `type_<Type>.c` and `module_<Module>.c`?
@@ -20,7 +21,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Get rid of all `if (is_<Type>()) ...  else if (is_<Type>()) ...` and implement a quick-access function on the base class.
   - [ ] `__eq`: How to compare two values of the same type. All Types require this. Just call it in `values_equal`.
   - [ ] `__hash`: How to hash the value. All Types require this. Just call it in `hash_value`.
-  - [x] `__call`: How to call the value. In `call_value`, just check if `value.type->__call != NULL` and call it.
+  - [ ] `__call`: How to call the value. In `call_value`, just check if `value.type->__call != NULL` and call it.
   - [x] `__get`: How to get a property of the value. In `OP_GET_PROPERTY`, just check if `value.type->__get != NULL` and call it.
   - [x] `__set`: How to set a property of the value. In `OP_SET_PROPERTY`, just check if `value.type->__set != NULL` and call it.
   - [x] `__get_subs`: How to get an index of the value. In `OP_GET_SUBSCRIPT`, just check if `value.type->__get_subs != NULL` and call it.

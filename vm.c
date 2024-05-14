@@ -480,35 +480,17 @@ static CallResult call_value(Value callable, int arg_count) {
   return CALL_FAILED;
 }
 
-// Invokes a method on a class by looking up the method in the class' method
-// table and calling it. (Combines "get-property" and "call" opcodes)
-// `Stack: ...[receiver][arg0][arg1]...[argN]`
-static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
-  Value method;
-  if (!hashtable_get_by_string(&klass->methods, name, &method)) {
-    bool is_base = klass->base == NULL;
-    runtime_error("Undefined method '%s' in type %s%s.", name->chars, klass->name->chars,
-                  is_base ? "" : " or any of its parent classes");
-    return CALL_FAILED;
-  }
-
-  switch (method.as.obj->type) {
-    case OBJ_GC_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
-    case OBJ_GC_NATIVE: return call_native(AS_NATIVE(method), arg_count);
-    default: {
-      runtime_error("Cannot invoke method of type %s on class", method.type->name->chars);
-      return CALL_FAILED;
-    }
-  }
-}
-
 // Invokes a managed-code or native method with receiver and arguments on the top of the stack.
 // `Stack: ...[receiver][arg0][arg1]...[argN]`
-static CallResult invoke(ObjString* name, int arg_count) {
-  Value receiver = peek(arg_count);
+// You can also provide a [source_klass] to invoke a method on a specific class. This is only used for
+// for actual method-lookup. If you provide NULL, the receiver's type will be used.
+static CallResult invoke(ObjClass* source_klass, ObjString* name, int arg_count) {
+  Value receiver  = peek(arg_count);
+  ObjClass* klass = source_klass == NULL ? receiver.type : source_klass;
   Value method;
 
-  if (hashtable_get_by_string(&receiver.type->methods, name, &method)) {
+  // Most likely it's a method on the receiver's class
+  if (hashtable_get_by_string(&klass->methods, name, &method)) {
     switch (method.as.obj->type) {
       case OBJ_GC_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
       case OBJ_GC_NATIVE: return call_native(AS_NATIVE(method), arg_count);
@@ -519,27 +501,26 @@ static CallResult invoke(ObjString* name, int arg_count) {
     }
   }
 
-  // Handle static methods on classes
+  // It could be a static method if the receiver is a class
   if (IS_CLASS(receiver)) {
-    ObjClass* klass = AS_CLASS(receiver);
-    if (hashtable_get_by_string(&klass->static_methods, name, &method)) {
+    ObjClass* klass_ = AS_CLASS(receiver);
+    if (hashtable_get_by_string(&klass_->static_methods, name, &method)) {
       vm.stack_top[-arg_count - 1] = method;
       return call_value(method, arg_count);
     }
   }
 
+  // It could be a field on an object or instance which is a callable value
   if (IS_OBJ(receiver) || IS_INSTANCE(receiver)) {
     ObjObject* object = AS_OBJECT(receiver);
-
-    // It could be a field which is callable, we need to check that first
     if (hashtable_get_by_string(&object->fields, name, &method)) {
       vm.stack_top[-arg_count - 1] = method;
       return call_value(method, arg_count);
     }
   }
 
-  bool is_base = receiver.type->base == NULL;
-  runtime_error("Undefined method '%s' in type %s%s.", name->chars, receiver.type->name->chars,
+  bool is_base = klass->base == NULL;
+  runtime_error("Undefined callable '%s' in type %s%s.", name->chars, klass->name->chars,
                 is_base ? "" : " or any of its parent classes");
   return CALL_FAILED;
 }
@@ -556,14 +537,8 @@ static Value run_frame() {
 }
 
 Value exec_callable(Value callable, int arg_count) {
-  CallResult result = CALL_FAILED;
-  if (IS_STRING(callable)) {
-    Value receiver  = peek(arg_count);
-    ObjClass* klass = receiver.type;
-    result          = invoke_from_class(klass, AS_STRING(callable), arg_count);
-  } else {
-    result = call_value(callable, arg_count);
-  }
+  CallResult result =
+      IS_STRING(callable) ? invoke(peek(arg_count).type, AS_STRING(callable), arg_count) : call_value(callable, arg_count);
 
   if (result == CALL_RETURNED) {
     return pop();
@@ -1275,7 +1250,7 @@ static Value run() {
       case OP_INVOKE: {
         ObjString* method = READ_STRING();
         int arg_count     = READ_ONE();
-        if (invoke(method, arg_count) == CALL_FAILED) {
+        if (invoke(NULL, method, arg_count) == CALL_FAILED) {
           if (vm.flags & VM_FLAG_HAS_ERROR) {
             goto finish_error;
           }
@@ -1287,8 +1262,8 @@ static Value run() {
       case OP_BASE_INVOKE: {
         ObjString* method   = READ_STRING();
         int arg_count       = READ_ONE();
-        ObjClass* baseclass = AS_CLASS(pop());
-        if (invoke_from_class(baseclass, method, arg_count) == CALL_FAILED) {
+        ObjClass* baseclass = AS_CLASS(pop());  // Leaves 'this' on the stack, followed by the arguments (if any)
+        if (invoke(baseclass, method, arg_count) == CALL_FAILED) {
           if (vm.flags & VM_FLAG_HAS_ERROR) {
             goto finish_error;
           }
