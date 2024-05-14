@@ -483,16 +483,16 @@ static void dot(bool can_assign) {
   }
 }
 
-// Compiles an indexing expression.
+// Compiles an subscripting expression.
 // The opening bracket has already been consumed and is referenced by the
 // previous token.
-static void indexing(bool can_assign) {
+static void subscripting(bool can_assign) {
   bool slice_started = false;
 
   // Start at the '['
   Token error_start = parser.previous;
 
-  // Since the first number in a slice is optional, we need to check if the indexing starts with a '..'
+  // Since the first number in a slice is optional, we need to check if the subscripting starts with a '..'
   if (match(TOKEN_DOTDOT)) {
     slice_started = true;
     emit_constant_here(int_value(0));  // Start index.
@@ -530,21 +530,21 @@ static void indexing(bool can_assign) {
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();  // The new value.
-    emit_one(OP_SET_INDEX, error_start);
+    emit_one(OP_SET_SUBSCRIPT, error_start);
   } else if (can_assign && match_inc_dec()) {
     emit_two(OP_DUPE, 1, error_start);  // Duplicate the indexee: [indexee][index] -> [indexee][index][indexee]
     emit_two(OP_DUPE, 1, error_start);  // Duplicate the index:   [indexee][index][indexee] -> [indexee][index][indexee][index]
-    emit_one(OP_GET_INDEX, error_start);
+    emit_one(OP_GET_SUBSCRIPT, error_start);
     inc_dec();
-    emit_one(OP_SET_INDEX, error_start);
+    emit_one(OP_SET_SUBSCRIPT, error_start);
   } else if (can_assign && match_compound_assignment()) {
     emit_two(OP_DUPE, 1, error_start);  // Duplicate the indexee: [indexee][index] -> [indexee][index][indexee]
     emit_two(OP_DUPE, 1, error_start);  // Duplicate the index:  [indexee][index][indexee] -> [indexee][index][indexee][index]
-    emit_one(OP_GET_INDEX, error_start);
+    emit_one(OP_GET_SUBSCRIPT, error_start);
     compound_assignment();
-    emit_one(OP_SET_INDEX, error_start);
+    emit_one(OP_SET_SUBSCRIPT, error_start);
   } else {
-    emit_one(OP_GET_INDEX, error_start);
+    emit_one(OP_GET_SUBSCRIPT, error_start);
   }
 }
 
@@ -1089,7 +1089,7 @@ ParseRule rules[] = {
     [TOKEN_CPAR]    = {NULL, NULL, PREC_NONE},
     [TOKEN_OBRACE]  = {object_literal, NULL, PREC_NONE},
     [TOKEN_CBRACE]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACK]  = {seq_literal, indexing, PREC_CALL},
+    [TOKEN_OBRACK]  = {seq_literal, subscripting, PREC_CALL},
     [TOKEN_CBRACK]  = {NULL, NULL, PREC_NONE},
     [TOKEN_COMMA]   = {NULL, NULL, PREC_NONE},
     [TOKEN_DOT]     = {NULL, dot, PREC_CALL},
@@ -1796,7 +1796,7 @@ static void destructuring_assignment(DestructureType type) {
 
     emit_two(OP_DUPE, 0, error_start);  // Duplicate the rhs value: [RhsVal] -> [RhsVal][RhsVal]
 
-    // Emit code to get the index from the rhs. For objs, we use the variable name as the operand for OP_GET_INDEX. For
+    // Emit code to get the index from the rhs. For objs, we use the variable name as the operand for OP_GET_SUBSCRIPT. For
     // seqs, we use the variables index.
     Value payload = type == DESTRUCTURE_OBJ ? str_value(copy_string(var->name.start, var->name.length)) : int_value(var->index);
     if (var->is_rest) {
@@ -1804,8 +1804,8 @@ static void destructuring_assignment(DestructureType type) {
       emit_one(OP_NIL, error_start);        // [RhsVal][RhsVal][current_index] -> [RhsVal][RhsVal][current_index][nil]
       emit_one(OP_GET_SLICE, error_start);  // [RhsVal][RhsVal][current_index] -> [RhsVal][slice]
     } else {
-      emit_constant(payload, error_start);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][i]
-      emit_one(OP_GET_INDEX, error_start);  // [RhsVal][RhsVal][i] -> [RhsVal][value]
+      emit_constant(payload, error_start);      // [RhsVal][RhsVal] -> [RhsVal][RhsVal][i]
+      emit_one(OP_GET_SUBSCRIPT, error_start);  // [RhsVal][RhsVal][i] -> [RhsVal][value]
     }
 
     // Define the variable. We need to emit different opcodes depending on whether we're in a local or global scope.

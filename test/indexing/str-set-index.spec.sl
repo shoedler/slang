@@ -1,4 +1,4 @@
-print "foo"[0] = "a" // [ExpectError] Uncaught error: Type Str does not support set-indexing.
+print "foo"[0] = "a" // [ExpectError] Uncaught error: Type Str does not support set-subscripting.
                      // [ExpectError]      1 | print "foo"[0] = "a"
                      // [ExpectError]                     ~~~~~~~~~
                      // [ExpectError]   at line 1 at the toplevel of module "main"

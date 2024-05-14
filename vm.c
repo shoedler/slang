@@ -972,7 +972,7 @@ static Value run() {
         *frame->closure->upvalues[slot]->location = peek(0);  // peek, because assignment is an expression!
         break;
       }
-      case OP_GET_INDEX: {
+      case OP_GET_SUBSCRIPT: {
         Value receiver = peek(1);
         Value index    = peek(0);
         Value result;
@@ -988,13 +988,13 @@ static Value run() {
           goto finish_error;
         }
         if (receiver.type->get_subscript == NULL) {
-          runtime_error("Type %s does not support get-indexing.", receiver.type->name->chars);
+          runtime_error("Type %s does not support get-subscripting.", receiver.type->name->chars);
           goto finish_error;
         }
-        runtime_error("Type %s does not support get-indexing with %s.", receiver.type->name->chars, index.type->name->chars);
+        runtime_error("Type %s does not support get-subscripting with %s.", receiver.type->name->chars, index.type->name->chars);
         goto finish_error;
       }
-      case OP_SET_INDEX: {
+      case OP_SET_SUBSCRIPT: {
         Value receiver = peek(2);
         Value index    = peek(1);
         Value result   = peek(0);
@@ -1011,10 +1011,10 @@ static Value run() {
           goto finish_error;
         }
         if (receiver.type->set_subscript == NULL) {
-          runtime_error("Type %s does not support set-indexing.", receiver.type->name->chars);
+          runtime_error("Type %s does not support set-subscripting.", receiver.type->name->chars);
           goto finish_error;
         }
-        runtime_error("Type %s does not support set-indexing with %s.", receiver.type->name->chars, index.type->name->chars);
+        runtime_error("Type %s does not support set-subscripting with %s.", receiver.type->name->chars, index.type->name->chars);
         goto finish_error;
       }
       case OP_GET_PROPERTY: {

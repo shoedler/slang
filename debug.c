@@ -166,8 +166,8 @@ int disassemble_instruction(Chunk* chunk, int offset) {
     case OP_SET_GLOBAL: return constant_instruction(STR(OP_SET_GLOBAL), chunk, offset);
     case OP_GET_UPVALUE: return byte_instruction(STR(OP_GET_UPVALUE), chunk, offset);
     case OP_SET_UPVALUE: return byte_instruction(STR(OP_SET_UPVALUE), chunk, offset);
-    case OP_GET_INDEX: return simple_instruction(STR(OP_GET_INDEX), offset);
-    case OP_SET_INDEX: return simple_instruction(STR(OP_SET_INDEX), offset);
+    case OP_GET_SUBSCRIPT: return simple_instruction(STR(OP_GET_SUBSCRIPT), offset);
+    case OP_SET_SUBSCRIPT: return simple_instruction(STR(OP_SET_SUBSCRIPT), offset);
     case OP_GET_PROPERTY: return constant_instruction(STR(OP_GET_PROPERTY), chunk, offset);
     case OP_SET_PROPERTY: return constant_instruction(STR(OP_SET_PROPERTY), chunk, offset);
     case OP_GET_BASE_METHOD: return constant_instruction(STR(OP_GET_BASE_METHOD), chunk, offset);
