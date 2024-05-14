@@ -16,16 +16,11 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Rename `indexing` to `subscripting`, bc we don't actually have indexing, since our subscripting is zero-based.
 
 - [ ] Make all `static inline <type> bla()` Value functions macros, or at least verify that there is no performance loss for using static inline functions vs macros.
-- [ ] Rename _builtin_ files to `type_<Type>.c` and `module_<Module>.c`?
 - [ ] Get rid of all switches over `ObjGcType` outside of memory.c. This should be done using a quick-access function on the respective base class. E.g. for calls, we should implement `__call` on all `ObjClass`es and then manage HOW to call them in there.
 - [ ] Get rid of all `if (is_<Type>()) ...  else if (is_<Type>()) ...` and implement a quick-access function on the base class.
   - [ ] `__eq`: How to compare two values of the same type. All Types require this. Just call it in `values_equal`.
   - [ ] `__hash`: How to hash the value. All Types require this. Just call it in `hash_value`.
   - [ ] `__call`: How to call the value. In `call_value`, just check if `value.type->__call != NULL` and call it.
-  - [x] `__get`: How to get a property of the value. In `OP_GET_PROPERTY`, just check if `value.type->__get != NULL` and call it.
-  - [x] `__set`: How to set a property of the value. In `OP_SET_PROPERTY`, just check if `value.type->__set != NULL` and call it.
-  - [x] `__get_subs`: How to get an index of the value. In `OP_GET_SUBSCRIPT`, just check if `value.type->__get_subs != NULL` and call it.
-  - [x] `__set_subs`: How to set an index of the value. In `OP_SET_SUBSCRIPT`, just check if `value.type->__set_subs != NULL` and call it.
 
 #### Type-checking
 
