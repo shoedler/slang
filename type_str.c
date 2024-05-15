@@ -32,7 +32,7 @@ void finalize_native_str_class() {
 
 static bool str_get_prop(Value receiver, ObjString* name, Value* result) {
   if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-    ObjString* str = AS_STRING(receiver);
+    ObjString* str = AS_STR(receiver);
     *result        = int_value(str->length);
     return true;
   }
@@ -40,9 +40,9 @@ static bool str_get_prop(Value receiver, ObjString* name, Value* result) {
 }
 
 static bool str_get_subs(Value receiver, Value index, Value* result) {
-  ObjString* string = AS_STRING(receiver);
+  ObjString* string = AS_STR(receiver);
 
-  if (!IS_INT(index)) {
+  if (!is_int(index)) {
     false;
   }
 
@@ -88,7 +88,7 @@ static Value str_ctor(int argc, Value argv[]) {
  */
 static Value str_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(STRING)
+  NATIVE_CHECK_RECEIVER(vm.str_class)
 
   return argv[0];
 }
@@ -99,11 +99,11 @@ static Value str_to_str(int argc, Value argv[]) {
  */
 static Value str_split(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(STRING)
-  NATIVE_CHECK_ARG_AT(1, STRING)
+  NATIVE_CHECK_RECEIVER(vm.str_class)
+  NATIVE_CHECK_ARG_AT(1, vm.str_class)
 
-  ObjString* str = AS_STRING(argv[0]);
-  ObjString* sep = AS_STRING(argv[1]);
+  ObjString* str = AS_STR(argv[0]);
+  ObjString* sep = AS_STR(argv[1]);
 
   // If the separator is empty, split by character
   if (sep->length == 0) {
@@ -149,9 +149,9 @@ static Value str_split(int argc, Value argv[]) {
  */
 static Value str_trim(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(STRING)
+  NATIVE_CHECK_RECEIVER(vm.str_class)
 
-  ObjString* str = AS_STRING(argv[0]);
+  ObjString* str = AS_STR(argv[0]);
   int start      = 0;
   int end        = str->length - 1;
 
@@ -177,12 +177,12 @@ static Value str_trim(int argc, Value argv[]) {
  */
 static Value str_has(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(STRING)
-  NATIVE_CHECK_ARG_AT(1, STRING)
+  NATIVE_CHECK_RECEIVER(vm.str_class)
+  NATIVE_CHECK_ARG_AT(1, vm.str_class)
 
   // Should align with prop_getter
-  ObjString* str    = AS_STRING(argv[0]);
-  ObjString* substr = AS_STRING(argv[1]);
+  ObjString* str    = AS_STR(argv[0]);
+  ObjString* substr = AS_STR(argv[1]);
 
   if (substr->length == 0) {
     return bool_value(true);
@@ -208,14 +208,14 @@ static Value str_has(int argc, Value argv[]) {
  */
 static Value str_slice(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(STRING)
-  NATIVE_CHECK_ARG_AT(1, INT)
-  if (IS_NIL(argv[2])) {
-    argv[2] = int_value(AS_STRING(argv[0])->length);
+  NATIVE_CHECK_RECEIVER(vm.str_class)
+  NATIVE_CHECK_ARG_AT(1, vm.int_class)
+  if (is_nil(argv[2])) {
+    argv[2] = int_value(AS_STR(argv[0])->length);
   }
-  NATIVE_CHECK_ARG_AT(2, INT)
+  NATIVE_CHECK_ARG_AT(2, vm.int_class)
 
-  ObjString* str = AS_STRING(argv[0]);
+  ObjString* str = AS_STR(argv[0]);
   int count      = str->length;
 
   if (count == 0) {

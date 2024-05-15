@@ -83,21 +83,21 @@ extern Value native_typeof(int argc, Value argv[]);
 // Macros for argument checking in native functions.
 //
 
-#define NATIVE_CHECK_RECEIVER(uc_type)                                                                               \
-  if (!IS_##uc_type(argv[0])) {                                                                                      \
-    runtime_error("Expected receiver of type " STR(TYPENAME_##uc_type) " but got %s.", (argv[0]).type->name->chars); \
-    return nil_value();                                                                                              \
+#define NATIVE_CHECK_RECEIVER(class)                                                                            \
+  if (argv[0].type != class) {                                                                                  \
+    runtime_error("Expected receiver of type %s but got %s.", class->name->chars, (argv[0]).type->name->chars); \
+    return nil_value();                                                                                         \
   }
 
-#define NATIVE_CHECK_ARG_AT(index, uc_type)                                                          \
-  if (!IS_##uc_type(argv[index])) {                                                                  \
-    runtime_error("Expected argument %d of type " STR(TYPENAME_##uc_type) " but got %s.", index - 1, \
-                  (argv[index]).type->name->chars);                                                  \
-    return nil_value();                                                                              \
+#define NATIVE_CHECK_ARG_AT(index, class)                                                       \
+  if ((argv[index]).type != class) {                                                            \
+    runtime_error("Expected argument %d of type %s but got %s.", index - 1, class->name->chars, \
+                  (argv[index]).type->name->chars);                                             \
+    return nil_value();                                                                         \
   }
 
 #define NATIVE_CHECK_ARG_AT_IS_CALLABLE(index)                                                                  \
-  if (!IS_CALLABLE(argv[index])) {                                                                              \
+  if (!is_callable(argv[index])) {                                                                              \
     runtime_error("Expected argument %d to be callable but got %s.", index - 1, argv[index].type->name->chars); \
     return nil_value();                                                                                         \
   }
@@ -151,7 +151,7 @@ extern Value native_typeof(int argc, Value argv[]);
 
 #define NATIVE_LISTLIKE_GET_SUBS_BODY()                                                                 \
   ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver);                                                 \
-  if (!IS_INT(index)) {                                                                                 \
+  if (!is_int(index)) {                                                                                 \
     runtime_error("Type %s does not support get-subscripting with %s. Expected " STR(TYPENAME_INT) ".", \
                   receiver.type->name->chars, index.type->name->chars);                                 \
     return false;                                                                                       \
@@ -184,9 +184,9 @@ extern Value native_typeof(int argc, Value argv[]);
  * TYPENAME_T.SP_METHOD_HAS(pred: TYPENAME_FUNCTION -> TYPENAME_BOOL) -> TYPENAME_BOOL
  * @brief Returns VALUE_STR_TRUE if the TYPENAME_T contains a value for which 'pred' evaluates to VALUE_STR_TRUE.
  */
-#define NATIVE_ENUMERABLE_HAS_BODY(type)                                             \
+#define NATIVE_ENUMERABLE_HAS_BODY(class)                                            \
   UNUSED(argc);                                                                      \
-  NATIVE_CHECK_RECEIVER(type)                                                        \
+  NATIVE_CHECK_RECEIVER(class)                                                       \
                                                                                      \
   ValueArray items;                                                                  \
   NATIVE_ENUMERABLE_GET_VALUE_ARRAY(argv[0]);                                        \
@@ -196,7 +196,7 @@ extern Value native_typeof(int argc, Value argv[]);
                                                                                      \
   int count = items.count; /* We need to store this. Might change during the loop */ \
                                                                                      \
-  if (IS_CALLABLE(argv[1])) {                                                        \
+  if (is_callable(argv[1])) {                                                        \
     /* Function predicate */                                                         \
     for (int i = 0; i < count; i++) {                                                \
       /* Execute the provided function on the item */                                \
@@ -207,7 +207,7 @@ extern Value native_typeof(int argc, Value argv[]);
         return nil_value(); /* Propagate the error */                                \
       }                                                                              \
       /* We don't use is_falsey here, because we want a boolean value. */            \
-      if (IS_BOOL(result) && result.as.boolean) {                                    \
+      if (is_bool(result) && result.as.boolean) {                                    \
         return bool_value(true);                                                     \
       }                                                                              \
     }                                                                                \
@@ -226,9 +226,9 @@ extern Value native_typeof(int argc, Value argv[]);
  * TYPENAME_T.SP_METHOD_TO_STR() -> TYPENAME_STRING
  * @brief Returns a string representation of the TYPENAME_T.
  */
-#define NATIVE_LISTLIKE_TO_STR_BODY(uc_type, start_chars, delim_chars, end_chars)                                     \
+#define NATIVE_LISTLIKE_TO_STR_BODY(class, start_chars, delim_chars, end_chars)                                       \
   UNUSED(argc);                                                                                                       \
-  NATIVE_CHECK_RECEIVER(uc_type)                                                                                      \
+  NATIVE_CHECK_RECEIVER(class)                                                                                        \
                                                                                                                       \
   ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                \
   size_t buf_size  = 64; /* Start with a reasonable size */                                                           \
@@ -238,7 +238,7 @@ extern Value native_typeof(int argc, Value argv[]);
   for (int i = 0; i < items.count; i++) {                                                                             \
     /* Execute the to_str method on the item */                                                                       \
     push(items.values[i]); /* Push the receiver (item at i) for to_str */                                             \
-    ObjString* item_str = AS_STRING(exec_callable(fn_value(items.values[i].type->__to_str), 0));                      \
+    ObjString* item_str = AS_STR(exec_callable(fn_value(items.values[i].type->__to_str), 0));                         \
     if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                               \
       return nil_value();                                                                                             \
     }                                                                                                                 \
@@ -279,51 +279,51 @@ extern Value native_typeof(int argc, Value argv[]);
  * 'end' can be negative to count from the end of the TYPENAME_T. If 'start' is greater than or equal to 'end', an empty
  * TYPENAME_T is returned. If 'end' is TYPENAME_NIL, all items from 'start' to the end of the TYPENAME_T are included.
  */
-#define NATIVE_LISTLIKE_SLICE_BODY(type)                                   \
-  UNUSED(argc);                                                            \
-  NATIVE_CHECK_RECEIVER(type)                                              \
-  NATIVE_CHECK_ARG_AT(1, INT)                                              \
-  if (IS_NIL(argv[2])) {                                                   \
-    argv[2] = int_value(AS_##type(argv[0])->items.count);                  \
-  }                                                                        \
-  NATIVE_CHECK_ARG_AT(2, INT)                                              \
-                                                                           \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                     \
-  int count        = items.count;                                          \
-                                                                           \
-  if (count == 0) {                                                        \
-    return NATIVE_LISTLIKE_NEW_EMPTY();                                    \
-  }                                                                        \
-                                                                           \
-  int start = (int)argv[1].as.integer;                                     \
-  int end   = (int)argv[2].as.integer;                                     \
-                                                                           \
-  /* Handle negative indices */                                            \
-  if (start < 0) {                                                         \
-    start = count + start;                                                 \
-  }                                                                        \
-  if (end < 0) {                                                           \
-    end = count + end;                                                     \
-  }                                                                        \
-                                                                           \
-  /* Clamp out-of-bounds indices */                                        \
-  if (start < 0) {                                                         \
-    start = 0;                                                             \
-  }                                                                        \
-  if (end > count) {                                                       \
-    end = count;                                                           \
-  }                                                                        \
-                                                                           \
-  /* Handle invalid or 0 length ranges */                                  \
-  if (start >= end) {                                                      \
-    return NATIVE_LISTLIKE_NEW_EMPTY();                                    \
-  }                                                                        \
-  ValueArray sliced = prealloc_value_array(end - start);                   \
-  for (int i = start; i < end; i++) {                                      \
-    sliced.values[i - start] = items.values[i];                            \
-  }                                                                        \
-                                                                           \
-  /* No need for GC protection - taking an array will not trigger a GC. */ \
+#define NATIVE_LISTLIKE_SLICE_BODY(class)                                                   \
+  UNUSED(argc);                                                                             \
+  NATIVE_CHECK_RECEIVER(class)                                                              \
+  NATIVE_CHECK_ARG_AT(1, vm.int_class)                                                      \
+  if (is_nil(argv[2])) {                                                                    \
+    argv[2] = int_value(AS_SEQ(argv[0])->items.count); /* hack: use Seq to extract count */ \
+  }                                                                                         \
+  NATIVE_CHECK_ARG_AT(2, vm.int_class)                                                      \
+                                                                                            \
+  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                      \
+  int count        = items.count;                                                           \
+                                                                                            \
+  if (count == 0) {                                                                         \
+    return NATIVE_LISTLIKE_NEW_EMPTY();                                                     \
+  }                                                                                         \
+                                                                                            \
+  int start = (int)argv[1].as.integer;                                                      \
+  int end   = (int)argv[2].as.integer;                                                      \
+                                                                                            \
+  /* Handle negative indices */                                                             \
+  if (start < 0) {                                                                          \
+    start = count + start;                                                                  \
+  }                                                                                         \
+  if (end < 0) {                                                                            \
+    end = count + end;                                                                      \
+  }                                                                                         \
+                                                                                            \
+  /* Clamp out-of-bounds indices */                                                         \
+  if (start < 0) {                                                                          \
+    start = 0;                                                                              \
+  }                                                                                         \
+  if (end > count) {                                                                        \
+    end = count;                                                                            \
+  }                                                                                         \
+                                                                                            \
+  /* Handle invalid or 0 length ranges */                                                   \
+  if (start >= end) {                                                                       \
+    return NATIVE_LISTLIKE_NEW_EMPTY();                                                     \
+  }                                                                                         \
+  ValueArray sliced = prealloc_value_array(end - start);                                    \
+  for (int i = start; i < end; i++) {                                                       \
+    sliced.values[i - start] = items.values[i];                                             \
+  }                                                                                         \
+                                                                                            \
+  /* No need for GC protection - taking an array will not trigger a GC. */                  \
   return NATIVE_LISTLIKE_TAKE_ARRAY(sliced);
 
 /**
@@ -345,7 +345,7 @@ extern Value native_typeof(int argc, Value argv[]);
                                                                                                           \
   int count = items.count; /* We need to store this, because the listlike might change during the loop */ \
                                                                                                           \
-  if (IS_CALLABLE(argv[1])) {                                                                             \
+  if (is_callable(argv[1])) {                                                                             \
     /* Function predicate */                                                                              \
     for (int i = 0; i < count; i++) {                                                                     \
       /* Execute the provided function on the item */                                                     \
@@ -357,7 +357,7 @@ extern Value native_typeof(int argc, Value argv[]);
       }                                                                                                   \
                                                                                                           \
       /* We don't use is_falsey here, because we want to check for a boolean value. */                    \
-      if (IS_BOOL(result) && result.as.boolean) {                                                         \
+      if (is_bool(result) && result.as.boolean) {                                                         \
         return int_value(i);                                                                              \
       }                                                                                                   \
     }                                                                                                     \
@@ -400,7 +400,7 @@ extern Value native_typeof(int argc, Value argv[]);
     }                                                                                                     \
                                                                                                           \
     /* We don't use is_falsey here, because we want to check for a boolean value. */                      \
-    if (IS_BOOL(result) && result.as.boolean) {                                                           \
+    if (is_bool(result) && result.as.boolean) {                                                           \
       return items.values[i];                                                                             \
     }                                                                                                     \
   }                                                                                                       \
@@ -435,7 +435,7 @@ extern Value native_typeof(int argc, Value argv[]);
     }                                                                                                     \
                                                                                                           \
     /* We don't use is_falsey here, because we want to check for a boolean value. */                      \
-    if (IS_BOOL(result) && result.as.boolean) {                                                           \
+    if (is_bool(result) && result.as.boolean) {                                                           \
       return items.values[i];                                                                             \
     }                                                                                                     \
   }                                                                                                       \
@@ -580,7 +580,7 @@ extern Value native_typeof(int argc, Value argv[]);
         }                                                                                                             \
                                                                                                                       \
         /* We don't use is_falsey here, because we want to check for a boolean value. */                              \
-        if (IS_BOOL(result) && result.as.boolean) {                                                                   \
+        if (is_bool(result) && result.as.boolean) {                                                                   \
           push(result); /* GC Protection */                                                                           \
           filtered_count++;                                                                                           \
           write_value_array(&filtered_items, items.values[i]);                                                        \
@@ -600,7 +600,7 @@ extern Value native_typeof(int argc, Value argv[]);
         }                                                                                                             \
                                                                                                                       \
         /* We don't use is_falsey here, because we want to check for a boolean value. */                              \
-        if (IS_BOOL(result) && result.as.boolean) {                                                                   \
+        if (is_bool(result) && result.as.boolean) {                                                                   \
           push(result); /* GC Protection */                                                                           \
           filtered_count++;                                                                                           \
           write_value_array(&filtered_items, items.values[i]);                                                        \
@@ -626,13 +626,13 @@ extern Value native_typeof(int argc, Value argv[]);
  * TYPENAME_T.join(sep: TYPENAME_STRING) -> TYPENAME_STRING
  * @brief Joins the items of a TYPENAME_T into a single TYPENAME_STRING, separated by 'sep'.
  */
-#define NATIVE_LISTLIKE_JOIN_BODY(uc_type)                                                             \
+#define NATIVE_LISTLIKE_JOIN_BODY(class)                                                               \
   UNUSED(argc);                                                                                        \
-  NATIVE_CHECK_RECEIVER(uc_type)                                                                       \
-  NATIVE_CHECK_ARG_AT(1, STRING)                                                                       \
+  NATIVE_CHECK_RECEIVER(class)                                                                         \
+  NATIVE_CHECK_ARG_AT(1, vm.str_class)                                                                 \
                                                                                                        \
   ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                 \
-  ObjString* sep   = AS_STRING(argv[1]);                                                               \
+  ObjString* sep   = AS_STR(argv[1]);                                                                  \
                                                                                                        \
   size_t buf_size = 64; /* Start with a reasonable size */                                             \
   char* chars     = malloc(buf_size);                                                                  \
@@ -641,15 +641,15 @@ extern Value native_typeof(int argc, Value argv[]);
   for (int i = 0; i < items.count; i++) {                                                              \
     /* Maybe this is faster (checking if the item is a string)  - unsure though */                     \
     ObjString* item_str = NULL;                                                                        \
-    if (!IS_STRING(items.values[i])) {                                                                 \
+    if (!is_str(items.values[i])) {                                                                    \
       /* Execute the to_str method on the item */                                                      \
       push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                        \
-      item_str = AS_STRING(exec_callable(fn_value(items.values[i].type->__to_str), 0));                \
+      item_str = AS_STR(exec_callable(fn_value(items.values[i].type->__to_str), 0));                   \
       if (vm.flags & VM_FLAG_HAS_ERROR) {                                                              \
         return nil_value();                                                                            \
       }                                                                                                \
     } else {                                                                                           \
-      item_str = AS_STRING(items.values[i]);                                                           \
+      item_str = AS_STR(items.values[i]);                                                              \
     }                                                                                                  \
                                                                                                        \
     /* Expand chars to fit the separator plus the next item */                                         \
@@ -680,9 +680,9 @@ extern Value native_typeof(int argc, Value argv[]);
  * TYPENAME_T.reverse() -> TYPENAME_T
  * @brief Reverses the items of a TYPENAME_T. Returns a new TYPENAME_T with the items in reverse order.
  */
-#define NATIVE_LISTLIKE_REVERSE_BODY(type)                                 \
+#define NATIVE_LISTLIKE_REVERSE_BODY(class)                                \
   UNUSED(argc);                                                            \
-  NATIVE_CHECK_RECEIVER(type)                                              \
+  NATIVE_CHECK_RECEIVER(class)                                             \
                                                                            \
   ValueArray items    = LISTLIKE_GET_VALUEARRAY(argv[0]);                  \
   ValueArray reversed = prealloc_value_array(items.count);                 \
@@ -700,9 +700,9 @@ extern Value native_typeof(int argc, Value argv[]);
  * @brief Returns VALUE_STR_TRUE if 'fn' evaluates to VALUE_STR_TRUE for every item in the TYPENAME_T. 'fn' should take one or two
  * arguments: the item and the index of the item. The latter is optional. Returns VALUE_STR_FALSE if the TYPENAME_T is empty.
  */
-#define NATIVE_LISTLIKE_EVERY_BODY(type)                                                                         \
+#define NATIVE_LISTLIKE_EVERY_BODY(class)                                                                        \
   UNUSED(argc);                                                                                                  \
-  NATIVE_CHECK_RECEIVER(type)                                                                                    \
+  NATIVE_CHECK_RECEIVER(class)                                                                                   \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
                                                                                                                  \
   ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
@@ -722,7 +722,7 @@ extern Value native_typeof(int argc, Value argv[]);
         }                                                                                                        \
                                                                                                                  \
         /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
-        if (!IS_BOOL(result) || !result.as.boolean) {                                                            \
+        if (!is_bool(result) || !result.as.boolean) {                                                            \
           return bool_value(false);                                                                              \
         }                                                                                                        \
       }                                                                                                          \
@@ -740,7 +740,7 @@ extern Value native_typeof(int argc, Value argv[]);
         }                                                                                                        \
                                                                                                                  \
         /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
-        if (!IS_BOOL(result) || !result.as.boolean) {                                                            \
+        if (!is_bool(result) || !result.as.boolean) {                                                            \
           return bool_value(false);                                                                              \
         }                                                                                                        \
       }                                                                                                          \
@@ -763,9 +763,9 @@ extern Value native_typeof(int argc, Value argv[]);
  * or two arguments: the item and the index of the item. The latter is optional. Returns VALUE_STR_FALSE if the TYPENAME_T is
  * empty.
  */
-#define NATIVE_LISTLIKE_SOME_BODY(type)                                                                          \
+#define NATIVE_LISTLIKE_SOME_BODY(class)                                                                         \
   UNUSED(argc);                                                                                                  \
-  NATIVE_CHECK_RECEIVER(type)                                                                                    \
+  NATIVE_CHECK_RECEIVER(class)                                                                                   \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
                                                                                                                  \
   ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
@@ -785,7 +785,7 @@ extern Value native_typeof(int argc, Value argv[]);
         }                                                                                                        \
                                                                                                                  \
         /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
-        if (IS_BOOL(result) && result.as.boolean) {                                                              \
+        if (is_bool(result) && result.as.boolean) {                                                              \
           return bool_value(true);                                                                               \
         }                                                                                                        \
       }                                                                                                          \
@@ -803,7 +803,7 @@ extern Value native_typeof(int argc, Value argv[]);
         }                                                                                                        \
                                                                                                                  \
         /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
-        if (IS_BOOL(result) && result.as.boolean) {                                                              \
+        if (is_bool(result) && result.as.boolean) {                                                              \
           return bool_value(true);                                                                               \
         }                                                                                                        \
       }                                                                                                          \
@@ -822,9 +822,9 @@ extern Value native_typeof(int argc, Value argv[]);
  * @brief Reduces the items of a TYPENAME_T to a single value by executing 'fn' on each item. 'fn' should take two or three
  * arguments: the accumulator, the item and the index. The latter is optional. The initial value of the accumulator is 'initial'.
  */
-#define NATIVE_LISTLIKE_REDUCE_BODY(type)                                                                         \
+#define NATIVE_LISTLIKE_REDUCE_BODY(class)                                                                        \
   UNUSED(argc);                                                                                                   \
-  NATIVE_CHECK_RECEIVER(type)                                                                                     \
+  NATIVE_CHECK_RECEIVER(class)                                                                                    \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(2)                                                                              \
                                                                                                                   \
   ValueArray items  = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
@@ -876,9 +876,9 @@ extern Value native_typeof(int argc, Value argv[]);
  * TYPENAME_T.count(pred: TYPENAME_FUNCTION -> TYPENAME_BOOL) -> TYPENAME_INT
  * @brief Returns the number of items in the TYPENAME_T for which 'pred' evaluates to VALUE_STR_TRUE.
  */
-#define NATIVE_LISTLIKE_COUNT_BODY(type)                                                                        \
+#define NATIVE_LISTLIKE_COUNT_BODY(class)                                                                       \
   UNUSED(argc);                                                                                                 \
-  NATIVE_CHECK_RECEIVER(type)                                                                                   \
+  NATIVE_CHECK_RECEIVER(class)                                                                                  \
                                                                                                                 \
   ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                          \
   if (items.count == 0) {                                                                                       \
@@ -888,7 +888,7 @@ extern Value native_typeof(int argc, Value argv[]);
   int count       = items.count; /* We need to store this, because the listlike might change during the loop */ \
   int occurrences = 0;                                                                                          \
                                                                                                                 \
-  if (IS_CALLABLE(argv[1])) {                                                                                   \
+  if (is_callable(argv[1])) {                                                                                   \
     int fn_arity = callable_get_arity(argv[1]);                                                                 \
     if (fn_arity != 1) {                                                                                        \
       runtime_error("Function passed to \"" STR(count) "\" must take 1 argument, but got %d.", fn_arity);       \
@@ -906,7 +906,7 @@ extern Value native_typeof(int argc, Value argv[]);
       }                                                                                                         \
                                                                                                                 \
       /* We don't use is_falsey here, because we want to check for a boolean value. */                          \
-      if (IS_BOOL(result) && result.as.boolean) {                                                               \
+      if (is_bool(result) && result.as.boolean) {                                                               \
         occurrences++;                                                                                          \
       }                                                                                                         \
     }                                                                                                           \
@@ -925,10 +925,10 @@ extern Value native_typeof(int argc, Value argv[]);
  * TYPENAME_T.concat(other: TYPENAME_T) -> TYPENAME_T
  * @brief Concatenates two TYPENAME_Ts. Returns a new TYPENAME_T with the items of the receiver followed by the items of 'other'.
  */
-#define NATIVE_LISTLIKE_CONCAT_BODY(type)                                      \
+#define NATIVE_LISTLIKE_CONCAT_BODY(class)                                     \
   UNUSED(argc);                                                                \
-  NATIVE_CHECK_RECEIVER(type)                                                  \
-  NATIVE_CHECK_ARG_AT(1, type)                                                 \
+  NATIVE_CHECK_RECEIVER(class)                                                 \
+  NATIVE_CHECK_ARG_AT(1, class)                                                \
                                                                                \
   ValueArray items1 = LISTLIKE_GET_VALUEARRAY(argv[0]);                        \
   ValueArray items2 = LISTLIKE_GET_VALUEARRAY(argv[1]);                        \

@@ -136,7 +136,7 @@ static int invoke_instruction(const char* name, Chunk* chunk, int offset) {
   PRINT_NUMBER(constant);
   char method_str[VALUE_STR_LEN];
 
-  sprintf(method_str, "%s, %d args", AS_STRING(chunk->constants.values[constant])->chars, arg_count);
+  sprintf(method_str, "%s, %d args", AS_STR(chunk->constants.values[constant])->chars, arg_count);
   PRINT_VALUE_STR(method_str);
 
   return offset + 3;

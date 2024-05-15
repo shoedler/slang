@@ -73,7 +73,7 @@ void mark_obj(Obj* object) {
 }
 
 void mark_value(Value value) {
-  if (!IS_NON_OBJECT(value)) {
+  if (!is_non_object(value)) {
     mark_obj(value.as.obj);
   }
 }

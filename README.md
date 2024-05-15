@@ -10,7 +10,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 #### Preparations
 
-- [ ] Make all `static inline <type> bla()` Value functions macros, or at least verify that there is no performance loss for using static inline functions vs macros.
 - [ ] Get rid of all switches over `ObjGcType` outside of memory.c. This should be done using a quick-access function on the respective base class. E.g. for calls, we should implement `__call` on all `ObjClass`es and then manage HOW to call them in there.
 - [ ] Get rid of all `if (is_<Type>()) ...  else if (is_<Type>()) ...` and implement a quick-access function on the base class.
   - [ ] `__eq`: How to compare two values of the same type. All Types require this. Just call it in `values_equal`.
@@ -59,7 +58,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
 - [ ] Call `to_str` implicitly when adding a string to a non-string. Only if the left side is a string.
 - [ ] Remove the "Class" prefix in `VALUE_STR_CLASS` to just return the class name. This is a bit more consistent with the rest of the code.
-- [ ] Use something else instead of `rint`, because it's not very precise. See _num-to-str.spec.sl_ for an example.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Make sure managed code classes do not override internal classes.

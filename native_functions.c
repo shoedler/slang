@@ -39,7 +39,7 @@ Value native_log(int argc, Value argv[]) {
   for (int i = 1; i <= argc; i++) {
     // Execute the to_str method on the receiver
     push(argv[i]);  // Load the receiver onto the stack
-    ObjString* str = AS_STRING(exec_callable(fn_value(argv[i].type->__to_str), 0));
+    ObjString* str = AS_STR(exec_callable(fn_value(argv[i].type->__to_str), 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return nil_value();
     }

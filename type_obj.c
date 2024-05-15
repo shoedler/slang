@@ -112,13 +112,13 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
   strcpy(chars, VALUE_STR_OBJECT_START);
   for (int i = 0; i < object->fields.capacity; i++) {
-    if (IS_EMPTY_INTERNAL(object->fields.entries[i].key)) {
+    if (is_empty_internal(object->fields.entries[i].key)) {
       continue;
     }
 
     // Execute the to_str method on the key
     push(object->fields.entries[i].key);  // Push the receiver (key at i) for to_str
-    ObjString* key_str = AS_STRING(exec_callable(fn_value(object->fields.entries[i].key.type->__to_str), 0));
+    ObjString* key_str = AS_STR(exec_callable(fn_value(object->fields.entries[i].key.type->__to_str), 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return nil_value();
     }
@@ -127,7 +127,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     // Execute the to_str method on the value
     push(object->fields.entries[i].value);  // Push the receiver (value at i) for to_str
-    ObjString* value_str = AS_STRING(exec_callable(fn_value(object->fields.entries[i].value.type->__to_str), 0));
+    ObjString* value_str = AS_STR(exec_callable(fn_value(object->fields.entries[i].value.type->__to_str), 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
       return nil_value();
     }
@@ -182,7 +182,7 @@ static Value obj_to_str(int argc, Value argv[]) {
   // Anything that came here is at least a ObjObject, because every other value-type has an internal to_str implementation.
 
   // Handle anonymous objects and instance objects differently
-  if (IS_OBJ(argv[0])) {
+  if (is_obj(argv[0])) {
     return anonymous_object_to_str(argc, argv);
   } else {
     return instance_object_to_str(argc, argv);
@@ -215,7 +215,7 @@ static Value obj_to_str(int argc, Value argv[]) {
   }                                                                \
   items = AS_SEQ(seq)->items;
 static Value obj_has(int argc, Value argv[]) {
-  NATIVE_ENUMERABLE_HAS_BODY(OBJ)
+  NATIVE_ENUMERABLE_HAS_BODY(vm.obj_class)
 }
 #undef NATIVE_ENUMERABLE_GET_VALUE_ARRAY
 
@@ -235,7 +235,7 @@ static Value obj_hash(int argc, Value argv[]) {
  */
 static Value obj_entries(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(OBJ)
+  NATIVE_CHECK_RECEIVER(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
@@ -245,7 +245,7 @@ static Value obj_entries(int argc, Value argv[]) {
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key)) {
+    if (!is_empty_internal(entry->key)) {
       push(entry->key);
       push(entry->value);
       make_seq(2);                        // Leaves a seq with the key-value on the stack
@@ -262,7 +262,7 @@ static Value obj_entries(int argc, Value argv[]) {
  */
 static Value obj_keys(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(OBJ)
+  NATIVE_CHECK_RECEIVER(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
@@ -272,7 +272,7 @@ static Value obj_keys(int argc, Value argv[]) {
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key)) {
+    if (!is_empty_internal(entry->key)) {
       items.values[processed++] = entry->key;
     }
   }
@@ -286,7 +286,7 @@ static Value obj_keys(int argc, Value argv[]) {
  */
 static Value obj_values(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(OBJ)
+  NATIVE_CHECK_RECEIVER(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
@@ -296,7 +296,7 @@ static Value obj_values(int argc, Value argv[]) {
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key)) {
+    if (!is_empty_internal(entry->key)) {
       items.values[processed++] = entry->value;
     }
   }

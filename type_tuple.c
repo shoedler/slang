@@ -67,7 +67,7 @@ static bool tuple_get_subs(Value receiver, Value index, Value* result) {
  */
 static Value tuple_ctor(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_ARG_AT(1, SEQ)
+  NATIVE_CHECK_ARG_AT(1, vm.seq_class)
 
   ObjSeq* seq = AS_SEQ(argv[1]);
 
@@ -84,52 +84,52 @@ static Value tuple_ctor(int argc, Value argv[]) {
 #define NATIVE_LISTLIKE_NEW_EMPTY() tuple_value(new_tuple())
 #define NATIVE_LISTLIKE_TAKE_ARRAY(value_array) tuple_value(take_tuple(&value_array))
 static Value tuple_has(int argc, Value argv[]) {
-  NATIVE_ENUMERABLE_HAS_BODY(TUPLE);
+  NATIVE_ENUMERABLE_HAS_BODY(vm.tuple_class);
 }
 static Value tuple_slice(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_SLICE_BODY(TUPLE);
+  NATIVE_LISTLIKE_SLICE_BODY(vm.tuple_class);
 }
 static Value tuple_to_str(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_TO_STR_BODY(TUPLE, VALUE_STR_TUPLE_START, VALUE_STR_TUPLE_DELIM, VALUE_STR_TUPLE_END);
+  NATIVE_LISTLIKE_TO_STR_BODY(vm.tuple_class, VALUE_STR_TUPLE_START, VALUE_STR_TUPLE_DELIM, VALUE_STR_TUPLE_END);
 }
 static Value tuple_index_of(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_INDEX_OF_BODY(TUPLE);
+  NATIVE_LISTLIKE_INDEX_OF_BODY(vm.tuple_class);
 }
 static Value tuple_first(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_FIRST_BODY(TUPLE);
+  NATIVE_LISTLIKE_FIRST_BODY(vm.tuple_class);
 }
 static Value tuple_last(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_LAST_BODY(TUPLE);
+  NATIVE_LISTLIKE_LAST_BODY(vm.tuple_class);
 }
 static Value tuple_each(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_EACH_BODY(TUPLE);
+  NATIVE_LISTLIKE_EACH_BODY(vm.tuple_class);
 }
 static Value tuple_map(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_MAP_BODY(TUPLE);
+  NATIVE_LISTLIKE_MAP_BODY(vm.tuple_class);
 }
 static Value tuple_filter(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_FILTER_BODY(TUPLE);
+  NATIVE_LISTLIKE_FILTER_BODY(vm.tuple_class);
 }
 static Value tuple_join(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_JOIN_BODY(TUPLE);
+  NATIVE_LISTLIKE_JOIN_BODY(vm.tuple_class);
 }
 static Value tuple_reverse(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_REVERSE_BODY(TUPLE);
+  NATIVE_LISTLIKE_REVERSE_BODY(vm.tuple_class);
 }
 static Value tuple_every(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_EVERY_BODY(TUPLE);
+  NATIVE_LISTLIKE_EVERY_BODY(vm.tuple_class);
 }
 static Value tuple_some(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_SOME_BODY(TUPLE);
+  NATIVE_LISTLIKE_SOME_BODY(vm.tuple_class);
 }
 static Value tuple_reduce(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_REDUCE_BODY(TUPLE);
+  NATIVE_LISTLIKE_REDUCE_BODY(vm.tuple_class);
 }
 static Value tuple_count(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_COUNT_BODY(TUPLE);
+  NATIVE_LISTLIKE_COUNT_BODY(vm.tuple_class);
 }
 static Value tuple_concat(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_CONCAT_BODY(TUPLE);
+  NATIVE_LISTLIKE_CONCAT_BODY(vm.tuple_class);
 }
 #undef NATIVE_ENUMERABLE_GET_VALUE_ARRAY
 #undef NATIVE_LISTLIKE_NEW_EMPTY

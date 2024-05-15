@@ -102,7 +102,7 @@ void finalize_new_class(ObjClass* klass) {
       base = base->base;
     }
 
-    if (base != NULL && IS_CALLABLE(temp)) {
+    if (base != NULL && is_callable(temp)) {
       *entry->field = temp.as.obj;
     } else {
       *entry->field = NULL;

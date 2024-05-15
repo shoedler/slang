@@ -66,12 +66,6 @@ void free_value_array(ValueArray* array) {
   init_value_array(array);
 }
 
-bool float_is_int(double number, long long* integer) {
-  double dint = rint(number);
-  *integer    = (long long)dint;
-  return number == dint;
-}
-
 int is_digit(char c) {
   return c >= '0' && c <= '9';
 }
@@ -106,26 +100,26 @@ bool values_equal(Value a, Value b) {
     return false;
   }
 
-  if (IS_NIL(a)) {
+  if (is_nil(a)) {
     return true;
   }
-  if (IS_EMPTY_INTERNAL(a)) {
+  if (is_empty_internal(a)) {
     return true;
   }
 
-  if (IS_BOOL(a)) {
+  if (is_bool(a)) {
     return a.as.boolean == b.as.boolean;
   }
-  if (IS_INT(a)) {
+  if (is_int(a)) {
     return a.as.integer == b.as.integer;
   }
   if (IS_FLOAT(a)) {
     return a.as.float_ == b.as.float_;
   }
-  if (IS_STRING(a)) {
-    return AS_STRING(a) == AS_STRING(b);  // Works, because strings are interned
+  if (is_str(a)) {
+    return AS_STR(a) == AS_STR(b);  // Works, because strings are interned
   }
-  if (IS_HANDLER(a)) {
+  if (is_handler(a)) {
     INTERNAL_ERROR("Cannot compare a value to a error handler. Vm has leaked a stack value.");
     return false;
   }
@@ -153,17 +147,17 @@ static uint64_t hash_int(long long value) {
 }
 
 uint64_t hash_value(Value value) {
-  if (IS_EMPTY_INTERNAL(value)) {
+  if (is_empty_internal(value)) {
     return 0;
   }
 
-  if (IS_NIL(value)) {
+  if (is_nil(value)) {
     return 2;
   }
-  if (IS_BOOL(value)) {
+  if (is_bool(value)) {
     return value.as.boolean ? 977 : 479;  // Prime numbers. Selected based on trial and error.
   }
-  if (IS_INT(value)) {
+  if (is_int(value)) {
     return hash_int(value.as.integer);
   }
   if (IS_FLOAT(value)) {
@@ -175,41 +169,41 @@ uint64_t hash_value(Value value) {
 }
 
 int print_value_safe(FILE* f, Value value) {
-  if (IS_BOOL(value)) {
+  if (is_bool(value)) {
     return fprintf(f, value.as.boolean ? VALUE_STR_TRUE : VALUE_STR_FALSE);
   }
-  if (IS_NIL(value)) {
+  if (is_nil(value)) {
     return fprintf(f, VALUE_STR_NIL);
   }
-  if (IS_HANDLER(value)) {
+  if (is_handler(value)) {
     return fprintf(f, VALUE_STRFMT_HANDLER, value.as.handler);
   }
-  if (IS_INT(value)) {
+  if (is_int(value)) {
     return fprintf(f, VALUE_STR_INT, value.as.integer);
   }
   if (IS_FLOAT(value)) {
     return fprintf(f, VALUE_STR_FLOAT, value.as.float_);
   }
-  if (IS_EMPTY_INTERNAL(value)) {
+  if (is_empty_internal(value)) {
     return fprintf(f, VALUE_STR_EMPTY_INTERNAL);
   }
 
-  if (IS_STRING(value)) {
+  if (is_str(value)) {
     return fprintf(f, "%s", AS_CSTRING(value));
   }
-  if (IS_CLOSURE(value)) {
+  if (is_closure(value)) {
     return fprintf(f, VALUE_STRFMT_FUNCTION, AS_CLOSURE(value)->function->name->chars);
   }
-  if (IS_FUNCTION(value)) {
+  if (is_function(value)) {
     return fprintf(f, VALUE_STRFMT_FUNCTION, AS_FUNCTION(value)->name->chars);
   }
-  if (IS_CLASS(value)) {
+  if (is_class(value)) {
     return fprintf(f, VALUE_STRFMT_CLASS, AS_CLASS(value)->name->chars);
   }
-  if (IS_NATIVE(value)) {
+  if (is_native(value)) {
     return fprintf(f, VALUE_STRFMT_NATIVE, AS_NATIVE(value)->name->chars);
   }
-  if (IS_BOUND_METHOD(value)) {
+  if (is_bound_method(value)) {
     ObjBoundMethod* bound = AS_BOUND_METHOD(value);
     if (bound->method == NULL) {
       return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(corrupt)");
@@ -228,12 +222,12 @@ int print_value_safe(FILE* f, Value value) {
     }
   }
 
-  if (IS_TUPLE(value) || IS_SEQ(value)) {
+  if (is_tuple(value) || is_seq(value)) {
     const char* start;
     const char* delim;
     const char* end;
 
-    if (IS_SEQ(value)) {
+    if (is_seq(value)) {
       start = VALUE_STR_SEQ_START;
       delim = VALUE_STR_SEQ_DELIM;
       end   = VALUE_STR_SEQ_END;
@@ -256,13 +250,13 @@ int print_value_safe(FILE* f, Value value) {
     return written;
   }
 
-  if (IS_OBJ(value)) {
+  if (is_obj(value)) {
     ObjObject* object = AS_OBJECT(value);
 
     int written   = fprintf(f, VALUE_STR_OBJECT_START);
     int processed = 0;
     for (int i = 0; i < object->fields.capacity; i++) {
-      if (IS_EMPTY_INTERNAL(object->fields.entries[i].key)) {
+      if (is_empty_internal(object->fields.entries[i].key)) {
         continue;
       }
       Entry* entry = &object->fields.entries[i];

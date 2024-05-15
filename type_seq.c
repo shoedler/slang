@@ -68,7 +68,7 @@ static bool seq_get_subs(Value receiver, Value index, Value* result) {
 }
 
 static bool seq_set_subs(Value receiver, Value index, Value value) {
-  if (!IS_INT(index)) {
+  if (!is_int(index)) {
     runtime_error("Type %s does not support set-subscripting with %s. Expected " STR(TYPENAME_INT) ".",
                   receiver.type->name->chars, index.type->name->chars);
     return false;
@@ -95,7 +95,7 @@ static bool seq_set_subs(Value receiver, Value index, Value value) {
  */
 static Value seq_ctor(int argc, Value argv[]) {
   UNUSED(argc);
-  if (IS_INT(argv[1])) {
+  if (is_int(argv[1])) {
     ValueArray items;
     init_value_array(&items);
     ObjSeq* seq = take_seq(&items);
@@ -110,7 +110,7 @@ static Value seq_ctor(int argc, Value argv[]) {
     return seq_value(seq);
   }
 
-  if (IS_TUPLE(argv[1])) {
+  if (is_tuple(argv[1])) {
     ObjTuple* tuple = AS_TUPLE(argv[1]);
 
     ValueArray items = prealloc_value_array(tuple->items.count);
@@ -132,52 +132,52 @@ static Value seq_ctor(int argc, Value argv[]) {
 #define NATIVE_LISTLIKE_NEW_EMPTY() seq_value(new_seq())
 #define NATIVE_LISTLIKE_TAKE_ARRAY(value_array) seq_value(take_seq(&value_array))
 static Value seq_has(int argc, Value argv[]) {
-  NATIVE_ENUMERABLE_HAS_BODY(SEQ);
+  NATIVE_ENUMERABLE_HAS_BODY(vm.seq_class);
 }
 static Value seq_slice(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_SLICE_BODY(SEQ);
+  NATIVE_LISTLIKE_SLICE_BODY(vm.seq_class);
 }
 static Value seq_to_str(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_TO_STR_BODY(SEQ, VALUE_STR_SEQ_START, VALUE_STR_SEQ_DELIM, VALUE_STR_SEQ_END);
+  NATIVE_LISTLIKE_TO_STR_BODY(vm.seq_class, VALUE_STR_SEQ_START, VALUE_STR_SEQ_DELIM, VALUE_STR_SEQ_END);
 }
 static Value seq_index_of(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_INDEX_OF_BODY(SEQ);
+  NATIVE_LISTLIKE_INDEX_OF_BODY(vm.seq_class);
 }
 static Value seq_first(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_FIRST_BODY(SEQ);
+  NATIVE_LISTLIKE_FIRST_BODY(vm.seq_class);
 }
 static Value seq_last(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_LAST_BODY(SEQ);
+  NATIVE_LISTLIKE_LAST_BODY(vm.seq_class);
 }
 static Value seq_each(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_EACH_BODY(SEQ);
+  NATIVE_LISTLIKE_EACH_BODY(vm.seq_class);
 }
 static Value seq_map(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_MAP_BODY(SEQ);
+  NATIVE_LISTLIKE_MAP_BODY(vm.seq_class);
 }
 static Value seq_filter(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_FILTER_BODY(SEQ);
+  NATIVE_LISTLIKE_FILTER_BODY(vm.seq_class);
 }
 static Value seq_join(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_JOIN_BODY(SEQ);
+  NATIVE_LISTLIKE_JOIN_BODY(vm.seq_class);
 }
 static Value seq_reverse(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_REVERSE_BODY(SEQ);
+  NATIVE_LISTLIKE_REVERSE_BODY(vm.seq_class);
 }
 static Value seq_every(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_EVERY_BODY(SEQ);
+  NATIVE_LISTLIKE_EVERY_BODY(vm.seq_class);
 }
 static Value seq_some(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_SOME_BODY(SEQ);
+  NATIVE_LISTLIKE_SOME_BODY(vm.seq_class);
 }
 static Value seq_reduce(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_REDUCE_BODY(SEQ);
+  NATIVE_LISTLIKE_REDUCE_BODY(vm.seq_class);
 }
 static Value seq_count(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_COUNT_BODY(SEQ);
+  NATIVE_LISTLIKE_COUNT_BODY(vm.seq_class);
 }
 static Value seq_concat(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_CONCAT_BODY(SEQ);
+  NATIVE_LISTLIKE_CONCAT_BODY(vm.seq_class);
 }
 #undef NATIVE_ENUMERABLE_GET_VALUE_ARRAY
 #undef NATIVE_LISTLIKE_NEW_EMPTY
@@ -188,7 +188,7 @@ static Value seq_concat(int argc, Value argv[]) {
  * @brief Pushes one or many values to a TYPENAME_SEQ.
  */
 static Value seq_push(int argc, Value argv[]) {
-  NATIVE_CHECK_RECEIVER(SEQ)
+  NATIVE_CHECK_RECEIVER(vm.seq_class)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
   for (int i = 1; i <= argc; i++) {
@@ -203,7 +203,7 @@ static Value seq_push(int argc, Value argv[]) {
  */
 static Value seq_pop(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(SEQ)
+  NATIVE_CHECK_RECEIVER(vm.seq_class)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
   return pop_value_array(&seq->items);  // Does bounds checking
@@ -216,8 +216,8 @@ static Value seq_pop(int argc, Value argv[]) {
  */
 static Value seq_remove_at(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(SEQ)
-  NATIVE_CHECK_ARG_AT(1, INT)
+  NATIVE_CHECK_RECEIVER(vm.seq_class)
+  NATIVE_CHECK_ARG_AT(1, vm.int_class)
 
   ObjSeq* seq     = AS_SEQ(argv[0]);
   long long index = argv[1].as.integer;

@@ -106,10 +106,6 @@ Value remove_at_value_array(ValueArray* array, int index);
 // Free a value array.
 void free_value_array(ValueArray* array);
 
-// Returns true if a floating point number is an integer, false otherwise.
-// Assignes the resulting integer value to the long long pointer.
-bool float_is_int(double number, long long* integer);
-
 // Get the hashcode of a value, based on its type.
 uint64_t hash_value(Value value);
 

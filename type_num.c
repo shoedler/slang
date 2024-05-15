@@ -80,20 +80,20 @@ static Value num_ctor(int argc, Value argv[]) {
 static Value int_ctor(int argc, Value argv[]) {
   UNUSED(argc);
 
-  if (IS_INT(argv[1])) {
+  if (is_int(argv[1])) {
     return argv[1];
   }
   if (IS_FLOAT(argv[1])) {
     return int_value((long long)argv[1].as.float_);
   }
-  if (IS_BOOL(argv[1])) {
+  if (is_bool(argv[1])) {
     return int_value(argv[1].as.boolean ? 1 : 0);
   }
-  if (IS_NIL(argv[1])) {
+  if (is_nil(argv[1])) {
     return int_value(0);
   }
-  if (IS_STRING(argv[1])) {
-    ObjString* str = AS_STRING(argv[1]);
+  if (is_str(argv[1])) {
+    ObjString* str = AS_STR(argv[1]);
     return int_value((long long)string_to_double(str->chars, str->length));
   }
 
@@ -106,7 +106,7 @@ static Value int_ctor(int argc, Value argv[]) {
  */
 static Value int_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(INT)
+  NATIVE_CHECK_RECEIVER(vm.int_class)
 
   char buffer[100];
   int len = snprintf(buffer, sizeof(buffer), VALUE_STR_INT, argv[0].as.integer);
@@ -122,20 +122,20 @@ static Value int_to_str(int argc, Value argv[]) {
 static Value float_ctor(int argc, Value argv[]) {
   UNUSED(argc);
 
-  if (IS_INT(argv[1])) {
+  if (is_int(argv[1])) {
     return float_value((double)argv[1].as.integer);
   }
   if (IS_FLOAT(argv[1])) {
     return argv[1];
   }
-  if (IS_BOOL(argv[1])) {
+  if (is_bool(argv[1])) {
     return float_value(argv[1].as.boolean ? 1.0 : 0.0);
   }
-  if (IS_NIL(argv[1])) {
+  if (is_nil(argv[1])) {
     return float_value(0.0);
   }
-  if (IS_STRING(argv[1])) {
-    ObjString* str = AS_STRING(argv[1]);
+  if (is_str(argv[1])) {
+    ObjString* str = AS_STR(argv[1]);
     return float_value(string_to_double(str->chars, str->length));
   }
 
@@ -148,7 +148,7 @@ static Value float_ctor(int argc, Value argv[]) {
  */
 static Value float_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(FLOAT)
+  NATIVE_CHECK_RECEIVER(vm.float_class)
 
   char buffer[100];
   int len = snprintf(buffer, sizeof(buffer), VALUE_STR_FLOAT, argv[0].as.float_);

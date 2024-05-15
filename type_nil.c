@@ -43,7 +43,7 @@ static Value nil_ctor(int argc, Value argv[]) {
  */
 static Value nil_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(NIL)
+  NATIVE_CHECK_RECEIVER(vm.nil_class)
 
   ObjString* str_obj = copy_string(VALUE_STR_NIL, STR_LEN(VALUE_STR_NIL));
   return str_value(str_obj);

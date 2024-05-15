@@ -68,17 +68,17 @@ static Value fn_to_str(int argc, Value argv[]) {
   size_t fmt_len  = VALUE_STRFMT_FUNCTION_LEN;
 
   // Bound methods can be closures or native functions
-  if (IS_BOUND_METHOD(fn)) {
+  if (is_bound_method(fn)) {
     fn = fn_value((Obj*)AS_BOUND_METHOD(fn)->method);
   }
 
   // Closures are functions
-  if (IS_CLOSURE(fn)) {
+  if (is_closure(fn)) {
     fn = fn_value((Obj*)AS_CLOSURE(fn)->function);
   }
 
   // Native functions
-  if (IS_NATIVE(fn)) {
+  if (is_native(fn)) {
     name    = AS_NATIVE(fn)->name;
     fmt     = VALUE_STRFMT_NATIVE;
     fmt_len = VALUE_STRFMT_NATIVE_LEN;
@@ -111,9 +111,9 @@ static Value fn_to_str(int argc, Value argv[]) {
 static Value fn_has(int argc, Value argv[]) {
   UNUSED(argc);
   NATIVE_CHECK_RECEIVER_IS_FN()
-  NATIVE_CHECK_ARG_AT(1, STRING)
+  NATIVE_CHECK_ARG_AT(1, vm.str_class)
 
-  ObjString* name = AS_STRING(argv[1]);
+  ObjString* name = AS_STR(argv[1]);
 
   // Execute the fn_get_prop function to see if the fn has the thing. We use this approach to make sure the two are
   // aligned and return the same result.
@@ -133,7 +133,6 @@ static Value fn_has(int argc, Value argv[]) {
 static Value fn_bind(int argc, Value argv[]) {
   UNUSED(argc);
   NATIVE_CHECK_RECEIVER_IS_FN()
-  NATIVE_CHECK_ARG_AT(1, OBJ)
 
   Value bind_target = argv[1];
   return fn_value((Obj*)new_bound_method(bind_target, argv[0].as.obj));

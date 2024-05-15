@@ -58,7 +58,7 @@ static Value class_ctor(int argc, Value argv[]) {
  */
 static Value class_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(CLASS)
+  NATIVE_CHECK_RECEIVER(vm.class_class)
 
   ObjClass* klass = AS_CLASS(argv[0]);
   ObjString* name = klass->name;
@@ -85,10 +85,10 @@ static Value class_to_str(int argc, Value argv[]) {
  */
 static Value class_has(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(CLASS)
-  NATIVE_CHECK_ARG_AT(1, STRING)
+  NATIVE_CHECK_RECEIVER(vm.class_class)
+  NATIVE_CHECK_ARG_AT(1, vm.str_class)
 
-  ObjString* name = AS_STRING(argv[1]);
+  ObjString* name = AS_STR(argv[1]);
 
   // Execute the class_get_prop function to see if the class has the thing. We use this approach to make sure the two are
   // aligned and return the same result.

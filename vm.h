@@ -195,7 +195,7 @@ bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method);
 static inline Value int_value(long long value) {
   return (Value){.type = vm.int_class, {.integer = value}};
 }
-static inline bool IS_INT(Value value) {
+static inline bool is_int(Value value) {
   return value.type == vm.int_class;
 }
 
@@ -211,7 +211,7 @@ static inline bool IS_FLOAT(Value value) {
 static inline Value bool_value(bool value) {
   return (Value){.type = vm.bool_class, {.boolean = value}};
 }
-static inline bool IS_BOOL(Value value) {
+static inline bool is_bool(Value value) {
   return value.type == vm.bool_class;
 }
 
@@ -219,7 +219,7 @@ static inline bool IS_BOOL(Value value) {
 static inline Value nil_value() {
   return (Value){.type = vm.nil_class};
 }
-static inline bool IS_NIL(Value value) {
+static inline bool is_nil(Value value) {
   return value.type == vm.nil_class;
 }
 
@@ -227,7 +227,7 @@ static inline bool IS_NIL(Value value) {
 static inline Value empty_internal_value() {
   return (Value){.type = NULL};
 }
-static inline bool IS_EMPTY_INTERNAL(Value value) {
+static inline bool is_empty_internal(Value value) {
   return value.type == NULL;
 }
 
@@ -235,7 +235,7 @@ static inline bool IS_EMPTY_INTERNAL(Value value) {
 static inline Value seq_value(ObjSeq* value) {
   return (Value){.type = vm.seq_class, {.obj = (Obj*)value}};
 }
-static inline bool IS_SEQ(Value value) {
+static inline bool is_seq(Value value) {
   return value.type == vm.seq_class;
 }
 
@@ -243,7 +243,7 @@ static inline bool IS_SEQ(Value value) {
 static inline Value tuple_value(ObjTuple* value) {
   return (Value){.type = vm.tuple_class, {.obj = (Obj*)value}};
 }
-static inline bool IS_TUPLE(Value value) {
+static inline bool is_tuple(Value value) {
   return value.type == vm.tuple_class;
 }
 
@@ -251,23 +251,23 @@ static inline bool IS_TUPLE(Value value) {
 static inline Value str_value(ObjString* value) {
   return (Value){.type = vm.str_class, {.obj = (Obj*)value}};
 }
-static inline bool IS_STRING(Value value) {
+static inline bool is_str(Value value) {
   return value.type == vm.str_class;
 }
 
-static inline bool IS_FUNCTION(Value value) {
+static inline bool is_function(Value value) {
   return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_FUNCTION;
 }
 
-static inline bool IS_CLOSURE(Value value) {
+static inline bool is_closure(Value value) {
   return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_CLOSURE;
 }
 
-static inline bool IS_NATIVE(Value value) {
+static inline bool is_native(Value value) {
   return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_NATIVE;
 }
 
-static inline bool IS_BOUND_METHOD(Value value) {
+static inline bool is_bound_method(Value value) {
   return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_BOUND_METHOD;
 }
 
@@ -275,7 +275,7 @@ static inline bool IS_BOUND_METHOD(Value value) {
 static inline Value class_value(ObjClass* value) {
   return (Value){.type = vm.class_class, {.obj = (Obj*)value}};
 }
-static inline bool IS_CLASS(Value value) {
+static inline bool is_class(Value value) {
   return value.type == vm.class_class;
 }
 
@@ -283,7 +283,7 @@ static inline bool IS_CLASS(Value value) {
 static inline Value obj_value(ObjObject* value) {
   return (Value){.type = vm.obj_class, {.obj = (Obj*)value}};
 }
-static inline bool IS_OBJ(Value value) {
+static inline bool is_obj(Value value) {
   return value.type == vm.obj_class;
 }
 
@@ -291,7 +291,7 @@ static inline bool IS_OBJ(Value value) {
 static inline Value handler_value(uint16_t value) {
   return (Value){.type = vm.handler_class, {.handler = value}};
 }
-static inline bool IS_HANDLER(Value value) {
+static inline bool is_handler(Value value) {
   return value.type == vm.handler_class;
 }
 
@@ -324,7 +324,7 @@ static inline bool IS_HANDLER(Value value) {
 #define AS_NATIVE(value) (((ObjNative*)(value.as.obj)))
 
 // Converts a value into a string. Value must be of type string.
-#define AS_STRING(value) ((ObjString*)(value.as.obj))
+#define AS_STR(value) ((ObjString*)(value.as.obj))
 
 // Converts a value into a C string. Value must be of type string.
 #define AS_CSTRING(value) (((ObjString*)(value.as.obj))->chars)
@@ -333,13 +333,13 @@ static inline bool IS_HANDLER(Value value) {
 // Utility functions for values
 //
 
-static inline bool IS_NON_OBJECT(Value value) {
+static inline bool is_non_object(Value value) {
   // TODO: Remove this. This cannot be used anywhere, bc it's extremely slow.
   return value.type == vm.nil_class || value.type == vm.bool_class || value.type == vm.int_class ||
          value.type == vm.float_class || value.type == vm.handler_class || value.type == NULL;
 }
 
-static inline bool IS_INSTANCE(Value value) {
+static inline bool is_instance(Value value) {
   // TODO: Remove this. This cannot be used anywhere, bc it's extremely slow.
   return value.type != vm.obj_class && value.type != vm.nil_class && value.type != vm.str_class && value.type != vm.class_class &&
          value.type != vm.fn_class && value.type != vm.bool_class && value.type != vm.num_class && value.type != vm.int_class &&
@@ -352,7 +352,7 @@ static inline Value instance_value(ObjObject* instance) {
 
 // Float or int is a number.
 static inline bool is_num(Value value) {
-  return IS_INT(value) || IS_FLOAT(value);
+  return is_int(value) || IS_FLOAT(value);
 }
 
 // Function, closure, native or bound method is a function.
@@ -366,29 +366,29 @@ static inline bool is_fn(Value value) {
 }
 
 // Callables are fn's or classes.
-static inline bool IS_CALLABLE(Value value) {
-  return is_fn(value) || IS_CLASS(value);
+static inline bool is_callable(Value value) {
+  return is_fn(value) || is_class(value);
 }
 
 // Get the arity of a callable
 static inline int callable_get_arity(Value callable) {
-  if (IS_CLASS(callable)) {
+  if (is_class(callable)) {
     Obj* ctor = AS_CLASS(callable)->__ctor;
     if (ctor == NULL) {
       return 0;
     }
     return callable_get_arity(fn_value(ctor));
   }
-  if (IS_BOUND_METHOD(callable)) {
+  if (is_bound_method(callable)) {
     return callable_get_arity(fn_value(AS_BOUND_METHOD(callable)->method));
   }
-  if (IS_NATIVE(callable)) {
+  if (is_native(callable)) {
     return AS_NATIVE(callable)->arity;
   }
-  if (IS_CLOSURE(callable)) {
+  if (is_closure(callable)) {
     return AS_CLOSURE(callable)->function->arity;
   }
-  if (IS_FUNCTION(callable)) {
+  if (is_function(callable)) {
     return AS_FUNCTION(callable)->arity;
   }
 
@@ -397,16 +397,16 @@ static inline int callable_get_arity(Value callable) {
 }
 
 static inline ObjString* fn_get_name(Value fn) {
-  if (IS_BOUND_METHOD(fn)) {
+  if (is_bound_method(fn)) {
     fn = fn_value((Obj*)AS_BOUND_METHOD(fn)->method);
   }
-  if (IS_CLOSURE(fn)) {
+  if (is_closure(fn)) {
     fn = fn_value((Obj*)AS_CLOSURE(fn)->function);
   }
-  if (IS_NATIVE(fn)) {
+  if (is_native(fn)) {
     return AS_NATIVE(fn)->name;
   }
-  if (IS_FUNCTION(fn)) {
+  if (is_function(fn)) {
     return AS_FUNCTION(fn)->name;
   }
   INTERNAL_ERROR("Unhandled function type: %s", fn.type->name->chars);

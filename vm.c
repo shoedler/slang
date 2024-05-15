@@ -115,7 +115,7 @@ static void dump_stacktrace() {
 
     // If the module_name is the same ref as the current frame's function-name, then we know it's the
     // toplevel, because that's how we initialize it in the compiler.
-    if (AS_STRING(module_name) == function->name) {
+    if (AS_STR(module_name) == function->name) {
       fprintf(stderr, "at the toplevel of module \"%s\"\n", AS_CSTRING(module_name));
     } else {
       fprintf(stderr, "in \"%s\" in module \"%s\"\n", function->name->chars, AS_CSTRING(module_name));
@@ -439,11 +439,11 @@ static CallResult call_native(ObjNative* native, int arg_count) {
 //
 // TODO (refactor): Add class.__call() to handle all this stuff.
 static CallResult call_value(Value callable, int arg_count) {
-  if (IS_NATIVE(callable)) {
+  if (is_native(callable)) {
     return call_native(AS_NATIVE(callable), arg_count);
-  } else if (IS_CLOSURE(callable)) {
+  } else if (is_closure(callable)) {
     return call_managed(AS_CLOSURE(callable), arg_count);
-  } else if (IS_BOUND_METHOD(callable)) {
+  } else if (is_bound_method(callable)) {
     ObjBoundMethod* bound        = AS_BOUND_METHOD(callable);
     vm.stack_top[-arg_count - 1] = bound->receiver;
     switch (bound->method->type) {
@@ -451,7 +451,7 @@ static CallResult call_value(Value callable, int arg_count) {
       case OBJ_GC_NATIVE: return call_native((ObjNative*)bound->method, arg_count);
       default: break;  // Non-callable object type.
     }
-  } else if (IS_CLASS(callable)) {
+  } else if (is_class(callable)) {
     ObjClass* klass = AS_CLASS(callable);
     // Construct a new instance of the class.
     // We just replace the class on the stack (callable) with an instance of it.
@@ -506,7 +506,7 @@ static CallResult invoke(ObjClass* source_klass, ObjString* name, int arg_count)
   }
 
   // It could be a static method if the receiver is a class
-  if (IS_CLASS(receiver)) {
+  if (is_class(receiver)) {
     ObjClass* klass_ = AS_CLASS(receiver);
     if (hashtable_get_by_string(&klass_->static_methods, name, &method)) {
       vm.stack_top[-arg_count - 1] = method;
@@ -515,7 +515,7 @@ static CallResult invoke(ObjClass* source_klass, ObjString* name, int arg_count)
   }
 
   // It could be a field on an object or instance which is a callable value
-  if (IS_OBJ(receiver) || IS_INSTANCE(receiver)) {
+  if (is_obj(receiver) || is_instance(receiver)) {
     ObjObject* object = AS_OBJECT(receiver);
     if (hashtable_get_by_string(&object->fields, name, &method)) {
       vm.stack_top[-arg_count - 1] = method;
@@ -542,7 +542,7 @@ static Value run_frame() {
 
 Value exec_callable(Value callable, int arg_count) {
   CallResult result =
-      IS_STRING(callable) ? invoke(peek(arg_count).type, AS_STRING(callable), arg_count) : call_value(callable, arg_count);
+      is_str(callable) ? invoke(peek(arg_count).type, AS_STR(callable), arg_count) : call_value(callable, arg_count);
 
   if (result == CALL_RETURNED) {
     return pop();
@@ -633,7 +633,7 @@ static void define_method(ObjString* name, FunctionType type) {
 }
 
 bool is_falsey(Value value) {
-  return IS_NIL(value) || (IS_BOOL(value) && !value.as.boolean);
+  return is_nil(value) || (is_bool(value) && !value.as.boolean);
 }
 
 // Imports a module by name and pushes it onto the stack. If the module was already imported, it is loaded
@@ -651,7 +651,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
 
   // Not cached, so we need to load it. First, we need to get the current working directory
   Value cwd = native_cwd(0, NULL);
-  if (IS_NIL(cwd)) {
+  if (is_nil(cwd)) {
     runtime_error(
         "Could not import module '%s'. Could not get current working directory, because there is no "
         "active module or it is not a file.",
@@ -665,12 +665,12 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   if (module_path == NULL) {
     // Just slap the module name + extension onto the cwd
     char* module_file_name = ensure_slang_extension(module_name->chars);
-    module_to_load_path    = join_path(AS_STRING(cwd)->chars, module_file_name);
+    module_to_load_path    = join_path(AS_STR(cwd)->chars, module_file_name);
     free(module_file_name);
   } else {
     // It's a probably realtive path, we add the extension to the provided path and prepend the cwd
     char* module_path_  = ensure_slang_extension(module_path->chars);
-    module_to_load_path = join_path(AS_STRING(cwd)->chars, module_path_);
+    module_to_load_path = join_path(AS_STR(cwd)->chars, module_path_);
     free(module_path_);
 
     if (!file_exists(module_to_load_path)) {
@@ -692,7 +692,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
     INTERNAL_ERROR(
         "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
         "'%s'",
-        module_name->chars, AS_STRING(cwd)->chars, module_path == NULL ? "NULL" : module_path->chars);
+        module_name->chars, AS_STR(cwd)->chars, module_path == NULL ? "NULL" : module_path->chars);
     exit(EIO_ERROR);
   }
 
@@ -724,8 +724,8 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
 // Concatenates two strings on the stack (pops them) into a new string and pushes it onto the stack
 // `Stack: ...[a][b]` → `Stack: ...[a+b]`
 static void concatenate() {
-  ObjString* b = AS_STRING(peek(0));  // Peek, so it doesn't get freed by the GC
-  ObjString* a = AS_STRING(peek(1));  // Peek, so it doesn't get freed by the GC
+  ObjString* b = AS_STR(peek(0));  // Peek, so it doesn't get freed by the GC
+  ObjString* a = AS_STR(peek(1));  // Peek, so it doesn't get freed by the GC
 
   int length  = a->length + b->length;
   char* chars = ALLOCATE(char, length + 1);
@@ -759,7 +759,7 @@ static bool handle_error() {
 
   // Rewind the stack to the last handler, or the exit slot
   for (stack_offset = (int)(vm.stack_top - vm.stack - 1);                 // Start at the top of the stack
-       stack_offset >= exit_slot && !IS_HANDLER(vm.stack[stack_offset]);  // Stop at the exit slot or handler
+       stack_offset >= exit_slot && !is_handler(vm.stack[stack_offset]);  // Stop at the exit slot or handler
        stack_offset--)
     ;
 
@@ -817,7 +817,7 @@ static Value run() {
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_ONE()])
 
 // Read a string from the constant pool.
-#define READ_STRING() AS_STRING(READ_CONSTANT())
+#define READ_STRING() AS_STR(READ_CONSTANT())
 
 // Perform a binary operation on the top two values on the stack. This consumes two pieces of data from the
 // stack, and pushes the result.
@@ -827,13 +827,13 @@ static Value run() {
   {                                                                                                                       \
     Value b = pop();                                                                                                      \
     Value a = pop();                                                                                                      \
-    if (IS_INT(a) && IS_INT(b)) {                                                                                         \
+    if (is_int(a) && is_int(b)) {                                                                                         \
       b_check;                                                                                                            \
       push(int_value(a.as.integer operator b.as.integer));                                                                \
       break;                                                                                                              \
     }                                                                                                                     \
     if (IS_FLOAT(a)) {                                                                                                    \
-      if (IS_INT(b)) {                                                                                                    \
+      if (is_int(b)) {                                                                                                    \
         b_check;                                                                                                          \
         push(float_value(a.as.float_ operator(double) b.as.integer));                                                     \
         break;                                                                                                            \
@@ -843,7 +843,7 @@ static Value run() {
         break;                                                                                                            \
       }                                                                                                                   \
     } else if (IS_FLOAT(b)) {                                                                                             \
-      if (IS_INT(a)) {                                                                                                    \
+      if (is_int(a)) {                                                                                                    \
         b_check;                                                                                                          \
         push(float_value((double)a.as.integer operator b.as.float_));                                                     \
         break;                                                                                                            \
@@ -859,7 +859,7 @@ static Value run() {
 #define BIN_MUL MAKE_BINARY_OP(*, (void)0)
 #define BIN_DIV                                                                         \
   MAKE_BINARY_OP(                                                                       \
-      /, if ((IS_INT(b) && b.as.integer == 0) || (IS_FLOAT(b) && b.as.float_ == 0.0)) { \
+      /, if ((is_int(b) && b.as.integer == 0) || (IS_FLOAT(b) && b.as.float_ == 0.0)) { \
           runtime_error("Division by zero.");                                           \
           goto finish_error;                                                            \
         })
@@ -872,12 +872,12 @@ static Value run() {
   {                                                                                                                           \
     Value b = pop();                                                                                                          \
     Value a = pop();                                                                                                          \
-    if (IS_INT(a) && IS_INT(b)) {                                                                                             \
+    if (is_int(a) && is_int(b)) {                                                                                             \
       push(bool_value(a.as.integer operator b.as.integer));                                                                   \
       break;                                                                                                                  \
     }                                                                                                                         \
     if (IS_FLOAT(a)) {                                                                                                        \
-      if (IS_INT(b)) {                                                                                                        \
+      if (is_int(b)) {                                                                                                        \
         push(bool_value(a.as.float_ operator b.as.integer));                                                                  \
         break;                                                                                                                \
       } else if (IS_FLOAT(b)) {                                                                                               \
@@ -885,7 +885,7 @@ static Value run() {
         break;                                                                                                                \
       }                                                                                                                       \
     } else if (IS_FLOAT(b)) {                                                                                                 \
-      if (IS_INT(a)) {                                                                                                        \
+      if (is_int(a)) {                                                                                                        \
         push(bool_value(a.as.integer operator b.as.integer));                                                                 \
         break;                                                                                                                \
       }                                                                                                                       \
@@ -1090,7 +1090,7 @@ static Value run() {
       case OP_GTEQ: BIN_GTEQ
       case OP_LTEQ: BIN_LTEQ
       case OP_ADD: {
-        if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+        if (is_str(peek(0)) && is_str(peek(1))) {
           concatenate();
           break;
         } else
@@ -1104,7 +1104,7 @@ static Value run() {
         Value b = pop();
         Value a = pop();
 
-        if (IS_INT(a) && IS_INT(b)) {
+        if (is_int(a) && is_int(b)) {
           if (b.as.integer == 0) {
             runtime_error("Modulo by zero.");
             goto finish_error;
@@ -1114,7 +1114,7 @@ static Value run() {
         }
 
         if (IS_FLOAT(a)) {
-          if (IS_INT(b)) {
+          if (is_int(b)) {
             if (b.as.integer == 0) {
               runtime_error("Modulo by zero.");
               goto finish_error;
@@ -1130,7 +1130,7 @@ static Value run() {
             break;
           }
         } else if (IS_FLOAT(b)) {
-          if (IS_INT(a)) {
+          if (is_int(a)) {
             if (b.as.integer == 0) {
               runtime_error("Modulo by zero.");
               goto finish_error;
@@ -1146,7 +1146,7 @@ static Value run() {
       }
       case OP_NOT: push(bool_value(is_falsey(pop()))); break;
       case OP_NEGATE: {
-        if (IS_INT(peek(0))) {
+        if (is_int(peek(0))) {
           push(int_value(-((pop()).as.integer)));
         } else if (IS_FLOAT(peek(0))) {
           push(float_value(-((pop()).as.float_)));
@@ -1290,7 +1290,7 @@ static Value run() {
       case OP_INHERIT: {
         Value baseclass    = peek(1);
         ObjClass* subclass = AS_CLASS(peek(0));
-        if (!IS_CLASS(baseclass)) {
+        if (!is_class(baseclass)) {
           runtime_error("Base class must be a class. Was %s.", baseclass.type->name->chars);
           goto finish_error;
         }
@@ -1309,7 +1309,7 @@ static Value run() {
         Value type  = pop();
         Value value = pop();
 
-        if (!IS_CLASS(type)) {
+        if (!is_class(type)) {
           runtime_error("Type must be a class. Was %s.", type.type->name->chars);
           goto finish_error;
         }
@@ -1349,7 +1349,7 @@ static Value run() {
 
         // Since users can override this, we should that we got a bool back.
         // Could also just use is_falses, to be less strict - but for now I like this better.
-        if (!IS_BOOL(result)) {
+        if (!is_bool(result)) {
           runtime_error("Method '" STR(SP_METHOD_HAS) "' on type %s must return a " STR(TYPENAME_BOOL) ", but got %s.",
                         target_type->name->chars, result.type->name->chars);
           goto finish_error;

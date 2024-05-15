@@ -307,7 +307,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
       // it let's us easily determine if a frames function is a toplevel function or not.
       Value module_name;
       if (hashtable_get_by_string(&vm.module->fields, vm.special_prop_names[SPECIAL_PROP_MODULE_NAME], &module_name)) {
-        current->function->name = AS_STRING(module_name);
+        current->function->name = AS_STR(module_name);
         break;
       }
       INTERNAL_ERROR("Module name not found in the fields of the active module (module." STR(SP_PROP_MODULE_NAME) ").");

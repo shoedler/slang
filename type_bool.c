@@ -45,7 +45,7 @@ static Value bool_ctor(int argc, Value argv[]) {
  */
 static Value bool_to_str(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(BOOL)
+  NATIVE_CHECK_RECEIVER(vm.bool_class)
 
   if (argv[0].as.boolean) {
     ObjString* str_obj = copy_string(VALUE_STR_TRUE, STR_LEN(VALUE_STR_TRUE));

@@ -27,7 +27,7 @@ void register_native_file_module() {
 static Value native_file_read(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
-  NATIVE_CHECK_ARG_AT(1, STRING);
+  NATIVE_CHECK_ARG_AT(1, vm.str_class);
 
   const char* path = AS_CSTRING(argv[1]);
 
@@ -54,8 +54,8 @@ static Value native_file_read(int argc, Value argv[]) {
 static Value native_file_write(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
-  NATIVE_CHECK_ARG_AT(1, STRING);
-  NATIVE_CHECK_ARG_AT(2, STRING);
+  NATIVE_CHECK_ARG_AT(1, vm.str_class);
+  NATIVE_CHECK_ARG_AT(2, vm.str_class);
 
   bool success = write_file(AS_CSTRING(argv[1]), AS_CSTRING(argv[2]));
   return bool_value(success);
@@ -68,7 +68,7 @@ static Value native_file_write(int argc, Value argv[]) {
 static Value native_file_exists(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
-  NATIVE_CHECK_ARG_AT(1, STRING);
+  NATIVE_CHECK_ARG_AT(1, vm.str_class);
 
   bool exists = file_exists(AS_CSTRING(argv[1]));
   return bool_value(exists);
@@ -82,8 +82,8 @@ static Value native_file_exists(int argc, Value argv[]) {
 static Value native_file_join_path(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
-  NATIVE_CHECK_ARG_AT(1, STRING);
-  NATIVE_CHECK_ARG_AT(2, STRING);
+  NATIVE_CHECK_ARG_AT(1, vm.str_class);
+  NATIVE_CHECK_ARG_AT(2, vm.str_class);
 
   char* joined = join_path(AS_CSTRING(argv[1]), AS_CSTRING(argv[2]));
   if (joined == NULL) {
