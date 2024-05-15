@@ -100,10 +100,10 @@ typedef struct ObjClass {
   HashTable static_methods;
   struct ObjClass* base;
 
-  GetPropFn get_property;
-  SetPropFn set_property;
-  GetSubscriptFn get_subscript;
-  SetSubscriptFn set_subscript;
+  GetPropFn __get_prop;
+  SetPropFn __set_prop;
+  GetSubscriptFn __get_subs;
+  SetSubscriptFn __set_subs;
 
   // Special methods for quick access.
   Obj* __ctor;

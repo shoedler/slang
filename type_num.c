@@ -16,20 +16,20 @@ static Value float_ctor(int argc, Value argv[]);
 static Value float_to_str(int argc, Value argv[]);
 
 void finalize_native_num_class() {
-  vm.num_class->get_property  = num_get_prop;
-  vm.num_class->set_property  = set_prop_not_supported;  // Not supported
-  vm.num_class->get_subscript = get_subs_not_supported;  // Not supported
-  vm.num_class->set_subscript = set_subs_not_supported;  // Not supported
+  vm.num_class->__get_prop = num_get_prop;
+  vm.num_class->__set_prop = set_prop_not_supported;  // Not supported
+  vm.num_class->__get_subs = get_subs_not_supported;  // Not supported
+  vm.num_class->__set_subs = set_subs_not_supported;  // Not supported
 
   define_native(&vm.num_class->methods, STR(SP_METHOD_CTOR), num_ctor, 1);
   finalize_new_class(vm.num_class);
 }
 
 void finalize_native_int_class() {
-  vm.int_class->get_property  = int_get_prop;
-  vm.int_class->set_property  = set_prop_not_supported;  // Not supported
-  vm.int_class->get_subscript = get_subs_not_supported;  // Not supported
-  vm.int_class->set_subscript = set_subs_not_supported;  // Not supported
+  vm.int_class->__get_prop = int_get_prop;
+  vm.int_class->__set_prop = set_prop_not_supported;  // Not supported
+  vm.int_class->__get_subs = get_subs_not_supported;  // Not supported
+  vm.int_class->__set_subs = set_subs_not_supported;  // Not supported
 
   define_native(&vm.int_class->methods, STR(SP_METHOD_CTOR), int_ctor, 1);
   define_native(&vm.int_class->methods, STR(SP_METHOD_TO_STR), int_to_str, 0);
@@ -37,10 +37,10 @@ void finalize_native_int_class() {
 }
 
 void finalize_native_float_class() {
-  vm.float_class->get_property  = float_get_prop;
-  vm.float_class->set_property  = set_prop_not_supported;  // Not supported
-  vm.float_class->get_subscript = get_subs_not_supported;  // Not supported
-  vm.float_class->set_subscript = set_subs_not_supported;  // Not supported
+  vm.float_class->__get_prop = float_get_prop;
+  vm.float_class->__set_prop = set_prop_not_supported;  // Not supported
+  vm.float_class->__get_subs = get_subs_not_supported;  // Not supported
+  vm.float_class->__set_subs = set_subs_not_supported;  // Not supported
 
   define_native(&vm.float_class->methods, STR(SP_METHOD_CTOR), float_ctor, 1);
   define_native(&vm.float_class->methods, STR(SP_METHOD_TO_STR), float_to_str, 0);

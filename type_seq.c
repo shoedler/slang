@@ -31,10 +31,10 @@ static Value seq_count(int argc, Value argv[]);
 static Value seq_concat(int argc, Value argv[]);
 
 void finalize_native_seq_class() {
-  vm.seq_class->get_property  = seq_get_prop;
-  vm.seq_class->set_property  = set_prop_not_supported;  // Not supported
-  vm.seq_class->get_subscript = seq_get_subs;
-  vm.seq_class->set_subscript = seq_set_subs;
+  vm.seq_class->__get_prop = seq_get_prop;
+  vm.seq_class->__set_prop = set_prop_not_supported;  // Not supported
+  vm.seq_class->__get_subs = seq_get_subs;
+  vm.seq_class->__set_subs = seq_set_subs;
 
   define_native(&vm.seq_class->methods, STR(SP_METHOD_CTOR), seq_ctor, 1);
   define_native(&vm.seq_class->methods, STR(SP_METHOD_TO_STR), seq_to_str, 0);

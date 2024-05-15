@@ -990,7 +990,7 @@ static Value run() {
         Value receiver = peek(1);
         Value index    = peek(0);
         Value result;
-        if (receiver.type->get_subscript(receiver, index, &result)) {
+        if (receiver.type->__get_subs(receiver, index, &result)) {
           pop();
           pop();
           push(result);
@@ -1003,7 +1003,7 @@ static Value run() {
         Value receiver = peek(2);
         Value index    = peek(1);
         Value result   = peek(0);
-        if (receiver.type->set_subscript(receiver, index, result)) {
+        if (receiver.type->__set_subs(receiver, index, result)) {
           pop();
           pop();
           pop();
@@ -1017,7 +1017,7 @@ static Value run() {
         ObjString* name = READ_STRING();
         Value receiver  = peek(0);
         Value result;
-        if (receiver.type->get_property(receiver, name, &result)) {
+        if (receiver.type->__get_prop(receiver, name, &result)) {
           pop();
           push(result);
           break;
@@ -1045,7 +1045,7 @@ static Value run() {
           }
         }
 
-        if (receiver.type->set_property(receiver, name, result)) {
+        if (receiver.type->__set_prop(receiver, name, result)) {
           pop();
           pop();
           push(result);  // Assignments are expressions

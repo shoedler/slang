@@ -18,10 +18,10 @@ static Value obj_values(int argc, Value argv[]);
 static Value obj_keys(int argc, Value argv[]);
 
 void finalize_native_obj_class() {
-  vm.obj_class->get_property  = obj_get_prop;
-  vm.obj_class->set_property  = obj_set_prop;
-  vm.obj_class->get_subscript = obj_get_subs;
-  vm.obj_class->set_subscript = obj_set_subs;
+  vm.obj_class->__get_prop = obj_get_prop;
+  vm.obj_class->__set_prop = obj_set_prop;
+  vm.obj_class->__get_subs = obj_get_subs;
+  vm.obj_class->__set_subs = obj_set_subs;
 
   define_native(&vm.obj_class->methods, STR(SP_METHOD_CTOR), obj_ctor, 0);
   define_native(&vm.obj_class->methods, STR(SP_METHOD_TO_STR), obj_to_str, 0);

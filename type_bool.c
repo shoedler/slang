@@ -11,10 +11,10 @@ static Value bool_ctor(int argc, Value argv[]);
 static Value bool_to_str(int argc, Value argv[]);
 
 void finalize_native_bool_class() {
-  vm.bool_class->get_property  = bool_get_prop;
-  vm.bool_class->set_property  = set_prop_not_supported;  // Not supported
-  vm.bool_class->get_subscript = get_subs_not_supported;  // Not supported
-  vm.bool_class->set_subscript = set_subs_not_supported;  // Not supported
+  vm.bool_class->__get_prop = bool_get_prop;
+  vm.bool_class->__set_prop = set_prop_not_supported;  // Not supported
+  vm.bool_class->__get_subs = get_subs_not_supported;  // Not supported
+  vm.bool_class->__set_subs = set_subs_not_supported;  // Not supported
 
   define_native(&vm.bool_class->methods, STR(SP_METHOD_CTOR), bool_ctor, 1);
   define_native(&vm.bool_class->methods, STR(SP_METHOD_TO_STR), bool_to_str, 0);

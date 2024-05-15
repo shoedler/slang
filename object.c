@@ -62,10 +62,10 @@ ObjClass* new_class(ObjString* name, ObjClass* base) {
   klass->name     = name;
   klass->base     = base;
 
-  klass->get_property  = NULL;
-  klass->set_property  = NULL;
-  klass->get_subscript = NULL;
-  klass->set_subscript = NULL;
+  klass->__get_prop = NULL;
+  klass->__set_prop = NULL;
+  klass->__get_subs = NULL;
+  klass->__set_subs = NULL;
 
   klass->__ctor   = NULL;
   klass->__to_str = NULL;
@@ -111,10 +111,10 @@ void finalize_new_class(ObjClass* klass) {
 
   // Also copy the accessors from the base class, if the klass doesn't have them
   if (klass->base != NULL) {
-    klass->get_property  = klass->get_property != NULL ? klass->get_property : klass->base->get_property;
-    klass->set_property  = klass->set_property != NULL ? klass->set_property : klass->base->set_property;
-    klass->get_subscript = klass->get_subscript != NULL ? klass->get_subscript : klass->base->get_subscript;
-    klass->set_subscript = klass->set_subscript != NULL ? klass->set_subscript : klass->base->set_subscript;
+    klass->__get_prop = klass->__get_prop != NULL ? klass->__get_prop : klass->base->__get_prop;
+    klass->__set_prop = klass->__set_prop != NULL ? klass->__set_prop : klass->base->__set_prop;
+    klass->__get_subs = klass->__get_subs != NULL ? klass->__get_subs : klass->base->__get_subs;
+    klass->__set_subs = klass->__set_subs != NULL ? klass->__set_subs : klass->base->__set_subs;
   }
 }
 

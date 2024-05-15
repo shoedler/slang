@@ -22,10 +22,10 @@ static Value fn_has(int argc, Value argv[]);
 static Value fn_bind(int argc, Value argv[]);
 
 void finalize_native_fn_class() {
-  vm.fn_class->get_property  = fn_get_prop;
-  vm.fn_class->set_property  = set_prop_not_supported;  // Not supported
-  vm.fn_class->get_subscript = get_subs_not_supported;  // Not supported
-  vm.fn_class->set_subscript = set_subs_not_supported;  // Not supported
+  vm.fn_class->__get_prop = fn_get_prop;
+  vm.fn_class->__set_prop = set_prop_not_supported;  // Not supported
+  vm.fn_class->__get_subs = get_subs_not_supported;  // Not supported
+  vm.fn_class->__set_subs = set_subs_not_supported;  // Not supported
 
   define_native(&vm.fn_class->methods, STR(SP_METHOD_CTOR), fn_ctor, 1);
   define_native(&vm.fn_class->methods, STR(SP_METHOD_TO_STR), fn_to_str, 0);

@@ -11,10 +11,10 @@ static Value nil_ctor(int argc, Value argv[]);
 static Value nil_to_str(int argc, Value argv[]);
 
 void finalize_native_nil_class() {
-  vm.nil_class->get_property  = nil_get_prop;
-  vm.nil_class->set_property  = set_prop_not_supported;  // Not supported
-  vm.nil_class->get_subscript = get_subs_not_supported;  // Not supported
-  vm.nil_class->set_subscript = set_subs_not_supported;  // Not supported
+  vm.nil_class->__get_prop = nil_get_prop;
+  vm.nil_class->__set_prop = set_prop_not_supported;  // Not supported
+  vm.nil_class->__get_subs = get_subs_not_supported;  // Not supported
+  vm.nil_class->__set_subs = set_subs_not_supported;  // Not supported
 
   define_native(&vm.nil_class->methods, STR(SP_METHOD_CTOR), nil_ctor, 1);
   define_native(&vm.nil_class->methods, STR(SP_METHOD_TO_STR), nil_to_str, 0);
