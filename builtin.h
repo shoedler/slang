@@ -141,16 +141,16 @@ extern Value native_typeof(int argc, Value argv[]);
 // Macros for native listlike accessors
 //
 
-#define NATIVE_LISTLIKE_GET_PROP_BODY()                   \
-  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {  \
-    ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver); \
-    *result          = int_value(items.count);            \
-    return true;                                          \
-  }                                                       \
+#define NATIVE_LISTLIKE_GET_PROP_BODY()                  \
+  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) { \
+    ValueArray items = AS_VALUE_ARRAY(receiver);         \
+    *result          = int_value(items.count);           \
+    return true;                                         \
+  }                                                      \
   NATIVE_DEFAULT_GET_PROP_BODY(result->type)
 
 #define NATIVE_LISTLIKE_GET_SUBS_BODY()                                                                 \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver);                                                 \
+  ValueArray items = AS_VALUE_ARRAY(receiver);                                                          \
   if (!is_int(index)) {                                                                                 \
     runtime_error("Type %s does not support get-subscripting with %s. Expected " STR(TYPENAME_INT) ".", \
                   receiver.type->name->chars, index.type->name->chars);                                 \
@@ -230,7 +230,7 @@ extern Value native_typeof(int argc, Value argv[]);
   UNUSED(argc);                                                                                                       \
   NATIVE_CHECK_RECEIVER(class)                                                                                        \
                                                                                                                       \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                                         \
   size_t buf_size  = 64; /* Start with a reasonable size */                                                           \
   char* chars      = malloc(buf_size);                                                                                \
                                                                                                                       \
@@ -288,7 +288,7 @@ extern Value native_typeof(int argc, Value argv[]);
   }                                                                                         \
   NATIVE_CHECK_ARG_AT(2, vm.int_class)                                                      \
                                                                                             \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                      \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                               \
   int count        = items.count;                                                           \
                                                                                             \
   if (count == 0) {                                                                         \
@@ -338,7 +338,7 @@ extern Value native_typeof(int argc, Value argv[]);
   UNUSED(argc);                                                                                           \
   NATIVE_CHECK_RECEIVER(type)                                                                             \
                                                                                                           \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                    \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                             \
   if (items.count == 0) {                                                                                 \
     return nil_value();                                                                                   \
   }                                                                                                       \
@@ -382,7 +382,7 @@ extern Value native_typeof(int argc, Value argv[]);
   NATIVE_CHECK_RECEIVER(type)                                                                             \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)                                                                      \
                                                                                                           \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                    \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                             \
   if (items.count == 0) {                                                                                 \
     return nil_value();                                                                                   \
   }                                                                                                       \
@@ -417,7 +417,7 @@ extern Value native_typeof(int argc, Value argv[]);
   NATIVE_CHECK_RECEIVER(type)                                                                             \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)                                                                      \
                                                                                                           \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                    \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                             \
   if (items.count == 0) {                                                                                 \
     return nil_value();                                                                                   \
   }                                                                                                       \
@@ -452,7 +452,7 @@ extern Value native_typeof(int argc, Value argv[]);
   NATIVE_CHECK_RECEIVER(type)                                                                                    \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
                                                                                                                  \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                                    \
   int fn_arity     = callable_get_arity(argv[1]);                                                                \
   int count        = items.count; /* We need to store this, because the listlike might change during the loop */ \
                                                                                                                  \
@@ -501,7 +501,7 @@ extern Value native_typeof(int argc, Value argv[]);
   NATIVE_CHECK_RECEIVER(type)                                                                                     \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)                                                                              \
                                                                                                                   \
-  ValueArray items  = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
+  ValueArray items  = AS_VALUE_ARRAY(argv[0]);                                                                    \
   int fn_arity      = callable_get_arity(argv[1]);                                                                \
   int count         = items.count; /* We need to store this, because the listlike might change during the loop */ \
   ValueArray mapped = prealloc_value_array(count);                                                                \
@@ -559,7 +559,7 @@ extern Value native_typeof(int argc, Value argv[]);
   NATIVE_CHECK_RECEIVER(type)                                                                                         \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)                                                                                  \
                                                                                                                       \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                                \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                                         \
   int fn_arity     = callable_get_arity(argv[1]);                                                                     \
   int count        = items.count; /* We need to store this, because the listlike might change during the loop */      \
                                                                                                                       \
@@ -631,7 +631,7 @@ extern Value native_typeof(int argc, Value argv[]);
   NATIVE_CHECK_RECEIVER(class)                                                                         \
   NATIVE_CHECK_ARG_AT(1, vm.str_class)                                                                 \
                                                                                                        \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                 \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                          \
   ObjString* sep   = AS_STR(argv[1]);                                                                  \
                                                                                                        \
   size_t buf_size = 64; /* Start with a reasonable size */                                             \
@@ -684,7 +684,7 @@ extern Value native_typeof(int argc, Value argv[]);
   UNUSED(argc);                                                            \
   NATIVE_CHECK_RECEIVER(class)                                             \
                                                                            \
-  ValueArray items    = LISTLIKE_GET_VALUEARRAY(argv[0]);                  \
+  ValueArray items    = AS_VALUE_ARRAY(argv[0]);                           \
   ValueArray reversed = prealloc_value_array(items.count);                 \
                                                                            \
   /* No GC protection needed */                                            \
@@ -705,7 +705,7 @@ extern Value native_typeof(int argc, Value argv[]);
   NATIVE_CHECK_RECEIVER(class)                                                                                   \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
                                                                                                                  \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                                    \
   int fn_arity     = callable_get_arity(argv[1]);                                                                \
   int count        = items.count; /* We need to store this, because the listlike might change during the loop */ \
                                                                                                                  \
@@ -768,7 +768,7 @@ extern Value native_typeof(int argc, Value argv[]);
   NATIVE_CHECK_RECEIVER(class)                                                                                   \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
                                                                                                                  \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                                    \
   int fn_arity     = callable_get_arity(argv[1]);                                                                \
   int count        = items.count; /* We need to store this, because the listlike might change during the loop */ \
                                                                                                                  \
@@ -827,7 +827,7 @@ extern Value native_typeof(int argc, Value argv[]);
   NATIVE_CHECK_RECEIVER(class)                                                                                    \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(2)                                                                              \
                                                                                                                   \
-  ValueArray items  = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                           \
+  ValueArray items  = AS_VALUE_ARRAY(argv[0]);                                                                    \
   Value accumulator = argv[1];                                                                                    \
   int fn_arity      = callable_get_arity(argv[2]);                                                                \
   int count         = items.count; /* We need to store this, because the listlike might change during the loop */ \
@@ -880,7 +880,7 @@ extern Value native_typeof(int argc, Value argv[]);
   UNUSED(argc);                                                                                                 \
   NATIVE_CHECK_RECEIVER(class)                                                                                  \
                                                                                                                 \
-  ValueArray items = LISTLIKE_GET_VALUEARRAY(argv[0]);                                                          \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                                   \
   if (items.count == 0) {                                                                                       \
     return int_value(0);                                                                                        \
   }                                                                                                             \
@@ -930,8 +930,8 @@ extern Value native_typeof(int argc, Value argv[]);
   NATIVE_CHECK_RECEIVER(class)                                                 \
   NATIVE_CHECK_ARG_AT(1, class)                                                \
                                                                                \
-  ValueArray items1 = LISTLIKE_GET_VALUEARRAY(argv[0]);                        \
-  ValueArray items2 = LISTLIKE_GET_VALUEARRAY(argv[1]);                        \
+  ValueArray items1 = AS_VALUE_ARRAY(argv[0]);                                 \
+  ValueArray items2 = AS_VALUE_ARRAY(argv[1]);                                 \
                                                                                \
   ValueArray concatenated = prealloc_value_array(items1.count + items2.count); \
                                                                                \

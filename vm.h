@@ -191,108 +191,145 @@ void make_tuple(int count);
 // The stack is unchanged.
 bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method);
 
-// Integer Value
+// Wraps an integer into a value.
 static inline Value int_value(long long value) {
   return (Value){.type = vm.int_class, {.integer = value}};
 }
+// Checks if a value is of type int.
 static inline bool is_int(Value value) {
   return value.type == vm.int_class;
 }
 
-// Float Value
+// Wraps a float into a value.
 static inline Value float_value(double value) {
   return (Value){.type = vm.float_class, {.float_ = value}};
 }
+// Checks if a value is of type float.
 static inline bool IS_FLOAT(Value value) {
   return value.type == vm.float_class;
 }
 
-// Bool Value
+// Wraps a boolean into a value.
 static inline Value bool_value(bool value) {
   return (Value){.type = vm.bool_class, {.boolean = value}};
 }
+// Checks if a value is of type bool.
 static inline bool is_bool(Value value) {
   return value.type == vm.bool_class;
 }
 
-// Nil Value
+// Wraps nil into a value.
 static inline Value nil_value() {
   return (Value){.type = vm.nil_class};
 }
+// Checks if a value is of type nil.
 static inline bool is_nil(Value value) {
   return value.type == vm.nil_class;
 }
 
-// Empty Internal Value
-static inline Value empty_internal_value() {
-  return (Value){.type = NULL};
-}
-static inline bool is_empty_internal(Value value) {
-  return value.type == NULL;
-}
-
-// Seq Value
+// Wraps a seq-obj into a value.
 static inline Value seq_value(ObjSeq* value) {
   return (Value){.type = vm.seq_class, {.obj = (Obj*)value}};
 }
+// Checks if a value is of type seq.
 static inline bool is_seq(Value value) {
   return value.type == vm.seq_class;
 }
 
-// Tuple Value
+// Wraps a tuple-obj into a value.
 static inline Value tuple_value(ObjTuple* value) {
   return (Value){.type = vm.tuple_class, {.obj = (Obj*)value}};
 }
+// Checks if a value is of type tuple.
 static inline bool is_tuple(Value value) {
   return value.type == vm.tuple_class;
 }
 
-// String Value
+// Wraps a string-obj into a value.
 static inline Value str_value(ObjString* value) {
   return (Value){.type = vm.str_class, {.obj = (Obj*)value}};
 }
+// Checks if a value is of type string.
 static inline bool is_str(Value value) {
   return value.type == vm.str_class;
 }
 
-static inline bool is_function(Value value) {
-  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_FUNCTION;
-}
-
-static inline bool is_closure(Value value) {
-  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_CLOSURE;
-}
-
-static inline bool is_native(Value value) {
-  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_NATIVE;
-}
-
-static inline bool is_bound_method(Value value) {
-  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_BOUND_METHOD;
-}
-
-// Class Value
+// Wraps a class-obj into a value.
 static inline Value class_value(ObjClass* value) {
   return (Value){.type = vm.class_class, {.obj = (Obj*)value}};
 }
+// Checks if a value is of type class.
 static inline bool is_class(Value value) {
   return value.type == vm.class_class;
 }
 
-// Object Value
+// Wraps an object-obj into a value.
 static inline Value obj_value(ObjObject* value) {
   return (Value){.type = vm.obj_class, {.obj = (Obj*)value}};
 }
+// Checks if a value is of type obj.
 static inline bool is_obj(Value value) {
   return value.type == vm.obj_class;
 }
 
-// Handler Value
+// Wraps an object-obj into a value. The type of the value is inferred by the instance type of the object-obj.
+static inline Value instance_value(ObjObject* instance) {
+  return (Value){.type = instance->instance_class, {.obj = (Obj*)instance}};
+}
+// Checks if a value is an instance. An instance is basically any value whose type is not an internal type.
+// TODO: Remove this. This is ugly.
+static inline bool is_instance(Value value) {
+  return value.type != vm.obj_class && value.type != vm.nil_class && value.type != vm.str_class && value.type != vm.class_class &&
+         value.type != vm.fn_class && value.type != vm.bool_class && value.type != vm.num_class && value.type != vm.int_class &&
+         value.type != vm.float_class && value.type != vm.upvalue_class && value.type != vm.handler_class &&
+         value.type != vm.seq_class && value.type != vm.tuple_class;
+}
+
+// Checks if a value is of type fn AND the object is of type function.
+static inline bool is_function(Value value) {
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_FUNCTION;
+}
+
+// Checks if a value is of type fn AND the object is of type closure.
+static inline bool is_closure(Value value) {
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_CLOSURE;
+}
+
+// Checks if a value is of type fn AND the object is of type native.
+static inline bool is_native(Value value) {
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_NATIVE;
+}
+
+// Checks if a value is of type fn AND the object is of type bound method.
+static inline bool is_bound_method(Value value) {
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_BOUND_METHOD;
+}
+
+// Wraps any function-like-obj into a value. [fn] must be of one: Function, closure, native or bound method
+static inline Value fn_value(Obj* fn) {
+  return (Value){.type = vm.fn_class, {.obj = fn}};
+}
+// Checks if a value is of type fn.
+static inline bool is_fn(Value value) {
+  return value.type == vm.fn_class;
+}
+
+// Wraps a handler into a value.
 static inline Value handler_value(uint16_t value) {
   return (Value){.type = vm.handler_class, {.handler = value}};
 }
+// Checks if a value is of type handler.
 static inline bool is_handler(Value value) {
   return value.type == vm.handler_class;
+}
+
+// Wraps an empty internal into a value.
+static inline Value empty_internal_value() {
+  return (Value){.type = NULL};
+}
+// Checks if a value is of type empty internal.
+static inline bool is_empty_internal(Value value) {
+  return value.type == NULL;
 }
 
 // Converts a value into a bound method. Value must be of type bound method.
@@ -310,10 +347,6 @@ static inline bool is_handler(Value value) {
 // Converts a value into a tuple. Value must be of type tuple.
 #define AS_TUPLE(value) ((ObjTuple*)(value.as.obj))
 
-// Gets the value array of a listlike object (Seq, Tuple).
-// Hack: Just cast to ObjSeq* and access the items field, because the layout is the same.
-#define LISTLIKE_GET_VALUEARRAY(value) ((ObjSeq*)(value.as.obj))->items
-
 // Converts a value into a function. Value must be of type function.
 #define AS_FUNCTION(value) ((ObjFunction*)(value.as.obj))
 
@@ -329,40 +362,19 @@ static inline bool is_handler(Value value) {
 // Converts a value into a C string. Value must be of type string.
 #define AS_CSTRING(value) (((ObjString*)(value.as.obj))->chars)
 
+// Gets the value array of a listlike object (Seq, Tuple).
+// Hack: Just cast to ObjSeq* and access the items field, because the layout is the same.
+#define AS_VALUE_ARRAY(value) ((ObjSeq*)(value.as.obj))->items
+
 //
 // Utility functions for values
 //
 
-static inline bool is_non_object(Value value) {
-  // TODO: Remove this. This cannot be used anywhere, bc it's extremely slow.
+// Checks if a value is a primitive. Primitive implies that the value is not an object and not markable by the GC.
+// TODO: Remove this. This is ugly.
+static inline bool is_primitive(Value value) {
   return value.type == vm.nil_class || value.type == vm.bool_class || value.type == vm.int_class ||
          value.type == vm.float_class || value.type == vm.handler_class || value.type == NULL;
-}
-
-static inline bool is_instance(Value value) {
-  // TODO: Remove this. This cannot be used anywhere, bc it's extremely slow.
-  return value.type != vm.obj_class && value.type != vm.nil_class && value.type != vm.str_class && value.type != vm.class_class &&
-         value.type != vm.fn_class && value.type != vm.bool_class && value.type != vm.num_class && value.type != vm.int_class &&
-         value.type != vm.float_class && value.type != vm.upvalue_class && value.type != vm.handler_class &&
-         value.type != vm.seq_class && value.type != vm.tuple_class;
-}
-static inline Value instance_value(ObjObject* instance) {
-  return (Value){.type = instance->instance_class, {.obj = (Obj*)instance}};
-}
-
-// Float or int is a number.
-static inline bool is_num(Value value) {
-  return is_int(value) || IS_FLOAT(value);
-}
-
-// Function, closure, native or bound method is a function.
-// [fn] must be of one these types.
-static inline Value fn_value(Obj* fn) {
-  return (Value){.type = vm.fn_class, {.obj = fn}};
-}
-// Function, closure, native or bound method is a function.
-static inline bool is_fn(Value value) {
-  return value.type == vm.fn_class;
 }
 
 // Callables are fn's or classes.

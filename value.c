@@ -237,7 +237,7 @@ int print_value_safe(FILE* f, Value value) {
       end   = VALUE_STR_TUPLE_END;
     }
 
-    ValueArray items = LISTLIKE_GET_VALUEARRAY(value);
+    ValueArray items = AS_VALUE_ARRAY(value);
 
     int written = fprintf(f, start);
     for (int i = 0; i < items.count; i++) {
