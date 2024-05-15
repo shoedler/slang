@@ -10,7 +10,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 #### Preparations
 
-- [ ] Get rid of all switches over `ObjGcType` outside of memory.c. This should be done using a quick-access function on the respective base class. E.g. for calls, we should implement `__call` on all `ObjClass`es and then manage HOW to call them in there.
 - [ ] Get rid of all `if (is_<Type>()) ...  else if (is_<Type>()) ...` and implement a quick-access function on the base class.
   - [ ] `__eq`: How to compare two values of the same type. All Types require this. Just call it in `values_equal`.
   - [ ] `__hash`: How to hash the value. All Types require this. Just call it in `hash_value`.

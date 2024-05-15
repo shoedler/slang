@@ -171,6 +171,9 @@ void define_value(HashTable* table, const char* name, Value value);
 // and everything else to be truthy.
 bool is_falsey(Value value);
 
+// Determines whether a [klass] inherits from [base]
+bool inherits(ObjClass* klass, ObjClass* base);
+
 // Creates a sequence of length "count" from the top "count" values on the stack.
 // The resulting sequence is pushed onto the stack.
 // This is obviously O(n), so use it with caution.
@@ -277,7 +280,6 @@ static inline Value instance_value(ObjObject* instance) {
   return (Value){.type = instance->instance_class, {.obj = (Obj*)instance}};
 }
 // Checks if a value is an instance. An instance is basically any value whose type is not an internal type.
-// TODO: Remove this. This is ugly.
 static inline bool is_instance(Value value) {
   return value.type != vm.obj_class && value.type != vm.nil_class && value.type != vm.str_class && value.type != vm.class_class &&
          value.type != vm.fn_class && value.type != vm.bool_class && value.type != vm.num_class && value.type != vm.int_class &&
@@ -371,7 +373,6 @@ static inline bool is_empty_internal(Value value) {
 //
 
 // Checks if a value is a primitive. Primitive implies that the value is not an object and not markable by the GC.
-// TODO: Remove this. This is ugly.
 static inline bool is_primitive(Value value) {
   return value.type == vm.nil_class || value.type == vm.bool_class || value.type == vm.int_class ||
          value.type == vm.float_class || value.type == vm.handler_class || value.type == NULL;

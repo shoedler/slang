@@ -636,6 +636,16 @@ bool is_falsey(Value value) {
   return is_nil(value) || (is_bool(value) && !value.as.boolean);
 }
 
+bool inherits(ObjClass* klass, ObjClass* base) {
+  while (klass != NULL) {
+    if (klass == base) {
+      return true;
+    }
+    klass = klass->base;
+  }
+  return false;
+}
+
 // Imports a module by name and pushes it onto the stack. If the module was already imported, it is loaded
 // from cache. If the module was not imported yet, it is loaded from the file system and then cached.
 // If module_path is NULL, the module is expected to be in the same directory as the
@@ -1315,16 +1325,9 @@ static Value run() {
         }
 
         ObjClass* value_klass = value.type;
-        ObjString* type_name  = AS_CLASS(type)->name;
+        ObjClass* type_klass  = AS_CLASS(type);
 
-        bool result = false;
-        while (value_klass != NULL) {
-          if (strcmp(value_klass->name->chars, type_name->chars) == 0) {
-            result = true;
-            break;
-          }
-          value_klass = value_klass->base;
-        }
+        bool result = inherits(value_klass, type_klass);
 
         push(bool_value(result));
         break;

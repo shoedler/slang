@@ -235,7 +235,7 @@ static Value obj_hash(int argc, Value argv[]) {
  */
 static Value obj_entries(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(vm.obj_class)
+  NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
@@ -262,7 +262,7 @@ static Value obj_entries(int argc, Value argv[]) {
  */
 static Value obj_keys(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(vm.obj_class)
+  NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
@@ -286,7 +286,7 @@ static Value obj_keys(int argc, Value argv[]) {
  */
 static Value obj_values(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(vm.obj_class)
+  NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);

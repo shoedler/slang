@@ -89,6 +89,12 @@ extern Value native_typeof(int argc, Value argv[]);
     return nil_value();                                                                                         \
   }
 
+#define NATIVE_CHECK_RECEIVER_INHERITS(class)                                                                           \
+  if (!inherits(argv[0].type, class)) {                                                                                 \
+    runtime_error("Expected receiver to inherit type %s but got %s.", class->name->chars, (argv[0]).type->name->chars); \
+    return nil_value();                                                                                                 \
+  }
+
 #define NATIVE_CHECK_ARG_AT(index, class)                                                       \
   if ((argv[index]).type != class) {                                                            \
     runtime_error("Expected argument %d of type %s but got %s.", index - 1, class->name->chars, \

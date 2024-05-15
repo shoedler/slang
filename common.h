@@ -11,7 +11,7 @@
 // #define DEBUG_PRINT_CODE  // Print all compiled bytecode chunks
 // #define DEBUG_TRACE_EXECUTION  // Print the execution of the Vm, including stack traces.
 
-#define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
+// #define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
 // #define DEBUG_LOG_GC  // Log the Gc's activity
 // #define DEBUG_LOG_GC_FREE  // Log what objects are being freed by the Gc
 // #define DEBUG_LOG_GC_ALLOCATIONS  // Log what objects are being allocated.
