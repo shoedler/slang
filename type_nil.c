@@ -3,12 +3,18 @@
 #include "vm.h"
 
 static bool nil_get_prop(Value receiver, ObjString* name, Value* result);
+NATIVE_SET_PROP_NOT_SUPPORTED()
+NATIVE_GET_SUBS_NOT_SUPPORTED()
+NATIVE_SET_SUBS_NOT_SUPPORTED()
 
 static Value nil_ctor(int argc, Value argv[]);
 static Value nil_to_str(int argc, Value argv[]);
 
 void finalize_native_nil_class() {
-  vm.nil_class->get_property = nil_get_prop;
+  vm.nil_class->get_property  = nil_get_prop;
+  vm.nil_class->set_property  = set_prop_not_supported;  // Not supported
+  vm.nil_class->get_subscript = get_subs_not_supported;  // Not supported
+  vm.nil_class->set_subscript = set_subs_not_supported;  // Not supported
 
   define_native(&vm.nil_class->methods, STR(SP_METHOD_CTOR), nil_ctor, 1);
   define_native(&vm.nil_class->methods, STR(SP_METHOD_TO_STR), nil_to_str, 0);

@@ -12,6 +12,9 @@
   }
 
 static bool fn_get_prop(Value receiver, ObjString* name, Value* result);
+NATIVE_SET_PROP_NOT_SUPPORTED()
+NATIVE_GET_SUBS_NOT_SUPPORTED()
+NATIVE_SET_SUBS_NOT_SUPPORTED()
 
 static Value fn_ctor(int argc, Value argv[]);
 static Value fn_to_str(int argc, Value argv[]);
@@ -19,7 +22,10 @@ static Value fn_has(int argc, Value argv[]);
 static Value fn_bind(int argc, Value argv[]);
 
 void finalize_native_fn_class() {
-  vm.fn_class->get_property = fn_get_prop;
+  vm.fn_class->get_property  = fn_get_prop;
+  vm.fn_class->set_property  = set_prop_not_supported;  // Not supported
+  vm.fn_class->get_subscript = get_subs_not_supported;  // Not supported
+  vm.fn_class->set_subscript = set_subs_not_supported;  // Not supported
 
   define_native(&vm.fn_class->methods, STR(SP_METHOD_CTOR), fn_ctor, 1);
   define_native(&vm.fn_class->methods, STR(SP_METHOD_TO_STR), fn_to_str, 0);
@@ -115,9 +121,7 @@ static Value fn_has(int argc, Value argv[]) {
   if (fn_get_prop(argv[0], name, &result)) {
     return bool_value(true);
   }
-  if (vm.flags & VM_FLAG_HAS_ERROR) {
-    return nil_value();
-  }
+  clear_error();  // Clear the "Prop does not exist" error set by fn_get_prop
 
   return bool_value(false);
 }

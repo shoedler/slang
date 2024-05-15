@@ -5,7 +5,9 @@
 #include "vm.h"
 
 static bool tuple_get_prop(Value receiver, ObjString* name, Value* result);
+NATIVE_SET_PROP_NOT_SUPPORTED()
 static bool tuple_get_subs(Value receiver, Value index, Value* result);
+NATIVE_SET_SUBS_NOT_SUPPORTED()
 
 static Value tuple_ctor(int argc, Value argv[]);
 static Value tuple_to_str(int argc, Value argv[]);
@@ -27,7 +29,9 @@ static Value tuple_concat(int argc, Value argv[]);
 
 void finalize_native_tuple_class() {
   vm.tuple_class->get_property  = tuple_get_prop;
+  vm.tuple_class->set_property  = set_prop_not_supported;  // Not supported
   vm.tuple_class->get_subscript = tuple_get_subs;
+  vm.tuple_class->set_subscript = set_subs_not_supported;  // Not supported
 
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_CTOR), tuple_ctor, 1);
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_TO_STR), tuple_to_str, 0);

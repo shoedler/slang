@@ -4,13 +4,19 @@
 #include "vm.h"
 
 static bool class_get_prop(Value receiver, ObjString* name, Value* result);
+NATIVE_SET_PROP_NOT_SUPPORTED()
+NATIVE_GET_SUBS_NOT_SUPPORTED()
+NATIVE_SET_SUBS_NOT_SUPPORTED()
 
 static Value class_ctor(int argc, Value argv[]);
 static Value class_to_str(int argc, Value argv[]);
 static Value class_has(int argc, Value argv[]);
 
 void finalize_native_class_class() {
-  vm.class_class->get_property = class_get_prop;
+  vm.class_class->get_property  = class_get_prop;
+  vm.class_class->set_property  = set_prop_not_supported;  // Not supported
+  vm.class_class->get_subscript = get_subs_not_supported;  // Not supported
+  vm.class_class->set_subscript = set_subs_not_supported;  // Not supported
 
   define_native(&vm.class_class->methods, STR(SP_METHOD_CTOR), class_ctor, 1);
   define_native(&vm.class_class->methods, STR(SP_METHOD_TO_STR), class_to_str, 0);
@@ -33,8 +39,6 @@ static bool class_get_prop(Value receiver, ObjString* name, Value* result) {
     return true;
   }
   NATIVE_DEFAULT_GET_PROP_BODY(vm.class_class)
-
-  return false;
 }
 
 /**
@@ -92,9 +96,7 @@ static Value class_has(int argc, Value argv[]) {
   if (class_get_prop(argv[0], name, &result)) {
     return bool_value(true);
   }
-  if (vm.flags & VM_FLAG_HAS_ERROR) {
-    return nil_value();
-  }
+  clear_error();  // Clear the "Prop does not exist" error set by class_get_prop
 
   return bool_value(false);
 }

@@ -4,7 +4,9 @@
 #include "vm.h"
 
 static bool str_get_prop(Value receiver, ObjString* name, Value* result);
+NATIVE_SET_PROP_NOT_SUPPORTED()
 static bool str_get_subs(Value receiver, Value index, Value* result);
+NATIVE_SET_SUBS_NOT_SUPPORTED()
 
 static Value str_ctor(int argc, Value argv[]);
 static Value str_to_str(int argc, Value argv[]);
@@ -15,7 +17,9 @@ static Value str_trim(int argc, Value argv[]);
 
 void finalize_native_str_class() {
   vm.str_class->get_property  = str_get_prop;
+  vm.str_class->set_property  = set_prop_not_supported;  // Not supported
   vm.str_class->get_subscript = str_get_subs;
+  vm.str_class->set_subscript = set_subs_not_supported;  // Not supported
 
   define_native(&vm.str_class->methods, STR(SP_METHOD_CTOR), str_ctor, 1);
   define_native(&vm.str_class->methods, STR(SP_METHOD_TO_STR), str_to_str, 0);

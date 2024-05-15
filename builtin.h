@@ -79,8 +79,6 @@ extern Value native_log(int argc, Value argv[]);
  */
 extern Value native_typeof(int argc, Value argv[]);
 
-#endif
-
 //
 // Macros for argument checking in native functions.
 //
@@ -108,12 +106,36 @@ extern Value native_typeof(int argc, Value argv[]);
 // Macros for default accessor implementations.
 //
 
-#define NATIVE_DEFAULT_GET_PROP_BODY(class) \
-  if (bind_method(class, name, result)) {   \
-    return true;                            \
-  }                                         \
+#define NATIVE_DEFAULT_GET_PROP_BODY(class)                                                            \
+  if (bind_method(class, name, result)) {                                                              \
+    return true;                                                                                       \
+  }                                                                                                    \
+  runtime_error("Property '%s' does not exist on value of type %s.", name->chars, class->name->chars); \
   return false;
-#define NATIVE_DEFAULT_SET_PROP_BODY()
+
+#define NATIVE_SET_PROP_NOT_SUPPORTED()                                                         \
+  static bool set_prop_not_supported(Value receiver, ObjString* name, Value value) {            \
+    UNUSED(name);                                                                               \
+    UNUSED(value);                                                                              \
+    runtime_error("Type %s does not support property-set access.", receiver.type->name->chars); \
+    return false;                                                                               \
+  }
+
+#define NATIVE_GET_SUBS_NOT_SUPPORTED()                                                      \
+  static bool get_subs_not_supported(Value receiver, Value index, Value* result) {           \
+    UNUSED(index);                                                                           \
+    UNUSED(result);                                                                          \
+    runtime_error("Type %s does not support get-subscripting.", receiver.type->name->chars); \
+    return false;                                                                            \
+  }
+
+#define NATIVE_SET_SUBS_NOT_SUPPORTED()                                                      \
+  static bool set_subs_not_supported(Value receiver, Value index, Value value) {             \
+    UNUSED(index);                                                                           \
+    UNUSED(value);                                                                           \
+    runtime_error("Type %s does not support set-subscripting.", receiver.type->name->chars); \
+    return false;                                                                            \
+  }
 
 //
 // Macros for native listlike accessors
@@ -923,3 +945,5 @@ extern Value native_typeof(int argc, Value argv[]);
                                                                                \
   /* No need for GC protection - taking an array will not trigger a GC. */     \
   return NATIVE_LISTLIKE_TAKE_ARRAY(concatenated);
+
+#endif

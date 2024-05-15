@@ -117,6 +117,9 @@ void init_vm();
 // Free the virtual machine.
 void free_vm();
 
+// Clears the error state of the Vm.
+void clear_error();
+
 // Creates a new module instance.
 ObjObject* make_module(const char* source_path, const char* module_name);
 

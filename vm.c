@@ -31,14 +31,18 @@ typedef enum {
 static Value run();
 static Value peek(int distance);
 
+void clear_error() {
+  vm.current_error = nil_value();
+  vm.flags &= ~VM_FLAG_HAS_ERROR;  // Clear the error flag
+}
+
 static void reset_stack() {
   vm.stack_top     = vm.stack;
   vm.frame_count   = 0;
   vm.open_upvalues = NULL;
-  vm.current_error = nil_value();
 
-  vm.flags &= ~VM_FLAG_HAS_ERROR;  // Clear the error flag
-  vm.flags &= ~VM_FLAG_PAUSE_GC;   // Clear the pause flag
+  vm.flags &= ~VM_FLAG_PAUSE_GC;  // Clear the pause flag, just to be sure
+  clear_error();
 }
 
 static void dump_location() {
@@ -976,62 +980,39 @@ static Value run() {
         Value receiver = peek(1);
         Value index    = peek(0);
         Value result;
-        if (receiver.type->get_subscript != NULL && receiver.type->get_subscript(receiver, index, &result)) {
+        if (receiver.type->get_subscript(receiver, index, &result)) {
           pop();
           pop();
           push(result);
           break;
         }
-
-        // Handle errors
-        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe get_subscript set an error
-          goto finish_error;
-        }
-        if (receiver.type->get_subscript == NULL) {
-          runtime_error("Type %s does not support get-subscripting.", receiver.type->name->chars);
-          goto finish_error;
-        }
-        runtime_error("Type %s does not support get-subscripting with %s.", receiver.type->name->chars, index.type->name->chars);
+        // False return value means it encountered an error
         goto finish_error;
       }
       case OP_SET_SUBSCRIPT: {
         Value receiver = peek(2);
         Value index    = peek(1);
         Value result   = peek(0);
-        if (receiver.type->set_subscript != NULL && receiver.type->set_subscript(receiver, index, result)) {
+        if (receiver.type->set_subscript(receiver, index, result)) {
           pop();
           pop();
           pop();
           push(result);  // Assignments are expressions
           break;
         }
-
-        // Handle errors
-        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe set_subscript set an error
-          goto finish_error;
-        }
-        if (receiver.type->set_subscript == NULL) {
-          runtime_error("Type %s does not support set-subscripting.", receiver.type->name->chars);
-          goto finish_error;
-        }
-        runtime_error("Type %s does not support set-subscripting with %s.", receiver.type->name->chars, index.type->name->chars);
+        // False return value means it encountered an error
         goto finish_error;
       }
       case OP_GET_PROPERTY: {
         ObjString* name = READ_STRING();
         Value receiver  = peek(0);
         Value result;
-        if (!receiver.type->get_property(receiver, name, &result)) {
-          // Handle errors
-          if (vm.flags & VM_FLAG_HAS_ERROR) {  // Will never happen: no get_property impl sets an error. Just a precaution.
-            goto finish_error;
-          }
-          // get_property returned false, so the property does not exist
-          runtime_error("Property '%s' does not exist on value of type %s.", name->chars, receiver.type->name->chars);
-          goto finish_error;
+        if (receiver.type->get_property(receiver, name, &result)) {
+          pop();
+          push(result);
+          break;
         }
-        pop();
-        push(result);
+        goto finish_error;
         break;
       }
       case OP_SET_PROPERTY: {
@@ -1054,24 +1035,14 @@ static Value run() {
           }
         }
 
-        if (receiver.type->set_property != NULL && receiver.type->set_property(receiver, name, result)) {
+        if (receiver.type->set_property(receiver, name, result)) {
           pop();
           pop();
           push(result);  // Assignments are expressions
           break;
         }
 
-        // Handle errors
-        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe set_property set an error
-          goto finish_error;
-        }
-        if (receiver.type->set_property == NULL) {
-          runtime_error("Type %s does not support property-set access.", receiver.type->name->chars);
-          goto finish_error;
-        }
-        // set_property returned false, so the property does not exist.
-        // Will never happen, bc we don't have value-types that can't "find" the properties: They'd just get created.
-        runtime_error("Property '%s' does not exist on value of type %s.", name->chars, receiver.type->name->chars);
+        // False return value means it encountered an error
         goto finish_error;
       }
       case OP_IMPORT_FROM: {

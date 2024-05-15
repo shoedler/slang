@@ -7,6 +7,7 @@
 static bool seq_get_prop(Value receiver, ObjString* name, Value* result);
 static bool seq_get_subs(Value receiver, Value index, Value* result);
 static bool seq_set_subs(Value receiver, Value index, Value value);
+NATIVE_SET_PROP_NOT_SUPPORTED()
 
 static Value seq_ctor(int argc, Value argv[]);
 static Value seq_to_str(int argc, Value argv[]);
@@ -31,6 +32,7 @@ static Value seq_concat(int argc, Value argv[]);
 
 void finalize_native_seq_class() {
   vm.seq_class->get_property  = seq_get_prop;
+  vm.seq_class->set_property  = set_prop_not_supported;  // Not supported
   vm.seq_class->get_subscript = seq_get_subs;
   vm.seq_class->set_subscript = seq_set_subs;
 
