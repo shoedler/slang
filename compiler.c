@@ -701,15 +701,15 @@ static void number(bool can_assign) {
   }
 
   // Check if the number is a float.
-  bool IS_FLOAT = false;
+  bool is_float = false;
   for (int i = 0; i < parser.previous.length; i++) {
     if (parser.previous.start[i] == '.') {
-      IS_FLOAT = true;
+      is_float = true;
       break;
     }
   }
 
-  if (IS_FLOAT) {
+  if (is_float) {
     double value = strtod(parser.previous.start, NULL);
     emit_constant_here(float_value(value));
   } else {

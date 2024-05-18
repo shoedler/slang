@@ -842,17 +842,17 @@ static Value run() {
       push(int_value(a.as.integer operator b.as.integer));                                                                \
       break;                                                                                                              \
     }                                                                                                                     \
-    if (IS_FLOAT(a)) {                                                                                                    \
+    if (is_float(a)) {                                                                                                    \
       if (is_int(b)) {                                                                                                    \
         b_check;                                                                                                          \
         push(float_value(a.as.float_ operator(double) b.as.integer));                                                     \
         break;                                                                                                            \
-      } else if (IS_FLOAT(b)) {                                                                                           \
+      } else if (is_float(b)) {                                                                                           \
         b_check;                                                                                                          \
         push(float_value(a.as.float_ operator b.as.float_));                                                              \
         break;                                                                                                            \
       }                                                                                                                   \
-    } else if (IS_FLOAT(b)) {                                                                                             \
+    } else if (is_float(b)) {                                                                                             \
       if (is_int(a)) {                                                                                                    \
         b_check;                                                                                                          \
         push(float_value((double)a.as.integer operator b.as.float_));                                                     \
@@ -869,7 +869,7 @@ static Value run() {
 #define BIN_MUL MAKE_BINARY_OP(*, (void)0)
 #define BIN_DIV                                                                         \
   MAKE_BINARY_OP(                                                                       \
-      /, if ((is_int(b) && b.as.integer == 0) || (IS_FLOAT(b) && b.as.float_ == 0.0)) { \
+      /, if ((is_int(b) && b.as.integer == 0) || (is_float(b) && b.as.float_ == 0.0)) { \
           runtime_error("Division by zero.");                                           \
           goto finish_error;                                                            \
         })
@@ -886,15 +886,15 @@ static Value run() {
       push(bool_value(a.as.integer operator b.as.integer));                                                                   \
       break;                                                                                                                  \
     }                                                                                                                         \
-    if (IS_FLOAT(a)) {                                                                                                        \
+    if (is_float(a)) {                                                                                                        \
       if (is_int(b)) {                                                                                                        \
         push(bool_value(a.as.float_ operator b.as.integer));                                                                  \
         break;                                                                                                                \
-      } else if (IS_FLOAT(b)) {                                                                                               \
+      } else if (is_float(b)) {                                                                                               \
         push(bool_value(a.as.float_ operator b.as.float_));                                                                   \
         break;                                                                                                                \
       }                                                                                                                       \
-    } else if (IS_FLOAT(b)) {                                                                                                 \
+    } else if (is_float(b)) {                                                                                                 \
       if (is_int(a)) {                                                                                                        \
         push(bool_value(a.as.integer operator b.as.integer));                                                                 \
         break;                                                                                                                \
@@ -1123,7 +1123,7 @@ static Value run() {
           break;
         }
 
-        if (IS_FLOAT(a)) {
+        if (is_float(a)) {
           if (is_int(b)) {
             if (b.as.integer == 0) {
               runtime_error("Modulo by zero.");
@@ -1131,7 +1131,7 @@ static Value run() {
             }
             push(float_value(fmod(a.as.float_, (double)b.as.integer)));
             break;
-          } else if (IS_FLOAT(b)) {
+          } else if (is_float(b)) {
             if (b.as.float_ == 0) {
               runtime_error("Modulo by zero.");
               goto finish_error;
@@ -1139,7 +1139,7 @@ static Value run() {
             push(float_value(fmod(a.as.float_, b.as.float_)));
             break;
           }
-        } else if (IS_FLOAT(b)) {
+        } else if (is_float(b)) {
           if (is_int(a)) {
             if (b.as.integer == 0) {
               runtime_error("Modulo by zero.");
@@ -1158,7 +1158,7 @@ static Value run() {
       case OP_NEGATE: {
         if (is_int(peek(0))) {
           push(int_value(-((pop()).as.integer)));
-        } else if (IS_FLOAT(peek(0))) {
+        } else if (is_float(peek(0))) {
           push(float_value(-((pop()).as.float_)));
         } else {
           runtime_error("Type for unary - must be a " STR(TYPENAME_NUM) ". Was %s.", peek(0).type->name->chars);

@@ -100,20 +100,20 @@ bool values_equal(Value a, Value b) {
     return false;
   }
 
+  // All non-object types are handled "manually". Obj are compared by their hash.
   if (is_nil(a)) {
     return true;
   }
   if (is_empty_internal(a)) {
     return true;
   }
-
   if (is_bool(a)) {
     return a.as.boolean == b.as.boolean;
   }
   if (is_int(a)) {
     return a.as.integer == b.as.integer;
   }
-  if (IS_FLOAT(a)) {
+  if (is_float(a)) {
     return a.as.float_ == b.as.float_;
   }
   if (is_str(a)) {
@@ -140,17 +140,11 @@ static uint64_t hash_double(double value) {
   return cast.target;
 }
 
-// Hashes a long long.
-static uint64_t hash_int(long long value) {
-  // Bc of 2's complement, directly casting to uint64_t should ensure unique hash values.
-  return (uint64_t)value;
-}
-
 uint64_t hash_value(Value value) {
+  // All non-object types are handled "manually". Obj are hashed by their hash.
   if (is_empty_internal(value)) {
     return 0;
   }
-
   if (is_nil(value)) {
     return 2;
   }
@@ -158,9 +152,9 @@ uint64_t hash_value(Value value) {
     return value.as.boolean ? 977 : 479;  // Prime numbers. Selected based on trial and error.
   }
   if (is_int(value)) {
-    return hash_int(value.as.integer);
+    return (uint64_t)value.as.integer;  // Bc of 2's complement, directly casting to uint64_t should ensure unique hash values.
   }
-  if (IS_FLOAT(value)) {
+  if (is_float(value)) {
     return hash_double(value.as.float_);
   }
 
@@ -181,7 +175,7 @@ int print_value_safe(FILE* f, Value value) {
   if (is_int(value)) {
     return fprintf(f, VALUE_STR_INT, value.as.integer);
   }
-  if (IS_FLOAT(value)) {
+  if (is_float(value)) {
     return fprintf(f, VALUE_STR_FLOAT, value.as.float_);
   }
   if (is_empty_internal(value)) {

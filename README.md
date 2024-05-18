@@ -8,13 +8,6 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ### RT Type-checking
 
-#### Preparations
-
-- [ ] Get rid of all `if (is_<Type>()) ...  else if (is_<Type>()) ...` and implement a quick-access function on the base class.
-  - [ ] `__eq`: How to compare two values of the same type. All Types require this. Just call it in `values_equal`.
-  - [ ] `__hash`: How to hash the value. All Types require this. Just call it in `hash_value`.
-  - [ ] `__call`: How to call the value. In `call_value`, just check if `value.type->__call != NULL` and call it.
-
 #### Type-checking
 
 - [ ] Implement syntax for type annotations. E.g. `let x: Int = 1`. We'll check as much as possible at compile-time. Locals are already cared for, because they live on the stack and are not referenced by a name. All locals are resolved during compile time. The only exception being locals that are not initialized with a value. That should be allowed, but the type must be declared. E.g. `let x: Int`. This is a bit more flexible than C# and a bit less flexible than TypeScript. We'll see how it goes.

@@ -83,7 +83,7 @@ static Value int_ctor(int argc, Value argv[]) {
   if (is_int(argv[1])) {
     return argv[1];
   }
-  if (IS_FLOAT(argv[1])) {
+  if (is_float(argv[1])) {
     return int_value((long long)argv[1].as.float_);
   }
   if (is_bool(argv[1])) {
@@ -125,7 +125,7 @@ static Value float_ctor(int argc, Value argv[]) {
   if (is_int(argv[1])) {
     return float_value((double)argv[1].as.integer);
   }
-  if (IS_FLOAT(argv[1])) {
+  if (is_float(argv[1])) {
     return argv[1];
   }
   if (is_bool(argv[1])) {

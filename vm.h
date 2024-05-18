@@ -208,7 +208,7 @@ static inline Value float_value(double value) {
   return (Value){.type = vm.float_class, {.float_ = value}};
 }
 // Checks if a value is of type float.
-static inline bool IS_FLOAT(Value value) {
+static inline bool is_float(Value value) {
   return value.type == vm.float_class;
 }
 
