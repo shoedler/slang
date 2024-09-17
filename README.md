@@ -4,18 +4,36 @@
 
 A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), garbage-collected and object-oriented programming language with a syntax that is inspired by C#, JavaScript and Python.
 
-## Roadmap for Version 1.0
+> [!NOTE]
+>
+> Slang is still in development. The language is not stable and the syntax is subject to change.
 
-### RT Type-checking
+## Why?
 
-#### Type-checking
+I'm a huge JavaScript fan. I also like C# and Python - at least syntactically. I wanted to create a less-verbose language that heavily relies on the JavaScript syntax, but also incorporates some of the features of C# and Python.
+Funcionality-wise, I had some minor gripes with JavaScript. The major one being the fact that you can't use reference types to index into objects (Spoiler alert: You can in Slang).
+
+## References
+
+- Based on the book [Crafting Interpreters](https://craftinginterpreters.com/). In contrast to the book, this Vm is not focused on space-efficiency, but more on ease of implementation and speed.
+- https://github.com/kuroko-lang/kuroko
+- https://github.com/Janko-dev/yabil/
+- https://luajit.org/luajit.html
+
+---
+
+# Roadmap for Version 1.0
+
+## Features
+
+### Type-checking
 
 - [ ] Implement syntax for type annotations. E.g. `let x: Int = 1`. We'll check as much as possible at compile-time. Locals are already cared for, because they live on the stack and are not referenced by a name. All locals are resolved during compile time. The only exception being locals that are not initialized with a value. That should be allowed, but the type must be declared. E.g. `let x: Int`. This is a bit more flexible than C# and a bit less flexible than TypeScript. We'll see how it goes.
 - [ ] Implement a solution for functions. We should introduce a signature field in fn objects. The sig struct should probably consist of: `args: ObjClass**` to store the types of the arguments, `ret: ObjClass*` to store the return type of the function, `argc: int` to store the number of arguments.
 - [ ] Introduce type-modifiers. `?` for nullable, and maybe something for exact type match. This should be done as a flag on the `Value` struct. Maybe make a `Type` struct that holds the `ObjClass*` and the flags. This could then also be used for function signatures.
 - [ ] Actually add typechecking and remove all `NATIVE_CHECK_ARG` things.
 
-### Syntax & Language Features
+### Language Features
 
 - [ ] Implement `for ... in ...;` loops
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
@@ -58,7 +76,7 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Add `error` to the reserved words
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
 
-### Optimizations
+## Optimizations
 
 - [ ] Use `memcpy` for concat and such (See `Seq(Tuple)` ctor for an example). Check for for-loops in the builtin methods.
 - [ ] Make stringification faster.
@@ -71,16 +89,11 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
 - [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
 
-## Ideas
+## Further Ideas
+
+> Not part of the 1.0 release, but still interesting.
 
 - [ ] Implement a register-based Vm https://www.lua.org/doc/jucs05.pdf
 - [ ] Implement an LSP server. Rough idea: Compile the source and generate the bytecode. Maybe with some heuristics. Like, don't recompile imported modules. We should be able to map a line + column position to a instruction, since we store the relevant information in a Token for each instruction. We should also be able to retrieve a list of possible strings to write next in the sourcecode - e.g. globals, methods etc.
 - [ ] Constant folding directly in the compiler
 - [ ] Implement a JIT compiler
-
-## References
-
-- Based on the book [Crafting Interpreters](https://craftinginterpreters.com/). In contrast to the book, this Vm is not focused on space-efficiency, but more on ease of implementation and speed.
-- https://github.com/kuroko-lang/kuroko
-- https://github.com/Janko-dev/yabil/
-- https://luajit.org/luajit.html
