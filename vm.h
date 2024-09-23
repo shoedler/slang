@@ -23,7 +23,6 @@
 
 #define SP_PROP_LEN len
 #define SP_PROP_NAME __name
-#define SP_PROP_DOC __doc
 #define SP_PROP_FILE_PATH __file_path
 #define SP_PROP_MODULE_NAME __module_name
 
@@ -74,19 +73,22 @@ typedef struct {
   ObjObject* module;  // The current module
   int exit_on_frame;  // Index of the frame to exit on
 
-  ObjClass* BUILTIN_CLASS(TYPENAME_OBJ);       // Base class: The obj class
-  ObjClass* BUILTIN_CLASS(TYPENAME_NUM);       // Base class: The number class
-  ObjClass* BUILTIN_CLASS(TYPENAME_INT);       //  class: The int class
-  ObjClass* BUILTIN_CLASS(TYPENAME_FLOAT);     //  class: The float class
-  ObjClass* BUILTIN_CLASS(TYPENAME_BOOL);      // Base class: The bool class
-  ObjClass* BUILTIN_CLASS(TYPENAME_NIL);       // Base class: The nil class
-  ObjClass* BUILTIN_CLASS(TYPENAME_SEQ);       // Special class: The sequence class
-  ObjClass* BUILTIN_CLASS(TYPENAME_TUPLE);     // Special class: The tuple class
-  ObjClass* BUILTIN_CLASS(TYPENAME_STRING);    // Special class: The string class
-  ObjClass* BUILTIN_CLASS(TYPENAME_FUNCTION);  // Special class: The function class
-  ObjClass* BUILTIN_CLASS(TYPENAME_CLASS);     // Special class: The class class
+  ObjClass* obj_class;    // Base class: The obj class
+  ObjClass* num_class;    // Base class: The num class
+  ObjClass* int_class;    // Num-class: The int class
+  ObjClass* float_class;  // Num-class: The float class
+  ObjClass* bool_class;   // Base class: The bool class
+  ObjClass* nil_class;    // Base class: The nil class
+  ObjClass* seq_class;    // Base class: The sequence class
+  ObjClass* tuple_class;  // Base class: The tuple class
+  ObjClass* str_class;    // Base class: The string class
+  ObjClass* fn_class;     // Base class: The function class
+  ObjClass* class_class;  // Base class: The class class
 
-  ObjClass* BUILTIN_CLASS(TYPENAME_MODULE);  // The module class
+  ObjClass* upvalue_class;  // Unused, just for pointer comparison
+  ObjClass* handler_class;  // Unused, just for pointer comparison
+
+  ObjClass* module_class;  // Obj-class: The module class
 
   ObjObject* builtin;                                   // The builtin (builtin things) object instance
   ObjString* special_method_names[SPECIAL_METHOD_MAX];  // Special method names for quick access
@@ -114,6 +116,9 @@ void init_vm();
 
 // Free the virtual machine.
 void free_vm();
+
+// Clears the error state of the Vm.
+void clear_error();
 
 // Creates a new module instance.
 ObjObject* make_module(const char* source_path, const char* module_name);
@@ -154,21 +159,20 @@ void runtime_error(const char* format, ...);
 //
 // For native functions, the result will be available "immediately", but for managed code we have to execute the new call frame
 // (which was provided by call_managed) to get to the result.
-Value exec_callable(Obj* callable, int arg_count);
+Value exec_callable(Value callable, int arg_count);
 
 // Defines a native function in the given table.
-void define_native(HashTable* table, const char* name, NativeFn function, const char* doc, int arity);
+void define_native(HashTable* table, const char* name, NativeFn function, int arity);
 
-// Defines an object in the given table.
-void define_obj(HashTable* table, const char* name, Obj* obj);
-
-// Retrieves the class of a value. Everything in slang is an 'object', so this function will always return
-// a class.
-ObjClass* typeof_(Value value);
+// Defines a value in the given table.
+void define_value(HashTable* table, const char* name, Value value);
 
 // Determines whether a value is falsey. We consider nil and false to be falsey,
 // and everything else to be truthy.
 bool is_falsey(Value value);
+
+// Determines whether a [klass] inherits from [base]
+bool inherits(ObjClass* klass, ObjClass* base);
 
 // Creates a sequence of length "count" from the top "count" values on the stack.
 // The resulting sequence is pushed onto the stack.
@@ -186,37 +190,239 @@ void make_seq(int count);
 // batch-copy them into the value_array?
 void make_tuple(int count);
 
-// Tries to resolve and push a property of a value onto the stack. If the property is not found, it returns
-// false and does not touch the stack.
-// `Stack: ...[receiver]` ('name' is not on the stack)
-// After the call:
-// `Stack: ...[result]` or `Stack: ...[receiver]` if the property was not found.
-bool value_get_property(ObjString* name);
+// Binds a method to an instance by creating a new bound method object from the instance and the method name.
+// The stack is unchanged.
+bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method);
 
-// Tries to set a property of a value and leaves just the value on the stack. If the property is not found, it is created.
-// Returns true for objects, because it'll always work. Returns false in case of an error, because the value does not
-// support setting properties.
-// `Stack: ...[receiver][value]`
-// After the call:
-// `Stack: ...[result]` or `Stack: ...[receiver][value]` if it returned false.
-// You should test if the error flag is set after this function, because it might have set it.
-bool value_set_property(ObjString* name);
+// Wraps an integer into a value.
+static inline Value int_value(long long value) {
+  return (Value){.type = vm.int_class, {.integer = value}};
+}
+// Checks if a value is of type int.
+static inline bool is_int(Value value) {
+  return value.type == vm.int_class;
+}
 
-// Tries to resolve and push an index of a value onto the stack. If the index is not found, it returns
-// false and does not touch the stack.
-// `Stack: ...[receiver][index]`
-// After the call:
-// `Stack: ...[result]` or `Stack: ...[receiver][index]` if it returned false.
-// You should test if the error flag is set after this function, because it might have set it.
-bool value_get_index();
+// Wraps a float into a value.
+static inline Value float_value(double value) {
+  return (Value){.type = vm.float_class, {.float_ = value}};
+}
+// Checks if a value is of type float.
+static inline bool is_float(Value value) {
+  return value.type == vm.float_class;
+}
 
-// Tries to set an index of a value and leaves just the value on the stack.
-// Returns true for objects, because it'll always work. Returns false in case of an error (e.g. bounds-check), or for every other
-// type that does not support set-indexing.
-// `Stack: ...[receiver][index][value]`
-//  After the call:
-// `Stack: ...[result]` or `Stack: ...[receiver][index][value]` if it returned false.
-// You should test if the error flag is set after this function, because it might have set it.
-bool value_set_index();
+// Wraps a boolean into a value.
+static inline Value bool_value(bool value) {
+  return (Value){.type = vm.bool_class, {.boolean = value}};
+}
+// Checks if a value is of type bool.
+static inline bool is_bool(Value value) {
+  return value.type == vm.bool_class;
+}
 
+// Wraps nil into a value.
+static inline Value nil_value() {
+  return (Value){.type = vm.nil_class};
+}
+// Checks if a value is of type nil.
+static inline bool is_nil(Value value) {
+  return value.type == vm.nil_class;
+}
+
+// Wraps a seq-obj into a value.
+static inline Value seq_value(ObjSeq* value) {
+  return (Value){.type = vm.seq_class, {.obj = (Obj*)value}};
+}
+// Checks if a value is of type seq.
+static inline bool is_seq(Value value) {
+  return value.type == vm.seq_class;
+}
+
+// Wraps a tuple-obj into a value.
+static inline Value tuple_value(ObjTuple* value) {
+  return (Value){.type = vm.tuple_class, {.obj = (Obj*)value}};
+}
+// Checks if a value is of type tuple.
+static inline bool is_tuple(Value value) {
+  return value.type == vm.tuple_class;
+}
+
+// Wraps a string-obj into a value.
+static inline Value str_value(ObjString* value) {
+  return (Value){.type = vm.str_class, {.obj = (Obj*)value}};
+}
+// Checks if a value is of type string.
+static inline bool is_str(Value value) {
+  return value.type == vm.str_class;
+}
+
+// Wraps a class-obj into a value.
+static inline Value class_value(ObjClass* value) {
+  return (Value){.type = vm.class_class, {.obj = (Obj*)value}};
+}
+// Checks if a value is of type class.
+static inline bool is_class(Value value) {
+  return value.type == vm.class_class;
+}
+
+// Wraps an object-obj into a value.
+static inline Value obj_value(ObjObject* value) {
+  return (Value){.type = vm.obj_class, {.obj = (Obj*)value}};
+}
+// Checks if a value is of type obj.
+static inline bool is_obj(Value value) {
+  return value.type == vm.obj_class;
+}
+
+// Wraps an object-obj into a value. The type of the value is inferred by the instance type of the object-obj.
+static inline Value instance_value(ObjObject* instance) {
+  return (Value){.type = instance->instance_class, {.obj = (Obj*)instance}};
+}
+// Checks if a value is an instance. An instance is basically any value whose type is not an internal type.
+static inline bool is_instance(Value value) {
+  return value.type != vm.obj_class && value.type != vm.nil_class && value.type != vm.str_class && value.type != vm.class_class &&
+         value.type != vm.fn_class && value.type != vm.bool_class && value.type != vm.num_class && value.type != vm.int_class &&
+         value.type != vm.float_class && value.type != vm.upvalue_class && value.type != vm.handler_class &&
+         value.type != vm.seq_class && value.type != vm.tuple_class;
+}
+
+// Checks if a value is of type fn AND the object is of type function.
+static inline bool is_function(Value value) {
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_FUNCTION;
+}
+
+// Checks if a value is of type fn AND the object is of type closure.
+static inline bool is_closure(Value value) {
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_CLOSURE;
+}
+
+// Checks if a value is of type fn AND the object is of type native.
+static inline bool is_native(Value value) {
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_NATIVE;
+}
+
+// Checks if a value is of type fn AND the object is of type bound method.
+static inline bool is_bound_method(Value value) {
+  return value.type == vm.fn_class && value.as.obj->type == OBJ_GC_BOUND_METHOD;
+}
+
+// Wraps any function-like-obj into a value. [fn] must be of one: Function, closure, native or bound method
+static inline Value fn_value(Obj* fn) {
+  return (Value){.type = vm.fn_class, {.obj = fn}};
+}
+// Checks if a value is of type fn.
+static inline bool is_fn(Value value) {
+  return value.type == vm.fn_class;
+}
+
+// Wraps a handler into a value.
+static inline Value handler_value(uint16_t value) {
+  return (Value){.type = vm.handler_class, {.handler = value}};
+}
+// Checks if a value is of type handler.
+static inline bool is_handler(Value value) {
+  return value.type == vm.handler_class;
+}
+
+// Wraps an empty internal into a value.
+static inline Value empty_internal_value() {
+  return (Value){.type = NULL};
+}
+// Checks if a value is of type empty internal.
+static inline bool is_empty_internal(Value value) {
+  return value.type == NULL;
+}
+
+// Converts a value into a bound method. Value must be of type bound method.
+#define AS_BOUND_METHOD(value) ((ObjBoundMethod*)(value.as.obj))
+
+// Converts a value into a class. Value must be of type class.
+#define AS_CLASS(value) ((ObjClass*)(value.as.obj))
+
+// Converts a value into a closure. Value must be of type closure.
+#define AS_CLOSURE(value) ((ObjClosure*)(value.as.obj))
+
+// Converts a value into a sequence. Value must be of type sequence.
+#define AS_SEQ(value) ((ObjSeq*)(value.as.obj))
+
+// Converts a value into a tuple. Value must be of type tuple.
+#define AS_TUPLE(value) ((ObjTuple*)(value.as.obj))
+
+// Converts a value into a function. Value must be of type function.
+#define AS_FUNCTION(value) ((ObjFunction*)(value.as.obj))
+
+// Converts a value into an object. Value must be of type object.
+#define AS_OBJECT(value) ((ObjObject*)(value.as.obj))
+
+// Converts a value into a native function. Value must be of type native function.
+#define AS_NATIVE(value) (((ObjNative*)(value.as.obj)))
+
+// Converts a value into a string. Value must be of type string.
+#define AS_STR(value) ((ObjString*)(value.as.obj))
+
+// Converts a value into a C string. Value must be of type string.
+#define AS_CSTRING(value) (((ObjString*)(value.as.obj))->chars)
+
+// Gets the value array of a listlike object (Seq, Tuple).
+// Hack: Just cast to ObjSeq* and access the items field, because the layout is the same.
+#define AS_VALUE_ARRAY(value) ((ObjSeq*)(value.as.obj))->items
+
+//
+// Utility functions for values
+//
+
+// Checks if a value is a primitive. Primitive implies that the value is not an object and not markable by the GC.
+static inline bool is_primitive(Value value) {
+  return value.type == vm.nil_class || value.type == vm.bool_class || value.type == vm.int_class ||
+         value.type == vm.float_class || value.type == vm.handler_class || value.type == NULL;
+}
+
+// Callables are fn's or classes.
+static inline bool is_callable(Value value) {
+  return is_fn(value) || is_class(value);
+}
+
+// Get the arity of a callable
+static inline int callable_get_arity(Value callable) {
+  if (is_class(callable)) {
+    Obj* ctor = AS_CLASS(callable)->__ctor;
+    if (ctor == NULL) {
+      return 0;
+    }
+    return callable_get_arity(fn_value(ctor));
+  }
+  if (is_bound_method(callable)) {
+    return callable_get_arity(fn_value(AS_BOUND_METHOD(callable)->method));
+  }
+  if (is_native(callable)) {
+    return AS_NATIVE(callable)->arity;
+  }
+  if (is_closure(callable)) {
+    return AS_CLOSURE(callable)->function->arity;
+  }
+  if (is_function(callable)) {
+    return AS_FUNCTION(callable)->arity;
+  }
+
+  INTERNAL_ERROR("Unhandled callable type: %s", callable.type->name->chars);
+  return 0;
+}
+
+static inline ObjString* fn_get_name(Value fn) {
+  if (is_bound_method(fn)) {
+    fn = fn_value((Obj*)AS_BOUND_METHOD(fn)->method);
+  }
+  if (is_closure(fn)) {
+    fn = fn_value((Obj*)AS_CLOSURE(fn)->function);
+  }
+  if (is_native(fn)) {
+    return AS_NATIVE(fn)->name;
+  }
+  if (is_function(fn)) {
+    return AS_FUNCTION(fn)->name;
+  }
+  INTERNAL_ERROR("Unhandled function type: %s", fn.type->name->chars);
+  return NULL;
+}
 #endif

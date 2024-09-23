@@ -44,4 +44,4 @@ print entries.filter(fn(x) -> (x[0] is Seq)).len    // [Expect] 2
 // We only get one tuple, because we overwrote the previous one
 print entries.filter(fn(x) -> (x[0] is Tuple)).len  // [Expect] 1
 print entries.filter(fn(x) -> (x[0] is Fn)).len     // [Expect] 2
-print entries.filter(fn(x) -> (x[0] is Obj)).len    // [Expect] 8
+print entries.filter(fn(x) -> (x[0] is Obj)).len    // [Expect] 2

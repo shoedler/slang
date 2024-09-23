@@ -2,6 +2,7 @@
 #include <memory.h>
 #include "memory.h"
 #include "value.h"
+#include "vm.h"
 
 void init_hashtable(HashTable* table) {
   table->count    = 0;
@@ -23,8 +24,8 @@ static Entry* find_entry(Entry* entries, int capacity, Value key) {
 
   for (;;) {
     Entry* entry = &entries[index];
-    if (IS_EMPTY_INTERNAL(entry->key)) {
-      if (IS_NIL(entry->value)) {
+    if (is_empty_internal(entry->key)) {
+      if (is_nil(entry->value)) {
         // Empty entry.
         return tombstone != NULL ? tombstone : entry;
       } else {
@@ -48,14 +49,14 @@ static Entry* find_entry(Entry* entries, int capacity, Value key) {
 static void adjust_capacity(HashTable* table, int capacity) {
   Entry* entries = ALLOCATE(Entry, capacity);
   for (int i = 0; i < capacity; i++) {
-    entries[i].key   = EMPTY_INTERNAL_VAL;
-    entries[i].value = NIL_VAL;
+    entries[i].key   = empty_internal_value();
+    entries[i].value = nil_value();
   }
 
   table->count = 0;
   for (int i = 0; i < table->capacity; i++) {
     Entry* entry = &table->entries[i];
-    if (IS_EMPTY_INTERNAL(entry->key)) {
+    if (is_empty_internal(entry->key)) {
       continue;
     }
 
@@ -76,7 +77,7 @@ bool hashtable_get(HashTable* table, Value key, Value* value) {
   }
 
   Entry* entry = find_entry(table->entries, table->capacity, key);
-  if (IS_EMPTY_INTERNAL(entry->key)) {
+  if (is_empty_internal(entry->key)) {
     return false;
   }
 
@@ -94,11 +95,11 @@ bool hashtable_get_by_string(HashTable* table, ObjString* key, Value* value) {
   for (;;) {
     Entry* entry = &table->entries[index];
 
-    if (IS_EMPTY_INTERNAL(entry->key)) {
+    if (is_empty_internal(entry->key)) {
       return false;
     }
 
-    if (IS_STRING(entry->key) && AS_STRING(entry->key) == key) {
+    if (is_str(entry->key) && AS_STR(entry->key) == key) {
       *value = entry->value;
       return true;
     }
@@ -127,8 +128,8 @@ bool hashtable_set(HashTable* table, Value key, Value value) {
 
   Entry* entry = find_entry(table->entries, table->capacity, key);
 
-  bool is_new_key = IS_EMPTY_INTERNAL(entry->key);
-  if (is_new_key && IS_NIL(entry->value)) {
+  bool is_new_key = is_empty_internal(entry->key);
+  if (is_new_key && is_nil(entry->value)) {
     table->count++;
   }
 
@@ -144,20 +145,20 @@ bool hashtable_delete(HashTable* table, Value key) {
 
   // Find the entry.
   Entry* entry = find_entry(table->entries, table->capacity, key);
-  if (IS_EMPTY_INTERNAL(entry->key)) {
+  if (is_empty_internal(entry->key)) {
     return false;
   }
 
   // Place a tombstone in the entry.
-  entry->key   = EMPTY_INTERNAL_VAL;
-  entry->value = BOOL_VAL(true);
+  entry->key   = empty_internal_value();
+  entry->value = bool_value(true);
   return true;
 }
 
 void hashtable_add_all(HashTable* from, HashTable* to) {
   for (int i = 0; i < from->capacity; i++) {
     Entry* entry = &from->entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key)) {
+    if (!is_empty_internal(entry->key)) {
       hashtable_set(to, entry->key, entry->value);
     }
   }
@@ -171,9 +172,9 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
   uint64_t index = hash & (table->capacity - 1);
   for (;;) {
     Entry* entry = &table->entries[index];
-    if (IS_EMPTY_INTERNAL(entry->key)) {
+    if (is_empty_internal(entry->key)) {
       // Stop if we find an empty non-tombstone entry.
-      if (IS_NIL(entry->value)) {
+      if (is_nil(entry->value)) {
         return NULL;
       }
 
@@ -182,7 +183,7 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
     }
 
     // Check if we found the string.
-    ObjString* string = AS_STRING(entry->key);
+    ObjString* string = AS_STR(entry->key);
     if (string->length == length && string->obj.hash == hash && memcmp(string->chars, chars, length) == 0) {
       // We found it.
       return string;
@@ -196,7 +197,7 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
 void hashtable_remove_white(HashTable* table) {
   for (int i = 0; i < table->capacity; i++) {
     Entry* entry = &table->entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key) && !(AS_OBJ(entry->key))->is_marked) {
+    if (!is_empty_internal(entry->key) && !(entry->key.as.obj->is_marked)) {
       hashtable_delete(table, entry->key);
     }
   }

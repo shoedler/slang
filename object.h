@@ -6,102 +6,23 @@
 #include "hashtable.h"
 #include "value.h"
 
-#define OBJ_TYPE(value) (AS_OBJ(value)->type)
-
-// Determines whether a value is of type bound method.
-#define IS_BOUND_METHOD(value) is_obj_type(value, OBJ_BOUND_METHOD)
-
-// Determines whether a value is of type class.
-#define IS_CLASS(value) is_obj_type(value, OBJ_CLASS)
-
-// Determines whether a value is of type closure.
-#define IS_CLOSURE(value) is_obj_type(value, OBJ_CLOSURE)
-
-// Determines whether a value is of type sequence.
-#define IS_SEQ(value) is_obj_type(value, OBJ_SEQ)
-
-// Determines whether a value is of type tuple.
-#define IS_TUPLE(value) is_obj_type(value, OBJ_TUPLE)
-
-// Determines whether a value is of type function.
-#define IS_FUNCTION(value) is_obj_type(value, OBJ_FUNCTION)
-
-// Determines whether a value is of type object.
-#define IS_OBJECT(value) is_obj_type(value, OBJ_OBJECT)
-
-// Determines whether a value is of type native function.
-#define IS_NATIVE(value) is_obj_type(value, OBJ_NATIVE)
-
-// Determines whether a value is of type string.
-#define IS_STRING(value) is_obj_type(value, OBJ_STRING)
-
-// Determines whether a value is callable.
-#define IS_CALLABLE(value) is_callable(value)
-
-// Determines whether an object is an instance of a class.
-#define OBJECT_IS_INSTANCE(object) (object->klass != vm.__builtin_Obj_class)
-
-// Converts a value into a bound method.
-// Value must be of type bound method.
-#define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
-
-// Converts a value into a class.
-// Value must be of type class.
-#define AS_CLASS(value) ((ObjClass*)AS_OBJ(value))
-
-// Converts a value into a closure.
-// Value must be of type closure.
-#define AS_CLOSURE(value) ((ObjClosure*)AS_OBJ(value))
-
-// Converts a value into a sequence.
-// Value must be of type sequence.
-#define AS_SEQ(value) ((ObjSeq*)AS_OBJ(value))
-
-// Converts a value into a tuple.
-// Value must be of type tuple.
-#define AS_TUPLE(value) ((ObjTuple*)AS_OBJ(value))
-
-// Gets the value array of a listlike object (Seq, Tuple).
-// Hack: Just cast to ObjSeq* and access the items field, because the layout is the same.
-#define LISTLIKE_GET_VALUEARRAY(value) ((ObjSeq*)AS_OBJ(value))->items
-
-// Converts a value into a function.
-// Value must be of type function.
-#define AS_FUNCTION(value) ((ObjFunction*)AS_OBJ(value))
-
-// Converts a value into an object.
-// Value must be of type object.
-#define AS_OBJECT(value) ((ObjObject*)AS_OBJ(value))
-
-// Converts a value into a native function.
-// Value must be of type native function.
-#define AS_NATIVE(value) (((ObjNative*)AS_OBJ(value)))
-
-// Converts a value into a string.
-// Value must be of type string.
-#define AS_STRING(value) ((ObjString*)AS_OBJ(value))
-
-// Converts a value into a C string.
-// Value must be of type string.
-#define AS_CSTRING(value) (((ObjString*)AS_OBJ(value))->chars)
-
-// The type of an object.
+// The type of an object. Tells the garbage collector how to free the object.
 typedef enum {
-  OBJ_CLASS,
-  OBJ_CLOSURE,
-  OBJ_FUNCTION,
-  OBJ_OBJECT,
-  OBJ_NATIVE,
-  OBJ_SEQ,
-  OBJ_TUPLE,
-  OBJ_STRING,
-  OBJ_UPVALUE,
-  OBJ_BOUND_METHOD,
-} ObjType;
+  OBJ_GC_CLASS,
+  OBJ_GC_CLOSURE,
+  OBJ_GC_FUNCTION,
+  OBJ_GC_OBJECT,
+  OBJ_GC_NATIVE,
+  OBJ_GC_SEQ,
+  OBJ_GC_TUPLE,
+  OBJ_GC_STRING,
+  OBJ_GC_UPVALUE,
+  OBJ_GC_BOUND_METHOD,
+} ObjGcType;
 
 // The base object construct.
 struct Obj {
-  ObjType type;
+  ObjGcType type;
   bool is_marked;
   uint64_t hash;
   struct Obj* next;
@@ -125,7 +46,6 @@ typedef struct {
   int upvalue_count;
   Chunk chunk;
   ObjString* name;
-  ObjString* doc;
   struct ObjObject* globals_context;
 } ObjFunction;
 
@@ -141,7 +61,6 @@ typedef struct {
   Obj obj;
   NativeFn function;
   ObjString* name;
-  ObjString* doc;
   int arity;
 } ObjNative;
 
@@ -165,12 +84,26 @@ typedef struct {
   int upvalue_count;
 } ObjClosure;
 
+// Prop-getter. Returns false if an error occurred, true otherwise.
+typedef bool (*GetPropFn)(Value receiver, ObjString* name, Value* result);
+// Prop-setter. Returns false if an error occurred, true otherwise.
+typedef bool (*SetPropFn)(Value receiver, ObjString* name, Value value);
+// Subscript-getter. Returns false if an error occurred, true otherwise.
+typedef bool (*GetSubscriptFn)(Value receiver, Value index, Value* result);
+// Subscript-setter. Returns false if an error occurred, true otherwise.
+typedef bool (*SetSubscriptFn)(Value receiver, Value index, Value value);
+
 typedef struct ObjClass {
   Obj obj;
   ObjString* name;
   HashTable methods;
   HashTable static_methods;
   struct ObjClass* base;
+
+  GetPropFn __get_prop;
+  SetPropFn __set_prop;
+  GetSubscriptFn __get_subs;
+  SetSubscriptFn __set_subs;
 
   // Special methods for quick access.
   Obj* __ctor;
@@ -181,7 +114,7 @@ typedef struct ObjClass {
 
 typedef struct ObjObject {
   Obj obj;
-  ObjClass* klass;
+  ObjClass* instance_class;  // Only used for garbage collection, to be able to mark the class of an object.
   HashTable fields;
 } ObjObject;
 
@@ -225,7 +158,7 @@ ObjTuple* new_tuple();
 
 // Creates, initializes and allocates a new native function object. Might
 // trigger garbage collection.
-ObjNative* new_native(NativeFn function, ObjString* name, ObjString* doc, int arity);
+ObjNative* new_native(NativeFn function, ObjString* name, int arity);
 
 // Creates, initializes and allocates a new upvalue object. Might trigger
 // garbage collection.
@@ -264,70 +197,5 @@ ObjTuple* take_tuple(ValueArray* items);
 // This takes ownership of the hashtable. This means that the hashtable will be
 // freed when the object is freed. Might trigger garbage collection.
 ObjObject* take_object(HashTable* fields);
-
-static inline bool is_obj_type(Value value, ObjType type) {
-  return IS_OBJ(value) && AS_OBJ(value)->type == type;
-}
-
-// Determines if a value is a function.
-static inline bool is_fn(Value value) {
-  if (IS_OBJ(value)) {
-    switch (OBJ_TYPE(value)) {
-      case OBJ_NATIVE:
-      case OBJ_FUNCTION:
-      case OBJ_CLOSURE:
-      case OBJ_BOUND_METHOD: return true;
-      default: break;
-    }
-  }
-  return false;
-}
-
-// Determines if a value is callable. This is used to check if a value can be called as a function.
-static inline bool is_callable(Value value) {
-  return is_fn(value) || IS_CLASS(value);
-}
-
-// Determines the arity of a callable. This is used to check how many arguments a callable expects.
-static inline int callable_get_arity(Obj* fn) {
-again:
-  switch (fn->type) {
-    case OBJ_NATIVE: return ((ObjNative*)fn)->arity;
-    case OBJ_FUNCTION: return ((ObjFunction*)fn)->arity;
-    case OBJ_CLOSURE: return ((ObjClosure*)fn)->function->arity;
-    case OBJ_BOUND_METHOD: {
-      fn = ((ObjBoundMethod*)fn)->method;
-      goto again;
-    };
-    case OBJ_CLASS: {
-      ObjClass* klass = (ObjClass*)fn;
-      if (klass->__ctor != NULL) {
-        return callable_get_arity(klass->__ctor);
-      }
-      return 0;
-    }
-    default: break;
-  }
-
-  INTERNAL_ERROR("Value is not callable.");
-  return -999;
-}
-
-static inline ObjString* fn_get_name(Obj* fn) {
-again:
-  switch (fn->type) {
-    case OBJ_NATIVE: return ((ObjNative*)fn)->name;
-    case OBJ_FUNCTION: return ((ObjFunction*)fn)->name;
-    case OBJ_CLOSURE: return ((ObjClosure*)fn)->function->name;
-    case OBJ_BOUND_METHOD: {
-      fn = ((ObjBoundMethod*)fn)->method;
-      goto again;
-    };
-    default: break;
-  }
-
-  INTERNAL_ERROR("Value is not callable.");
-  return NULL;
-}
 
 #endif

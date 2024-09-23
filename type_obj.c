@@ -4,35 +4,74 @@
 #include "common.h"
 #include "vm.h"
 
-void register_builtin_obj_class() {
-  // Create the object class
-  vm.__builtin_Obj_class = new_class(copy_string(STR(TYPENAME_OBJ), STR_LEN(STR(TYPENAME_OBJ))), NULL);
+static bool obj_get_prop(Value receiver, ObjString* name, Value* result);
+static bool obj_set_prop(Value receiver, ObjString* name, Value value);
+static bool obj_get_subs(Value receiver, Value index, Value* result);
+static bool obj_set_subs(Value receiver, Value index, Value value);
 
-  // Create the builtin obj instance
-  vm.builtin = new_instance(vm.__builtin_Obj_class);
+static Value obj_ctor(int argc, Value argv[]);
+static Value obj_to_str(int argc, Value argv[]);
+static Value obj_has(int argc, Value argv[]);
+static Value obj_hash(int argc, Value argv[]);
+static Value obj_entries(int argc, Value argv[]);
+static Value obj_values(int argc, Value argv[]);
+static Value obj_keys(int argc, Value argv[]);
 
-  define_obj(&vm.builtin->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
-  define_obj(&vm.builtin->fields, STR(TYPENAME_OBJ), (Obj*)vm.__builtin_Obj_class);
+void finalize_native_obj_class() {
+  vm.obj_class->__get_prop = obj_get_prop;
+  vm.obj_class->__set_prop = obj_set_prop;
+  vm.obj_class->__get_subs = obj_get_subs;
+  vm.obj_class->__set_subs = obj_set_subs;
 
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_CTOR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_TO_STR, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, SP_METHOD_HAS, 1);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, hash, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, entries, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, values, 0);
-  BUILTIN_REGISTER_METHOD(TYPENAME_OBJ, keys, 0);
-
-  BUILTIN_FINALIZE_CLASS(TYPENAME_OBJ);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_CTOR), obj_ctor, 0);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_TO_STR), obj_to_str, 0);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_HAS), obj_has, 1);
+  define_native(&vm.obj_class->methods, "hash", obj_hash, 0);
+  define_native(&vm.obj_class->methods, "entries", obj_entries, 0);
+  define_native(&vm.obj_class->methods, "values", obj_values, 0);
+  define_native(&vm.obj_class->methods, "keys", obj_keys, 0);
+  finalize_new_class(vm.obj_class);
 }
 
-// Built-in obj constructor
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ SP_METHOD_CTOR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_OBJ,
-    /* Description */ "Returns a new empty " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_CTOR) {
+static bool obj_get_prop(Value receiver, ObjString* name, Value* result) {
+  ObjObject* object = AS_OBJECT(receiver);
+  if (hashtable_get_by_string(&object->fields, name, result)) {
+    return true;
+  }
+  if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
+    *result = int_value(object->fields.count);
+    return true;
+  }
+  NATIVE_DEFAULT_GET_PROP_BODY(
+      receiver.type)  // We must use the receiver's type instead of vm.obj_class here: Instances are ObjObjects.
+}
+
+static bool obj_set_prop(Value receiver, ObjString* name, Value value) {
+  ObjObject* object = AS_OBJECT(receiver);
+  hashtable_set(&object->fields, str_value(name), value);
+  return true;
+}
+
+static bool obj_get_subs(Value receiver, Value index, Value* result) {
+  ObjObject* object = AS_OBJECT(receiver);
+  if (hashtable_get(&object->fields, index, result)) {
+    return true;
+  }
+  *result = nil_value();
+  return true;
+}
+
+static bool obj_set_subs(Value receiver, Value index, Value value) {
+  ObjObject* object = AS_OBJECT(receiver);
+  hashtable_set(&object->fields, index, value);
+  return true;
+}
+
+/**
+ * TYPENAME_OBJ.SP_METHOD_CTOR() -> TYPENAME_OBJ
+ * @brief returns a new empty TYPENAME_OBJ.
+ */
+static Value obj_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   // This is a base implementation, all objects which don't have a custom implementation will use this one.
   // Works nicely for all classes, because instances are ObjObjects. Any other value type, like primitives, are handled internally
@@ -44,12 +83,11 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_CTOR) {
 static Value instance_object_to_str(int argc, Value* argv) {
   UNUSED(argc);
 
-  ObjObject* object = AS_OBJECT(argv[0]);
-  ObjString* name   = object->klass->name;
+  ObjString* name = (argv[0]).type->name;
   if (name == NULL || name->chars == NULL) {
     name = copy_string("???", 3);
   }
-  push(OBJ_VAL(name));
+  push(str_value(name));
 
   size_t buf_size = VALUE_STRFTM_INSTANCE_LEN + name->length;
   char* chars     = malloc(buf_size);
@@ -60,7 +98,7 @@ static Value instance_object_to_str(int argc, Value* argv) {
 
   free(chars);
   pop();  // Name str
-  return OBJ_VAL(str_obj);
+  return str_value(str_obj);
 }
 
 static Value anonymous_object_to_str(int argc, Value* argv) {
@@ -74,24 +112,24 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
   strcpy(chars, VALUE_STR_OBJECT_START);
   for (int i = 0; i < object->fields.capacity; i++) {
-    if (IS_EMPTY_INTERNAL(object->fields.entries[i].key)) {
+    if (is_empty_internal(object->fields.entries[i].key)) {
       continue;
     }
 
     // Execute the to_str method on the key
     push(object->fields.entries[i].key);  // Push the receiver (key at i) for to_str
-    ObjString* key_str = AS_STRING(exec_callable(typeof_(object->fields.entries[i].key)->__to_str, 0));
+    ObjString* key_str = AS_STR(exec_callable(fn_value(object->fields.entries[i].key.type->__to_str), 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
-      return NIL_VAL;
+      return nil_value();
     }
 
-    push(OBJ_VAL(key_str));  // GC Protection
+    push(str_value(key_str));  // GC Protection
 
     // Execute the to_str method on the value
     push(object->fields.entries[i].value);  // Push the receiver (value at i) for to_str
-    ObjString* value_str = AS_STRING(exec_callable(typeof_(object->fields.entries[i].value)->__to_str, 0));
+    ObjString* value_str = AS_STR(exec_callable(fn_value(object->fields.entries[i].value.type->__to_str), 0));
     if (vm.flags & VM_FLAG_HAS_ERROR) {
-      return NIL_VAL;
+      return nil_value();
     }
 
     pop();  // Key str
@@ -132,94 +170,82 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
                                         // we need to make sure that the string is
                                         // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
   free(chars);
-  return OBJ_VAL(str_obj);
+  return str_value(str_obj);
 }
 
-// Built-in method to convert an object to a string. This one is special in that is is the toplevel to_str -
-// there's no abstraction over it. This is why we have some special cases here for our internal types.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ SP_METHOD_TO_STR,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_STRING,
-    /* Description */ "Returns a string representation of the " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, SP_METHOD_TO_STR) {
+/**
+ * TYPENAME_OBJ.SP_METHOD_TO_STR() -> TYPENAME_STRING
+ * @brief Returns a string representation of the TYPENAME_OBJ.
+ */
+static Value obj_to_str(int argc, Value argv[]) {
   // This is a base implementation, all objects which don't have a custom implementation will use this one.
-  // So we don't check the receiver, because this implementation should accept any value.
+  // Anything that came here is at least a ObjObject, because every other value-type has an internal to_str implementation.
 
   // Handle anonymous objects and instance objects differently
-  if (IS_OBJECT(argv[0])) {
-    ObjObject* object = AS_OBJECT(argv[0]);
-    if (OBJECT_IS_INSTANCE(object)) {
-      return instance_object_to_str(argc, argv);
-    } else {
-      return anonymous_object_to_str(argc, argv);
-    }
+  if (is_obj(argv[0])) {
+    return anonymous_object_to_str(argc, argv);
+  } else {
+    return instance_object_to_str(argc, argv);
   }
 
   // This here is the catch-all for all values. We print the type-name and memory address of the value.
-  ObjString* t_name = typeof_(argv[0])->name;
+  ObjString* t_name = argv[0].type->name;
 
   // Print the memory address of the object using (void*)AS_OBJ(argv[0]).
   // We need to know the size of the buffer to allocate, so we calculate it first.
-  size_t adr_str_len = snprintf(NULL, 0, "%p", (void*)AS_OBJ(argv[0]));
+  size_t adr_str_len = snprintf(NULL, 0, "%p", (void*)argv[0].as.obj);
 
   size_t buf_size = VALUE_STRFMT_OBJ_LEN + t_name->length + adr_str_len;
   char* chars     = malloc(buf_size);
-  snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name->chars, (void*)AS_OBJ(argv[0]));
+  snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name->chars, (void*)argv[0].as.obj);
   // Intuitively, you'd expect to use take_string here, but we don't know where malloc
   // allocates the memory - we don't want this block in our own memory pool.
   ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
 
   free(chars);
-  return OBJ_VAL(str_obj);
+  return str_value(str_obj);
 }
 
-#define BUILTIN_ENUMERABLE_GET_VALUE_ARRAY(value)             \
-  /* Execute the 'keys' method on the receiver */             \
-  push(argv[0]); /* Receiver */                               \
-  Value seq = exec_callable((Obj*)copy_string("keys", 4), 0); \
-  if (vm.flags & VM_FLAG_HAS_ERROR) {                         \
-    return NIL_VAL;                                           \
-  }                                                           \
+#define NATIVE_ENUMERABLE_GET_VALUE_ARRAY(value)                   \
+  /* Execute the 'keys' method on the receiver */                  \
+  push(argv[0]); /* Receiver */                                    \
+  Value seq = exec_callable(str_value(copy_string("keys", 4)), 0); \
+  if (vm.flags & VM_FLAG_HAS_ERROR) {                              \
+    return nil_value();                                            \
+  }                                                                \
   items = AS_SEQ(seq)->items;
-BUILTIN_ENUMERABLE_HAS(OBJ, "a key")
-#undef BUILTIN_ENUMERABLE_GET_VALUE_ARRAY
+static Value obj_has(int argc, Value argv[]) {
+  NATIVE_ENUMERABLE_HAS_BODY(vm.obj_class)
+}
+#undef NATIVE_ENUMERABLE_GET_VALUE_ARRAY
 
-// Built-in method to return the hash of an object.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ hash,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_INT,
-    /* Description */ "Returns the hash of the " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, hash) {
+/**
+ * TYPENAME_OBJ.SP_METHOD_HASH() -> TYPENAME_INT
+ * @brief Returns the hash of the TYPENAME_OBJ.
+ */
+static Value obj_hash(int argc, Value argv[]) {
   UNUSED(argc);
-  return INT_VAL(hash_value(argv[0]));
+  return int_value(hash_value(argv[0]));
 }
 
-// Built-in method to retrieve all entries of an object.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ entries,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */
-    "Returns a " STR(TYPENAME_SEQ) " of key-value pairs (which are " STR(TYPENAME_SEQ) "s of length 2 ) of a " STR(
-        TYPENAME_OBJ) ", containing all entries.");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
+/**
+ * TYPENAME_OBJ.entries() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ of key-value pairs (which are TYPENAME_SEQs of length 2) of an TYPENAME_OBJ, containing all
+ * entries.
+ */
+static Value obj_entries(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(OBJ)
+  NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
   ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
-  push(OBJ_VAL(seq));                    // GC Protection
+  push(seq_value(seq));                  // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key)) {
+    if (!is_empty_internal(entry->key)) {
       push(entry->key);
       push(entry->value);
       make_seq(2);                        // Leaves a seq with the key-value on the stack
@@ -230,26 +256,23 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, entries) {
   return pop();  // The seq
 }
 
-// Built-in method to retrieve all keys of an object.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ keys,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all keys of a " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, keys) {
+/**
+ * TYPENAME_OBJ.keys() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ of all keys of an TYPENAME_OBJ.
+ */
+static Value obj_keys(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(OBJ)
+  NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
   ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
-  push(OBJ_VAL(seq));                    // GC Protection
+  push(seq_value(seq));                  // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key)) {
+    if (!is_empty_internal(entry->key)) {
       items.values[processed++] = entry->key;
     }
   }
@@ -257,26 +280,23 @@ BUILTIN_METHOD_IMPL(TYPENAME_OBJ, keys) {
   return pop();  // The seq
 }
 
-// Built-in method to retrieve all values of an object.
-BUILTIN_METHOD_DOC(
-    /* Receiver    */ TYPENAME_OBJ,
-    /* Name        */ values,
-    /* Arguments   */ "",
-    /* Return Type */ TYPENAME_SEQ,
-    /* Description */ "Returns a " STR(TYPENAME_SEQ) " of all values of a " STR(TYPENAME_OBJ) ".");
-BUILTIN_METHOD_IMPL(TYPENAME_OBJ, values) {
+/**
+ * TYPENAME_OBJ.values() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ of all values of an TYPENAME_OBJ.
+ */
+static Value obj_values(int argc, Value argv[]) {
   UNUSED(argc);
-  BUILTIN_CHECK_RECEIVER(OBJ)
+  NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = prealloc_value_array(object->fields.count);
   ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
-  push(OBJ_VAL(seq));                    // GC Protection
+  push(seq_value(seq));                  // GC Protection
 
   int processed = 0;
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
-    if (!IS_EMPTY_INTERNAL(entry->key)) {
+    if (!is_empty_internal(entry->key)) {
       items.values[processed++] = entry->value;
     }
   }

@@ -16,7 +16,7 @@
 // Allocates a new object of the given type and size.
 // It also initializes the object's fields. Might trigger GC, but (obviously)
 // won't free the new object to be allocated.
-static Obj* allocate_object(size_t size, ObjType type) {
+static Obj* allocate_object(size_t size, ObjGcType type) {
   Obj* object = (Obj*)reallocate(NULL, 0,
                                  size);  // Might trigger GC, but it's fine since our new object
                                          // isn't referenced by anything yet -> not reachable by GC
@@ -38,33 +38,39 @@ static Obj* allocate_object(size_t size, ObjType type) {
 // The string object sort of acts like a wrapper for the c string.
 // Both the string object and the c string are heap-allocated.
 static ObjString* allocate_string(char* chars, int length, uint64_t hash) {
-  ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+  ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_GC_STRING);
   string->length    = length;
   string->chars     = chars;
   string->obj.hash  = hash;
 
-  push(OBJ_VAL(string));  // Prevent GC from freeing string
-  hashtable_set(&vm.strings, OBJ_VAL(string), NIL_VAL);
+  push(str_value(string));  // Prevent GC from freeing string
+  hashtable_set(&vm.strings, str_value(string), nil_value());
   pop();
 
   return string;
 }
 
 ObjBoundMethod* new_bound_method(Value receiver, Obj* method) {
-  ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+  ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_GC_BOUND_METHOD);
   bound->receiver       = receiver;
   bound->method         = method;
   return bound;
 }
 
 ObjClass* new_class(ObjString* name, ObjClass* base) {
-  ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+  ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_GC_CLASS);
   klass->name     = name;
   klass->base     = base;
+
+  klass->__get_prop = NULL;
+  klass->__set_prop = NULL;
+  klass->__get_subs = NULL;
+  klass->__set_subs = NULL;
 
   klass->__ctor   = NULL;
   klass->__to_str = NULL;
   klass->__has    = NULL;
+  klass->__slice  = NULL;
 
   init_hashtable(&klass->methods);
   init_hashtable(&klass->static_methods);
@@ -85,7 +91,7 @@ void finalize_new_class(ObjClass* klass) {
       {NULL, SPECIAL_METHOD_MAX},
   };
 
-  Value temp = NIL_VAL;
+  Value temp = nil_value();
   for (struct MethodMap* entry = specials; entry->field != NULL; entry++) {
     // Try to populate the field from the class itself, or any of its base classes
     ObjClass* base = klass;
@@ -96,24 +102,32 @@ void finalize_new_class(ObjClass* klass) {
       base = base->base;
     }
 
-    if (base != NULL && IS_CALLABLE(temp)) {
-      *entry->field = AS_OBJ(temp);
+    if (base != NULL && is_callable(temp)) {
+      *entry->field = temp.as.obj;
     } else {
       *entry->field = NULL;
     }
   }
+
+  // Also copy the accessors from the base class, if the klass doesn't have them
+  if (klass->base != NULL) {
+    klass->__get_prop = klass->__get_prop != NULL ? klass->__get_prop : klass->base->__get_prop;
+    klass->__set_prop = klass->__set_prop != NULL ? klass->__set_prop : klass->base->__set_prop;
+    klass->__get_subs = klass->__get_subs != NULL ? klass->__get_subs : klass->base->__get_subs;
+    klass->__set_subs = klass->__set_subs != NULL ? klass->__set_subs : klass->base->__set_subs;
+  }
 }
 
 ObjObject* new_instance(ObjClass* klass) {
-  ObjObject* object = ALLOCATE_OBJ(ObjObject, OBJ_OBJECT);
-  object->klass     = klass;
+  ObjObject* object      = ALLOCATE_OBJ(ObjObject, OBJ_GC_OBJECT);
+  object->instance_class = klass;
   init_hashtable(&object->fields);
   return object;
 }
 
 ObjUpvalue* new_upvalue(Value* slot) {
-  ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
-  upvalue->closed     = NIL_VAL;
+  ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_GC_UPVALUE);
+  upvalue->closed     = nil_value();
   upvalue->location   = slot;
   upvalue->next       = NULL;
   return upvalue;
@@ -125,7 +139,7 @@ ObjClosure* new_closure(ObjFunction* function) {
     upvalues[i] = NULL;
   }
 
-  ObjClosure* closure    = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
+  ObjClosure* closure    = ALLOCATE_OBJ(ObjClosure, OBJ_GC_CLOSURE);
   closure->function      = function;
   closure->upvalues      = upvalues;
   closure->upvalue_count = function->upvalue_count;
@@ -133,11 +147,10 @@ ObjClosure* new_closure(ObjFunction* function) {
 }
 
 ObjFunction* new_function() {
-  ObjFunction* function     = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
+  ObjFunction* function     = ALLOCATE_OBJ(ObjFunction, OBJ_GC_FUNCTION);
   function->arity           = 0;
   function->upvalue_count   = 0;
   function->name            = NULL;
-  function->doc             = NULL;
   function->globals_context = NULL;
   init_chunk(&function->chunk);
   return function;
@@ -155,11 +168,10 @@ ObjTuple* new_tuple() {
   return take_tuple(&items);
 }
 
-ObjNative* new_native(NativeFn function, ObjString* name, ObjString* doc, int arity) {
-  ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
+ObjNative* new_native(NativeFn function, ObjString* name, int arity) {
+  ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_GC_NATIVE);
   native->function  = function;
   native->name      = name;
-  native->doc       = doc;
   native->arity     = arity;
   return native;
 }
@@ -194,8 +206,11 @@ ValueArray prealloc_value_array(int count) {
   items.capacity = capacity;
   items.count    = count;
 
+  // We have to initialize all values to nil, because if you set an item with something that triggers the gc, you'd mark
+  // uninitialized values in the gc. That's because the ValueArray of the preallocated listlike is only resized and not
+  // initialized, therefore the actual entries are garbage memory.
   for (int i = 0; i < count; i++) {
-    items.values[i] = NIL_VAL;
+    items.values[i] = nil_value();
   }
 
   return items;
@@ -205,7 +220,7 @@ ObjSeq* take_seq(ValueArray* items) {
   // Pause while we allocate an object for seq, because this might trigger a GC. This allows us to prepare a value array with it's
   // values being out of reach of the GC.
   vm.flags |= VM_FLAG_PAUSE_GC;
-  ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_SEQ);
+  ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_GC_SEQ);
   vm.flags &= ~VM_FLAG_PAUSE_GC;
   seq->items = *items;
   return seq;
@@ -215,7 +230,7 @@ ObjTuple* take_tuple(ValueArray* items) {
   // Pause while we allocate an object for tuple, because this might trigger a GC. This allows us to prepare a value array with
   // it's values being out of reach of the GC.
   vm.flags |= VM_FLAG_PAUSE_GC;
-  ObjTuple* tuple = ALLOCATE_OBJ(ObjTuple, OBJ_TUPLE);
+  ObjTuple* tuple = ALLOCATE_OBJ(ObjTuple, OBJ_GC_TUPLE);
   vm.flags &= ~VM_FLAG_PAUSE_GC;
   tuple->items    = *items;
   tuple->obj.hash = hash_tuple(items);
@@ -223,9 +238,9 @@ ObjTuple* take_tuple(ValueArray* items) {
 }
 
 ObjObject* take_object(HashTable* fields) {
-  ObjObject* object = ALLOCATE_OBJ(ObjObject, OBJ_OBJECT);
-  object->klass     = vm.__builtin_Obj_class;
-  object->fields    = *fields;
+  ObjObject* object      = ALLOCATE_OBJ(ObjObject, OBJ_GC_OBJECT);
+  object->instance_class = vm.obj_class;
+  object->fields         = *fields;
   return object;
 }
 

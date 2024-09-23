@@ -31,14 +31,18 @@ typedef enum {
 static Value run();
 static Value peek(int distance);
 
+void clear_error() {
+  vm.current_error = nil_value();
+  vm.flags &= ~VM_FLAG_HAS_ERROR;  // Clear the error flag
+}
+
 static void reset_stack() {
   vm.stack_top     = vm.stack;
   vm.frame_count   = 0;
   vm.open_upvalues = NULL;
-  vm.current_error = NIL_VAL;
 
-  vm.flags &= ~VM_FLAG_HAS_ERROR;  // Clear the error flag
-  vm.flags &= ~VM_FLAG_PAUSE_GC;   // Clear the pause flag
+  vm.flags &= ~VM_FLAG_PAUSE_GC;  // Clear the pause flag, just to be sure
+  clear_error();
 }
 
 static void dump_location() {
@@ -111,7 +115,7 @@ static void dump_stacktrace() {
 
     // If the module_name is the same ref as the current frame's function-name, then we know it's the
     // toplevel, because that's how we initialize it in the compiler.
-    if (AS_STRING(module_name) == function->name) {
+    if (AS_STR(module_name) == function->name) {
       fprintf(stderr, "at the toplevel of module \"%s\"\n", AS_CSTRING(module_name));
     } else {
       fprintf(stderr, "in \"%s\" in module \"%s\"\n", function->name->chars, AS_CSTRING(module_name));
@@ -130,7 +134,7 @@ void runtime_error(const char* format, ...) {
   va_end(args);
 
   vm.flags |= VM_FLAG_HAS_ERROR;
-  vm.current_error = OBJ_VAL(copy_string(buffer, (int)length));
+  vm.current_error = str_value(copy_string(buffer, (int)length));
 }
 
 // This is just a plcaeholder to find where we actually throw compile errors.
@@ -141,32 +145,28 @@ static void exit_with_compile_error() {
   exit(ECOMPILE_ERROR);
 }
 
-void define_native(HashTable* table, const char* name, NativeFn function, const char* doc, int arity) {
-  Value key           = OBJ_VAL(copy_string(name, (int)strlen(name)));
-  ObjString* doc_str  = copy_string(doc, (int)strlen(doc));
+void define_native(HashTable* table, const char* name, NativeFn function, int arity) {
+  Value key           = str_value(copy_string(name, (int)strlen(name)));
   ObjString* name_str = copy_string(name, (int)strlen(name));
-  Value value         = OBJ_VAL(new_native(function, name_str, doc_str, arity));
+  Value value         = fn_value((Obj*)new_native(function, name_str, arity));
 
   push(key);
   push(value);
-  push(OBJ_VAL(doc_str));
-  push(OBJ_VAL(name_str));
+  push(str_value(name_str));
   hashtable_set(table, key, value);
-  pop();
   pop();
   pop();
   pop();
 }
 
-void define_obj(HashTable* table, const char* name, Obj* obj) {
+void define_value(HashTable* table, const char* name, Value value) {
   // 🐛 Seemingly out of nowhere the pushed key and value get swapped on the stack...?! I don't know why.
   // Funnily enough, it only happens when we start a nested module. E.g. we're in "main" and import "std",
   // when the builtins get attached to the module instances field within the start_module function key and
   // value are swapped! Same goes for the name (WTF). I've found this out because in the stack trace we now
   // see the modules name and for nested modules it always printed __name. The current remedy is to just use
   // variables for "key" and "value" and just use these instead of pushing and peeking.
-  Value key   = OBJ_VAL(copy_string(name, (int)strlen(name)));
-  Value value = OBJ_VAL(obj);
+  Value key = str_value(copy_string(name, (int)strlen(name)));
   push(key);
   push(value);
   hashtable_set(table, key, value);
@@ -184,7 +184,7 @@ void make_seq(int count) {
   for (int i = count - 1; i >= 0; i--) {
     items.values[i] = pop();
   }
-  push(OBJ_VAL(take_seq(&items)));
+  push(seq_value(take_seq(&items)));
 }
 
 void make_tuple(int count) {
@@ -198,7 +198,7 @@ void make_tuple(int count) {
   for (int i = count - 1; i >= 0; i--) {
     items.values[i] = pop();
   }
-  push(OBJ_VAL(take_tuple(&items)));
+  push(tuple_value(take_tuple(&items)));
 }
 
 // Creates an object from the top "count" * 2 values on the stack.
@@ -225,7 +225,7 @@ static void make_object(int count) {
     hashtable_set(&obj->fields, key, value);
   }
 
-  push(OBJ_VAL(obj));
+  push(obj_value(obj));
 }
 
 void init_vm() {
@@ -245,6 +245,72 @@ void init_vm() {
   init_hashtable(&vm.strings);
   init_hashtable(&vm.modules);
 
+  // Register the built-in classes
+  // Names are null, because we cannot intern them yet. At this point hashtables won't work, bc without the base classes the the
+  // hashtable cannot compare the keys.
+  vm.obj_class     = new_class(NULL, NULL);
+  vm.nil_class     = new_class(NULL, NULL);
+  vm.str_class     = new_class(NULL, NULL);
+  vm.class_class   = new_class(NULL, NULL);
+  vm.fn_class      = new_class(NULL, NULL);
+  vm.bool_class    = new_class(NULL, NULL);
+  vm.num_class     = new_class(NULL, NULL);
+  vm.int_class     = new_class(NULL, vm.num_class);
+  vm.float_class   = new_class(NULL, vm.num_class);
+  vm.upvalue_class = new_class(NULL, NULL);
+  vm.handler_class = new_class(NULL, NULL);
+  vm.seq_class     = new_class(NULL, NULL);
+  vm.tuple_class   = new_class(NULL, NULL);
+
+  // Now, we can intern the names. Hashtables are now usable.
+  ObjString* obj_name     = copy_string(STR(TYPENAME_OBJ), STR_LEN(STR(TYPENAME_OBJ)));
+  ObjString* nil_name     = copy_string(STR(TYPENAME_NIL), STR_LEN(STR(TYPENAME_NIL)));
+  ObjString* str_name     = copy_string(STR(TYPENAME_STRING), STR_LEN(STR(TYPENAME_STRING)));
+  ObjString* class_name   = copy_string(STR(TYPENAME_CLASS), STR_LEN(STR(TYPENAME_CLASS)));
+  ObjString* fn_name      = copy_string(STR(TYPENAME_FUNCTION), STR_LEN(STR(TYPENAME_FUNCTION)));
+  ObjString* bool_name    = copy_string(STR(TYPENAME_BOOL), STR_LEN(STR(TYPENAME_BOOL)));
+  ObjString* num_name     = copy_string(STR(TYPENAME_NUM), STR_LEN(STR(TYPENAME_NUM)));
+  ObjString* int_name     = copy_string(STR(TYPENAME_INT), STR_LEN(STR(TYPENAME_INT)));
+  ObjString* float_name   = copy_string(STR(TYPENAME_FLOAT), STR_LEN(STR(TYPENAME_FLOAT)));
+  ObjString* upvalue_name = copy_string(STR(TYPENAME_UPVALUE), STR_LEN(STR(TYPENAME_UPVALUE)));
+  ObjString* handler_name = copy_string(STR(TYPENAME_HANDLER), STR_LEN(STR(TYPENAME_HANDLER)));
+  ObjString* seq_name     = copy_string(STR(TYPENAME_SEQ), STR_LEN(STR(TYPENAME_SEQ)));
+  ObjString* tuple_name   = copy_string(STR(TYPENAME_TUPLE), STR_LEN(STR(TYPENAME_TUPLE)));
+
+  // ...and assign them to the classes
+  vm.obj_class->name     = obj_name;
+  vm.nil_class->name     = nil_name;
+  vm.str_class->name     = str_name;
+  vm.class_class->name   = class_name;
+  vm.fn_class->name      = fn_name;
+  vm.bool_class->name    = bool_name;
+  vm.num_class->name     = num_name;
+  vm.int_class->name     = int_name;
+  vm.float_class->name   = float_name;
+  vm.upvalue_class->name = upvalue_name;
+  vm.handler_class->name = handler_name;
+  vm.seq_class->name     = seq_name;
+  vm.tuple_class->name   = tuple_name;
+
+  // Create the builtin obj instance. Used to access all the builtin stuff.
+  vm.builtin = new_instance(vm.obj_class);
+
+  // Register the builtin classes in the builtin object
+  define_value(&vm.builtin->fields, INSTANCENAME_BUILTIN, instance_value(vm.builtin));
+  hashtable_set(&vm.builtin->fields, str_value(obj_name), class_value(vm.obj_class));
+  hashtable_set(&vm.builtin->fields, str_value(nil_name), class_value(vm.nil_class));
+  hashtable_set(&vm.builtin->fields, str_value(str_name), class_value(vm.str_class));
+  hashtable_set(&vm.builtin->fields, str_value(class_name), class_value(vm.class_class));
+  hashtable_set(&vm.builtin->fields, str_value(fn_name), class_value(vm.fn_class));
+  hashtable_set(&vm.builtin->fields, str_value(bool_name), class_value(vm.bool_class));
+  hashtable_set(&vm.builtin->fields, str_value(num_name), class_value(vm.num_class));
+  hashtable_set(&vm.builtin->fields, str_value(int_name), class_value(vm.int_class));
+  hashtable_set(&vm.builtin->fields, str_value(float_name), class_value(vm.float_class));
+  hashtable_set(&vm.builtin->fields, str_value(upvalue_name), class_value(vm.upvalue_class));
+  hashtable_set(&vm.builtin->fields, str_value(handler_name), class_value(vm.handler_class));
+  hashtable_set(&vm.builtin->fields, str_value(seq_name), class_value(vm.seq_class));
+  hashtable_set(&vm.builtin->fields, str_value(tuple_name), class_value(vm.tuple_class));
+
   // Build the reserved words lookup table
   memset(vm.special_method_names, 0, sizeof(vm.special_method_names));
   vm.special_method_names[SPECIAL_METHOD_CTOR]   = copy_string(STR(SP_METHOD_CTOR), STR_LEN(STR(SP_METHOD_CTOR)));
@@ -255,36 +321,36 @@ void init_vm() {
   memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
   vm.special_prop_names[SPECIAL_PROP_LEN]         = copy_string(STR(SP_PROP_LEN), STR_LEN(STR(SP_PROP_LEN)));
   vm.special_prop_names[SPECIAL_PROP_NAME]        = copy_string(STR(SP_PROP_NAME), STR_LEN(STR(SP_PROP_NAME)));
-  vm.special_prop_names[SPECIAL_PROP_DOC]         = copy_string(STR(SP_PROP_DOC), STR_LEN(STR(SP_PROP_DOC)));
   vm.special_prop_names[SPECIAL_PROP_FILE_PATH]   = copy_string(STR(SP_PROP_FILE_PATH), STR_LEN(STR(SP_PROP_FILE_PATH)));
   vm.special_prop_names[SPECIAL_PROP_MODULE_NAME] = copy_string(STR(SP_PROP_MODULE_NAME), STR_LEN(STR(SP_PROP_MODULE_NAME)));
 
-  // Register the built-in classes, starting with the obj class, which is the base class for all objects.
-  register_builtin_obj_class();
-
-  // Register the built-in functions
-  register_builtin_functions();
-
   // Register the built-in classes
-  register_builtin_nil_class();
-  register_builtin_bool_class();
-  register_builtin_num_class();
-  register_builtin_int_class();
-  register_builtin_float_class();
-  register_builtin_seq_class();
-  register_builtin_tuple_class();
-  register_builtin_str_class();
-  register_builtin_fn_class();
-  register_builtin_class_class();
+  finalize_native_obj_class();
 
   // Create the module class
-  BUILTIN_REGISTER_CLASS(TYPENAME_MODULE, TYPENAME_OBJ);
-  BUILTIN_FINALIZE_CLASS(TYPENAME_MODULE);
+  ObjString* module_name = copy_string(STR(TYPENAME_MODULE), STR_LEN(STR(TYPENAME_MODULE)));
+  vm.module_class        = new_class(module_name, vm.obj_class);
+  hashtable_set(&vm.builtin->fields, str_value(module_name), class_value(vm.module_class));
+  finalize_new_class(vm.module_class);
+
+  // Register the built-in functions
+  register_native_functions();
+
+  finalize_native_nil_class();
+  finalize_native_bool_class();
+  finalize_native_num_class();
+  finalize_native_int_class();
+  finalize_native_float_class();
+  finalize_native_seq_class();
+  finalize_native_tuple_class();
+  finalize_native_str_class();
+  finalize_native_fn_class();
+  finalize_native_class_class();
 
   // Register built-in modules
-  register_builtin_file_module();
-  register_builtin_perf_module();
-  register_builtin_debug_module();
+  register_native_file_module();
+  register_native_perf_module();
+  register_native_debug_module();
 
   vm.flags &= ~VM_FLAG_PAUSE_GC;  // Unpause
 
@@ -312,33 +378,6 @@ Value pop() {
 // Look at the value without popping it
 static Value peek(int distance) {
   return vm.stack_top[-1 - distance];
-}
-
-ObjClass* typeof_(Value value) {
-  // Handle primitive and internal types which have a corresponding class
-  switch (value.type) {
-    case VAL_NIL: return vm.__builtin_Nil_class;      // This field name was created via macro
-    case VAL_BOOL: return vm.__builtin_Bool_class;    // This field name was created via macro
-    case VAL_INT: return vm.__builtin_Int_class;      // This field name was created via macro
-    case VAL_FLOAT: return vm.__builtin_Float_class;  // This field name was created via macro
-    case VAL_OBJ: {
-      switch (OBJ_TYPE(value)) {
-        case OBJ_STRING: return vm.__builtin_Str_class;   // This field name was created via macro
-        case OBJ_SEQ: return vm.__builtin_Seq_class;      // This field name was created via macro
-        case OBJ_TUPLE: return vm.__builtin_Tuple_class;  // This field name was created via macro
-        case OBJ_NATIVE:
-        case OBJ_CLOSURE:
-        case OBJ_BOUND_METHOD:
-        case OBJ_FUNCTION: return vm.__builtin_Fn_class;  // This field name was created via macro
-        case OBJ_CLASS: return vm.__builtin_Class_class;  // This field name was created via macro
-        case OBJ_OBJECT:
-          return AS_OBJECT(value)->klass;  // Class X, if it's an instance. Or just vm.__builtin_Obj_class, if it's an object.
-        default: break;
-      }
-    }
-    default: break;
-  }
-  return vm.__builtin_Obj_class;  // This field name was created via macro
 }
 
 // If [expected] is positive, [actual] must match exactly. If [expected] is negative, [actual] must be at least
@@ -397,116 +436,97 @@ static CallResult call_native(ObjNative* native, int arg_count) {
 // `Stack: ...[callable][arg0][arg1]...[argN]`.
 // Not used for invocation of methods (no receiver). But it can handle bound methods and constructors - in
 // which case it will put the appropriate receiver on the stack.
+//
+// TODO (refactor): Add class.__call() to handle all this stuff.
 static CallResult call_value(Value callable, int arg_count) {
-  if (IS_OBJ(callable)) {
-    switch (OBJ_TYPE(callable)) {
-      case OBJ_BOUND_METHOD: {
-        ObjBoundMethod* bound = AS_BOUND_METHOD(callable);
-        // Load the receiver onto the stack, just before the arguments, overriding the bound method on the
-        // stack.
-        vm.stack_top[-arg_count - 1] = bound->receiver;
-        switch (bound->method->type) {
-          case OBJ_CLOSURE: return call_managed((ObjClosure*)bound->method, arg_count);
-          case OBJ_NATIVE: return call_native((ObjNative*)bound->method, arg_count);
-          default: break;  // Non-callable object type.
-        }
-        break;
-      }
-      case OBJ_CLASS: {
-        ObjClass* klass = AS_CLASS(callable);
-
-        // Construct a new instance of the class.
-        // We just replace the class on the stack (callable) with an instance of it.
-        // This also happens for primitive types. In their constructors, we replace this fresh instance with
-        // an actual primitive value.
-        vm.stack_top[-arg_count - 1] = OBJ_VAL(new_instance(klass));
-
-        // Check if the class has a constructor. 'ctor' is actually a stupid name, because it doesn't
-        // construct anything. As you can see, the instance already exists. It's actually more like an 'init'
-        // method. It's perfectly valid to have no ctor - you'll also end up with a valid instance on the
-        // stack.
-        Value ctor;
-        if (hashtable_get_by_string(&klass->methods, vm.special_method_names[SPECIAL_METHOD_CTOR], &ctor)) {
-          switch (AS_OBJ(ctor)->type) {
-            case OBJ_CLOSURE: return call_managed(AS_CLOSURE(ctor), arg_count);
-            case OBJ_NATIVE: return call_native(AS_NATIVE(ctor), arg_count);
-            default: {
-              runtime_error("Cannot invoke ctor of type %s", typeof_(ctor)->name->chars);
-              return CALL_FAILED;
-            }
-          }
-        } else if (arg_count != 0) {
-          runtime_error("Expected 0 arguments but got %d.", arg_count);
-          return CALL_FAILED;
-        }
-        return CALL_RETURNED;
-      }
-      case OBJ_CLOSURE: return call_managed(AS_CLOSURE(callable), arg_count);
-      case OBJ_NATIVE: return call_native(AS_NATIVE(callable), arg_count);
+  if (is_native(callable)) {
+    return call_native(AS_NATIVE(callable), arg_count);
+  } else if (is_closure(callable)) {
+    return call_managed(AS_CLOSURE(callable), arg_count);
+  } else if (is_bound_method(callable)) {
+    ObjBoundMethod* bound        = AS_BOUND_METHOD(callable);
+    vm.stack_top[-arg_count - 1] = bound->receiver;
+    switch (bound->method->type) {
+      case OBJ_GC_CLOSURE: return call_managed((ObjClosure*)bound->method, arg_count);
+      case OBJ_GC_NATIVE: return call_native((ObjNative*)bound->method, arg_count);
       default: break;  // Non-callable object type.
     }
-  }
+  } else if (is_class(callable)) {
+    ObjClass* klass = AS_CLASS(callable);
+    // Construct a new instance of the class.
+    // We just replace the class on the stack (callable) with an instance of it.
+    // This also happens for primitive types. In their constructors, we replace this fresh instance with
+    // an actual primitive value.
+    vm.stack_top[-arg_count - 1] = instance_value(new_instance(klass));
 
-  runtime_error("Attempted to call non-callable value of type %s.", typeof_(callable)->name->chars);
-  return CALL_FAILED;
-}
-
-// Invokes a method on a class by looking up the method in the class' method
-// table and calling it. (Combines "get-property" and "call" opcodes)
-// `Stack: ...[receiver][arg0][arg1]...[argN]`
-static CallResult invoke_from_class(ObjClass* klass, ObjString* name, int arg_count) {
-  Value method;
-  if (!hashtable_get_by_string(&klass->methods, name, &method)) {
-    bool is_base = klass->base == NULL;
-    runtime_error("Undefined method '%s' in type %s%s.", name->chars, klass->name->chars,
-                  is_base ? "" : " or any of its parent classes");
-    return CALL_FAILED;
-  }
-
-  switch (AS_OBJ(method)->type) {
-    case OBJ_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
-    case OBJ_NATIVE: return call_native(AS_NATIVE(method), arg_count);
-    default: {
-      runtime_error("Cannot invoke method of type %s on class", typeof_(method)->name->chars);
+    // Check if the class has a constructor. 'ctor' is actually a stupid name, because it doesn't
+    // construct anything. As you can see, the instance already exists. It's actually more like an 'init'
+    // method. It's perfectly valid to have no ctor - you'll also end up with a valid instance on the
+    // stack.
+    Value ctor;
+    if (hashtable_get_by_string(&klass->methods, vm.special_method_names[SPECIAL_METHOD_CTOR], &ctor)) {
+      switch (ctor.as.obj->type) {
+        case OBJ_GC_CLOSURE: return call_managed(AS_CLOSURE(ctor), arg_count);
+        case OBJ_GC_NATIVE: return call_native(AS_NATIVE(ctor), arg_count);
+        default: {
+          runtime_error("Cannot invoke ctor of type %s", ctor.type->name->chars);
+          return CALL_FAILED;
+        }
+      }
+    } else if (arg_count != 0) {
+      runtime_error("Expected 0 arguments but got %d.", arg_count);
       return CALL_FAILED;
     }
+    return CALL_RETURNED;
   }
+
+  runtime_error("Attempted to call non-callable value of type %s.", callable.type->name->chars);
+  return CALL_FAILED;
 }
 
 // Invokes a managed-code or native method with receiver and arguments on the top of the stack.
 // `Stack: ...[receiver][arg0][arg1]...[argN]`
-static CallResult invoke(ObjString* name, int arg_count) {
-  Value receiver = peek(arg_count);
+// You can also provide a [source_klass] to invoke a method on a specific class. This is only used for
+// for actual method-lookup. If you provide NULL, the receiver's type will be used.
+static CallResult invoke(ObjClass* source_klass, ObjString* name, int arg_count) {
+  Value receiver  = peek(arg_count);
+  ObjClass* klass = source_klass == NULL ? receiver.type : source_klass;
+  Value method;
 
-  // Handle static methods on classes
-  Value static_method;
-  if (IS_CLASS(receiver)) {
-    ObjClass* klass = AS_CLASS(receiver);
-    if (hashtable_get_by_string(&klass->static_methods, name, &static_method)) {
-      vm.stack_top[-arg_count - 1] = static_method;
-      return call_value(static_method, arg_count);
+  // Most likely it's a method on the receiver's class
+  if (hashtable_get_by_string(&klass->methods, name, &method)) {
+    switch (method.as.obj->type) {
+      case OBJ_GC_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
+      case OBJ_GC_NATIVE: return call_native(AS_NATIVE(method), arg_count);
+      default: {
+        runtime_error("Cannot invoke method of type %s on class", method.type->name->chars);
+        return CALL_FAILED;
+      }
     }
   }
 
-  // Handle primitives which have a corresponding class.
-  // Everything which is not an object
-  if (!IS_OBJECT(receiver)) {
-    ObjClass* klass = typeof_(receiver);
-    return invoke_from_class(klass, name, arg_count);
+  // It could be a static method if the receiver is a class
+  if (is_class(receiver)) {
+    ObjClass* klass_ = AS_CLASS(receiver);
+    if (hashtable_get_by_string(&klass_->static_methods, name, &method)) {
+      vm.stack_top[-arg_count - 1] = method;
+      return call_value(method, arg_count);
+    }
   }
 
-  // Handle object (could also be class instances)
-  ObjObject* object = AS_OBJECT(receiver);
-
-  // It could be a field which is a function, we need to check that first
-  Value function;
-  if (hashtable_get_by_string(&object->fields, name, &function)) {
-    vm.stack_top[-arg_count - 1] = function;
-    return call_value(function, arg_count);
+  // It could be a field on an object or instance which is a callable value
+  if (is_obj(receiver) || is_instance(receiver)) {
+    ObjObject* object = AS_OBJECT(receiver);
+    if (hashtable_get_by_string(&object->fields, name, &method)) {
+      vm.stack_top[-arg_count - 1] = method;
+      return call_value(method, arg_count);
+    }
   }
 
-  // Otherwise, it's just a class method
-  return invoke_from_class(object->klass, name, arg_count);
+  bool is_base = klass->base == NULL;
+  runtime_error("Undefined callable '%s' in type %s%s.", name->chars, klass->name->chars,
+                is_base ? "" : " or any of its parent classes");
+  return CALL_FAILED;
 }
 
 // Executes a callframe by running the bytecode until it returns a value or an error occurs.
@@ -520,15 +540,9 @@ static Value run_frame() {
   return result;
 }
 
-Value exec_callable(Obj* callable, int arg_count) {
-  CallResult result = CALL_FAILED;
-  if (callable->type == OBJ_STRING) {
-    Value receiver  = peek(arg_count);
-    ObjClass* klass = typeof_(receiver);
-    result          = invoke_from_class(klass, (ObjString*)callable, arg_count);
-  } else {
-    result = call_value(OBJ_VAL(callable), arg_count);
-  }
+Value exec_callable(Value callable, int arg_count) {
+  CallResult result =
+      is_str(callable) ? invoke(peek(arg_count).type, AS_STR(callable), arg_count) : call_value(callable, arg_count);
 
   if (result == CALL_RETURNED) {
     return pop();
@@ -536,20 +550,18 @@ Value exec_callable(Obj* callable, int arg_count) {
     return run_frame();
   }
 
-  return NIL_VAL;
+  return nil_value();
 }
 
-// Binds a method to an instance by creating a new bound method object from the instance and the method name.
-// The stack is unchanged.
-static bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method) {
+bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method) {
   Value method;
   if (!hashtable_get_by_string(&klass->methods, name, &method)) {
-    *bound_method = NIL_VAL;
+    *bound_method = nil_value();
     return false;
   }
 
-  ObjBoundMethod* bound = new_bound_method(peek(0), AS_OBJ(method));
-  *bound_method         = OBJ_VAL(bound);
+  ObjBoundMethod* bound = new_bound_method(peek(0), method.as.obj);
+  *bound_method         = fn_value((Obj*)bound);
   return true;
 }
 
@@ -605,10 +617,10 @@ static void define_method(ObjString* name, FunctionType type) {
                                         // is actually a class
 
   switch (type) {
-    case TYPE_METHOD_STATIC: hashtable_set(&klass->static_methods, OBJ_VAL(name), method); break;
+    case TYPE_METHOD_STATIC: hashtable_set(&klass->static_methods, str_value(name), method); break;
     case TYPE_CONSTRUCTOR:
     case TYPE_METHOD: {
-      hashtable_set(&klass->methods, OBJ_VAL(name), method);
+      hashtable_set(&klass->methods, str_value(name), method);
       break;
     }
     default: {
@@ -621,7 +633,17 @@ static void define_method(ObjString* name, FunctionType type) {
 }
 
 bool is_falsey(Value value) {
-  return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
+  return is_nil(value) || (is_bool(value) && !value.as.boolean);
+}
+
+bool inherits(ObjClass* klass, ObjClass* base) {
+  while (klass != NULL) {
+    if (klass == base) {
+      return true;
+    }
+    klass = klass->base;
+  }
+  return false;
 }
 
 // Imports a module by name and pushes it onto the stack. If the module was already imported, it is loaded
@@ -638,8 +660,8 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   }
 
   // Not cached, so we need to load it. First, we need to get the current working directory
-  Value cwd = BUILTIN_FN(cwd)(0, NULL);
-  if (IS_NIL(cwd)) {
+  Value cwd = native_cwd(0, NULL);
+  if (is_nil(cwd)) {
     runtime_error(
         "Could not import module '%s'. Could not get current working directory, because there is no "
         "active module or it is not a file.",
@@ -653,12 +675,12 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   if (module_path == NULL) {
     // Just slap the module name + extension onto the cwd
     char* module_file_name = ensure_slang_extension(module_name->chars);
-    module_to_load_path    = join_path(AS_STRING(cwd)->chars, module_file_name);
+    module_to_load_path    = join_path(AS_STR(cwd)->chars, module_file_name);
     free(module_file_name);
   } else {
     // It's a probably realtive path, we add the extension to the provided path and prepend the cwd
     char* module_path_  = ensure_slang_extension(module_path->chars);
-    module_to_load_path = join_path(AS_STRING(cwd)->chars, module_path_);
+    module_to_load_path = join_path(AS_STR(cwd)->chars, module_path_);
     free(module_path_);
 
     if (!file_exists(module_to_load_path)) {
@@ -680,7 +702,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
     INTERNAL_ERROR(
         "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
         "'%s'",
-        module_name->chars, AS_STRING(cwd)->chars, module_path == NULL ? "NULL" : module_path->chars);
+        module_name->chars, AS_STR(cwd)->chars, module_path == NULL ? "NULL" : module_path->chars);
     exit(EIO_ERROR);
   }
 
@@ -696,14 +718,14 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   vm.exit_on_frame        = previous_exit_frame;
 
   // Check if the module is actually a module
-  if (!IS_OBJ(module) && !IS_OBJECT(module) && !(AS_OBJECT(module)->klass == vm.__builtin_Module_class)) {
+  if (!(module.type == vm.module_class)) {
     free(module_to_load_path);
     runtime_error("Could not import module '%s'. Expected module type", module_name->chars);
     return false;
   }
 
   push(module);  // Show ourselves to the GC before we put it in the hashtable
-  hashtable_set(&vm.modules, OBJ_VAL(module_name), module);
+  hashtable_set(&vm.modules, str_value(module_name), module);
 
   free(module_to_load_path);
   return true;
@@ -712,8 +734,8 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
 // Concatenates two strings on the stack (pops them) into a new string and pushes it onto the stack
 // `Stack: ...[a][b]` → `Stack: ...[a+b]`
 static void concatenate() {
-  ObjString* b = AS_STRING(peek(0));  // Peek, so it doesn't get freed by the GC
-  ObjString* a = AS_STRING(peek(1));  // Peek, so it doesn't get freed by the GC
+  ObjString* b = AS_STR(peek(0));  // Peek, so it doesn't get freed by the GC
+  ObjString* a = AS_STR(peek(1));  // Peek, so it doesn't get freed by the GC
 
   int length  = a->length + b->length;
   char* chars = ALLOCATE(char, length + 1);
@@ -724,246 +746,7 @@ static void concatenate() {
   ObjString* result = take_string(chars, length);
   pop();  // b
   pop();  // a
-  push(OBJ_VAL(result));
-}
-
-bool value_get_property(ObjString* name) {
-  Value receiver = peek(0);
-  Value result;
-
-  // Primitive types have no properties, but you can still access the methods of their class.
-  if (IS_OBJ(receiver)) {
-    switch (AS_OBJ(receiver)->type) {
-      case OBJ_OBJECT: {
-        // Can be an instance or a plain object
-        ObjObject* object = AS_OBJECT(receiver);
-        if (hashtable_get_by_string(&object->fields, name, &result)) {
-          goto done_getting_property;
-        }
-        if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-          result = INT_VAL(object->fields.count);
-          goto done_getting_property;
-        }
-        break;
-      }
-      case OBJ_CLASS: {
-        ObjClass* klass = AS_CLASS(receiver);
-        if (hashtable_get_by_string(&klass->static_methods, name, &result)) {
-          goto done_getting_property;
-        }
-        // You can also get a constructor, unbound
-        if (name == vm.special_method_names[SPECIAL_METHOD_CTOR]) {
-          if (!hashtable_get_by_string(&klass->methods, name, &result)) {
-            result = NIL_VAL;
-          }
-          goto done_getting_property;
-        }
-        if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
-          result = OBJ_VAL(klass->name);
-          goto done_getting_property;
-        }
-        break;
-      }
-      case OBJ_FUNCTION:
-      case OBJ_CLOSURE:
-      case OBJ_NATIVE:
-      case OBJ_BOUND_METHOD: {
-        if (name == vm.special_prop_names[SPECIAL_PROP_NAME]) {
-          result = OBJ_VAL(fn_get_name((Obj*)AS_OBJECT(receiver)));
-          goto done_getting_property;
-        }
-        break;
-      }
-      case OBJ_TUPLE:
-      case OBJ_SEQ: {
-        if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-          ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver);
-          result           = INT_VAL(items.count);
-          goto done_getting_property;
-        }
-        break;
-      }
-      case OBJ_STRING: {
-        if (name == vm.special_prop_names[SPECIAL_PROP_LEN]) {
-          ObjString* string = AS_STRING(receiver);
-          result            = INT_VAL(string->length);
-          goto done_getting_property;
-        }
-        break;
-      }
-      default: break;
-    }
-  }
-
-  // For every value, you can access it's classes methods
-  if (bind_method(typeof_(receiver), name, &result)) {
-    goto done_getting_property;
-  }
-
-  return false;
-
-done_getting_property:
-  pop();  // Pop receiver
-  push(result);
-  return true;
-}
-
-bool value_set_property(ObjString* name) {
-  Value receiver = peek(1);
-  Value value    = peek(0);
-
-  // TODO (optimize): Maybe remove this check for reserved words. We could just allow the user to override these things. This is
-  // tightly bound to the retrieval of properties, because if we check the special props before the fields, they would always
-  // return the internal value. Currently tough, we check the fields first, because most of the time you probably want to get
-  // fields you've defined as a user. So, getting a special property would yield the value the user assigned. This is bad, because
-  // you could override e.g. the length property and cause the vm to segfault.
-
-  // Check if it is a reserved property.
-  for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
-    if (name == vm.special_prop_names[i]) {  // We can just compare pointers, because strings are interned.
-      runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, typeof_(receiver)->name->chars);
-      return false;
-    }
-  }
-
-  if (IS_OBJECT(receiver)) {
-    ObjObject* object = AS_OBJECT(receiver);
-    hashtable_set(&object->fields, OBJ_VAL(name), value);
-    goto done_setting_property;
-  }
-
-  return false;
-
-done_setting_property:
-  pop();        // Pop value
-  pop();        // Pop receiver
-  push(value);  // Push the value back onto the stack, because assignment is an expression
-  return true;
-}
-
-bool value_get_index() {
-  Value receiver = peek(1);
-  Value index    = peek(0);
-  Value result;
-
-  if (IS_OBJ(receiver)) {
-    switch (AS_OBJ(receiver)->type) {
-      case OBJ_OBJECT: {
-        // Objects return nil for non-existing indices or the value at the index
-        ObjObject* object = AS_OBJECT(receiver);
-        if (hashtable_get(&object->fields, index, &result)) {
-          goto done_getting_index;
-        }
-        result = NIL_VAL;
-        goto done_getting_index;
-      }
-      case OBJ_TUPLE:
-      case OBJ_SEQ: {
-        // Hack: Just cast to a sequence, because ObjTuple has the same layout.
-        ValueArray items = LISTLIKE_GET_VALUEARRAY(receiver);
-
-        if (!IS_INT(index)) {
-          break;  // Maybe it's a string index
-        }
-
-        long long i = AS_INT(index);
-        if (i >= items.count) {
-          result = NIL_VAL;
-          goto done_getting_index;
-        }
-
-        // Negative index
-        if (i < 0) {
-          i += items.count;
-        }
-        if (i < 0) {
-          result = NIL_VAL;
-          goto done_getting_index;
-        }
-
-        result = items.values[i];
-        goto done_getting_index;
-      }
-      case OBJ_STRING: {
-        ObjString* string = AS_STRING(receiver);
-
-        if (!IS_INT(index)) {
-          break;  // Maybe it's a string index
-        }
-
-        long long i = AS_INT(index);
-        if (i >= string->length) {
-          result = NIL_VAL;
-          goto done_getting_index;
-        }
-
-        // Negative index
-        if (i < 0) {
-          i += string->length;
-        }
-        if (i < 0) {
-          result = NIL_VAL;
-          goto done_getting_index;
-        }
-
-        ObjString* char_str = copy_string(string->chars + i, 1);
-        result              = OBJ_VAL(char_str);
-        goto done_getting_index;
-      }
-      default: break;
-    }
-  }
-
-  return false;
-
-done_getting_index:
-  pop();  // Pop receiver (or index, if it got swapped)
-  pop();  // Pop index (or receiver, if it got swapped)
-  push(result);
-  return true;
-}
-
-bool value_set_index() {
-  Value receiver = peek(2);
-  Value index    = peek(1);
-  Value value    = peek(0);
-
-  if (IS_OBJ(receiver)) {
-    switch (AS_OBJ(receiver)->type) {
-      case OBJ_OBJECT: {
-        ObjObject* object = AS_OBJECT(receiver);
-        hashtable_set(&object->fields, index, value);
-        goto done_setting_index;
-      }
-      case OBJ_SEQ: {
-        if (!IS_INT(index)) {
-          runtime_error(STR(TYPENAME_SEQ) " indices must be " STR(TYPENAME_INT) "s, but got %s.", typeof_(index)->name->chars);
-          return false;
-        }
-
-        long long i = AS_INT(index);
-        ObjSeq* seq = AS_SEQ(receiver);
-
-        if (i < 0 || i >= seq->items.count) {
-          runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
-          return false;
-        }
-
-        seq->items.values[i] = value;
-        goto done_setting_index;
-      }
-      default: break;
-    }
-  }
-
-  return false;
-
-done_setting_index:
-  pop();        // Pop value
-  pop();        // Pop index
-  pop();        // Pop receiver
-  push(value);  // Push the value back onto the stack, because assignment is an expression
-  return true;
+  push(str_value(result));
 }
 
 // Handles errors in the virtual machine.
@@ -986,7 +769,7 @@ static bool handle_error() {
 
   // Rewind the stack to the last handler, or the exit slot
   for (stack_offset = (int)(vm.stack_top - vm.stack - 1);                 // Start at the top of the stack
-       stack_offset >= exit_slot && !IS_HANDLER(vm.stack[stack_offset]);  // Stop at the exit slot or handler
+       stack_offset >= exit_slot && !is_handler(vm.stack[stack_offset]);  // Stop at the exit slot or handler
        stack_offset--)
     ;
 
@@ -1044,82 +827,82 @@ static Value run() {
 #define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_ONE()])
 
 // Read a string from the constant pool.
-#define READ_STRING() AS_STRING(READ_CONSTANT())
+#define READ_STRING() AS_STR(READ_CONSTANT())
 
 // Perform a binary operation on the top two values on the stack. This consumes two pieces of data from the
 // stack, and pushes the result.
 //
 // TODO (optimize): These probably have some potential for optimization.
-#define MAKE_BINARY_OP(operator, b_check)                                                                                     \
-  {                                                                                                                           \
-    Value b = pop();                                                                                                          \
-    Value a = pop();                                                                                                          \
-    if (IS_INT(a) && IS_INT(b)) {                                                                                             \
-      b_check;                                                                                                                \
-      push(INT_VAL(AS_INT(a) operator AS_INT(b)));                                                                            \
-      break;                                                                                                                  \
-    }                                                                                                                         \
-    if (IS_FLOAT(a)) {                                                                                                        \
-      if (IS_INT(b)) {                                                                                                        \
-        b_check;                                                                                                              \
-        push(FLOAT_VAL(AS_FLOAT(a) operator(double) AS_INT(b)));                                                              \
-        break;                                                                                                                \
-      } else if (IS_FLOAT(b)) {                                                                                               \
-        b_check;                                                                                                              \
-        push(FLOAT_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                                                    \
-        break;                                                                                                                \
-      }                                                                                                                       \
-    } else if (IS_FLOAT(b)) {                                                                                                 \
-      if (IS_INT(a)) {                                                                                                        \
-        b_check;                                                                                                              \
-        push(FLOAT_VAL((double)AS_INT(a) operator AS_FLOAT(b)));                                                              \
-        break;                                                                                                                \
-      }                                                                                                                       \
-    }                                                                                                                         \
-    runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", #operator, typeof_(a)->name->chars, \
-                  typeof_(b)->name->chars);                                                                                   \
-    goto finish_error;                                                                                                        \
+#define MAKE_BINARY_OP(operator, b_check)                                                                                 \
+  {                                                                                                                       \
+    Value b = pop();                                                                                                      \
+    Value a = pop();                                                                                                      \
+    if (is_int(a) && is_int(b)) {                                                                                         \
+      b_check;                                                                                                            \
+      push(int_value(a.as.integer operator b.as.integer));                                                                \
+      break;                                                                                                              \
+    }                                                                                                                     \
+    if (is_float(a)) {                                                                                                    \
+      if (is_int(b)) {                                                                                                    \
+        b_check;                                                                                                          \
+        push(float_value(a.as.float_ operator(double) b.as.integer));                                                     \
+        break;                                                                                                            \
+      } else if (is_float(b)) {                                                                                           \
+        b_check;                                                                                                          \
+        push(float_value(a.as.float_ operator b.as.float_));                                                              \
+        break;                                                                                                            \
+      }                                                                                                                   \
+    } else if (is_float(b)) {                                                                                             \
+      if (is_int(a)) {                                                                                                    \
+        b_check;                                                                                                          \
+        push(float_value((double)a.as.integer operator b.as.float_));                                                     \
+        break;                                                                                                            \
+      }                                                                                                                   \
+    }                                                                                                                     \
+    runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", #operator, a.type->name->chars, \
+                  b.type->name->chars);                                                                                   \
+    goto finish_error;                                                                                                    \
   }
 
 #define BIN_ADD MAKE_BINARY_OP(+, (void)0)
 #define BIN_SUB MAKE_BINARY_OP(-, (void)0)
 #define BIN_MUL MAKE_BINARY_OP(*, (void)0)
-#define BIN_DIV                                                                                         \
-  MAKE_BINARY_OP(                                                                                       \
-      /, if ((b.type == VAL_INT && b.as.integer == 0) || (b.type == VAL_FLOAT && b.as.float_ == 0.0)) { \
-          runtime_error("Division by zero.");                                                           \
-          goto finish_error;                                                                            \
+#define BIN_DIV                                                                         \
+  MAKE_BINARY_OP(                                                                       \
+      /, if ((is_int(b) && b.as.integer == 0) || (is_float(b) && b.as.float_ == 0.0)) { \
+          runtime_error("Division by zero.");                                           \
+          goto finish_error;                                                            \
         })
 
 // Perform a comparison operation on the top two values on the stack. This consumes two pieces of data from the
 // stack, and pushes the result.
 //
 // TODO (optimize): These probably have some potential for optimization.
-#define MAKE_COMPARATOR(operator)                                                                        \
-  {                                                                                                      \
-    Value b = pop();                                                                                     \
-    Value a = pop();                                                                                     \
-    if (IS_INT(a) && IS_INT(b)) {                                                                        \
-      push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                      \
-      break;                                                                                             \
-    }                                                                                                    \
-    if (IS_FLOAT(a)) {                                                                                   \
-      if (IS_INT(b)) {                                                                                   \
-        push(BOOL_VAL(AS_FLOAT(a) operator AS_INT(b)));                                                  \
-        break;                                                                                           \
-      } else if (IS_FLOAT(b)) {                                                                          \
-        push(BOOL_VAL(AS_FLOAT(a) operator AS_FLOAT(b)));                                                \
-        break;                                                                                           \
-      }                                                                                                  \
-    } else if (IS_FLOAT(b)) {                                                                            \
-      if (IS_INT(a)) {                                                                                   \
-        push(BOOL_VAL(AS_INT(a) operator AS_INT(b)));                                                    \
-        break;                                                                                           \
-      }                                                                                                  \
-    }                                                                                                    \
-    runtime_error("Incompatible types for comparison operand %s. Left was %s, right was %s.", #operator, \
-                  typeof_(a)->name->chars, typeof_(b)->name->chars);                                     \
-    goto finish_error;                                                                                   \
+#define MAKE_COMPARATOR(operator)                                                                                             \
+  {                                                                                                                           \
+    Value b = pop();                                                                                                          \
+    Value a = pop();                                                                                                          \
+    if (is_int(a) && is_int(b)) {                                                                                             \
+      push(bool_value(a.as.integer operator b.as.integer));                                                                   \
+      break;                                                                                                                  \
+    }                                                                                                                         \
+    if (is_float(a)) {                                                                                                        \
+      if (is_int(b)) {                                                                                                        \
+        push(bool_value(a.as.float_ operator b.as.integer));                                                                  \
+        break;                                                                                                                \
+      } else if (is_float(b)) {                                                                                               \
+        push(bool_value(a.as.float_ operator b.as.float_));                                                                   \
+        break;                                                                                                                \
+      }                                                                                                                       \
+    } else if (is_float(b)) {                                                                                                 \
+      if (is_int(a)) {                                                                                                        \
+        push(bool_value(a.as.integer operator b.as.integer));                                                                 \
+        break;                                                                                                                \
+      }                                                                                                                       \
+    }                                                                                                                         \
+    runtime_error("Incompatible types for comparison operand %s. Left was %s, right was %s.", #operator, a.type->name->chars, \
+                  b.type->name->chars);                                                                                       \
+    goto finish_error;                                                                                                        \
   }
 
 #define BIN_LT MAKE_COMPARATOR(<)
@@ -1147,9 +930,9 @@ static Value run() {
         push(constant);
         break;
       }
-      case OP_NIL: push(NIL_VAL); break;
-      case OP_TRUE: push(BOOL_VAL(true)); break;
-      case OP_FALSE: push(BOOL_VAL(false)); break;
+      case OP_NIL: push(nil_value()); break;
+      case OP_TRUE: push(bool_value(true)); break;
+      case OP_FALSE: push(bool_value(false)); break;
       case OP_POP: pop(); break;
       case OP_DUPE: push(peek(READ_ONE())); break;
       case OP_GET_LOCAL: {
@@ -1176,7 +959,7 @@ static Value run() {
       }
       case OP_DEFINE_GLOBAL: {
         ObjString* name = READ_STRING();
-        if (!hashtable_set(frame->globals, OBJ_VAL(name), peek(0))) {
+        if (!hashtable_set(frame->globals, str_value(name), peek(0))) {
           runtime_error("Variable '%s' is already defined.", name->chars);
           goto finish_error;
         }
@@ -1190,9 +973,9 @@ static Value run() {
       }
       case OP_SET_GLOBAL: {
         ObjString* name = READ_STRING();
-        if (hashtable_set(frame->globals, OBJ_VAL(name),
+        if (hashtable_set(frame->globals, str_value(name),
                           peek(0))) {  // peek, because assignment is an expression!
-          hashtable_delete(frame->globals, OBJ_VAL(name));
+          hashtable_delete(frame->globals, str_value(name));
           runtime_error("Undefined variable '%s'.", name->chars);
           goto finish_error;
         }
@@ -1203,48 +986,73 @@ static Value run() {
         *frame->closure->upvalues[slot]->location = peek(0);  // peek, because assignment is an expression!
         break;
       }
-      case OP_GET_INDEX: {
-        if (value_get_index()) {
+      case OP_GET_SUBSCRIPT: {
+        Value receiver = peek(1);
+        Value index    = peek(0);
+        Value result;
+        if (receiver.type->__get_subs(receiver, index, &result)) {
+          pop();
+          pop();
+          push(result);
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_get_index set an error
-          goto finish_error;
-        }
-        runtime_error("Type %s does not support get-indexing with %s.", typeof_(peek(1))->name->chars,
-                      typeof_(peek(0))->name->chars);
+        // False return value means it encountered an error
         goto finish_error;
       }
-      case OP_SET_INDEX: {
-        if (value_set_index()) {
+      case OP_SET_SUBSCRIPT: {
+        Value receiver = peek(2);
+        Value index    = peek(1);
+        Value result   = peek(0);
+        if (receiver.type->__set_subs(receiver, index, result)) {
+          pop();
+          pop();
+          pop();
+          push(result);  // Assignments are expressions
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_set_index set an error
-          goto finish_error;
-        }
-        runtime_error("Type %s does not support set-indexing with %s.", typeof_(peek(2))->name->chars,
-                      typeof_(peek(1))->name->chars);
+        // False return value means it encountered an error
         goto finish_error;
       }
       case OP_GET_PROPERTY: {
         ObjString* name = READ_STRING();
-        if (value_get_property(name)) {
+        Value receiver  = peek(0);
+        Value result;
+        if (receiver.type->__get_prop(receiver, name, &result)) {
+          pop();
+          push(result);
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Will never happen: value_get_property never sets an error. Just a precaution.
-          goto finish_error;
-        }
-        runtime_error("Property '%s' does not exist on value of type %s.", name->chars, typeof_(peek(0))->name->chars);
         goto finish_error;
+        break;
       }
       case OP_SET_PROPERTY: {
         ObjString* name = READ_STRING();
-        if (value_set_property(name)) {
+        Value receiver  = peek(1);
+        Value result    = peek(0);
+
+        // TODO (optimize): Maybe remove this check for reserved words. We could just allow the user to override these things.
+        // This is
+        // tightly bound to the retrieval of properties, because if we check the special props before the fields, they would
+        // always return the internal value. Currently tough, we check the fields first, because most of the time you probably
+        // want to get fields you've defined as a user. So, getting a special property would yield the value the user assigned.
+        // This is bad, because you could override e.g. the length property and cause the vm to segfault.
+
+        // Check if it is a reserved property.
+        for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
+          if (name == vm.special_prop_names[i]) {  // We can just compare pointers, because strings are interned.
+            runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, receiver.type->name->chars);
+            goto finish_error;
+          }
+        }
+
+        if (receiver.type->__set_prop(receiver, name, result)) {
+          pop();
+          pop();
+          push(result);  // Assignments are expressions
           break;
         }
-        if (vm.flags & VM_FLAG_HAS_ERROR) {  // Maybe value_set_property set an error
-          goto finish_error;
-        }
-        runtime_error("Type %s does not support property-set access.", typeof_(peek(1))->name->chars);
+
+        // False return value means it encountered an error
         goto finish_error;
       }
       case OP_IMPORT_FROM: {
@@ -1278,13 +1086,13 @@ static Value run() {
       case OP_EQ: {
         Value b = pop();
         Value a = pop();
-        push(BOOL_VAL(values_equal(a, b)));
+        push(bool_value(values_equal(a, b)));
         break;
       }
       case OP_NEQ: {
         Value b = pop();
         Value a = pop();
-        push(BOOL_VAL(!values_equal(a, b)));
+        push(bool_value(!values_equal(a, b)));
         break;
       }
       case OP_GT: BIN_GT
@@ -1292,7 +1100,7 @@ static Value run() {
       case OP_GTEQ: BIN_GTEQ
       case OP_LTEQ: BIN_LTEQ
       case OP_ADD: {
-        if (IS_STRING(peek(0)) && IS_STRING(peek(1))) {
+        if (is_str(peek(0)) && is_str(peek(1))) {
           concatenate();
           break;
         } else
@@ -1306,59 +1114,60 @@ static Value run() {
         Value b = pop();
         Value a = pop();
 
-        if (IS_INT(a) && IS_INT(b)) {
-          if (AS_INT(b) == 0) {
+        if (is_int(a) && is_int(b)) {
+          if (b.as.integer == 0) {
             runtime_error("Modulo by zero.");
             goto finish_error;
           }
-          push(INT_VAL(AS_INT(a) % AS_INT(b)));
+          push(int_value(a.as.integer % b.as.integer));
           break;
         }
 
-        if (IS_FLOAT(a)) {
-          if (IS_INT(b)) {
-            if (AS_INT(b) == 0) {
+        if (is_float(a)) {
+          if (is_int(b)) {
+            if (b.as.integer == 0) {
               runtime_error("Modulo by zero.");
               goto finish_error;
             }
-            push(FLOAT_VAL(fmod(AS_FLOAT(a), (double)AS_INT(b))));
+            push(float_value(fmod(a.as.float_, (double)b.as.integer)));
             break;
-          } else if (IS_FLOAT(b)) {
-            if (AS_FLOAT(b) == 0) {
+          } else if (is_float(b)) {
+            if (b.as.float_ == 0) {
               runtime_error("Modulo by zero.");
               goto finish_error;
             }
-            push(FLOAT_VAL(fmod(AS_FLOAT(a), AS_FLOAT(b))));
+            push(float_value(fmod(a.as.float_, b.as.float_)));
             break;
           }
-        } else if (IS_FLOAT(b)) {
-          if (IS_INT(a)) {
-            if (AS_INT(b) == 0) {
+        } else if (is_float(b)) {
+          if (is_int(a)) {
+            if (b.as.integer == 0) {
               runtime_error("Modulo by zero.");
               goto finish_error;
             }
-            push(FLOAT_VAL(fmod((double)AS_INT(a), AS_FLOAT(b))));
+            push(float_value(fmod((double)a.as.integer, b.as.float_)));
             break;
           }
         }
 
-        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", typeof_(a)->name->chars,
-                      typeof_(b)->name->chars);
+        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", a.type->name->chars,
+                      b.type->name->chars);
         goto finish_error;
       }
-      case OP_NOT: push(BOOL_VAL(is_falsey(pop()))); break;
+      case OP_NOT: push(bool_value(is_falsey(pop()))); break;
       case OP_NEGATE: {
-        switch (peek(0).type) {
-          case VAL_INT: push(INT_VAL(-AS_INT(pop()))); break;
-          case VAL_FLOAT: push(FLOAT_VAL(-AS_FLOAT(pop()))); break;
-          default:
-            runtime_error("Type for unary - must be a " STR(TYPENAME_NUM) ". Was %s.", typeof_(peek(0))->name->chars);
-            goto finish_error;
+        if (is_int(peek(0))) {
+          push(int_value(-((pop()).as.integer)));
+        } else if (is_float(peek(0))) {
+          push(float_value(-((pop()).as.float_)));
+        } else {
+          runtime_error("Type for unary - must be a " STR(TYPENAME_NUM) ". Was %s.", peek(0).type->name->chars);
+          goto finish_error;
         }
         break;
       }
       case OP_PRINT: {
-        ObjString* str = AS_STRING(exec_callable(typeof_(peek(0))->__to_str, 0));
+        ObjString* str = (ObjString*)exec_callable(fn_value(peek(0).type->__to_str), 0).as.obj;
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           goto finish_error;
         }
@@ -1399,7 +1208,7 @@ static Value run() {
       case OP_TRY: {
         uint16_t try_target = READ_ONE();
         uint16_t offset = frame->ip - frame->closure->function->chunk.code;  // Offset from start of callframe to the try block
-        Value handler   = HANDLER_VAL(try_target + offset);
+        Value handler   = handler_value(try_target + offset);
         push(handler);
         break;
       }
@@ -1414,7 +1223,7 @@ static Value run() {
           if (vm.flags & VM_FLAG_HAS_ERROR) {
             goto finish_error;
           }
-          return NIL_VAL;
+          return nil_value();
         }
         frame = &vm.frames[vm.frame_count - 1];  // Set the frame to the current frame
         break;
@@ -1422,11 +1231,11 @@ static Value run() {
       case OP_INVOKE: {
         ObjString* method = READ_STRING();
         int arg_count     = READ_ONE();
-        if (invoke(method, arg_count) == CALL_FAILED) {
+        if (invoke(NULL, method, arg_count) == CALL_FAILED) {
           if (vm.flags & VM_FLAG_HAS_ERROR) {
             goto finish_error;
           }
-          return NIL_VAL;
+          return nil_value();
         }
         frame = &vm.frames[vm.frame_count - 1];
         break;
@@ -1434,12 +1243,12 @@ static Value run() {
       case OP_BASE_INVOKE: {
         ObjString* method   = READ_STRING();
         int arg_count       = READ_ONE();
-        ObjClass* baseclass = AS_CLASS(pop());
-        if (invoke_from_class(baseclass, method, arg_count) == CALL_FAILED) {
+        ObjClass* baseclass = AS_CLASS(pop());  // Leaves 'this' on the stack, followed by the arguments (if any)
+        if (invoke(baseclass, method, arg_count) == CALL_FAILED) {
           if (vm.flags & VM_FLAG_HAS_ERROR) {
             goto finish_error;
           }
-          return NIL_VAL;
+          return nil_value();
         }
         frame = &vm.frames[vm.frame_count - 1];
         break;
@@ -1447,7 +1256,7 @@ static Value run() {
       case OP_CLOSURE: {
         ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
         ObjClosure* closure   = new_closure(function);
-        push(OBJ_VAL(closure));
+        push(fn_value((Obj*)closure));
 
         // Bring closure to life
         for (int i = 0; i < closure->upvalue_count; i++) {
@@ -1483,16 +1292,16 @@ static Value run() {
       }
       case OP_CLASS: {
         // Initially, a class always inherits from Obj
-        ObjClass* klass = new_class(READ_STRING(), vm.__builtin_Obj_class);
-        push(OBJ_VAL(klass));
+        ObjClass* klass = new_class(READ_STRING(), vm.obj_class);
+        push(class_value(klass));
         hashtable_add_all(&klass->base->methods, &klass->methods);
         break;
       }
       case OP_INHERIT: {
         Value baseclass    = peek(1);
         ObjClass* subclass = AS_CLASS(peek(0));
-        if (!IS_CLASS(baseclass)) {
-          runtime_error("Base class must be a class. Was %s.", typeof_(baseclass)->name->chars);
+        if (!is_class(baseclass)) {
+          runtime_error("Base class must be a class. Was %s.", baseclass.type->name->chars);
           goto finish_error;
         }
         hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);
@@ -1510,31 +1319,24 @@ static Value run() {
         Value type  = pop();
         Value value = pop();
 
-        if (!IS_CLASS(type)) {
-          runtime_error("Type must be a class. Was %s.", typeof_(type)->name->chars);
+        if (!is_class(type)) {
+          runtime_error("Type must be a class. Was %s.", type.type->name->chars);
           goto finish_error;
         }
 
-        ObjClass* value_klass = typeof_(value);
-        ObjString* type_name  = AS_CLASS(type)->name;
+        ObjClass* value_klass = value.type;
+        ObjClass* type_klass  = AS_CLASS(type);
 
-        bool result = false;
-        while (value_klass != NULL) {
-          if (strcmp(value_klass->name->chars, type_name->chars) == 0) {
-            result = true;
-            break;
-          }
-          value_klass = value_klass->base;
-        }
+        bool result = inherits(value_klass, type_klass);
 
-        push(BOOL_VAL(result));
+        push(bool_value(result));
         break;
       }
       case OP_IN: {
         Value in_target = peek(0);
         Value value     = peek(1);
 
-        ObjClass* target_type = typeof_(in_target);
+        ObjClass* target_type = in_target.type;
 
         push(in_target);  // Receiver
         push(value);      // Argument
@@ -1543,16 +1345,16 @@ static Value run() {
                         target_type->name->chars);
           goto finish_error;
         }
-        Value result = exec_callable(target_type->__has, 1);
+        Value result = exec_callable(fn_value(target_type->__has), 1);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           goto finish_error;
         }
 
         // Since users can override this, we should that we got a bool back.
         // Could also just use is_falses, to be less strict - but for now I like this better.
-        if (!IS_BOOL(result)) {
+        if (!is_bool(result)) {
           runtime_error("Method '" STR(SP_METHOD_HAS) "' on type %s must return a " STR(TYPENAME_BOOL) ", but got %s.",
-                        target_type->name->chars, typeof_(result)->name->chars);
+                        target_type->name->chars, result.type->name->chars);
           goto finish_error;
         }
 
@@ -1563,13 +1365,13 @@ static Value run() {
       }
       case OP_GET_SLICE: {
         // [receiver][start][end] is on the stack
-        ObjClass* type = typeof_(peek(2));
+        ObjClass* type = peek(2).type;
         if (type->__slice == NULL) {
           runtime_error("Type %s does not support slicing. It must implement '" STR(SP_METHOD_SLICE) "'.", type->name->chars);
           goto finish_error;
         }
 
-        Value result = exec_callable(type->__slice, 2);
+        Value result = exec_callable(fn_value(type->__slice), 2);
         if (vm.flags & VM_FLAG_HAS_ERROR) {
           goto finish_error;
         }
@@ -1592,17 +1394,17 @@ static Value run() {
 
   finish_error:
     if (handle_error()) {
-      frame     = &vm.frames[vm.frame_count - 1];                              // Get the current frame
-      frame->ip = frame->closure->function->chunk.code + AS_HANDLER(peek(0));  // Jump to the handler
+      frame     = &vm.frames[vm.frame_count - 1];                             // Get the current frame
+      frame->ip = frame->closure->function->chunk.code + peek(0).as.handler;  // Jump to the handler
 
       // Remove the handler from the stack and push the error value
       pop();
       push(vm.current_error);
 
       // We're done with the error, so we can clear it
-      vm.current_error = NIL_VAL;
+      vm.current_error = nil_value();
     } else {
-      return NIL_VAL;
+      return nil_value();
     }
   }
 
@@ -1625,25 +1427,25 @@ static Value run() {
 
 ObjObject* make_module(const char* source_path, const char* module_name) {
   ObjObject* prev_module = vm.module;
-  ObjObject* module      = new_instance(vm.__builtin_Module_class);
+  ObjObject* module      = new_instance(vm.module_class);
 
   // We need to have the new module active for the duration of the module creation.
   // We'll restore it afterwards.
   vm.module = module;
 
-  // Add a reference to the builtin instance, providing access to the builtin functions
+  // Add a reference to the builtin instance, providing access to the builtin stuff.
   // TODO (refactor): Remove this (including the INSTANCENAME_BUILTIN Macro) - I think it's not needed,
   // because vm.builtin is used everywhere.
-  define_obj(&module->fields, INSTANCENAME_BUILTIN, (Obj*)vm.builtin);
+  define_value(&module->fields, INSTANCENAME_BUILTIN, instance_value(vm.builtin));
   // Add a reference to the module name, mostly used for stack traces
-  define_obj(&module->fields, STR(SP_PROP_MODULE_NAME), (Obj*)(copy_string(module_name, (int)strlen(module_name))));
+  define_value(&module->fields, STR(SP_PROP_MODULE_NAME), str_value(copy_string(module_name, (int)strlen(module_name))));
 
   // Add a reference to the file path of the module, if available
   if (source_path == NULL) {
-    hashtable_set(&module->fields, OBJ_VAL(vm.special_method_names[SPECIAL_PROP_FILE_PATH]), NIL_VAL);
+    hashtable_set(&module->fields, str_value(vm.special_method_names[SPECIAL_PROP_FILE_PATH]), nil_value());
   } else {
     char* base_dir_path = base(source_path);
-    define_obj(&module->fields, STR(SP_PROP_FILE_PATH), (Obj*)(copy_string(base_dir_path, (int)strlen(base_dir_path))));
+    define_value(&module->fields, STR(SP_PROP_FILE_PATH), str_value(copy_string(base_dir_path, (int)strlen(base_dir_path))));
     free(base_dir_path);
   }
 
@@ -1668,19 +1470,19 @@ Value interpret(const char* source, const char* source_path, const char* module_
   ObjFunction* function = compile_module(source);
   if (function == NULL) {
     exit_with_compile_error();
-    return NIL_VAL;
+    return nil_value();
   }
 
-  push(OBJ_VAL(function));
+  push(fn_value((Obj*)function));
   ObjClosure* closure = new_closure(function);
   pop();
-  push(OBJ_VAL(closure));
-  call_value(OBJ_VAL(closure), 0);
+  push(fn_value((Obj*)closure));
+  call_value(fn_value((Obj*)closure), 0);
 
   Value result = run();
 
   if (is_module) {
-    Value out = OBJ_VAL(vm.module);
+    Value out = instance_value(vm.module);
     vm.module = enclosing_module;
     return out;
   }
@@ -1698,7 +1500,7 @@ Value run_file(const char* path, const char* module_name) {
 
   if (source == NULL) {
     free(source);
-    return NIL_VAL;
+    return nil_value();
   }
 
   Value result = interpret(source, path, name);

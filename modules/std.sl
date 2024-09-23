@@ -11,15 +11,15 @@ cls Range {
       let i = index
       fn next()  {
         if i >= self.max {
-          ret nil;
+          ret nil
         }
         let out = i
         i = i + 1
-        ret out;
+        ret out
       }
-      ret next;
+      ret next
     }
-    ret make_iter(this.min);
+    ret make_iter(this.min)
   }
 }
 
@@ -32,18 +32,18 @@ cls List {
   fn map(f) {
     if typeof(f).__name != typeof(fn -> nil).__name {
       print "Error: map requires a function as an argument"
-      ret nil;
+      ret nil
     }
 
     let out = List(this.data.len)
     for let i = 0 ; i < this.data.len ; i = i + 1 ; {
       out.data[i] = f(this.data[i], i)
     }
-    ret out;
+    ret out
   }
 
   fn to_str() {
-    ret "List of " + this.data.len.to_str() + " elements. Items: " + this.data.to_str();
+    ret "List of " + this.data.len.to_str() + " elements. Items: " + this.data.to_str()
   }
 }
 
@@ -54,8 +54,8 @@ cls Monad {
 
   fn bind(f) {
     if this.value == nil {
-      ret this;
+      ret this
     }
-    ret Monad(f(this.value));
+    ret Monad(f(this.value))
   }
 }

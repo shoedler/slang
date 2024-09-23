@@ -37,8 +37,8 @@ print {} is Seq      // [Expect] false
 // is Obj
 print {} is Obj      // [Expect] true
 print {1: 2} is Obj  // [Expect] true
-print [] is Obj      // [Expect] true
-print "" is Obj      // [Expect] true
+print [] is Obj      // [Expect] false
+print "" is Obj      // [Expect] false
 // Maybe nil, num, bool do not inherit from Obj:
 print nil is Obj     // [Expect] false
 print 0 is Obj       // [Expect] false

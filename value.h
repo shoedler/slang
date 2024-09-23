@@ -8,18 +8,9 @@ typedef struct Obj Obj;
 typedef struct ObjString ObjString;
 typedef struct ObjSeq ObjSeq;
 typedef struct ObjTuple ObjTuple;
+typedef struct ObjClass ObjClass;
 
-// The type of a value.
-typedef enum {
-  VAL_BOOL,
-  VAL_NIL,
-  VAL_FLOAT,
-  VAL_INT,
-  VAL_OBJ,
-  VAL_HANDLER,
-  VAL_EMPTY_INTERNAL,
-} ValueType;
-
+#define TYPENAME_VALUE Value
 #define TYPENAME_OBJ Obj
 #define TYPENAME_FLOAT Float
 #define TYPENAME_INT Int
@@ -76,7 +67,7 @@ typedef enum {
 
 // The single value construct used to represent all values in the language.
 typedef struct {
-  ValueType type;
+  ObjClass* type;
   union {
     bool boolean;
     double float_;
@@ -85,72 +76,6 @@ typedef struct {
     Obj* obj;
   } as;
 } Value;
-
-// Determines whether a value is of type boolean.
-#define IS_BOOL(value) ((value).type == VAL_BOOL)
-
-// Determines whether a value is of type nil.
-#define IS_NIL(value) ((value).type == VAL_NIL)
-
-// Determines whether a value is of type integer.
-#define IS_INT(value) ((value).type == VAL_INT)
-
-// Determines whether a value is of type float.
-#define IS_FLOAT(value) ((value).type == VAL_FLOAT)
-
-// Determines whether a value is of type object.
-#define IS_OBJ(value) ((value).type == VAL_OBJ)
-
-// Determines whether a value is of type (error) handler.
-#define IS_HANDLER(value) ((value).type == VAL_HANDLER)
-
-// Determines whether a value is of type empty.
-// Users will never see this type, it is used internally to represent empty buckets in the
-// hashtable.
-#define IS_EMPTY_INTERNAL(value) ((value).type == VAL_EMPTY_INTERNAL)
-
-// Unpacks a value into a C boolean.
-// Value must be of type bool.
-#define AS_BOOL(value) ((value).as.boolean)
-
-// Unpacks a value into a C long long.
-// Value must be of type Int.
-#define AS_INT(value) ((value).as.integer)
-
-// Unpacks a value into a C double.
-// Value must be of type Float.
-#define AS_FLOAT(value) ((value).as.float_)
-
-// Unpacks a value into a C object pointer.
-// Value must be of type object.
-#define AS_OBJ(value) ((value).as.obj)
-
-// Unpacks a value into a C long long.
-// Value must be of type (error) handler.
-#define AS_HANDLER(value) ((value).as.handler)
-
-// Converts a C boolean into a value.
-#define BOOL_VAL(value) ((Value){VAL_BOOL, {.boolean = value}})
-
-// The singleton nil value.
-#define NIL_VAL ((Value){VAL_NIL, {.integer = 0}})
-
-// Converts a C long long into a value.
-#define INT_VAL(value) ((Value){VAL_INT, {.integer = value}})
-
-// Converts a C double into a value.
-#define FLOAT_VAL(value) ((Value){VAL_FLOAT, {.float_ = value}})
-
-// Converts a C object pointer into a value.
-#define OBJ_VAL(object) ((Value){VAL_OBJ, {.obj = (Obj*)object}})
-
-// Converts a C long long into a value.
-#define HANDLER_VAL(value) ((Value){VAL_HANDLER, {.handler = value}})
-
-// The singleton empty value.
-// Users will never see this value, it is used internally to represent empty buckets in the
-// hashtable.
-#define EMPTY_INTERNAL_VAL ((Value){VAL_EMPTY_INTERNAL, {.integer = 0}})
 
 // Dynamic array of values. This represents the constant pool of a chunk.
 // See https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
@@ -180,10 +105,6 @@ Value remove_at_value_array(ValueArray* array, int index);
 
 // Free a value array.
 void free_value_array(ValueArray* array);
-
-// Returns true if a floating point number is an integer, false otherwise.
-// Assignes the resulting integer value to the long long pointer.
-bool is_int(double number, long long* integer);
 
 // Get the hashcode of a value, based on its type.
 uint64_t hash_value(Value value);

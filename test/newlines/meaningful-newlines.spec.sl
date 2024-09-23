@@ -3,7 +3,7 @@ let a = [1,2,3]
 [4].map(fn (x) { print x }) // [Expect] 4
 
 // Where it would've been read as:
-print try a = [1,2,3][4].map(fn (x) { print x }) else error // [Expect] Undefined method 'map' in type Nil.
+print try a = [1,2,3][4].map(fn (x) { print x }) else error // [Expect] Undefined callable 'map' in type Nil.
 // before meaningful newlines were added.
 
 // Also, chaining method calls kinda breaks the rule of one statement per line. But it's an exception:

@@ -1,6 +1,7 @@
 // print "--------------------------------------------------------------------------------"
 // print "Basic"
-// print "--------------------------------------------------------------------------------"
+// print "--------------------------------------------------------------------------------"b
+// print "string"
 // print 123
 // print 123.123
 // print 0xDEADBEEF // 3735928559
@@ -10,14 +11,16 @@
 // print "--------------------------------------------------------------------------------"
 // print "Conditionals"
 // print "--------------------------------------------------------------------------------"
+// // nil and false are falsy - everything else is considered truthy
 // let a = 123
 // if a a = 321
 // print a // 321
 
 // let b = "Hi"
-// if !b b = "?" else b = b + " Wrld"
+// if !b b = "?" else b += " Wrld"
 // print b // "Hi Wrld"
 
+// // Short-circuiting operators: and, or
 // if a and b print "a and b is Truthy!"
 // if a or b print "a or b is Truthy!"
 
@@ -101,7 +104,6 @@
 // print "--------------------------------------------------------------------------------"
 // print "Functions can be recursive"
 // print "--------------------------------------------------------------------------------"
-// let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
 
 // // With native functions. Here, timed with clock()
 // let start = clock()
@@ -225,20 +227,15 @@
 // }
 
 // cls Validators { 
-//   ctor { this.num = 3 }
-//   fn is_num_3(x) { ret x == this.num }
+//   static fn is_num_3(x) { ret x == 3 }
 // }
-
-// let validators = Validators()
 
 // print [1,3,4].has(2)
 // print [1,3,4].has(3)
 // print [1,3,4].has(is_num)
-// print [1,3,4].has(validators.is_num_3)
-// validators.num = 2
-// print [1,3,4].has(validators.is_num_3)
-
-// print [].has.__doc
+// print [1,3,4].has(Validators.is_num_3)
+// Validators.num = 2
+// print [1,3,4].has(Validators.is_num_3)
 
 // // 
 // // Seq.first
@@ -418,27 +415,6 @@
 
 // print cwd()
 // print std.__file_path
-
-// print Nil.ctor.__doc
-// print Bool.ctor.__doc
-// print Num.ctor.__doc
-// print Str.ctor.__doc
-// print Seq.ctor.__doc
-// print Obj.ctor.__doc
-
-// // These have no docstrings:
-// print "".to_str.__doc
-// print "".len.__doc
-// print (fn->1).__doc
-// print sample_fn.__doc
-// print [1,23].__doc
-// print Sample.__doc
-// print Sample().__doc
-
-// print clock.__doc
-// print typeof.__doc
-// print cwd.__doc
-// print log.__doc
 
 // print "--------------------------------------------------------------------------------"
 // print "Objs"
@@ -664,3 +640,14 @@
 // Assert.that(fn {throw "Error"}, Does.throw_("Error"))
 // Assert.that(fn {}, Does.not_throw())
 // Assert.that(fn {throw "Error"}, Does.not_throw())
+
+// cls A {
+//   ctor {
+//     this.a = 1
+//     this.b = 2
+//   }
+// }
+
+// print A().entries() // [Expect] [[a, 1], [b, 2]]
+// print A()["a"]      // [Expect] 1
+// print A()["b"]      // [Expect] 2  
