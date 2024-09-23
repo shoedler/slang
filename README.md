@@ -2,7 +2,7 @@
 
 # slang
 
-A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), garbage-collected and object-oriented programming language with a syntax that is inspired by C#, JavaScript and Python.
+A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), garbage-collected and object-oriented programming language with a syntax that is inspired by C#, JavaScript and Python - just less verbose.
 
 > [!NOTE]
 >
@@ -10,8 +10,17 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 
 ## Why?
 
-I'm a huge JavaScript fan. I also like C# and Python - at least syntactically. I wanted to create a less-verbose language that heavily relies on the JavaScript syntax, but also incorporates some of the features of C# and Python.
-Funcionality-wise, I had some minor gripes with JavaScript. The major one being the fact that you can't use reference types to index into objects (Spoiler alert: You can in Slang).
+The main goal of this language is to be able to solve problems with succinct code. It's aimed at developers who like competitive programming or just want to write code that is concise. It's also a great language to learn how programming languages work under the hood, because it's relatively simple.
+
+It's a less-verbose language that relies on the JavaScript syntax, but also incorporates some of the features of C# and Python.
+It also tries to approach some things differently than JavaScript - The major "thing" being the fact that you can use reference types to index into objects and the presence of a tuple type, which features a reproducible hash. This is particularly nice if you're into dynamic-programming.
+You can, for example, easily cache stuff:
+
+![image](https://github.com/user-attachments/assets/ab4f1c28-52e6-4bd0-b519-657355f806fa)
+
+> [!TIP]
+> Currently, there is no Wiki or "Getting Started" or the like.
+> The best way to see what it can do is to checkout `sample.sl` in the repository root, or the tests in the `test` directory.
 
 ## References
 
