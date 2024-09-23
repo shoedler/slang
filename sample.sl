@@ -1,6 +1,7 @@
 // print "--------------------------------------------------------------------------------"
 // print "Basic"
-// print "--------------------------------------------------------------------------------"
+// print "--------------------------------------------------------------------------------"b
+// print "string"
 // print 123
 // print 123.123
 // print 0xDEADBEEF // 3735928559
@@ -10,14 +11,16 @@
 // print "--------------------------------------------------------------------------------"
 // print "Conditionals"
 // print "--------------------------------------------------------------------------------"
+// // nil and false are falsy - everything else is considered truthy
 // let a = 123
 // if a a = 321
 // print a // 321
 
 // let b = "Hi"
-// if !b b = "?" else b = b + " Wrld"
+// if !b b = "?" else b += " Wrld"
 // print b // "Hi Wrld"
 
+// // Short-circuiting operators: and, or
 // if a and b print "a and b is Truthy!"
 // if a or b print "a or b is Truthy!"
 
@@ -224,18 +227,15 @@
 // }
 
 // cls Validators { 
-//   ctor { this.num = 3 }
-//   fn is_num_3(x) { ret x == this.num }
+//   static fn is_num_3(x) { ret x == 3 }
 // }
-
-// let validators = Validators()
 
 // print [1,3,4].has(2)
 // print [1,3,4].has(3)
 // print [1,3,4].has(is_num)
-// print [1,3,4].has(validators.is_num_3)
-// validators.num = 2
-// print [1,3,4].has(validators.is_num_3)
+// print [1,3,4].has(Validators.is_num_3)
+// Validators.num = 2
+// print [1,3,4].has(Validators.is_num_3)
 
 // // 
 // // Seq.first
@@ -415,8 +415,6 @@
 
 // print cwd()
 // print std.__file_path
-
-
 
 // print "--------------------------------------------------------------------------------"
 // print "Objs"
