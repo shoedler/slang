@@ -185,7 +185,7 @@ extern Value native_typeof(int argc, Value argv[]);
 
 /**
  * TYPENAME_T.SP_METHOD_HAS(value: TYPENAME_VALUE) -> TYPENAME_BOOL
- * @brief Returns VALUE_STR_TRUE if the TYPENAME_T contains a vlaue which equals 'value'.
+ * @brief Returns VALUE_STR_TRUE if the TYPENAME_T contains a value which equals 'value'.
  *
  * TYPENAME_T.SP_METHOD_HAS(pred: TYPENAME_FUNCTION -> TYPENAME_BOOL) -> TYPENAME_BOOL
  * @brief Returns VALUE_STR_TRUE if the TYPENAME_T contains a value for which 'pred' evaluates to VALUE_STR_TRUE.

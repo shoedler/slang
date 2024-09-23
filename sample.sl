@@ -101,7 +101,6 @@
 // print "--------------------------------------------------------------------------------"
 // print "Functions can be recursive"
 // print "--------------------------------------------------------------------------------"
-// let fib = fn (n) -> n <= 1 and n or fib(n-1) + fib(n-2)
 
 // // With native functions. Here, timed with clock()
 // let start = clock()
@@ -653,23 +652,4 @@
 
 // print A().entries() // [Expect] [[a, 1], [b, 2]]
 // print A()["a"]      // [Expect] 1
-// print A()["b"]      // [Expect] 2
-
-cls A {
-  fn foo() {
-    print "A.foo()"
-  }
-}
-
-cls B : A {}
-
-cls C : B {
-  fn foo() {
-    print "C.foo()"
-    base.foo()
-  }
-}
-
-C().foo()
-// [Expect] C.foo()
-// [Expect] A.foo()
+// print A()["b"]      // [Expect] 2  

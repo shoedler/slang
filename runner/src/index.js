@@ -15,7 +15,7 @@ import {
   ok,
   runSlangFile,
   separator,
-  testGcStressFlag,
+  testFeatureFlag,
   warn,
 } from './utils.js';
 import { watch } from './watch.js';
@@ -48,12 +48,17 @@ const validateOptions = () => {
 };
 
 // Check if the GC stress flag is set to the expected value. If not, print a warning
-const checkGcStressFlagForTests = async () => {
-  const gcStressEnabled = await testGcStressFlag(); // Enable stress GC for tests
+const checkFeatureFlagsForTests = async () => {
+  const gcStressEnabled = await testFeatureFlag('DEBUG_STRESS_GC'); // Enable stress GC for tests
   if (!gcStressEnabled) {
     warn(
       "GC stress mode is disabled. Should be enabled to ensure that the GC only collects what it's supposed to collect.",
     );
+  }
+
+  const ansiColorsEnabled = await testFeatureFlag('ENABLE_COLOR_OUTPUT');
+  if (ansiColorsEnabled) {
+    abort('ANSI colors are enabled. Must be disabled for tests to ensure consistent results.');
   }
 };
 
@@ -81,7 +86,7 @@ switch (cmd) {
     const langPattern = options.pop();
     validateOptions();
 
-    const gcStressEnabled = await testGcStressFlag(); // Disable stress GC for benchmarks
+    const gcStressEnabled = await testFeatureFlag('DEBUG_STRESS_GC'); // Disable stress GC for benchmarks
     if (gcStressEnabled) {
       abort(
         'GC stress mode is enabled. Must be disabled for benchmarks to ensure consistent results.',
@@ -113,7 +118,7 @@ switch (cmd) {
     const testNamePattern = options.pop() || '.*';
     validateOptions();
 
-    await checkGcStressFlagForTests();
+    await checkFeatureFlagsForTests();
     await buildSlangConfig(config);
     await runTests(config, undefined, doUpdateFiles, testNamePattern);
     break;
@@ -185,7 +190,7 @@ switch (cmd) {
       async (signal, triggerFile, isFirstRun) => {
         // Only build if the trigger file is not a test file, or if it is the first run
         if (isFirstRun || !triggerFile.endsWith(SLANG_TEST_SUFFIX)) {
-          await checkGcStressFlagForTests();
+          await checkFeatureFlagsForTests();
           const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
           if (!didBuild) {
             return;

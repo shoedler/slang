@@ -483,7 +483,7 @@ static void dot(bool can_assign) {
   }
 }
 
-// Compiles an subscripting expression.
+// Compiles a subscripting expression.
 // The opening bracket has already been consumed and is referenced by the
 // previous token.
 static void subscripting(bool can_assign) {

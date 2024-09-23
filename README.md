@@ -57,10 +57,16 @@ A stack-based bytecode Vm written in C. It's a dynamically typed (_currently_), 
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
 - [ ] Add `error` to the reserved words
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
+- [ ] Generalized calls. This is optional, but could enhance the language.
+  - [ ] Move `hash_value` to types (`uint64_t ObjClass.__hash(value: Value)`)
+  - [ ] Move `to_str` to types (`Obj ObjClass.__to_str(value: Value)`)
+  - [ ] Move `values_equal` to types (`bool ObjClass.__eq(a: Value, b: Value)`) **DUPE**, see "Optimizations".
 
 ### Optimizations
 
-- [ ] Use `memcpy` for concat and such (See `Seq(Tuple)` ctor for an example). Check for for-loops in the builtin methods.
+- [ ] Move `values_equal` to types (`bool ObjClass.__eq(a: Value, b: Value)`) - this would make `values_equal` obsolete.
+- [ ] Make a `immortal` flag on `Obj` to prevent it from being collected. This could be a big perf gain - though we still have to make sure that nested objects "inherit" this flag.
+- [ ] Use `memcpy` for concat and such (See `Seq(Tuple)` ctor for an example). Check for for-loops in the builtin methods. Need to test if this copies values by reference or by value. Needs a decision on on how we want to handle that.
 - [ ] Make stringification faster.
 - [ ] Inline `push()`, `peek()` and `pop()` in the Vm.
 - [ ] Make a `NATIVE_METHOD_RUNTIME_ERROR(class_name, method_name)` macro, which throws a runtime error with a nice prefix and always returns `NIL_VAL`. Use this in all `NATIVE_METHOD_IMPL` functions.
