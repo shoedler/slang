@@ -325,8 +325,9 @@ static void sweep() {
 void collect_garbage() {
 #ifdef DEBUG_LOG_GC
   printf("== Gc begin collect ==\n");
-  size_t before = vm.bytes_allocated;
 #endif
+
+  size_t before = vm.bytes_allocated;
 
   mark_roots();
   trace_references();
@@ -348,8 +349,10 @@ void collect_garbage() {
     vm.next_gc = vm.bytes_allocated + GC_HEAP_GROW_THRESHOLD;
   }
 
+  vm.prev_gc_freed = before - vm.bytes_allocated;
+
 #ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") "Done. collected %zu bytes (from %zu to %zu) next at %zu\n", before - vm.bytes_allocated, before,
+  printf(ANSI_RED_STR("[GC] ") "Done. collected %zu bytes (from %zu to %zu) next at %zu\n", vm.prev_gc_freed, before,
          vm.bytes_allocated, vm.next_gc);
   printf("== Gc end collect ==\n");
 #endif

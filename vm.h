@@ -94,8 +94,9 @@ typedef struct {
   ObjString* special_method_names[SPECIAL_METHOD_MAX];  // Special method names for quick access
   ObjString* special_prop_names[SPECIAL_PROP_MAX];      // Special prop names for quick access
 
-  size_t bytes_allocated;
-  size_t next_gc;
+  size_t bytes_allocated; // Number of bytes currently allocated.
+  size_t prev_gc_freed;   // Number of bytes freed in the last garbage collection.
+  size_t next_gc;         // Number of bytes at which the next garbage collection will occur.
   int gray_count;
   int gray_capacity;
   Obj** gray_stack;  // Worklist for the garbage collector. This field is not

@@ -233,6 +233,7 @@ void init_vm() {
   vm.objects         = NULL;
   vm.module          = NULL;  // No active module
   vm.bytes_allocated = 0;
+  vm.prev_gc_freed   = 0;
   vm.next_gc         = GC_DEFAULT_THRESHOLD;
   vm.gray_count      = 0;
   vm.gray_capacity   = 0;
@@ -351,6 +352,7 @@ void init_vm() {
   register_native_file_module();
   register_native_perf_module();
   register_native_debug_module();
+  register_native_gc_module();
 
   vm.flags &= ~VM_FLAG_PAUSE_GC;  // Unpause
 

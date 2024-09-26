@@ -49,6 +49,9 @@ extern void register_native_perf_module();
 // Registers the native debug module
 extern void register_native_debug_module();
 
+// Registers the native gc module
+extern void register_native_gc_module();
+
 //
 // Native function-, method- and class-declarations
 //
