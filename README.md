@@ -52,10 +52,6 @@ You can, for example, easily cache stuff:
 - [ ] Implement `Json` module
 - [ ] Implement `Math` module
 - [ ] Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`
-- [ ] Implement `Set` class
-- [ ] Implement `Set.add(Obj) -> Nil` as a builtin
-- [ ] Implement `Set.del(Obj) -> Nil` as a builtin
-- [ ] Implement `Seq(Set)` constructor
 - [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
 - [ ] Implement `Gc` module
 - [ ] Implement `Gc collect() -> Nil` as a builtin
@@ -63,6 +59,10 @@ You can, for example, easily cache stuff:
 - [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
 - [ ] Implement `nameof` keyword. E.g. `nameof(foo)` returns `"foo"`. (**_See Challenge 22.1_**)
 - [ ] Implement `Float.nan` and `Float.inf` constants.
+- [ ] Implement `Set` class
+- [ ] Implement `Set.add(Obj) -> Nil` as a builtin
+- [ ] Implement `Set.del(Obj) -> Nil` as a builtin
+- [ ] Implement `Seq(Set)` constructor
 - [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
 
 ## Improvements
