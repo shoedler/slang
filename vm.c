@@ -1353,7 +1353,7 @@ static Value run() {
         }
 
         // Since users can override this, we should that we got a bool back.
-        // Could also just use is_falses, to be less strict - but for now I like this better.
+        // Could also just use is_falsey, to be less strict - but for now I like this better.
         if (!is_bool(result)) {
           runtime_error("Method '" STR(SP_METHOD_HAS) "' on type %s must return a " STR(TYPENAME_BOOL) ", but got %s.",
                         target_type->name->chars, result.type->name->chars);
