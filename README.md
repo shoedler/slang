@@ -44,6 +44,7 @@ You can, for example, easily cache stuff:
 
 ### Language Features
 
+- [ ] Implement `Int` division with `//`.
 - [ ] Implement `for ... in ...;` loops
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
@@ -57,13 +58,13 @@ You can, for example, easily cache stuff:
 - [ ] Implement `Set.del(Obj) -> Nil` as a builtin
 - [ ] Implement `Seq(Set)` constructor
 - [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
-- [ ] Implement `Gc` module
-- [ ] Implement `Gc collect() -> Nil` as a builtin
-- [ ] Implement `Gc stats() -> Obj` as a builtin
+- [x] ~~Implement `Gc` module~~
+- [x] ~~Implement `Gc collect() -> Nil` as a builtin~~
+- [x] ~~Implement `Gc stats() -> Obj` as a builtin~~
 - [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
 - [ ] Implement `nameof` keyword. E.g. `nameof(foo)` returns `"foo"`. (**_See Challenge 22.1_**)
-- [ ] Implement `Float.nan` and `Float.inf` constants.
-- [ ] Implement `@memoize` decorator. How would this work? We would need be able to compare objects by their value instead of their reference (Stringification comes to mind - but that's slow). Maybe we can devise some kind of special hash function for this? E.g. for a seq, we could hash each element and then hash these hashes.
+- [ ] Implement `@memoize` decorator. Would put args into a `Tuple` and use that as a key in a `Obj`.
+- [ ] Implement `Float.nan` and `Float.inf` constants (Would require static fields).
 
 ## Improvements
 

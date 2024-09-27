@@ -453,41 +453,41 @@
 // print "1234\n4321".split("4")
 // print "123".split("")
 
-print "--------------------------------------------------------------------------------"
-print "File, Gc & Perf modules"
-print "--------------------------------------------------------------------------------"
+// print "--------------------------------------------------------------------------------"
+// print "File, Gc & Perf modules"
+// print "--------------------------------------------------------------------------------"
 
-import File
-import Perf
-import Gc
+// import File
+// import Perf
+// import Gc
 
-// Reading a file & measuring time
-let start = Perf.now()
-let lines = File.read(cwd() + "sample.sl").split("\n")
-let code = lines.filter(fn (line) -> line.len > 2 and line[0] != "/" and line[1] != "/")
-let time = Perf.since(start) * 1000
+// // Reading a file & measuring time
+// let start = Perf.now()
+// let lines = File.read(cwd() + "sample.sl").split("\n")
+// let code = lines.filter(fn (line) -> line.len > 2 and line[0] != "/" and line[1] != "/")
+// let time = Perf.since(start) * 1000
 
-log(time.to_str() + "ms")
-code.each(fn (line,i) -> log(i, "| ", line))
+// log(time.to_str() + "ms")
+// code.each(fn (line,i) -> log(i, "| ", line))
 
-print ""
+// print ""
 
-// Writing to a file, checking if it exists
-let out_file = File.join_path(cwd(), "sample.result.txt")
-print File.exists(out_file)
-print File.write(out_file, time.to_str() + "s\n")
+// // Writing to a file, checking if it exists
+// let out_file = File.join_path(cwd(), "sample.result.txt")
+// print File.exists(out_file)
+// print File.write(out_file, time.to_str() + "s\n")
 
-// Getting gc stats and forcing a collection cycle
-let prev = Gc.stats()
-start = Perf.now()
-let freed = Gc.collect()
-time = Perf.since(start) * 1000
-let { bytes_allocated } = Gc.stats()
+// // Getting gc stats and forcing a collection cycle
+// let prev = Gc.stats()
+// start = Perf.now()
+// let freed = Gc.collect()
+// time = Perf.since(start) * 1000
+// let { bytes_allocated } = Gc.stats()
 
-print "Freed:     " + freed.to_str() + " bytes"
-print "GC time:   " + time.to_str() + "ms"
-print "Allocated: " + bytes_allocated.to_str() + " bytes"
-print "Prev:      " + prev.bytes_allocated.to_str() + " bytes"
+// print "Freed:     " + freed.to_str() + " bytes"
+// print "GC time:   " + time.to_str() + "ms"
+// print "Allocated: " + bytes_allocated.to_str() + " bytes"
+// print "Prev:      " + prev.bytes_allocated.to_str() + " bytes"
 
 // print "--------------------------------------------------------------------------------"
 // print "Try/Catch, Try/Else and Throw"
@@ -664,4 +664,3 @@ print "Prev:      " + prev.bytes_allocated.to_str() + " bytes"
 // print A().entries() // [Expect] [[a, 1], [b, 2]]
 // print A()["a"]      // [Expect] 1
 // print A()["b"]      // [Expect] 2  b
-

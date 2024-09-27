@@ -18,7 +18,7 @@ print typeof(fn -> nil)     // [Expect] <Class Fn>
 print typeof(fn(x) -> x)    // [Expect] <Class Fn>
 
 print typeof(clock)         // [Expect] <Class Fn>
-print typeof(typeof)       // [Expect] <Class Fn>
+print typeof(typeof)        // [Expect] <Class Fn>
 
 cls X { ctor {} fn y {}}
 print typeof(Str)           // [Expect] <Class Class>

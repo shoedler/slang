@@ -34,11 +34,6 @@ static Value native_perf_now(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
 
-  LARGE_INTEGER frequency;
-  LARGE_INTEGER now;
-  QueryPerformanceFrequency(&frequency);
-  QueryPerformanceCounter(&now);
-
   return float_value(get_time());
 }
 
@@ -50,10 +45,5 @@ static Value native_perf_since(int argc, Value argv[]) {
   UNUSED(argc);
   NATIVE_CHECK_ARG_AT(1, vm.float_class);
 
-  LARGE_INTEGER frequency;
-  LARGE_INTEGER now;
-  QueryPerformanceFrequency(&frequency);
-  QueryPerformanceCounter(&now);
-
-  return float_value(get_time() - (double)argv[0].as.float_);
+  return float_value(get_time() - (double)argv[1].as.float_);
 }
