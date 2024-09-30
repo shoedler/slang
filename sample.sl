@@ -566,90 +566,109 @@
 
 // `Assert.that(expected, Is.equal_to(actual))`
 
-// cls Is {
-//   static fn true_ -> Is(
-//     fn (a) -> a == true, 
-//     fn (a) -> "Expected actual to be true, but got " + a.to_str() + " instead.")
+cls Is {
+  static fn true_ -> Is(
+    fn (a) {
+      if a == true ret nil
+      else ret "Expected actual to be true, but got " + a.to_str() + " instead."
+    }
+  )
 
-//   static fn false_ -> Is(
-//     fn (a) -> a == false, 
-//     fn (a) -> "Expected actual to be false, but got " + a.to_str() + " instead.")
+  static fn false_ -> Is(
+    fn (a) {
+      if a == false ret nil
+      else ret "Expected actual to be false, but got " + a.to_str() + " instead."
+    }
+  )
 
-//   static fn nil_ -> Is(
-//     fn (a) -> a == nil, 
-//     fn (a) -> "Expected actual to be nil, but got " + a.to_str() + " instead")
+  static fn nil_ -> Is(
+    fn (a) {
+      if a == nil ret nil
+      else ret "Expected actual to be nil, but got " + a.to_str() + " instead."
+    }
+  )
 
-//   static fn equal_to(e) -> Is(
-//     fn (a) -> e == a, 
-//     fn (a) -> "Expected actual to be " + e.to_str() + ", but got " + a.to_str() + " instead.")
+  static fn equal_to(e) -> Is(
+    fn (a) {
+      if e == a ret nil
+      else ret "Expected actual to be " + e.to_str() + ", but got " + a.to_str() + " instead."
+    }
+  )
 
-//   static fn not_equal_to(e) -> Is(
-//     fn (a) -> e != a, 
-//     fn (a) -> "Expected actual to not be " + e.to_str() + ", but it was. (actual: " + a.to_str() + ")")
+  static fn not_equal_to(e) -> Is(
+    fn (a) {
+      if e != a ret nil
+      else ret "Expected actual to not be " + e.to_str() + ", but it was. (actual: " + a.to_str() + ")"
+    }
+  )
 
-//   ctor (compare_fn, fail_fn) {
-//     this.compare_fn = compare_fn
-//     this.fail_fn = fail_fn
-//   }
-// }
+  ctor (test_fn) {
+    this.test_fn = test_fn
+  }
+}
 
-// cls Does {
-//   static fn throw_(e) -> Does(
-//     fn (threw, a) -> threw ? e == a : false,
-//     fn (a) -> "Expected an error to be thrown with value '" + e.to_str() + "', but got '" + a.to_str() + "' instead.")
-//   static fn not_throw -> Does(
-//     fn (threw, a) -> !threw,
-//     fn (a) -> "Expected no error to be thrown, but got '" + a.to_str() + "' instead.")
+cls Does {
+  static fn throw_(e) -> Does(
+    fn (threw, a) {
+      if !threw ret "Expected an error to be thrown with value '" + e.to_str() + "', but no error was thrown."
+      else if e == a ret nil
+      else ret "Expected an error to be thrown with value '" + e.to_str() + "', but threw '" + a.to_str() + "' instead."
+    }
+  )
+  static fn not_throw -> Does(
+    fn (threw, a) {
+      if threw ret "Expected no error to be thrown, but an error was thrown with value '" + a.to_str() + "'."
+      else ret nil
+    }
+  )
+
+  ctor (test_fn) {
+    this.test_fn = test_fn
+  }
+}
 
 
-//   ctor (compare_fn, fail_fn) {
-//     this.compare_fn = compare_fn
-//     this.fail_fn = fail_fn
-//   }
-// }
+cls Assert {
+  static fn that(expected, comparer) {
+    if comparer is Is {
+      let { test_fn } = comparer
+      let res = test_fn(expected)
+      if res throw res
+    }
+    else if comparer is Does {
+      if !(expected is Fn) {
+        throw "First argument must be a callable"
+      }
 
+      // Use an obj (pointer) to check if the error is the same later on
+      let ref = {}
+      let err = ref
 
-// cls Assert {
-//   static fn that(expected, comparer) {
-//     if comparer is Is {
-//       let { compare_fn, fail_fn } = comparer
-//       if !compare_fn(expected) {
-//         throw fail_fn(expected)
-//       }
-//     }
-//     else if comparer is Does {
-//       if !(expected is Fn) {
-//         throw "First argument must be a callable"
-//       }
+      try {
+        expected()
+      }
+      catch {
+        err = error      
+      }
 
-//       let obj = {} // Use an object so we know for sure if 'error' was overwritten
-//       let err = obj
+      let did_throw = err != ref
+      let { test_fn } = comparer
+      let res = test_fn(did_throw, err)
+      if res throw res
+    }
+    else
+      throw "Second argument must be an instance of Is or Does"
+  }
+}
 
-//       try {
-//         expected()
-//       }
-//       catch {
-//         err = error      
-//       }
+Assert.that(true, Is.true_())
+Assert.that(false, Is.false_())
+Assert.that(nil, Is.nil_())
+Assert.that(1, Is.equal_to(1))
+Assert.that(1, Is.not_equal_to(2))
 
-//       let did_throw = err != obj
-//       let { compare_fn, fail_fn } = comparer
-//       if !compare_fn(did_throw, err) {
-//         throw fail_fn(err)
-//       }
-//     }
-//     else
-//       throw "Second argument must be an instance of Is or Does"
-//   }
-// }
-
-// Assert.that(true, Is.true_())
-// Assert.that(false, Is.false_())
-// Assert.that(nil, Is.nil_())
-// Assert.that(1, Is.equal_to(1))
-
-// Assert.that(fn {throw "Error"}, Does.throw_("Error"))
-// Assert.that(fn {}, Does.not_throw())
+Assert.that(fn {throw "Error"}, Does.throw_("Error"))
+Assert.that(fn {}, Does.not_throw())
 // Assert.that(fn {throw "Error"}, Does.not_throw())
 
 // cls A {

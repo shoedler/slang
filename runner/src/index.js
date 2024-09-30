@@ -10,9 +10,7 @@ import { runTests } from './test.js';
 import {
   abort,
   buildSlangConfig,
-  error,
   info,
-  ok,
   runSlangFile,
   separator,
   testFeatureFlag,
@@ -130,15 +128,14 @@ switch (cmd) {
     await buildSlangConfig(config);
     console.clear();
     info('Running slang file', SLANG_SAMPLE_FILE);
-    const { exitCode, rawOutput } = await runSlangFile(SLANG_SAMPLE_FILE, config);
+    const { stdoutOutput, stderrOutput } = await runSlangFile(SLANG_SAMPLE_FILE, config);
+
     separator();
-    console.log(rawOutput);
-    separator();
-    if (exitCode === 0) {
-      ok('Ran with 0 exit code');
-    } else {
-      error('Ran with non-zero exit code', exitCode);
+    console.log(stdoutOutput);
+    if (stderrOutput) {
+      console.log(stderrOutput);
     }
+    separator();
     break;
   }
   case 'watch-sample': {
@@ -161,16 +158,20 @@ switch (cmd) {
         }
 
         info('Running slang file', sampleFilePath);
-        const { exitCode, rawOutput } = await runSlangFile(sampleFilePath, config, signal, true);
+        const { stdoutOutput, stderrOutput } = await runSlangFile(
+          sampleFilePath,
+          config,
+          signal,
+          true,
+        );
         console.clear();
+
         separator();
-        console.log(rawOutput);
-        separator();
-        if (exitCode === 0) {
-          ok('Ran with 0 exit code');
-        } else {
-          warn('Ran with non-zero exit code', exitCode);
+        console.log(stdoutOutput);
+        if (stderrOutput) {
+          console.log(stderrOutput);
         }
+        separator();
       },
     );
     break;
