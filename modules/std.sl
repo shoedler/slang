@@ -81,6 +81,10 @@ cls Set {
     ret this.data[value] == true
   }
 
+  fn to_seq() {
+    ret this.data.keys()
+  }
+
   fn union(other) {
     let out = Set()
 

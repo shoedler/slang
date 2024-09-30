@@ -1808,6 +1808,8 @@ static void statement_import() {
     define_variable(name_constant);
   } else if (match(TOKEN_OBRACE)) {
     destructuring_assignment(DESTRUCTURE_OBJ, true /* rhs_is_import */);
+  } else {
+    error_at(&parser.current, "Expecting module name or destructuring assignment after import.");
   }
 }
 

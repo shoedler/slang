@@ -60,11 +60,11 @@ You can, for example, easily cache stuff:
   - [ ] Implement `Json.stringify(Value) -> Str`.
   - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
 - [ ] Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`
-- [ ] Implement `Set` class
-- [ ] Implement `Set.add(Obj) -> Nil`.
-- [ ] Implement `Set.del(Obj) -> Nil`.
-- [ ] Implement `Seq(Set)` constructor
-- [ ] Implement `Seq.sort(sortFn) -> Seq`.
+- [x] ~~Implement `Set` class~~ (Part of the `std` module - not a native type)
+- [x] ~~Implement `Set.add(Obj) -> Nil`.~~
+- [x] ~~Implement `Set.del(Obj) -> Nil`.~~
+- [x] ~~Implement ~~`Seq(Set)` constructor~~ `Set.to_seq() -> Seq`~~
+- [ ] Implement `Seq.sort(sort_fn) -> Seq`.
 - [x] ~~Implement `Gc` module~~
 - [x] ~~Implement `Gc collect() -> Nil`.~~
 - [x] ~~Implement `Gc stats() -> Obj`.~~
@@ -75,7 +75,7 @@ You can, for example, easily cache stuff:
 
 ## Improvements
 
-- [ ] Module Caching refactor: When trying to load a module from cache, we need to check for the absolute file path of the module instead of only the name. When importing a module with destructuring, we use the absolute path as the module name - when you load the same module with a relative path and a module name, it will currently be cached with the key "module name" and therefore not be found in the cache.
+- [x] ~~Module Caching refactor: When trying to load a module from cache, we need to check for the absolute file path of the module instead of only the name. When importing a module with destructuring, we use the absolute path as the module name - when you load the same module with a relative path and a module name, it will currently be cached with the key "module name" and therefore not be found in the cache.~~
 - [ ] Overriding internal methods: Currently, if ypu define a method such as `has` and `to_str`, these methods will (or will they? Have to check that) override the internal methods. That is okay, but it feels a bit "by chance"ish. Maybe we should either prefix these methods with `__` or have some sort of `internal` or `override` keyword.
 - [ ] Add Tests with tabs in source code. Especially to test uncaught runtime error reporting.
 - [ ] Add tests for `OP_MODULO`

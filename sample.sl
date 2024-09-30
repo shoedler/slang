@@ -337,13 +337,11 @@
 // print "Modules"
 // print "--------------------------------------------------------------------------------"
 
-// // import std // Looks for "cwd/std.sl"
-// import std from "/modules/std" 
-// // import std from "C:/Projects/slang/modules/std.sl"
+// // import std // Looks for "{cwd}/std.sl"
+// // import std from "/modules/std"  // Relative path. Looks for "{cwd}/modules/std.sl"
+// // import std from "C:/Projects/slang/modules/std.sl" // Absolute path
 // // import std from "modules/std"
-
-// let Range = std.Range
-// let Monad = std.Monad
+// import { Range, Monad } from "modules/std" // Destructuring is allowed when specifying the module path
 
 // // let rng = Range.ctor(0, 10) // Does not work, because ctor is not bound to Range if you call it like this
 // let rng = Range(0, 5)
