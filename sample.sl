@@ -664,3 +664,31 @@
 // print A().entries() // [Expect] [[a, 1], [b, 2]]
 // print A()["a"]      // [Expect] 1
 // print A()["b"]      // [Expect] 2  b
+
+
+import { Set, Range } from "/modules/std"
+
+print Range
+
+let set = Set()
+set.add(1)
+set.add(2)
+
+let other = Set()
+other.add(2)
+other.add(3)
+
+let union = set.union(other)
+print union
+
+// Test intersection
+let intersection = set.intersection(other)
+print intersection
+
+// Test difference
+let difference = set.difference(other)
+print difference
+
+// Test symmetric_difference
+let symmetric_difference = set.symmetric_difference(other)
+print symmetric_difference

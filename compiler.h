@@ -6,7 +6,8 @@
 
 // We can lift this to UINT16_MAX, but it's hard to test for, so we'll keep it
 // at UINT8_MAX for now.
-#define MAX_FN_ARGS 255  // UINT8_MAX
+#define MAX_FN_ARGS 255             // UINT8_MAX
+#define MAX_DESTRUCTURING_VARS 255  // UINT8_MAX
 
 #define MAX_CONSTANTS 65535             // UINT16_MAX
 #define MAX_JUMP 65535                  // UINT16_MAX

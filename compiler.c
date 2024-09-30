@@ -386,6 +386,9 @@ static void declaration();
 static void block();
 
 static uint16_t argument_list();
+static void declaration_let();
+static void try_(bool can_assign);
+
 static ParseRule* get_rule(TokenKind type);
 static void parse_precedence(Precedence precedence);
 static uint16_t string_constant(Token* name);
@@ -394,8 +397,6 @@ static int resolve_upvalue(Compiler* compiler, Token* name);
 static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local);
 static uint16_t parse_variable(const char* error_message);
 static void define_variable(uint16_t global);
-static void declaration_let();
-static void try_(bool can_assign);
 
 // Checks if the current token is a compound assigment token.
 static bool match_compound_assignment() {
@@ -1283,11 +1284,9 @@ static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
   return compiler->function->upvalue_count++;
 }
 
-// Declares a local variable in the current scope from the previous token.
-// If we're in the toplevel, nothing happens. This is because global variables
-// are late bound.
-// This function is the only place where the compiler records the existence
-// of a local variable.
+// Declares a local variable in the current scope from the provided token. If we're in the toplevel, nothing happens. This is
+// because global variables are late bound. This function is the only place where the compiler records the existence of a local
+// variable.
 static void declare_local(Token* name) {
   if (current->scope_depth == 0) {
     return;
@@ -1306,9 +1305,8 @@ static void declare_local(Token* name) {
   add_local(*name);
 }
 
-// Consumes a variable name and returns its index in the constant pool.
-// If it is a local variable, the function exits early with a dummy index of 0,
-// because there is no need to store it in the constant pool
+// Consumes a variable name and returns its index in the constant pool. If it is a local variable, the function exits early with a
+// dummy index of 0, because there is no need to store it in the constant pool
 static uint16_t parse_variable(const char* error_message) {
   consume(TOKEN_ID, error_message);
 
@@ -1386,6 +1384,145 @@ static void synchronize() {
 // Compiles a single expression into bytecode. An expression leaves a value on the stack.
 static void expression() {
   parse_precedence(PREC_ASSIGN);
+}
+
+// Different types of destructuring assignments.
+typedef enum {
+  DESTRUCTURE_SEQ,
+  DESTRUCTURE_OBJ,
+  DESTRUCTURE_TUPLE,
+} DestructureType;
+
+// Compiles a destructuring assignment.
+// The opening token has already been consumed at this point.
+static void destructuring_assignment(DestructureType type, bool rhs_is_import) {
+  typedef struct {
+    Token name;       // The variable name, used for object destructuring.
+    uint16_t global;  // The global index of the variable - used if we're in global scope.
+    uint16_t local;   // The local index (stack slot index) of the variable - used if we're in local scope.
+    bool is_rest;     // Denotes whether the variable is a rest parameter.
+    int index;        // The index of the variable in the destructuring pattern.
+  } DestructuringVariable;
+
+  TokenKind closing;
+  switch (type) {
+    case DESTRUCTURE_SEQ: closing = TOKEN_CBRACK; break;
+    case DESTRUCTURE_OBJ: closing = TOKEN_CBRACE; break;
+    case DESTRUCTURE_TUPLE: closing = TOKEN_CPAR; break;
+    default: INTERNAL_ERROR("Unhandled destructuring type."); break;
+  }
+
+  DestructuringVariable variables[MAX_DESTRUCTURING_VARS];
+  int current_index = 0;
+  bool has_rest     = false;
+  bool local_scope  = current->scope_depth > 0;
+
+  Token error_start = parser.previous;
+
+  // Parse the left-hand side of the assignment, e.g. the variables.
+  while (!check(closing) && !check(TOKEN_EOF)) {
+    if (has_rest) {
+      error("Rest parameter must be last in destructuring assignment.");
+    }
+    has_rest = match(TOKEN_DOTDOTDOT);
+    if (has_rest && type == DESTRUCTURE_OBJ) {
+      error("Rest parameter is not allowed in " STR(TYPENAME_OBJ) " destructuring assignment.");
+    }
+
+    // A variable is parsed just like in a normal let declaration. But, because the rhs is not yet compiled,
+    // we need to first declare the variables. In a local scope, we emit OP_NIL to define the variable, in global scope,
+    // that doesn't matter yet (will be declared later with OP_DEFINE_GLOBAL) We don't want to mark the variables as
+    // initialized yet, so we don't use define_variable(global) here. We just emit OP_NIL (if in local scope) to create a
+    // placeholder value on the stack for the local.
+    variables[current_index].is_rest = has_rest;
+    variables[current_index].global  = has_rest
+                                           ? parse_variable("Expecting identifier after ellipsis in destructuring assignment.")
+                                           : parse_variable("Expecting identifier in destructuring assignment.");
+    variables[current_index].local   = (uint16_t)(current->local_count - 1);  // It's just the one on the top.
+    variables[current_index].index   = current_index;
+    variables[current_index].name    = parser.previous;  // Used for object destructuring.
+
+    // Emit a placeholder value for the variable if we're in a local scope, because locals live on the stack.
+    if (local_scope) {
+      emit_one(OP_NIL, error_start);  // Define the variable.
+    }
+
+    if (++current_index > MAX_DESTRUCTURING_VARS) {
+      error("Can't have more than " STR(MAX_DESTRUCTURING_VARS) " variables in destructuring assignment.");
+    }
+
+    if (has_rest) {
+      break;
+    }
+
+    if (!match(TOKEN_COMMA)) {
+      break;
+    }
+  }
+
+  if (!match(closing)) {
+    has_rest ? error("Rest parameter must be last in destructuring assignment.") : error("Unterminated destructuring pattern.");
+  }
+
+  // Parse the right-hand side of the assignment.
+  // Either an expression or an import statement.
+  if (rhs_is_import) {
+    consume(TOKEN_FROM, "Expecting 'from' after destructuring assignment import.");
+    consume(TOKEN_STRING, "Expecting file name.");
+
+    // Since we don't have a module name, we calculate the absolute path of the module here and use it as the module name.
+    // TODO: When loading a module from cache, we should compare their absolute paths instead of the module name to avoid
+    // loading the same module multiple times.
+    ObjString* file_path = copy_string(parser.previous.start + 1, parser.previous.length - 2);  // +1 and -2 to strip the quotes
+
+    Value cwd;
+    if (!hashtable_get_by_string(&vm.module->fields, vm.special_prop_names[SPECIAL_PROP_FILE_PATH], &cwd)) {
+      INTERNAL_ERROR("Module file path not found in the fields of the active module (module." STR(SP_PROP_FILE_PATH) ").");
+      cwd = str_value(copy_string("?", 1));
+    }
+
+    char* absolute_path = resolve_module_path((ObjString*)cwd.as.obj, NULL, file_path);
+
+    uint16_t absolute_file_path_constant = make_constant(str_value(copy_string(absolute_path, strlen(absolute_path))));
+
+    emit_two(OP_IMPORT_FROM, absolute_file_path_constant, parser.previous);  // Use the path as the module name.
+    emit_one(absolute_file_path_constant, parser.previous);
+  } else {
+    consume(TOKEN_ASSIGN, "Expecting '=' in destructuring assignment.");  // Even Js does this.
+    expression();
+  }
+
+  // Emit code to destructure the rhs value
+  for (int i = 0; i < current_index; i++) {
+    DestructuringVariable* var = &variables[i];
+
+    emit_two(OP_DUPE, 0, error_start);  // Duplicate the rhs value: [RhsVal] -> [RhsVal][RhsVal]
+
+    // Emit code to get the index from the rhs. For objs, we use the variable name as the operand for OP_GET_SUBSCRIPT. For
+    // seqs and tuples, we use the variables index.
+    Value payload = type == DESTRUCTURE_OBJ ? str_value(copy_string(var->name.start, var->name.length)) : int_value(var->index);
+    if (var->is_rest) {
+      emit_constant(payload, error_start);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][current_index]
+      emit_one(OP_NIL, error_start);        //                  -> [RhsVal][RhsVal][current_index][nil]
+      emit_one(OP_GET_SLICE, error_start);  //                  -> [RhsVal][slice]
+    } else {
+      emit_constant(payload, error_start);      // [RhsVal][RhsVal] -> [RhsVal][RhsVal][i]
+      emit_one(OP_GET_SUBSCRIPT, error_start);  //                  -> [RhsVal][value]
+    }
+
+    // Define the variable. We need to emit different opcodes depending on whether we're in a local or global scope.
+    if (local_scope) {
+      // Mark the variable as initialized. We cannot use mark_initialized() here, because that would just mark the most
+      // recent local. So we need to do it manually.
+      current->locals[var->local].depth = current->scope_depth;
+      emit_two(OP_SET_LOCAL, (uint16_t)(var->local), error_start);
+      emit_one(OP_POP, error_start);  // Discard the value.
+    } else {
+      emit_two(OP_DEFINE_GLOBAL, var->global, error_start);  // Also pops the value.
+    }
+  }
+
+  emit_one(OP_POP, error_start);  // Discard the value.
 }
 
 // Compiles a print statement.
@@ -1650,23 +1787,28 @@ static void statement_break() {
 // Compiles an import statement.
 // The import keyword has already been consumed at this point.
 static void statement_import() {
-  Token error_start = parser.previous;
-  consume(TOKEN_ID, "Expecting module name.");
+  if (check(TOKEN_ID)) {
+    Token error_start = parser.previous;
+    consume(TOKEN_ID, "Expecting module name.");
 
-  uint16_t name_constant = string_constant(&parser.previous);
-  declare_local(&parser.previous);
+    uint16_t name_constant = string_constant(&parser.previous);
+    declare_local(&parser.previous);
 
-  if (match(TOKEN_FROM)) {
-    consume(TOKEN_STRING, "Expecting file name.");
-    uint16_t file_constant = make_constant(str_value(copy_string(parser.previous.start + 1,
-                                                                 parser.previous.length - 2)));  // +1 and -2 to strip the quotes
-    emit_two(OP_IMPORT_FROM, name_constant, error_start);
-    emit_one(file_constant, error_start);
-  } else {
-    emit_two(OP_IMPORT, name_constant, error_start);
+    if (match(TOKEN_FROM)) {
+      consume(TOKEN_STRING, "Expecting file name.");
+      uint16_t file_path_constant =
+          make_constant(str_value(copy_string(parser.previous.start + 1,
+                                              parser.previous.length - 2)));  // +1 and -2 to strip the quotes
+      emit_two(OP_IMPORT_FROM, name_constant, error_start);
+      emit_one(file_path_constant, error_start);
+    } else {
+      emit_two(OP_IMPORT, name_constant, error_start);
+    }
+
+    define_variable(name_constant);
+  } else if (match(TOKEN_OBRACE)) {
+    destructuring_assignment(DESTRUCTURE_OBJ, true /* rhs_is_import */);
   }
-
-  define_variable(name_constant);
 }
 
 // Compiles a block.
@@ -1709,129 +1851,15 @@ static void statement() {
   }
 }
 
-// Different types of destructuring assignments.
-typedef enum {
-  DESTRUCTURE_SEQ,
-  DESTRUCTURE_OBJ,
-  DESTRUCTURE_TUPLE,
-} DestructureType;
-
-// Compiles a destructuring assignment.
-// The opening token has already been consumed at this point.
-static void destructuring_assignment(DestructureType type) {
-  typedef struct {
-    Token name;       // The variable name, used for object destructuring.
-    uint16_t global;  // The global index of the variable - used if we're in global scope.
-    uint16_t local;   // The local index (stack slot index) of the variable - used if we're in local scope.
-    bool is_rest;     // Denotes whether the variable is a rest parameter.
-    int index;        // The index of the variable in the destructuring pattern.
-  } DestructuringVariable;
-
-  TokenKind closing;
-  switch (type) {
-    case DESTRUCTURE_SEQ: closing = TOKEN_CBRACK; break;
-    case DESTRUCTURE_OBJ: closing = TOKEN_CBRACE; break;
-    case DESTRUCTURE_TUPLE: closing = TOKEN_CPAR; break;
-    default: INTERNAL_ERROR("Unhandled destructuring type."); break;
-  }
-
-  DestructuringVariable variables[MAX_FN_ARGS];
-  int current_index = 0;
-  bool has_rest     = false;
-  bool local_scope  = current->scope_depth > 0;
-
-  Token error_start = parser.previous;
-
-  // Parse the left-hand side of the assignment, e.g. the variables.
-  while (!check(closing) && !check(TOKEN_EOF)) {
-    if (has_rest) {
-      error("Rest parameter must be last in destructuring assignment.");
-    }
-    has_rest = match(TOKEN_DOTDOTDOT);
-    if (has_rest && type == DESTRUCTURE_OBJ) {
-      error("Rest parameter is not allowed in " STR(TYPENAME_OBJ) " destructuring assignment.");
-    }
-
-    // A variable is parsed just like in a normal let declaration. But, because the rhs is not yet compiled,
-    // we need to first declare the variables. In a local scope, we emit OP_NIL to define the variable, in global scope,
-    // that doesn't matter yet (will be declared later with OP_DEFINE_GLOBAL) We don't want to mark the variables as
-    // initialized yet, so we don't use define_variable(global) here. We just emit OP_NIL (if in local scope) to create a
-    // placeholder value on the stack for the local.
-    variables[current_index].is_rest = has_rest;
-    variables[current_index].global  = has_rest
-                                           ? parse_variable("Expecting identifier after ellipsis in destructuring assignment.")
-                                           : parse_variable("Expecting identifier in destructuring assignment.");
-    variables[current_index].local   = (uint16_t)(current->local_count - 1);  // It's just the one on the top.
-    variables[current_index].index   = current_index;
-    variables[current_index].name    = parser.previous;  // Used for object destructuring.
-
-    // Emit a placeholder value for the variable if we're in a local scope, because locals live on the stack.
-    if (local_scope) {
-      emit_one(OP_NIL, error_start);  // Define the variable.
-    }
-
-    if (++current_index > MAX_FN_ARGS) {
-      error("Can't have more than " STR(MAX_FN_ARGS) " variables in destructuring assignment.");
-    }
-
-    if (has_rest) {
-      break;
-    }
-
-    if (!match(TOKEN_COMMA)) {
-      break;
-    }
-  }
-
-  if (!match(closing)) {
-    has_rest ? error("Rest parameter must be last in destructuring assignment.") : error("Unterminated destructuring pattern.");
-  }
-  consume(TOKEN_ASSIGN, "Expecting '=' in destructuring assignment.");  // Even Js does this.
-
-  expression();  // rhs
-
-  // Emit code to destructure the rhs value
-  for (int i = 0; i < current_index; i++) {
-    DestructuringVariable* var = &variables[i];
-
-    emit_two(OP_DUPE, 0, error_start);  // Duplicate the rhs value: [RhsVal] -> [RhsVal][RhsVal]
-
-    // Emit code to get the index from the rhs. For objs, we use the variable name as the operand for OP_GET_SUBSCRIPT. For
-    // seqs, we use the variables index.
-    Value payload = type == DESTRUCTURE_OBJ ? str_value(copy_string(var->name.start, var->name.length)) : int_value(var->index);
-    if (var->is_rest) {
-      emit_constant(payload, error_start);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][current_index]
-      emit_one(OP_NIL, error_start);        // [RhsVal][RhsVal][current_index] -> [RhsVal][RhsVal][current_index][nil]
-      emit_one(OP_GET_SLICE, error_start);  // [RhsVal][RhsVal][current_index] -> [RhsVal][slice]
-    } else {
-      emit_constant(payload, error_start);      // [RhsVal][RhsVal] -> [RhsVal][RhsVal][i]
-      emit_one(OP_GET_SUBSCRIPT, error_start);  // [RhsVal][RhsVal][i] -> [RhsVal][value]
-    }
-
-    // Define the variable. We need to emit different opcodes depending on whether we're in a local or global scope.
-    if (local_scope) {
-      // Mark the variable as initialized. We cannot use mark_initialized() here, because that would just mark the most
-      // recent local. So we need to do it manually.
-      current->locals[var->local].depth = current->scope_depth;
-      emit_two(OP_SET_LOCAL, (uint16_t)(var->local), error_start);
-      emit_one(OP_POP, error_start);  // Discard the value.
-    } else {
-      emit_two(OP_DEFINE_GLOBAL, var->global, error_start);  // Also pops the value.
-    }
-  }
-
-  emit_one(OP_POP, error_start);  // Discard the value.
-}
-
 // Compiles a let declaration.
 // The let keyword has already been consumed at this point.
 static void declaration_let() {
   if (match(TOKEN_OBRACK)) {
-    destructuring_assignment(DESTRUCTURE_SEQ);
+    destructuring_assignment(DESTRUCTURE_SEQ, false /* rhs_is_import */);
   } else if (match(TOKEN_OBRACE)) {
-    destructuring_assignment(DESTRUCTURE_OBJ);
+    destructuring_assignment(DESTRUCTURE_OBJ, false /* rhs_is_import */);
   } else if (match(TOKEN_OPAR)) {
-    destructuring_assignment(DESTRUCTURE_TUPLE);
+    destructuring_assignment(DESTRUCTURE_TUPLE, false /* rhs_is_import */);
   } else {
     uint16_t global = parse_variable("Expecting variable name.");
 

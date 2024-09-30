@@ -44,23 +44,30 @@ You can, for example, easily cache stuff:
 
 ### Language Features
 
-- [ ] Implement `Int` division with `//`.
+- [ ] Implement `Math` module.
+  - [ ] Implement `Math.abs(Num) -> Num`.
+  - [ ] Implement `Math.int_div(Num, Num) -> Int`.
+  - [ ] Implement `Math.ceil(Num) -> Int`.
+  - [ ] Implement `Math.floor(Num) -> Int`.
+  - [ ] Implement `Math.round(Num) -> Int`. (Nearest integer)
 - [ ] Implement `for ... in ...;` loops
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] Add `const` (**_See Challenge 22.3_**)
-- [ ] Add destructuring to module imports.
-- [ ] Implement `Json` module
-- [ ] Implement `Math` module
+- [x] ~~Add destructuring to module imports.~~
+- [ ] Implement `Json` module.
+  - [ ] Implement `Json.parse(Str) -> Obj`.
+  - [ ] Implement `Json.stringify(Value) -> Str`.
+  - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
 - [ ] Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`
 - [ ] Implement `Set` class
-- [ ] Implement `Set.add(Obj) -> Nil` as a builtin
-- [ ] Implement `Set.del(Obj) -> Nil` as a builtin
+- [ ] Implement `Set.add(Obj) -> Nil`.
+- [ ] Implement `Set.del(Obj) -> Nil`.
 - [ ] Implement `Seq(Set)` constructor
-- [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
+- [ ] Implement `Seq.sort(sortFn) -> Seq`.
 - [x] ~~Implement `Gc` module~~
-- [x] ~~Implement `Gc collect() -> Nil` as a builtin~~
-- [x] ~~Implement `Gc stats() -> Obj` as a builtin~~
+- [x] ~~Implement `Gc collect() -> Nil`.~~
+- [x] ~~Implement `Gc stats() -> Obj`.~~
 - [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
 - [ ] Implement `nameof` keyword. E.g. `nameof(foo)` returns `"foo"`. (**_See Challenge 22.1_**)
 - [ ] Implement `@memoize` decorator. Would put args into a `Tuple` and use that as a key in a `Obj`.
@@ -68,6 +75,8 @@ You can, for example, easily cache stuff:
 
 ## Improvements
 
+- [ ] Module Caching refactor: When trying to load a module from cache, we need to check for the absolute file path of the module instead of only the name. When importing a module with destructuring, we use the absolute path as the module name - when you load the same module with a relative path and a module name, it will currently be cached with the key "module name" and therefore not be found in the cache.
+- [ ] Overriding internal methods: Currently, if ypu define a method such as `has` and `to_str`, these methods will (or will they? Have to check that) override the internal methods. That is okay, but it feels a bit "by chance"ish. Maybe we should either prefix these methods with `__` or have some sort of `internal` or `override` keyword.
 - [ ] Add Tests with tabs in source code. Especially to test uncaught runtime error reporting.
 - [ ] Add tests for `OP_MODULO`
 - [ ] Add tests for `Fn.bind(Obj)`

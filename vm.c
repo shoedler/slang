@@ -648,9 +648,56 @@ bool inherits(ObjClass* klass, ObjClass* base) {
   return false;
 }
 
+char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path) {
+  if (module_path == NULL && module_name == NULL) {
+    INTERNAL_ERROR("Cannot resolve module path. Both module name and path are NULL.");
+    exit(EMEM_ERROR);
+  }
+
+  char* absolute_file_path;
+
+  // Either we have a module path, or we check the current working directory
+  if (module_path == NULL) {
+    // Just slap the module name + extension onto the cwd
+    char* module_file_name = ensure_slang_extension(module_name->chars);
+    absolute_file_path     = join_path(cwd->chars, module_file_name);
+    free(module_file_name);
+  } else {
+    // It's probably a realtive path, we add the extension to the provided path and prepend the cwd
+    char* module_path_ = ensure_slang_extension(module_path->chars);
+    absolute_file_path = join_path(cwd->chars, module_path_);
+    free(module_path_);
+
+    if (!file_exists(absolute_file_path)) {
+      // Clearly, it's not a relative path.
+      free(absolute_file_path);
+
+      // We assume it is an absolute path instead, which also has the extension already
+      absolute_file_path = malloc(module_path->length + 1);
+      if (absolute_file_path == NULL) {
+        INTERNAL_ERROR("Could not import module '%s'. Out of memory.",
+                       module_name == NULL ? module_path->chars : module_name->chars);
+        exit(EMEM_ERROR);
+      }
+
+      strcpy(absolute_file_path, module_path->chars);
+    }
+  }
+
+  if (absolute_file_path == NULL) {
+    INTERNAL_ERROR(
+        "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
+        "'%s'",
+        module_name->chars, cwd->chars, module_path == NULL ? "NULL" : module_path->chars);
+    exit(EIO_ERROR);
+  }
+
+  return absolute_file_path;
+}
+
 // Imports a module by name and pushes it onto the stack. If the module was already imported, it is loaded
 // from cache. If the module was not imported yet, it is loaded from the file system and then cached.
-// If module_path is NULL, the module is expected to be in the same directory as the
+// If [module_path] is NULL, the module is expected to be in the same directory as the
 // importing module. Returns true if the module was successfully imported, false otherwise.
 static bool import_module(ObjString* module_name, ObjString* module_path) {
   Value module;
@@ -671,43 +718,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
     return false;
   }
 
-  char* module_to_load_path;
-
-  // Either we have a module path, or we check the current working directory
-  if (module_path == NULL) {
-    // Just slap the module name + extension onto the cwd
-    char* module_file_name = ensure_slang_extension(module_name->chars);
-    module_to_load_path    = join_path(AS_STR(cwd)->chars, module_file_name);
-    free(module_file_name);
-  } else {
-    // It's a probably realtive path, we add the extension to the provided path and prepend the cwd
-    char* module_path_  = ensure_slang_extension(module_path->chars);
-    module_to_load_path = join_path(AS_STR(cwd)->chars, module_path_);
-    free(module_path_);
-
-    if (!file_exists(module_to_load_path)) {
-      // Clearly, it's not a relative path.
-      free(module_to_load_path);
-
-      // We assume it is an absolute path insted, we infer that it has the extension already
-      module_to_load_path = malloc(module_path->length + 1);
-      if (module_to_load_path == NULL) {
-        runtime_error("Could not import module '%s'. Out of memory.", module_name->chars);
-        return false;
-      }
-
-      strcpy(module_to_load_path, module_path->chars);
-    }
-  }
-
-  if (module_to_load_path == NULL) {
-    INTERNAL_ERROR(
-        "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
-        "'%s'",
-        module_name->chars, AS_STR(cwd)->chars, module_path == NULL ? "NULL" : module_path->chars);
-    exit(EIO_ERROR);
-  }
-
+  char* module_to_load_path = resolve_module_path(AS_STR(cwd), module_name, module_path);
   if (!file_exists(module_to_load_path)) {
     runtime_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars, module_to_load_path);
     return false;
@@ -719,9 +730,10 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   module                  = run_file(module_to_load_path, module_name->chars);
   vm.exit_on_frame        = previous_exit_frame;
 
+  free(module_to_load_path);
+
   // Check if the module is actually a module
   if (!(module.type == vm.module_class)) {
-    free(module_to_load_path);
     runtime_error("Could not import module '%s'. Expected module type", module_name->chars);
     return false;
   }
@@ -729,7 +741,6 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   push(module);  // Show ourselves to the GC before we put it in the hashtable
   hashtable_set(&vm.modules, str_value(module_name), module);
 
-  free(module_to_load_path);
   return true;
 }
 
