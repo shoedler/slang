@@ -179,7 +179,7 @@ bool inherits(ObjClass* klass, ObjClass* base);
 // - [module_name] can be NULL, if the module is imported solely by [module_path] (relative or absolute).
 // - [module_path] can be NULL, if the module is expected to be in the same directory as the importing module and the file is
 // named after [module_name].
-// Returns the resolved path. The caller is responsible for freeing the memory.
+// Returns the absolute path to the module. The caller is responsible for freeing the memory.
 char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path);
 
 // Creates a sequence of length "count" from the top "count" values on the stack.

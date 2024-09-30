@@ -702,23 +702,34 @@ char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* mod
 static bool import_module(ObjString* module_name, ObjString* module_path) {
   Value module;
 
-  // Check if we have already imported the module
+  // Check if there's a module with the same name in the modules cache.
+  // Getting a module this way is only possible for modules that were registered by name only, which is currently
+  // only the case for native modules.
   if (hashtable_get_by_string(&vm.modules, module_name, &module)) {
     push(module);
     return true;
   }
 
-  // Not cached, so we need to load it. First, we need to get the current working directory
+  // First, we need to get the current working directory
   Value cwd = native_cwd(0, NULL);
   if (is_nil(cwd)) {
     runtime_error(
         "Could not import module '%s'. Could not get current working directory, because there is no "
-        "active module or it is not a file.",
+        "active module or the active module is not a file.",
         module_name->chars);
     return false;
   }
 
-  char* module_to_load_path = resolve_module_path(AS_STR(cwd), module_name, module_path);
+  char* module_to_load_path   = resolve_module_path(AS_STR(cwd), module_name, module_path);
+  ObjString* module_cache_key = copy_string(module_to_load_path, (int)strlen(module_to_load_path));
+
+  // Check if we have already imported the module by absolute path.
+  if (hashtable_get_by_string(&vm.modules, module_cache_key, &module)) {
+    push(module);
+    return true;
+  }
+
+  // Nope, so we need to load the module from the file system
   if (!file_exists(module_to_load_path)) {
     runtime_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars, module_to_load_path);
     return false;
@@ -730,16 +741,17 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   module                  = run_file(module_to_load_path, module_name->chars);
   vm.exit_on_frame        = previous_exit_frame;
 
-  free(module_to_load_path);
-
   // Check if the module is actually a module
   if (!(module.type == vm.module_class)) {
-    runtime_error("Could not import module '%s'. Expected module type", module_name->chars);
+    runtime_error("Could not import module '%s' from file '%s'. Expected module type", module_name->chars, module_to_load_path);
+    free(module_to_load_path);
     return false;
   }
 
   push(module);  // Show ourselves to the GC before we put it in the hashtable
-  hashtable_set(&vm.modules, str_value(module_name), module);
+  hashtable_set(&vm.modules, str_value(module_cache_key), module);
+
+  free(module_to_load_path);
 
   return true;
 }

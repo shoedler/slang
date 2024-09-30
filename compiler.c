@@ -1481,9 +1481,9 @@ static void destructuring_assignment(DestructureType type, bool rhs_is_import) {
       cwd = str_value(copy_string("?", 1));
     }
 
-    char* absolute_path = resolve_module_path((ObjString*)cwd.as.obj, NULL, file_path);
-
+    char* absolute_path                  = resolve_module_path((ObjString*)cwd.as.obj, NULL, file_path);
     uint16_t absolute_file_path_constant = make_constant(str_value(copy_string(absolute_path, strlen(absolute_path))));
+    free(absolute_path);  // since we copied to make sure it's allocated on our managed heap, we need to free it.
 
     emit_two(OP_IMPORT_FROM, absolute_file_path_constant, parser.previous);  // Use the path as the module name.
     emit_one(absolute_file_path_constant, parser.previous);
