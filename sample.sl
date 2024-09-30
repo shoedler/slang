@@ -337,13 +337,11 @@
 // print "Modules"
 // print "--------------------------------------------------------------------------------"
 
-// // import std // Looks for "cwd/std.sl"
-// import std from "/modules/std" 
-// // import std from "C:/Projects/slang/modules/std.sl"
+// // import std // Looks for "{cwd}/std.sl"
+// // import std from "/modules/std"  // Relative path. Looks for "{cwd}/modules/std.sl"
+// // import std from "C:/Projects/slang/modules/std.sl" // Absolute path
 // // import std from "modules/std"
-
-// let Range = std.Range
-// let Monad = std.Monad
+// import { Range, Monad } from "modules/std" // Destructuring is allowed when specifying the module path
 
 // // let rng = Range.ctor(0, 10) // Does not work, because ctor is not bound to Range if you call it like this
 // let rng = Range(0, 5)
@@ -454,27 +452,40 @@
 // print "123".split("")
 
 // print "--------------------------------------------------------------------------------"
-// print "File & Perf modules"
+// print "File, Gc & Perf modules"
 // print "--------------------------------------------------------------------------------"
 
 // import File
 // import Perf
+// import Gc
 
+// // Reading a file & measuring time
 // let start = Perf.now()
-
 // let lines = File.read(cwd() + "sample.sl").split("\n")
 // let code = lines.filter(fn (line) -> line.len > 2 and line[0] != "/" and line[1] != "/")
-// let time = Perf.now() - start
+// let time = Perf.since(start) * 1000
 
-
-// log(time, "s")
+// log(time.to_str() + "ms")
 // code.each(fn (line,i) -> log(i, "| ", line))
 
 // print ""
 
+// // Writing to a file, checking if it exists
 // let out_file = File.join_path(cwd(), "sample.result.txt")
 // print File.exists(out_file)
 // print File.write(out_file, time.to_str() + "s\n")
+
+// // Getting gc stats and forcing a collection cycle
+// let prev = Gc.stats()
+// start = Perf.now()
+// let freed = Gc.collect()
+// time = Perf.since(start) * 1000
+// let { bytes_allocated } = Gc.stats()
+
+// print "Freed:     " + freed.to_str() + " bytes"
+// print "GC time:   " + time.to_str() + "ms"
+// print "Allocated: " + bytes_allocated.to_str() + " bytes"
+// print "Prev:      " + prev.bytes_allocated.to_str() + " bytes"
 
 // print "--------------------------------------------------------------------------------"
 // print "Try/Catch, Try/Else and Throw"
@@ -659,3 +670,42 @@ Assert.that(1, Is.not_equal_to(2))
 Assert.that(fn {throw "Error"}, Does.throw_("Error"))
 Assert.that(fn {}, Does.not_throw())
 // Assert.that(fn {throw "Error"}, Does.not_throw())
+
+// cls A {
+//   ctor {
+//     this.a = 1
+//     this.b = 2
+//   }
+// }
+
+// print A().entries() // [Expect] [[a, 1], [b, 2]]
+// print A()["a"]      // [Expect] 1
+// print A()["b"]      // [Expect] 2  b
+
+
+import { Set, Range } from "/modules/std"
+
+print Range
+
+let set = Set()
+set.add(1)
+set.add(2)
+
+let other = Set()
+other.add(2)
+other.add(3)
+
+let union = set.union(other)
+print union
+
+// Test intersection
+let intersection = set.intersection(other)
+print intersection
+
+// Test difference
+let difference = set.difference(other)
+print difference
+
+// Test symmetric_difference
+let symmetric_difference = set.symmetric_difference(other)
+print symmetric_difference

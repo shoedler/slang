@@ -94,8 +94,9 @@ typedef struct {
   ObjString* special_method_names[SPECIAL_METHOD_MAX];  // Special method names for quick access
   ObjString* special_prop_names[SPECIAL_PROP_MAX];      // Special prop names for quick access
 
-  size_t bytes_allocated;
-  size_t next_gc;
+  size_t bytes_allocated;  // Number of bytes currently allocated.
+  size_t prev_gc_freed;    // Number of bytes freed in the last garbage collection.
+  size_t next_gc;          // Number of bytes at which the next garbage collection will occur.
   int gray_count;
   int gray_capacity;
   Obj** gray_stack;  // Worklist for the garbage collector. This field is not
@@ -161,18 +162,25 @@ void runtime_error(const char* format, ...);
 // (which was provided by call_managed) to get to the result.
 Value exec_callable(Value callable, int arg_count);
 
-// Defines a native function in the given table.
+// Defines a native [function] in the given [table] with the provided [name] and [arity].
 void define_native(HashTable* table, const char* name, NativeFn function, int arity);
 
-// Defines a value in the given table.
+// Defines a [value] in the given [table] with the provided [name].
 void define_value(HashTable* table, const char* name, Value value);
 
-// Determines whether a value is falsey. We consider nil and false to be falsey,
+// Determines whether a [value] is falsey. We consider nil and false to be falsey,
 // and everything else to be truthy.
 bool is_falsey(Value value);
 
 // Determines whether a [klass] inherits from [base]
 bool inherits(ObjClass* klass, ObjClass* base);
+
+// Resolves an import-path to an absolute file-path, based on the current working directory.
+// - [module_name] can be NULL, if the module is imported solely by [module_path] (relative or absolute).
+// - [module_path] can be NULL, if the module is expected to be in the same directory as the importing module and the file is
+// named after [module_name].
+// Returns the absolute path to the module. The caller is responsible for freeing the memory.
+char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path);
 
 // Creates a sequence of length "count" from the top "count" values on the stack.
 // The resulting sequence is pushed onto the stack.
