@@ -35,39 +35,35 @@ You can, for example, easily cache stuff:
 
 ## Features
 
-### Type-checking
-
-- [ ] Implement syntax for type annotations. E.g. `let x: Int = 1`. We'll check as much as possible at compile-time. Locals are already cared for, because they live on the stack and are not referenced by a name. All locals are resolved during compile time. The only exception being locals that are not initialized with a value. That should be allowed, but the type must be declared. E.g. `let x: Int`. This is a bit more flexible than C# and a bit less flexible than TypeScript. We'll see how it goes.
-- [ ] Implement a solution for functions. We should introduce a signature field in fn objects. The sig struct should probably consist of: `args: ObjClass**` to store the types of the arguments, `ret: ObjClass*` to store the return type of the function, `argc: int` to store the number of arguments.
-- [ ] Introduce type-modifiers. `?` for nullable, and maybe something for exact type match. This should be done as a flag on the `Value` struct. Maybe make a `Type` struct that holds the `ObjClass*` and the flags. This could then also be used for function signatures.
-- [ ] Actually add typechecking and remove all `NATIVE_CHECK_ARG` things.
-
-### Language Features
-
-- [ ] Implement `Int` division with `//`.
 - [ ] Implement `for ... in ...;` loops
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] Add `const` (**_See Challenge 22.3_**)
-- [ ] Add destructuring to module imports.
-- [ ] Implement `Json` module
-- [ ] Implement `Math` module
+- [x] ~~Add destructuring to module imports.~~
+- [ ] Implement `Math` module.
+  - [ ] Implement `Math.abs(Num) -> Num`.
+  - [ ] Implement `Math.int_div(Num, Num) -> Int`.
+  - [ ] Implement `Math.ceil(Num) -> Int`.
+  - [ ] Implement `Math.floor(Num) -> Int`.
+  - [ ] Implement `Math.round(Num) -> Int`. (Nearest integer)
+- [ ] Implement `Json` module.
+  - [ ] Implement `Json.parse(Str) -> Obj`.
+  - [ ] Implement `Json.stringify(Value) -> Str`.
+  - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
 - [ ] Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`
-- [ ] Implement `Set` class
-- [ ] Implement `Set.add(Obj) -> Nil` as a builtin
-- [ ] Implement `Set.del(Obj) -> Nil` as a builtin
-- [ ] Implement `Seq(Set)` constructor
-- [ ] Implement `Seq.sort(sortFn) -> Seq` as a builtin
+- [x] ~~Implement `Set` class~~ (Part of the `std` module - not a native type)
+- [x] ~~Implement `Set.add(Obj) -> Nil`.~~
+- [x] ~~Implement `Set.del(Obj) -> Nil`.~~
+- [x] ~~Implement ~~`Seq(Set)` constructor~~ `Set.to_seq() -> Seq`~~
+- [ ] Implement `Seq.sort(sort_fn) -> Seq`.
 - [x] ~~Implement `Gc` module~~
-- [x] ~~Implement `Gc collect() -> Nil` as a builtin~~
-- [x] ~~Implement `Gc stats() -> Obj` as a builtin~~
-- [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
-- [ ] Implement `nameof` keyword. E.g. `nameof(foo)` returns `"foo"`. (**_See Challenge 22.1_**)
-- [ ] Implement `@memoize` decorator. Would put args into a `Tuple` and use that as a key in a `Obj`.
-- [ ] Implement `Float.nan` and `Float.inf` constants (Would require static fields).
+- [x] ~~Implement `Gc collect() -> Nil`.~~
+- [x] ~~Implement `Gc stats() -> Obj`.~~
 
 ## Improvements
 
+- [x] ~~Module Caching refactor: When trying to load a module from cache, we need to check for the absolute file path of the module instead of only the name. When importing a module with destructuring, we use the absolute path as the module name - when you load the same module with a relative path and a module name, it will currently be cached with the key "module name" and therefore not be found in the cache.~~
+- [ ] Overriding internal methods: Currently, if ypu define a method such as `has` and `to_str`, these methods will (or will they? Have to check that) override the internal methods. That is okay, but it feels a bit "by chance"ish. Maybe we should either prefix these methods with `__` or have some sort of `internal` or `override` keyword.
 - [ ] Add Tests with tabs in source code. Especially to test uncaught runtime error reporting.
 - [ ] Add tests for `OP_MODULO`
 - [ ] Add tests for `Fn.bind(Obj)`
@@ -105,11 +101,37 @@ You can, for example, easily cache stuff:
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
 - [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
 
+---
+
+# Roadmap for Version 2.0
+
+## Features
+
+- [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
+- [ ] Implement `@memoize` decorator. Would put args into a `Tuple` and use that as a key in a `Obj`.
+- [ ] Implement `Float.nan` and `Float.inf` constants (Would require static fields).
+
+---
+
+# Roadmap for Version 3.0
+
+## Features
+
+### Type-checking
+
+- [ ] Implement syntax for type annotations. E.g. `let x: Int = 1`. We'll check as much as possible at compile-time. Locals are already cared for, because they live on the stack and are not referenced by a name. All locals are resolved during compile time. The only exception being locals that are not initialized with a value. That should be allowed, but the type must be declared. E.g. `let x: Int`. This is a bit more flexible than C# and a bit less flexible than TypeScript. We'll see how it goes.
+- [ ] Implement a solution for functions. We should introduce a signature field in fn objects. The sig struct should probably consist of: `args: ObjClass**` to store the types of the arguments, `ret: ObjClass*` to store the return type of the function, `argc: int` to store the number of arguments.
+- [ ] Introduce type-modifiers. `?` for nullable, and maybe something for exact type match. This should be done as a flag on the `Value` struct. Maybe make a `Type` struct that holds the `ObjClass*` and the flags. This could then also be used for function signatures.
+- [ ] Actually add typechecking and remove all `NATIVE_CHECK_ARG` things.
+
+### LSP Server
+
+- [ ] Implement an LSP server. Rough idea: Compile the source and generate the bytecode. Maybe with some heuristics. Like, don't recompile imported modules. We should be able to map a line + column position to a instruction, since we store the relevant information in a Token for each instruction. We should also be able to retrieve a list of possible strings to write next in the sourcecode - e.g. globals, methods etc.
+
+---
+
 ## Further Ideas
 
-> Not part of the 1.0 release, but still interesting.
-
-- [ ] Implement a register-based Vm https://www.lua.org/doc/jucs05.pdf
-- [ ] Implement an LSP server. Rough idea: Compile the source and generate the bytecode. Maybe with some heuristics. Like, don't recompile imported modules. We should be able to map a line + column position to a instruction, since we store the relevant information in a Token for each instruction. We should also be able to retrieve a list of possible strings to write next in the sourcecode - e.g. globals, methods etc.
-- [ ] Constant folding directly in the compiler
-- [ ] Implement a JIT compiler
+- Rebuild to a register-based Vm https://www.lua.org/doc/jucs05.pdf
+- Constant folding directly in the compiler
+- Implement a JIT compiler

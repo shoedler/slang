@@ -5,6 +5,7 @@
 
 static Value native_debug_stack(int argc, Value argv[]);
 static Value native_debug_version(int argc, Value argv[]);
+static Value native_debug_modules(int argc, Value argv[]);
 
 #define MODULE_NAME Debug
 
@@ -14,6 +15,7 @@ void register_native_debug_module() {
 
   define_native(&debug_module->fields, "stack", native_debug_stack, 0);
   define_native(&debug_module->fields, "version", native_debug_version, 0);
+  define_native(&debug_module->fields, "modules", native_debug_modules, 0);
 }
 
 /**
@@ -44,4 +46,22 @@ static Value native_debug_version(int argc, Value argv[]) {
   UNUSED(argv);
 
   return str_value(copy_string(SLANG_VERSION, STR_LEN(SLANG_VERSION)));
+}
+
+/**
+ * MODULE_NAME.modules() -> TYPENAME_OBJ
+ * @brief Returns a copy of the vms' module cache as a TYPENAME_OBJ.
+ * Keys are TYPENAME_STRINGs of the module name, values are TYPENAME_MODULEs.
+ */
+static Value native_debug_modules(int argc, Value argv[]) {
+  UNUSED(argc);
+  UNUSED(argv);
+
+  HashTable copy;
+  init_hashtable(&copy);
+
+  hashtable_add_all(&vm.modules, &copy);
+  ObjObject* copy_obj = take_object(&copy);
+
+  return obj_value(copy_obj);
 }

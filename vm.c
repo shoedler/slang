@@ -333,6 +333,8 @@ void init_vm() {
   vm.module_class        = new_class(module_name, vm.obj_class);
   hashtable_set(&vm.builtin->fields, str_value(module_name), class_value(vm.module_class));
   finalize_new_class(vm.module_class);
+  hashtable_add_all(&vm.obj_class->methods, &vm.module_class->methods);  // TODO: Unsure why this is required for it to work -
+                                                                         // module.entries() is not found otherwise. Investigate
 
   // Register the built-in functions
   register_native_functions();
@@ -648,88 +650,114 @@ bool inherits(ObjClass* klass, ObjClass* base) {
   return false;
 }
 
-// Imports a module by name and pushes it onto the stack. If the module was already imported, it is loaded
-// from cache. If the module was not imported yet, it is loaded from the file system and then cached.
-// If module_path is NULL, the module is expected to be in the same directory as the
-// importing module. Returns true if the module was successfully imported, false otherwise.
-static bool import_module(ObjString* module_name, ObjString* module_path) {
-  Value module;
-
-  // Check if we have already imported the module
-  if (hashtable_get_by_string(&vm.modules, module_name, &module)) {
-    push(module);
-    return true;
+char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path) {
+  if (module_path == NULL && module_name == NULL) {
+    INTERNAL_ERROR("Cannot resolve module path. Both module name and path are NULL.");
+    exit(EMEM_ERROR);
   }
 
-  // Not cached, so we need to load it. First, we need to get the current working directory
-  Value cwd = native_cwd(0, NULL);
-  if (is_nil(cwd)) {
-    runtime_error(
-        "Could not import module '%s'. Could not get current working directory, because there is no "
-        "active module or it is not a file.",
-        module_name->chars);
-    return false;
-  }
-
-  char* module_to_load_path;
+  char* absolute_file_path;
 
   // Either we have a module path, or we check the current working directory
   if (module_path == NULL) {
     // Just slap the module name + extension onto the cwd
     char* module_file_name = ensure_slang_extension(module_name->chars);
-    module_to_load_path    = join_path(AS_STR(cwd)->chars, module_file_name);
+    absolute_file_path     = join_path(cwd->chars, module_file_name);
     free(module_file_name);
   } else {
-    // It's a probably realtive path, we add the extension to the provided path and prepend the cwd
-    char* module_path_  = ensure_slang_extension(module_path->chars);
-    module_to_load_path = join_path(AS_STR(cwd)->chars, module_path_);
+    // It's probably a realtive path, we add the extension to the provided path and prepend the cwd
+    char* module_path_ = ensure_slang_extension(module_path->chars);
+    absolute_file_path = join_path(cwd->chars, module_path_);
     free(module_path_);
 
-    if (!file_exists(module_to_load_path)) {
+    if (!file_exists(absolute_file_path)) {
       // Clearly, it's not a relative path.
-      free(module_to_load_path);
+      free(absolute_file_path);
 
-      // We assume it is an absolute path insted, we infer that it has the extension already
-      module_to_load_path = malloc(module_path->length + 1);
-      if (module_to_load_path == NULL) {
-        runtime_error("Could not import module '%s'. Out of memory.", module_name->chars);
-        return false;
+      // We assume it is an absolute path instead, which also has the extension already
+      absolute_file_path = malloc(module_path->length + 1);
+      if (absolute_file_path == NULL) {
+        INTERNAL_ERROR("Could not import module '%s'. Out of memory.",
+                       module_name == NULL ? module_path->chars : module_name->chars);
+        exit(EMEM_ERROR);
       }
 
-      strcpy(module_to_load_path, module_path->chars);
+      strcpy(absolute_file_path, module_path->chars);
     }
   }
 
-  if (module_to_load_path == NULL) {
+  if (absolute_file_path == NULL) {
     INTERNAL_ERROR(
         "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
         "'%s'",
-        module_name->chars, AS_STR(cwd)->chars, module_path == NULL ? "NULL" : module_path->chars);
+        module_name->chars, cwd->chars, module_path == NULL ? "NULL" : module_path->chars);
     exit(EIO_ERROR);
   }
 
-  if (!file_exists(module_to_load_path)) {
-    runtime_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars, module_to_load_path);
+  return absolute_file_path;
+}
+
+// Imports a module by name and pushes it onto the stack. If the module was already imported, it is loaded
+// from cache. If the module was not imported yet, it is loaded from the file system and then cached.
+// If [module_path] is NULL, the module is expected to be in the same directory as the
+// importing module. Returns true if the module was successfully imported, false otherwise.
+static bool import_module(ObjString* module_name, ObjString* module_path) {
+  Value module;
+
+  // Check if there's a module with the same name in the modules cache.
+  // Getting a module this way is only possible for modules that were registered by name only, which is currently
+  // only the case for native modules.
+  if (hashtable_get_by_string(&vm.modules, module_name, &module)) {
+    push(module);
+    return true;
+  }
+
+  // First, we need to get the current working directory
+  Value cwd = native_cwd(0, NULL);
+  if (is_nil(cwd)) {
+    runtime_error(
+        "Could not import module '%s'. Could not get current working directory, because there is no "
+        "active module or the active module is not a file.",
+        module_name->chars);
+    return false;
+  }
+
+  char* abs_module_path = resolve_module_path(AS_STR(cwd), module_name, module_path);
+
+  // Check if we have already imported the module by absolute path.
+  if (hashtable_get_by_string(&vm.modules, copy_string(abs_module_path, strlen(abs_module_path)), &module)) {
+    push(module);
+    free(abs_module_path);
+    return true;
+  }
+
+  // Nope, so we need to load the module from the file system
+  if (!file_exists(abs_module_path)) {
+    runtime_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars, abs_module_path);
+    free(abs_module_path);
     return false;
   }
 
   // Load the module by running the file
   int previous_exit_frame = vm.exit_on_frame;
   vm.exit_on_frame        = vm.frame_count;
-  module                  = run_file(module_to_load_path, module_name->chars);
+  module                  = run_file(abs_module_path, module_name->chars);
   vm.exit_on_frame        = previous_exit_frame;
 
   // Check if the module is actually a module
   if (!(module.type == vm.module_class)) {
-    free(module_to_load_path);
-    runtime_error("Could not import module '%s'. Expected module type", module_name->chars);
+    runtime_error("Could not import module '%s' from file '%s'. Expected module type", module_name->chars, abs_module_path);
+    free(abs_module_path);
     return false;
   }
 
-  push(module);  // Show ourselves to the GC before we put it in the hashtable
-  hashtable_set(&vm.modules, str_value(module_name), module);
+  push(module);  // Show ourselves to the GC before we do anything that might trigger a GC
+  ObjString* path = copy_string(abs_module_path, strlen(abs_module_path));
+  push(str_value(path));  // Show ourselves to the GC before we do anything that might trigger a GC
+  hashtable_set(&vm.modules, str_value(path), module);
+  pop();  // path
 
-  free(module_to_load_path);
+  free(abs_module_path);
   return true;
 }
 

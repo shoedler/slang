@@ -337,13 +337,11 @@
 // print "Modules"
 // print "--------------------------------------------------------------------------------"
 
-// // import std // Looks for "cwd/std.sl"
-// import std from "/modules/std" 
-// // import std from "C:/Projects/slang/modules/std.sl"
+// // import std // Looks for "{cwd}/std.sl"
+// // import std from "/modules/std"  // Relative path. Looks for "{cwd}/modules/std.sl"
+// // import std from "C:/Projects/slang/modules/std.sl" // Absolute path
 // // import std from "modules/std"
-
-// let Range = std.Range
-// let Monad = std.Monad
+// import { Range, Monad } from "modules/std" // Destructuring is allowed when specifying the module path
 
 // // let rng = Range.ctor(0, 10) // Does not work, because ctor is not bound to Range if you call it like this
 // let rng = Range(0, 5)
@@ -664,3 +662,31 @@
 // print A().entries() // [Expect] [[a, 1], [b, 2]]
 // print A()["a"]      // [Expect] 1
 // print A()["b"]      // [Expect] 2  b
+
+
+import { Set, Range } from "/modules/std"
+
+print Range
+
+let set = Set()
+set.add(1)
+set.add(2)
+
+let other = Set()
+other.add(2)
+other.add(3)
+
+let union = set.union(other)
+print union
+
+// Test intersection
+let intersection = set.intersection(other)
+print intersection
+
+// Test difference
+let difference = set.difference(other)
+print difference
+
+// Test symmetric_difference
+let symmetric_difference = set.symmetric_difference(other)
+print symmetric_difference
