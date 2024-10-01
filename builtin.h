@@ -52,6 +52,9 @@ extern void register_native_debug_module();
 // Registers the native gc module
 extern void register_native_gc_module();
 
+// Registers the native json module
+extern void register_native_json_module();
+
 //
 // Native function-, method- and class-declarations
 //

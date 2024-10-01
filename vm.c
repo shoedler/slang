@@ -355,6 +355,7 @@ void init_vm() {
   register_native_perf_module();
   register_native_debug_module();
   register_native_gc_module();
+  register_native_json_module();
 
   vm.flags &= ~VM_FLAG_PAUSE_GC;  // Unpause
 

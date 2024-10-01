@@ -564,111 +564,109 @@
 // print construct()
 // print get_x()
 
-// `Assert.that(expected, Is.equal_to(actual))`
+// cls Is {
+//   static fn true_ -> Is(
+//     fn (a) {
+//       if a == true ret nil
+//       else ret "Expected actual to be true, but got " + a.to_str() + " instead."
+//     }
+//   )
 
-cls Is {
-  static fn true_ -> Is(
-    fn (a) {
-      if a == true ret nil
-      else ret "Expected actual to be true, but got " + a.to_str() + " instead."
-    }
-  )
+//   static fn false_ -> Is(
+//     fn (a) {
+//       if a == false ret nil
+//       else ret "Expected actual to be false, but got " + a.to_str() + " instead."
+//     }
+//   )
 
-  static fn false_ -> Is(
-    fn (a) {
-      if a == false ret nil
-      else ret "Expected actual to be false, but got " + a.to_str() + " instead."
-    }
-  )
+//   static fn nil_ -> Is(
+//     fn (a) {
+//       if a == nil ret nil
+//       else ret "Expected actual to be nil, but got " + a.to_str() + " instead."
+//     }
+//   )
 
-  static fn nil_ -> Is(
-    fn (a) {
-      if a == nil ret nil
-      else ret "Expected actual to be nil, but got " + a.to_str() + " instead."
-    }
-  )
+//   static fn equal_to(e) -> Is(
+//     fn (a) {
+//       if e == a ret nil
+//       else ret "Expected actual to be " + e.to_str() + ", but got " + a.to_str() + " instead."
+//     }
+//   )
 
-  static fn equal_to(e) -> Is(
-    fn (a) {
-      if e == a ret nil
-      else ret "Expected actual to be " + e.to_str() + ", but got " + a.to_str() + " instead."
-    }
-  )
+//   static fn not_equal_to(e) -> Is(
+//     fn (a) {
+//       if e != a ret nil
+//       else ret "Expected actual to not be " + e.to_str() + ", but it was. (actual: " + a.to_str() + ")"
+//     }
+//   )
 
-  static fn not_equal_to(e) -> Is(
-    fn (a) {
-      if e != a ret nil
-      else ret "Expected actual to not be " + e.to_str() + ", but it was. (actual: " + a.to_str() + ")"
-    }
-  )
+//   ctor (test_fn) {
+//     this.test_fn = test_fn
+//   }
+// }
 
-  ctor (test_fn) {
-    this.test_fn = test_fn
-  }
-}
+// cls Does {
+//   static fn throw_(e) -> Does(
+//     fn (threw, a) {
+//       if !threw ret "Expected an error to be thrown with value '" + e.to_str() + "', but no error was thrown."
+//       else if e == a ret nil
+//       else ret "Expected an error to be thrown with value '" + e.to_str() + "', but threw '" + a.to_str() + "' instead."
+//     }
+//   )
+//   static fn not_throw -> Does(
+//     fn (threw, a) {
+//       if threw ret "Expected no error to be thrown, but an error was thrown with value '" + a.to_str() + "'."
+//       else ret nil
+//     }
+//   )
 
-cls Does {
-  static fn throw_(e) -> Does(
-    fn (threw, a) {
-      if !threw ret "Expected an error to be thrown with value '" + e.to_str() + "', but no error was thrown."
-      else if e == a ret nil
-      else ret "Expected an error to be thrown with value '" + e.to_str() + "', but threw '" + a.to_str() + "' instead."
-    }
-  )
-  static fn not_throw -> Does(
-    fn (threw, a) {
-      if threw ret "Expected no error to be thrown, but an error was thrown with value '" + a.to_str() + "'."
-      else ret nil
-    }
-  )
-
-  ctor (test_fn) {
-    this.test_fn = test_fn
-  }
-}
+//   ctor (test_fn) {
+//     this.test_fn = test_fn
+//   }
+// }
 
 
-cls Assert {
-  static fn that(expected, comparer) {
-    if comparer is Is {
-      let { test_fn } = comparer
-      let res = test_fn(expected)
-      if res throw res
-    }
-    else if comparer is Does {
-      if !(expected is Fn) {
-        throw "First argument must be a callable"
-      }
+// cls Assert {
+//   static fn that(expected, comparer) {
+//     if comparer is Is {
+//       let { test_fn } = comparer
+//       let res = test_fn(expected)
+//       if res throw res
+//     }
+//     else if comparer is Does {
+//       if !(expected is Fn) {
+//         throw "First argument must be a callable"
+//       }
 
-      // Use an obj (pointer) to check if the error is the same later on
-      let ref = {}
-      let err = ref
+//       // Use an obj (pointer) to check if the error is the same later on
+//       let ref = {}
+//       let err = ref
 
-      try {
-        expected()
-      }
-      catch {
-        err = error      
-      }
+//       try {
+//         expected()
+//       }
+//       catch {
+//         err = error      
+//       }
 
-      let did_throw = err != ref
-      let { test_fn } = comparer
-      let res = test_fn(did_throw, err)
-      if res throw res
-    }
-    else
-      throw "Second argument must be an instance of Is or Does"
-  }
-}
+//       let did_throw = err != ref
+//       let { test_fn } = comparer
+//       let res = test_fn(did_throw, err)
+//       if res throw res
+//     }
+//     else
+//       throw "Second argument must be an instance of Is or Does"
+//   }
+// }
 
-Assert.that(true, Is.true_())
-Assert.that(false, Is.false_())
-Assert.that(nil, Is.nil_())
-Assert.that(1, Is.equal_to(1))
-Assert.that(1, Is.not_equal_to(2))
+// Assert.that(true, Is.true_())
+// Assert.that(false, Is.false_())
+// Assert.that(nil, Is.nil_())
+// Assert.that(1, Is.equal_to(1))
+// Assert.that(1, Is.not_equal_to(2))
 
-Assert.that(fn {throw "Error"}, Does.throw_("Error"))
-Assert.that(fn {}, Does.not_throw())
+// Assert.that(fn {throw "Error"}, Does.throw_("Error"))
+// Assert.that(fn {}, Does.not_throw())
 // Assert.that(fn {throw "Error"}, Does.not_throw())
 
 // cls A {
@@ -682,30 +680,14 @@ Assert.that(fn {}, Does.not_throw())
 // print A()["a"]      // [Expect] 1
 // print A()["b"]      // [Expect] 2  b
 
+import Json
 
-import { Set, Range } from "/modules/std"
+print Json.stringify("Hello World", 2)
+print Json.stringify(123, 2)
+print Json.stringify(123.123, 2)
+print Json.stringify(true, 2)
+print Json.stringify(nil, 2)
 
-print Range
-
-let set = Set()
-set.add(1)
-set.add(2)
-
-let other = Set()
-other.add(2)
-other.add(3)
-
-let union = set.union(other)
-print union
-
-// Test intersection
-let intersection = set.intersection(other)
-print intersection
-
-// Test difference
-let difference = set.difference(other)
-print difference
-
-// Test symmetric_difference
-let symmetric_difference = set.symmetric_difference(other)
-print symmetric_difference
+print Json.stringify([ 1,2,3 ], 0)
+print Json.stringify({ 1:2, 3:4, "Five":5 }, 2)
+print Json.stringify({ {1:2}: "Obj as key" }, 2)
