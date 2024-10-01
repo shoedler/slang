@@ -94,6 +94,29 @@ double string_to_double(char* str, int length) {
   return result;
 }
 
+ObjString* double_to_string(double value) {
+  char buffer[100];
+  int len = snprintf(buffer, sizeof(buffer), VALUE_STR_FLOAT, value);
+
+  // Remove trailing zeros. Ugh...
+  // TODO (optimize): This is not very efficient, find a better way to do this
+  while (buffer[len - 1] == '0') {
+    buffer[--len] = '\0';
+  }
+
+  if (buffer[len - 1] == '.') {
+    buffer[--len] = '\0';
+  }
+
+  return copy_string(buffer, len);
+}
+
+ObjString* integer_to_string(long long value) {
+  char buffer[100];
+  int len = snprintf(buffer, sizeof(buffer), VALUE_STR_INT, value);
+  return copy_string(buffer, len);
+}
+
 bool values_equal(Value a, Value b) {
   // TODO (optimize): This is hot, maybe we can do better?
   if (a.type != b.type) {

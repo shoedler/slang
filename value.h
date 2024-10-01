@@ -115,6 +115,12 @@ uint64_t hash_value(Value value);
 // Returns 0.0 if the string is not a valid number.
 double string_to_double(char* str, int length);
 
+// Converts a double to a vm-managed string.
+ObjString* double_to_string(double value);
+
+// Converts an integer to a vm-managed string.
+ObjString* integer_to_string(long long value);
+
 // Prints a value to a file. Will look different from the values default print representation, but it will
 // guarantee that the gc will not be called.
 // Returns the number of characters printed.

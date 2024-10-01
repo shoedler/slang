@@ -108,11 +108,7 @@ static Value int_to_str(int argc, Value argv[]) {
   UNUSED(argc);
   NATIVE_CHECK_RECEIVER(vm.int_class)
 
-  char buffer[100];
-  int len = snprintf(buffer, sizeof(buffer), VALUE_STR_INT, argv[0].as.integer);
-
-  ObjString* str_obj = copy_string(buffer, len);
-  return str_value(str_obj);
+  return str_value(integer_to_string(argv[0].as.integer));
 }
 
 /**
@@ -150,19 +146,5 @@ static Value float_to_str(int argc, Value argv[]) {
   UNUSED(argc);
   NATIVE_CHECK_RECEIVER(vm.float_class)
 
-  char buffer[100];
-  int len = snprintf(buffer, sizeof(buffer), VALUE_STR_FLOAT, argv[0].as.float_);
-
-  // Remove trailing zeros. Ugh...
-  // TODO (optimize): This is not very efficient, find a better way to do this
-  while (buffer[len - 1] == '0') {
-    buffer[--len] = '\0';
-  }
-
-  if (buffer[len - 1] == '.') {
-    buffer[--len] = '\0';
-  }
-
-  ObjString* str_obj = copy_string(buffer, len);
-  return str_value(str_obj);
+  return str_value(double_to_string(argv[0].as.float_));
 }
