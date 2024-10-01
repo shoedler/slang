@@ -135,12 +135,12 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
     pop();  // Key str
 
     // Expand chars to fit the separator, delimiter plus the next key and value
-    size_t new_buf_size = strlen(chars) + strlen(key_str->chars) + strlen(value_str->chars) +
-                          (STR_LEN(VALUE_STR_OBJECT_SEPARATOR) - 1) + (sizeof(VALUE_STR_OBJECT_DELIM)) +
-                          (STR_LEN(VALUE_STR_OBJECT_END));  // Consider the closing bracket -
-                                                            // if we're done after this
-                                                            // iteration we won't need to
-                                                            // expand and can just slap it on there
+    size_t new_buf_size = strlen(chars) + key_str->length + value_str->length + STR_LEN(VALUE_STR_OBJECT_SEPARATOR) +
+                          STR_LEN(VALUE_STR_OBJECT_DELIM) +
+                          STR_LEN(VALUE_STR_OBJECT_END);  // Consider the closing bracket -
+                                                          // if we're done after this
+                                                          // iteration we won't need to
+                                                          // expand and can just slap it on there
 
     // Expand if necessary
     if (new_buf_size > buf_size) {

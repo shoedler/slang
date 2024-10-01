@@ -48,8 +48,8 @@ You can, for example, easily cache stuff:
   - [ ] Implement `Math.round(Num) -> Int`. (Nearest integer)
 - [ ] Implement `Json` module.
   - [ ] Implement `Json.parse(Str) -> Obj`.
-  - [ ] Implement `Json.stringify(Value) -> Str`.
-  - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
+  - [x] ~~Implement `Json.stringify(Value) -> Str`.~~
+  - [x] ~~Implement `Json.stringify(Value, Int) -> Str`. (Indentation)~~
 - [ ] Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`
 - [x] ~~Implement `Set` class~~ (Part of the `std` module - not a native type)
 - [x] ~~Implement `Set.add(Obj) -> Nil`.~~
@@ -95,6 +95,7 @@ You can, for example, easily cache stuff:
 - [ ] Inline `push()`, `peek()` and `pop()` in the Vm.
 - [ ] Make a `NATIVE_METHOD_RUNTIME_ERROR(class_name, method_name)` macro, which throws a runtime error with a nice prefix and always returns `NIL_VAL`. Use this in all `NATIVE_METHOD_IMPL` functions.
 - [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
+- [ ] Refactor most string operations to use our own allocator (`ALLOCATE` instead of `malloc`), and then use `take_string` instead of `copy_string`.
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
 - [ ] Constant time global variable lookup. (**_See Challenge 21.2_**)
