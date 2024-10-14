@@ -3,9 +3,10 @@
 ## Toolchain
 
 I started this project on a Windows 11 Machine with Visual Studio 2022 Community Edition and d C/C++ Workload.
+I moved to GCC as a starting point for cross-platform compatibility.
 Since I'm new to GCC, and likely forget the process in the future, I'll document the steps on installing GCC on Windows 11.
 
-1. Install [MSYS2](https://www.msys2.org/) (I installed it in `C:\Projects\.dev\msys64`)
+1. Install [MSYS2](https://www.msys2.org/) (I installed it in `C:\Projects\.dev\msys64`. This is where the vscode profiles expect it to be).
 2. Optionally, add a windows Terminal profile for the UCRT64 (Universal C Runtime) shell:
 
 ```json
@@ -49,3 +50,7 @@ RELEASE_LDFLAGS := $(filter-out -fprofile-generate, $(RELEASE_LDFLAGS)) -fprofil
 ```
 
 You'll need to build and run the executable once to collect the profile data, then rebuild it with `-fprofile-use` to optimize using that data.
+
+> [!NOTE]
+> PGO is available trough the `release-profiled` target in the Makefile (Also implicitly used in `all`). The normal `release` target does not use PGO.
+> The profiled build will use _profile.sl_ as the slang input file.
