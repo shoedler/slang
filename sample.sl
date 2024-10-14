@@ -691,3 +691,9 @@ print Json.stringify(nil, 2)
 print Json.stringify([ 1,2,3 ], 0)
 print Json.stringify({ 1:2, 3:4, "Five":5 }, 2)
 print Json.stringify({ {1:2}: "Obj as key" }, 2)
+print Json.stringify({ { { 1: [1,2,3] }: "Nested" }: "Key" }, 2)
+print Json.stringify({ "Value": { { 1: [1,2,3] }: "Nested" } }, 2)
+print Json.stringify([
+  { "Name": "John", "Age": 30, "City": "New York" },
+  { "Name": "Jane", "Age": 25, "City": "Los Angeles" }
+], 4)

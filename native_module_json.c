@@ -2,6 +2,7 @@
 #include "common.h"
 #include "file.h"
 #include "memory.h"
+#include "strbuf.h"
 #include "vm.h"
 
 static Value native_json_parse(int argc, Value argv[]);
@@ -82,7 +83,6 @@ static ObjString* sanitize_string(ObjString* raw) {
 
   const char* input = raw->chars;
 
-  int i;
   size_t output_size = raw->length * 2 + 1;  // Maximum possible size
   char* output       = malloc(output_size);
   if (!output) {
@@ -91,17 +91,38 @@ static ObjString* sanitize_string(ObjString* raw) {
 
   char* out_ptr = output;
 
-  for (i = 0; i < raw->length; ++i) {
+  for (int i = 0; i < raw->length; ++i) {
     char c = input[i];
+
+    if (c == '\\') {
+      if (i + 1 < raw->length) {
+        char next_c = input[i + 1];
+        if (next_c == 'n' || next_c == '\'' || next_c == '"') {
+          // Already escaped, copy both characters
+          *out_ptr++ = c;
+          *out_ptr++ = next_c;
+          ++i;
+          continue;
+        }
+      }
+      // Copy the backslash as is
+      *out_ptr++ = c;
+      continue;
+    }
+
     if (c == '\n') {
+      // Escape newline
       *out_ptr++ = '\\';
       *out_ptr++ = 'n';
-      continue;
     } else if (c == '\'' || c == '"') {
+      // Escape quotes
       *out_ptr++ = '\\';
+      *out_ptr++ = c;
+    } else {
+      *out_ptr++ = c;
     }
-    *out_ptr++ = c;
   }
+
   *out_ptr = '\0';  // Null-terminate the output string
 
   ObjString* sanitized = copy_string(output, (int)(out_ptr - output));
@@ -113,13 +134,13 @@ static ObjString* sanitize_string(ObjString* raw) {
 }
 
 static ObjString* stringify_obj(ObjObject* object, int indent, int current_indent) {
-  size_t buf_size = 64;  // Start with a reasonable size
-  char* chars     = malloc(buf_size);
-  int processed   = 0;  // Keep track of how many non-EMPTY fields we've processed to know when to skip the
-                        // last delimiter
+  StringBuffer buf;
+  init_string_buffer(&buf);
+  int processed = 0;  // Keep track of how many non-EMPTY fields we've processed to know when to skip the
+                      // last delimiter
 
   // Start the obj string
-  strcpy(chars, JSON_OBJ_START);
+  string_buf_append(&buf, JSON_OBJ_START, STR_LEN(JSON_OBJ_START));
   for (int i = 0; i < object->fields.capacity; i++) {
     if (is_empty_internal(object->fields.entries[i].key)) {
       continue;
@@ -142,71 +163,45 @@ static ObjString* stringify_obj(ObjObject* object, int indent, int current_inden
 
     pop();  // Key str
 
-    size_t current_buf_size = strlen(chars);
-
-    size_t indent_size             = indent > 0 ? current_indent + indent : 0;
-    size_t newline_whitespace_size = STR_LEN(JSON_NEWLINE) + STR_LEN(JSON_OBJ_DELIM);
-    size_t kvp_size                = key_str->length + value_str->length + STR_LEN(JSON_OBJ_SEPARATOR);
-    size_t end_obj_size            = STR_LEN(JSON_OBJ_END) * current_indent + STR_LEN(JSON_OBJ_END) +
-                          STR_LEN(JSON_NEWLINE);  // Just in case we're at the end of the object
-
-    size_t new_buf_size = current_buf_size + newline_whitespace_size + indent_size + kvp_size + end_obj_size;
-
-    // Expand if necessary
-    if (new_buf_size > buf_size) {
-      buf_size        = new_buf_size;
-      size_t old_size = strlen(chars);
-      chars           = realloc(chars, buf_size);
-      chars[old_size] = '\0';  // Ensure null-termination at the end of the string
-    }
-
     // Add a newline and indentation if we're indenting
     if (indent > 0) {
       if (processed > 0) {
-        strcat(chars, JSON_OBJ_DELIM);
+        string_buf_append(&buf, JSON_OBJ_DELIM, STR_LEN(JSON_OBJ_DELIM));
       }
-      strcat(chars, JSON_NEWLINE);
+      string_buf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
       for (int i = 0; i < current_indent + indent; i++) {
-        strcat(chars, JSON_INDENT);
+        string_buf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
       }
     }
 
     // Append the strings
-    strcat(chars, key_str->chars);
-    strcat(chars, JSON_OBJ_SEPARATOR);
-    strcat(chars, value_str->chars);
+    string_buf_append(&buf, key_str->chars, key_str->length);
+    string_buf_append(&buf, JSON_OBJ_SEPARATOR, STR_LEN(JSON_OBJ_SEPARATOR));
+    string_buf_append(&buf, value_str->chars, value_str->length);
 
     processed++;
   }
 
   // End the obj string
   if (processed > 0) {
-    strcat(chars, JSON_NEWLINE);
+    string_buf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
     for (int i = 0; i < current_indent; i++) {
-      strcat(chars, JSON_INDENT);
+      string_buf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
     }
   }
-  strcat(chars, JSON_OBJ_END);
+  string_buf_append(&buf, JSON_OBJ_END, STR_LEN(JSON_OBJ_END));
 
-  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-  // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj =
-      copy_string(chars,
-                  (int)strlen(chars));  // TODO (optimize): Use buf_size here, but
-                                        // we need to make sure that the string is
-                                        // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
-  free(chars);
-  return str_obj;
+  return string_buf_take(&buf);
 }
 
 static ObjString* stringify_seq(ObjSeq* seq, int indent, int current_indent) {
-  size_t buf_size = 64;  // Start with a reasonable size
-  char* chars     = malloc(buf_size);
-  int processed   = 0;  // Keep track of how many non-EMPTY fields we've processed to know when to skip the
-                        // last delimiter
+  StringBuffer buf;
+  init_string_buffer(&buf);
+  int processed = 0;  // Keep track of how many non-EMPTY fields we've processed to know when to skip the
+                      // last delimiter
 
   // Start the array string
-  strcpy(chars, JSON_ARRAY_START);
+  string_buf_append(&buf, JSON_ARRAY_START, STR_LEN(JSON_ARRAY_START));
   for (int i = 0; i < seq->items.count; i++) {
     Value item = seq->items.values[i];
 
@@ -215,61 +210,35 @@ static ObjString* stringify_seq(ObjSeq* seq, int indent, int current_indent) {
       item_str = copy_string("???", 3);  // Fallback, generates invalid JSON by design
     }
 
-    size_t current_buf_size = strlen(chars);
-
-    size_t indent_size             = indent > 0 ? current_indent + indent : 0;
-    size_t newline_whitespace_size = STR_LEN(JSON_NEWLINE) + STR_LEN(JSON_ARRAY_DELIM);
-    size_t item_size               = item_str->length;
-    size_t end_array_size          = STR_LEN(JSON_ARRAY_END) * current_indent + STR_LEN(JSON_ARRAY_END) +
-                            STR_LEN(JSON_NEWLINE);  // Just in case we're at the end of the array
-
-    size_t new_buf_size = current_buf_size + newline_whitespace_size + indent_size + item_size + end_array_size;
-
-    // Expand if necessary
-    if (new_buf_size > buf_size) {
-      buf_size        = new_buf_size;
-      size_t old_size = strlen(chars);
-      chars           = realloc(chars, buf_size);
-      chars[old_size] = '\0';  // Ensure null-termination at the end of the string
-    }
-
     // Add a newline and indentation if we're indenting
     if (indent > 0) {
       if (processed > 0) {
-        strcat(chars, JSON_ARRAY_DELIM);
+        string_buf_append(&buf, JSON_ARRAY_DELIM, STR_LEN(JSON_ARRAY_DELIM));
       }
-      strcat(chars, JSON_NEWLINE);
+      string_buf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
       for (int i = 0; i < current_indent + indent; i++) {
-        strcat(chars, JSON_INDENT);
+        string_buf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
       }
+    } else if (processed > 0) {
+      string_buf_append(&buf, JSON_ARRAY_DELIM, STR_LEN(JSON_ARRAY_DELIM));
     }
 
     // Append the strings
-    strcat(chars, item_str->chars);
+    string_buf_append(&buf, item_str->chars, item_str->length);
 
     processed++;
   }
 
   // End the array string
-  if (processed > 0) {
-    strcat(chars, JSON_NEWLINE);
+  if (processed > 0 && indent > 0) {
+    string_buf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
     for (int i = 0; i < current_indent; i++) {
-      strcat(chars, JSON_INDENT);
+      string_buf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
     }
   }
+  string_buf_append(&buf, JSON_ARRAY_END, STR_LEN(JSON_ARRAY_END));
 
-  strcat(chars, JSON_ARRAY_END);
-
-  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-  // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj =
-      copy_string(chars,
-                  (int)strlen(chars));  // TODO (optimize): Use buf_size here, but
-                                        // we need to make sure that the string is
-                                        // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
-  free(chars);
-
-  return str_obj;
+  return string_buf_take(&buf);
 }
 
 static ObjString* stringify_value(Value value, int indent_size, int current_indent, bool is_key) {
