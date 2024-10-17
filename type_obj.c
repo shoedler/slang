@@ -2,6 +2,7 @@
 #include <string.h>
 #include "builtin.h"
 #include "common.h"
+#include "strbuf.h"
 #include "vm.h"
 
 static bool obj_get_prop(Value receiver, ObjString* name, Value* result);
@@ -92,11 +93,8 @@ static Value instance_object_to_str(int argc, Value* argv) {
   size_t buf_size = VALUE_STRFTM_INSTANCE_LEN + name->length;
   char* chars     = malloc(buf_size);
   snprintf(chars, buf_size, VALUE_STRFTM_INSTANCE, name->chars);
-  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-  // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
+  ObjString* str_obj = take_string(chars, (int)buf_size - 1);
 
-  free(chars);
   pop();  // Name str
   return str_value(str_obj);
 }
@@ -105,12 +103,12 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
   UNUSED(argc);
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  size_t buf_size   = 64;  // Start with a reasonable size
-  char* chars       = malloc(buf_size);
-  int processed     = 0;  // Keep track of how many non-EMPTY fields we've processed to know when to skip the
-                          // last delimiter
+  StringBuffer buf;
+  init_strbuf(&buf);
+  int processed = 0;  // Keep track of how many non-EMPTY fields we've processed to know when to skip the
+                      // last delimiter
 
-  strcpy(chars, VALUE_STR_OBJECT_START);
+  strbuf_append(&buf, VALUE_STR_OBJECT_START, STR_LEN(VALUE_STR_OBJECT_START));
   for (int i = 0; i < object->fields.capacity; i++) {
     if (is_empty_internal(object->fields.entries[i].key)) {
       continue;
@@ -134,43 +132,18 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
 
     pop();  // Key str
 
-    // Expand chars to fit the separator, delimiter plus the next key and value
-    size_t new_buf_size = strlen(chars) + key_str->length + value_str->length + STR_LEN(VALUE_STR_OBJECT_SEPARATOR) +
-                          STR_LEN(VALUE_STR_OBJECT_DELIM) +
-                          STR_LEN(VALUE_STR_OBJECT_END);  // Consider the closing bracket -
-                                                          // if we're done after this
-                                                          // iteration we won't need to
-                                                          // expand and can just slap it on there
-
-    // Expand if necessary
-    if (new_buf_size > buf_size) {
-      buf_size        = new_buf_size;
-      size_t old_size = strlen(chars);
-      chars           = realloc(chars, buf_size);
-      chars[old_size] = '\0';  // Ensure null-termination at the end of the old string
-    }
-
     // Append the strings
-    strcat(chars, key_str->chars);
-    strcat(chars, VALUE_STR_OBJECT_SEPARATOR);
-    strcat(chars, value_str->chars);
+    strbuf_append(&buf, key_str->chars, key_str->length);
+    strbuf_append(&buf, VALUE_STR_OBJECT_SEPARATOR, STR_LEN(VALUE_STR_OBJECT_SEPARATOR));
+    strbuf_append(&buf, value_str->chars, value_str->length);
     if (processed < object->fields.count - 1) {
-      strcat(chars, VALUE_STR_OBJECT_DELIM);
+      strbuf_append(&buf, VALUE_STR_OBJECT_DELIM, STR_LEN(VALUE_STR_OBJECT_DELIM));
     }
     processed++;
   }
+  strbuf_append(&buf, VALUE_STR_OBJECT_END, STR_LEN(VALUE_STR_OBJECT_END));
 
-  strcat(chars, VALUE_STR_OBJECT_END);
-
-  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-  // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj =
-      copy_string(chars,
-                  (int)strlen(chars));  // TODO (optimize): Use buf_size here, but
-                                        // we need to make sure that the string is
-                                        // null-terminated. Also, if it's < 64 chars long, we need to shorten the length.
-  free(chars);
-  return str_value(str_obj);
+  return str_value(strbuf_take_string(&buf));
 }
 
 /**
@@ -198,11 +171,8 @@ static Value obj_to_str(int argc, Value argv[]) {
   size_t buf_size = VALUE_STRFMT_OBJ_LEN + t_name->length + adr_str_len;
   char* chars     = malloc(buf_size);
   snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name->chars, (void*)argv[0].as.obj);
-  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-  // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
+  ObjString* str_obj = take_string(chars, (int)buf_size - 1);
 
-  free(chars);
   return str_value(str_obj);
 }
 

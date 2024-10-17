@@ -769,7 +769,7 @@ static void concatenate() {
   ObjString* a = AS_STR(peek(1));  // Peek, so it doesn't get freed by the GC
 
   int length  = a->length + b->length;
-  char* chars = ALLOCATE(char, length + 1);
+  char* chars = (char*)malloc(length + 1);
   memcpy(chars, a->chars, a->length);
   memcpy(chars + a->length, b->chars, b->length);
   chars[length] = '\0';

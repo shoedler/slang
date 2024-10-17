@@ -138,7 +138,8 @@ static Value seq_slice(int argc, Value argv[]) {
   NATIVE_LISTLIKE_SLICE_BODY(vm.seq_class);
 }
 static Value seq_to_str(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_TO_STR_BODY(vm.seq_class, VALUE_STR_SEQ_START, VALUE_STR_SEQ_DELIM, VALUE_STR_SEQ_END);
+  NATIVE_LISTLIKE_TO_STR_BODY(vm.seq_class, VALUE_STR_SEQ_START, STR_LEN(VALUE_STR_SEQ_START), VALUE_STR_SEQ_DELIM,
+                              STR_LEN(VALUE_STR_SEQ_DELIM), VALUE_STR_SEQ_END, STR_LEN(VALUE_STR_SEQ_END));
 }
 static Value seq_index_of(int argc, Value argv[]) {
   NATIVE_LISTLIKE_INDEX_OF_BODY(vm.seq_class);

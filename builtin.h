@@ -1,6 +1,7 @@
 #ifndef builtin_h
 #define builtin_h
 
+#include "strbuf.h"
 #include "value.h"
 #include "vm.h"
 
@@ -238,52 +239,32 @@ extern Value native_typeof(int argc, Value argv[]);
  * TYPENAME_T.SP_METHOD_TO_STR() -> TYPENAME_STRING
  * @brief Returns a string representation of the TYPENAME_T.
  */
-#define NATIVE_LISTLIKE_TO_STR_BODY(class, start_chars, delim_chars, end_chars)                                       \
-  UNUSED(argc);                                                                                                       \
-  NATIVE_CHECK_RECEIVER(class)                                                                                        \
-                                                                                                                      \
-  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                                         \
-  size_t buf_size  = 64; /* Start with a reasonable size */                                                           \
-  char* chars      = malloc(buf_size);                                                                                \
-                                                                                                                      \
-  strcpy(chars, start_chars);                                                                                         \
-  for (int i = 0; i < items.count; i++) {                                                                             \
-    /* Execute the to_str method on the item */                                                                       \
-    push(items.values[i]); /* Push the receiver (item at i) for to_str */                                             \
-    ObjString* item_str = AS_STR(exec_callable(fn_value(items.values[i].type->__to_str), 0));                         \
-    if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                               \
-      return nil_value();                                                                                             \
-    }                                                                                                                 \
-                                                                                                                      \
-    /* Expand chars to fit the separator plus the next item */                                                        \
-    size_t new_buf_size = strlen(chars) + item_str->length + (STR_LEN(delim_chars)) +                                 \
-                          (STR_LEN(end_chars)); /* Consider the closing bracket -  if we're done after this */        \
-                                                /* iteration we won't need to expand and can just slap it on there */ \
-                                                                                                                      \
-    /* Expand if necessary */                                                                                         \
-    if (new_buf_size > buf_size) {                                                                                    \
-      buf_size        = new_buf_size;                                                                                 \
-      size_t old_size = strlen(chars);                                                                                \
-      chars           = realloc(chars, buf_size);                                                                     \
-      chars[old_size] = '\0'; /* Ensure null-termination at the end of the old string */                              \
-    }                                                                                                                 \
-                                                                                                                      \
-    /* Append the string */                                                                                           \
-    strcat(chars, item_str->chars);                                                                                   \
-    if (i < items.count - 1) {                                                                                        \
-      strcat(chars, delim_chars);                                                                                     \
-    }                                                                                                                 \
-  }                                                                                                                   \
-                                                                                                                      \
-  strcat(chars, end_chars);                                                                                           \
-                                                                                                                      \
-  /* Intuitively, you'd expect to use take_string here, but we don't know where malloc */                             \
-  /* allocates the memory - we don't want this block in our own memory pool. */                                       \
-  ObjString* str_obj = copy_string(chars, (int)strlen(chars)); /* TODO (optimize): Use buf_size here, but */          \
-                                                               /* we need to make sure that the string is */          \
-  /* null-terminated. Also, if it's < 64 chars long, we need to shorten the length. */                                \
-  free(chars);                                                                                                        \
-  return str_value(str_obj);
+#define NATIVE_LISTLIKE_TO_STR_BODY(class, start_chars, start_chars_len, delim_chars, delim_chars_len, end_chars, end_chars_len) \
+  UNUSED(argc);                                                                                                                  \
+  NATIVE_CHECK_RECEIVER(class)                                                                                                   \
+                                                                                                                                 \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                                                    \
+  StringBuffer buf;                                                                                                              \
+  init_strbuf(&buf);                                                                                                             \
+                                                                                                                                 \
+  strbuf_append(&buf, start_chars, start_chars_len);                                                                             \
+  for (int i = 0; i < items.count; i++) {                                                                                        \
+    /* Execute the to_str method on the item */                                                                                  \
+    push(items.values[i]); /* Push the receiver (item at i) for to_str */                                                        \
+    ObjString* item_str = AS_STR(exec_callable(fn_value(items.values[i].type->__to_str), 0));                                    \
+    if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                                          \
+      return nil_value();                                                                                                        \
+    }                                                                                                                            \
+                                                                                                                                 \
+    /* Append the string */                                                                                                      \
+    strbuf_append(&buf, item_str->chars, item_str->length);                                                                      \
+    if (i < items.count - 1) {                                                                                                   \
+      strbuf_append(&buf, delim_chars, delim_chars_len);                                                                         \
+    }                                                                                                                            \
+  }                                                                                                                              \
+  strbuf_append(&buf, end_chars, end_chars_len);                                                                                 \
+                                                                                                                                 \
+  return str_value(strbuf_take_string(&buf));
 
 /**
  * TYPENAME_T.SP_METHOD_SLICE(start: TYPENAME_INT, end: TYPENAME_INT | TYPENAME_NIL) -> TYPENAME_T
@@ -638,55 +619,39 @@ extern Value native_typeof(int argc, Value argv[]);
  * TYPENAME_T.join(sep: TYPENAME_STRING) -> TYPENAME_STRING
  * @brief Joins the items of a TYPENAME_T into a single TYPENAME_STRING, separated by 'sep'.
  */
-#define NATIVE_LISTLIKE_JOIN_BODY(class)                                                               \
-  UNUSED(argc);                                                                                        \
-  NATIVE_CHECK_RECEIVER(class)                                                                         \
-  NATIVE_CHECK_ARG_AT(1, vm.str_class)                                                                 \
-                                                                                                       \
-  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                                          \
-  ObjString* sep   = AS_STR(argv[1]);                                                                  \
-                                                                                                       \
-  size_t buf_size = 64; /* Start with a reasonable size */                                             \
-  char* chars     = malloc(buf_size);                                                                  \
-  chars[0]        = '\0'; /* Start with an empty string, so we can use strcat */                       \
-                                                                                                       \
-  for (int i = 0; i < items.count; i++) {                                                              \
-    /* Maybe this is faster (checking if the item is a string)  - unsure though */                     \
-    ObjString* item_str = NULL;                                                                        \
-    if (!is_str(items.values[i])) {                                                                    \
-      /* Execute the to_str method on the item */                                                      \
-      push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                        \
-      item_str = AS_STR(exec_callable(fn_value(items.values[i].type->__to_str), 0));                   \
-      if (vm.flags & VM_FLAG_HAS_ERROR) {                                                              \
-        return nil_value();                                                                            \
-      }                                                                                                \
-    } else {                                                                                           \
-      item_str = AS_STR(items.values[i]);                                                              \
-    }                                                                                                  \
-                                                                                                       \
-    /* Expand chars to fit the separator plus the next item */                                         \
-    size_t new_buf_size = strlen(chars) + item_str->length + sep->length; /* Consider the separator */ \
-                                                                                                       \
-    /* Expand if necessary */                                                                          \
-    if (new_buf_size > buf_size) {                                                                     \
-      buf_size        = new_buf_size;                                                                  \
-      size_t old_size = strlen(chars);                                                                 \
-      chars           = realloc(chars, buf_size);                                                      \
-      chars[old_size] = '\0'; /* Ensure null-termination at the end of the old string */               \
-    }                                                                                                  \
-                                                                                                       \
-    /* Append the string */                                                                            \
-    strcat(chars, item_str->chars);                                                                    \
-    if (i < items.count - 1) {                                                                         \
-      strcat(chars, sep->chars);                                                                       \
-    }                                                                                                  \
-  }                                                                                                    \
-                                                                                                       \
-  /* Intuitively, you'd expect to use take_string here, but we don't know where malloc */              \
-  /* allocates the memory - we don't want this block in our own memory pool. */                        \
-  ObjString* str_obj = copy_string(chars, (int)strlen(chars));                                         \
-  free(chars);                                                                                         \
-  return str_value(str_obj);
+#define NATIVE_LISTLIKE_JOIN_BODY(class)                                             \
+  UNUSED(argc);                                                                      \
+  NATIVE_CHECK_RECEIVER(class)                                                       \
+  NATIVE_CHECK_ARG_AT(1, vm.str_class)                                               \
+                                                                                     \
+  ValueArray items = AS_VALUE_ARRAY(argv[0]);                                        \
+  ObjString* sep   = AS_STR(argv[1]);                                                \
+                                                                                     \
+  StringBuffer buf;                                                                  \
+  init_strbuf(&buf);                                                                 \
+                                                                                     \
+  for (int i = 0; i < items.count; i++) {                                            \
+    /* Maybe this is faster (checking if the item is a string)  - unsure though */   \
+    ObjString* item_str = NULL;                                                      \
+    if (!is_str(items.values[i])) {                                                  \
+      /* Execute the to_str method on the item */                                    \
+      push(items.values[i]); /* Push the receiver (item at i) for to_str, or */      \
+      item_str = AS_STR(exec_callable(fn_value(items.values[i].type->__to_str), 0)); \
+      if (vm.flags & VM_FLAG_HAS_ERROR) {                                            \
+        return nil_value();                                                          \
+      }                                                                              \
+    } else {                                                                         \
+      item_str = AS_STR(items.values[i]);                                            \
+    }                                                                                \
+                                                                                     \
+    /* Append the string */                                                          \
+    strbuf_append(&buf, item_str->chars, item_str->length);                          \
+    if (i < items.count - 1) {                                                       \
+      strbuf_append(&buf, sep->chars, sep->length);                                  \
+    }                                                                                \
+  }                                                                                  \
+                                                                                     \
+  return str_value(strbuf_take_string(&buf));
 
 /**
  * TYPENAME_T.reverse() -> TYPENAME_T

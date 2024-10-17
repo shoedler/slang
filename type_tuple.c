@@ -90,7 +90,8 @@ static Value tuple_slice(int argc, Value argv[]) {
   NATIVE_LISTLIKE_SLICE_BODY(vm.tuple_class);
 }
 static Value tuple_to_str(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_TO_STR_BODY(vm.tuple_class, VALUE_STR_TUPLE_START, VALUE_STR_TUPLE_DELIM, VALUE_STR_TUPLE_END);
+  NATIVE_LISTLIKE_TO_STR_BODY(vm.tuple_class, VALUE_STR_TUPLE_START, STR_LEN(VALUE_STR_TUPLE_START), VALUE_STR_TUPLE_DELIM,
+                              STR_LEN(VALUE_STR_TUPLE_DELIM), VALUE_STR_TUPLE_END, STR_LEN(VALUE_STR_TUPLE_END));
 }
 static Value tuple_index_of(int argc, Value argv[]) {
   NATIVE_LISTLIKE_INDEX_OF_BODY(vm.tuple_class);

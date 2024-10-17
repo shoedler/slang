@@ -94,12 +94,8 @@ static Value fn_to_str(int argc, Value argv[]) {
   size_t buf_size = fmt_len + name->length;
   char* chars     = malloc(buf_size);
   snprintf(chars, buf_size, fmt, name->chars);
+  ObjString* str_obj = take_string(chars, (int)buf_size - 1);
 
-  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-  // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
-
-  free(chars);
   pop();  // Name str
   return str_value(str_obj);
 }
