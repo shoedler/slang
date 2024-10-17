@@ -97,7 +97,7 @@ See [Dev Notes](./doc/DEV.md) for a guide on setting up the development environm
 - [ ] Inline `push()`, `peek()` and `pop()` in the Vm.
 - [ ] Make a `NATIVE_METHOD_RUNTIME_ERROR(class_name, method_name)` macro, which throws a runtime error with a nice prefix and always returns `NIL_VAL`. Use this in all `NATIVE_METHOD_IMPL` functions.
 - [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
-- [ ] Refactor most string operations to use our own allocator (`ALLOCATE` instead of `malloc`), and then use `take_string` instead of `copy_string`.
+- [ ] Refactor most string operations, and then use `take_string` instead of `copy_string`.
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Constant time global variable lookup. (**_See Challenge 21.2_**)
 

@@ -31,7 +31,7 @@ static Value native_json_parse(int argc, Value argv[]) {
 }
 
 /**
- * MODULE_NAME.stringify(val: TYPENAME_OBJ, indent?: TYPENAME_INT) -> TYPENAME_STR
+ * MODULE_NAME.stringify(val: TYPENAME_VALUE, indent?: TYPENAME_INT) -> TYPENAME_STR
  * @brief Converts [val] to a JSON string. If [indent] is greater than 0, the string will be indented by [indent] spaces.
  */
 static Value native_json_stringify(int argc, Value argv[]) {
@@ -65,7 +65,7 @@ static ObjString* quotify(ObjString* raw) {
   push(str_value(raw));  // GC Protection
 
   // Add quotes
-  char* heap_chars = ALLOCATE(char, raw->length + 3);  // +3 for the quotes and null-terminator
+  char* heap_chars = (char*)malloc(raw->length + 3);  // +3 for the quotes and null-terminator
 
   heap_chars[0] = JSON_QUOTE_CHAR;
   memcpy(heap_chars + 1, raw->chars, raw->length);
@@ -135,12 +135,12 @@ static ObjString* sanitize_string(ObjString* raw) {
 
 static ObjString* stringify_obj(ObjObject* object, int indent, int current_indent) {
   StringBuffer buf;
-  init_string_buffer(&buf);
+  init_strbuf(&buf);
   int processed = 0;  // Keep track of how many non-EMPTY fields we've processed to know when to skip the
                       // last delimiter
 
   // Start the obj string
-  string_buf_append(&buf, JSON_OBJ_START, STR_LEN(JSON_OBJ_START));
+  strbuf_append(&buf, JSON_OBJ_START, STR_LEN(JSON_OBJ_START));
   for (int i = 0; i < object->fields.capacity; i++) {
     if (is_empty_internal(object->fields.entries[i].key)) {
       continue;
@@ -166,42 +166,42 @@ static ObjString* stringify_obj(ObjObject* object, int indent, int current_inden
     // Add a newline and indentation if we're indenting
     if (indent > 0) {
       if (processed > 0) {
-        string_buf_append(&buf, JSON_OBJ_DELIM, STR_LEN(JSON_OBJ_DELIM));
+        strbuf_append(&buf, JSON_OBJ_DELIM, STR_LEN(JSON_OBJ_DELIM));
       }
-      string_buf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
+      strbuf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
       for (int i = 0; i < current_indent + indent; i++) {
-        string_buf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
+        strbuf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
       }
     }
 
     // Append the strings
-    string_buf_append(&buf, key_str->chars, key_str->length);
-    string_buf_append(&buf, JSON_OBJ_SEPARATOR, STR_LEN(JSON_OBJ_SEPARATOR));
-    string_buf_append(&buf, value_str->chars, value_str->length);
+    strbuf_append(&buf, key_str->chars, key_str->length);
+    strbuf_append(&buf, JSON_OBJ_SEPARATOR, STR_LEN(JSON_OBJ_SEPARATOR));
+    strbuf_append(&buf, value_str->chars, value_str->length);
 
     processed++;
   }
 
   // End the obj string
   if (processed > 0) {
-    string_buf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
+    strbuf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
     for (int i = 0; i < current_indent; i++) {
-      string_buf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
+      strbuf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
     }
   }
-  string_buf_append(&buf, JSON_OBJ_END, STR_LEN(JSON_OBJ_END));
+  strbuf_append(&buf, JSON_OBJ_END, STR_LEN(JSON_OBJ_END));
 
-  return string_buf_take(&buf);
+  return strbuf_take_string(&buf);
 }
 
 static ObjString* stringify_seq(ObjSeq* seq, int indent, int current_indent) {
   StringBuffer buf;
-  init_string_buffer(&buf);
+  init_strbuf(&buf);
   int processed = 0;  // Keep track of how many non-EMPTY fields we've processed to know when to skip the
                       // last delimiter
 
   // Start the array string
-  string_buf_append(&buf, JSON_ARRAY_START, STR_LEN(JSON_ARRAY_START));
+  strbuf_append(&buf, JSON_ARRAY_START, STR_LEN(JSON_ARRAY_START));
   for (int i = 0; i < seq->items.count; i++) {
     Value item = seq->items.values[i];
 
@@ -213,32 +213,32 @@ static ObjString* stringify_seq(ObjSeq* seq, int indent, int current_indent) {
     // Add a newline and indentation if we're indenting
     if (indent > 0) {
       if (processed > 0) {
-        string_buf_append(&buf, JSON_ARRAY_DELIM, STR_LEN(JSON_ARRAY_DELIM));
+        strbuf_append(&buf, JSON_ARRAY_DELIM, STR_LEN(JSON_ARRAY_DELIM));
       }
-      string_buf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
+      strbuf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
       for (int i = 0; i < current_indent + indent; i++) {
-        string_buf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
+        strbuf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
       }
     } else if (processed > 0) {
-      string_buf_append(&buf, JSON_ARRAY_DELIM, STR_LEN(JSON_ARRAY_DELIM));
+      strbuf_append(&buf, JSON_ARRAY_DELIM, STR_LEN(JSON_ARRAY_DELIM));
     }
 
     // Append the strings
-    string_buf_append(&buf, item_str->chars, item_str->length);
+    strbuf_append(&buf, item_str->chars, item_str->length);
 
     processed++;
   }
 
   // End the array string
   if (processed > 0 && indent > 0) {
-    string_buf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
+    strbuf_append(&buf, JSON_NEWLINE, STR_LEN(JSON_NEWLINE));
     for (int i = 0; i < current_indent; i++) {
-      string_buf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
+      strbuf_append(&buf, JSON_INDENT, STR_LEN(JSON_INDENT));
     }
   }
-  string_buf_append(&buf, JSON_ARRAY_END, STR_LEN(JSON_ARRAY_END));
+  strbuf_append(&buf, JSON_ARRAY_END, STR_LEN(JSON_ARRAY_END));
 
-  return string_buf_take(&buf);
+  return strbuf_take_string(&buf);
 }
 
 static ObjString* stringify_value(Value value, int indent_size, int current_indent, bool is_key) {
