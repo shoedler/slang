@@ -107,6 +107,10 @@ See [Dev Notes](./doc/DEV.md) for a guide on setting up the development environm
 
 ## Features
 
+- [ ] Implement Operator overloading like such:
+      
+![image](https://github.com/user-attachments/assets/6677ec02-5520-467f-8bfe-045c13f67a1c)
+
 - [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
 - [ ] Implement `@memoize` decorator. Would put args into a `Tuple` and use that as a key in a `Obj`.
 - [ ] Implement `Float.nan` and `Float.inf` constants (Would require static fields).
