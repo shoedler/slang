@@ -1,6 +1,7 @@
 #ifndef object_h
 #define object_h
 
+#include <stdatomic.h>
 #include "chunk.h"
 #include "common.h"
 #include "hashtable.h"
@@ -23,7 +24,7 @@ typedef enum {
 // The base object construct.
 struct Obj {
   ObjGcType type;
-  bool is_marked;
+  atomic_bool is_marked;  // Use atomic_bool for thread-safe marking
   uint64_t hash;
   struct Obj* next;
 };

@@ -197,7 +197,7 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
 void hashtable_remove_white(HashTable* table) {
   for (int i = 0; i < table->capacity; i++) {
     Entry* entry = &table->entries[i];
-    if (!is_empty_internal(entry->key) && !(entry->key.as.obj->is_marked)) {
+    if (!is_empty_internal(entry->key) && !atomic_load(&entry->key.as.obj->is_marked)) {
       hashtable_delete(table, entry->key);
     }
   }

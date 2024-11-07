@@ -48,7 +48,8 @@ void mark_obj(Obj* object) {
     return;
   }
 
-  if (object->is_marked) {
+  // Atomically check and set the is_marked flag
+  if (atomic_exchange(&object->is_marked, true)) {
     return;
   }
 
@@ -57,7 +58,7 @@ void mark_obj(Obj* object) {
   printf("%s\n", typeof_(OBJ_GC_VAL(object))->name->chars);
 #endif
 
-  object->is_marked = true;
+  // object->is_marked = true;
 
   if (vm.gray_capacity < vm.gray_count + 1) {
     vm.gray_capacity = GROW_CAPACITY(vm.gray_capacity);
@@ -303,10 +304,10 @@ static void sweep() {
   Obj* object   = vm.objects;
 
   while (object != NULL) {
-    if (object->is_marked) {
-      object->is_marked = false;  // Unmark for next gc cycle
-      previous          = object;
-      object            = object->next;
+    // Atomically check and reset the is_marked flag
+    if (atomic_exchange(&object->is_marked, false)) {
+      previous = object;
+      object   = object->next;
     } else {
       Obj* unreached = object;
 
