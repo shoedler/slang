@@ -1,9 +1,17 @@
 #ifndef common_h
 #define common_h
 
+#include <jemalloc/jemalloc.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#if defined(_WIN32) && !defined(JEMALLOC_NO_REPLACE)
+#define malloc(size) je_malloc(size)
+#define calloc(count, size) je_calloc(count, size)
+#define realloc(ptr, size) je_realloc(ptr, size)
+#define free(ptr) je_free(ptr)
+#endif
 
 // Debug feature flags
 
@@ -12,9 +20,10 @@
 // #define DEBUG_TRACE_EXECUTION  // Print the execution of the Vm, including stack traces.
 
 // #define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
-#define DEBUG_GC_PHASE_TIMES   // Log the time it takes for each phase of the Gc
-#define DEBUG_GC_WORKER_STATS  // Log the statistics of the Gc worker
+#define DEBUG_GC_PHASE_TIMES  // Log the time it takes for each phase of the Gc
+// #define DEBUG_GC_WORKER_STATS  // Log the statistics of the Gc worker
 // #define DEBUG_GC_WORKER  // Log the Gc worker's activity
+// #define DEBUG_GC_SWEEP  // Log the Gc sweep phase
 
 // Feature flags
 

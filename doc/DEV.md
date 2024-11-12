@@ -26,10 +26,11 @@ Since I'm new to GCC, and likely forget the process in the future, I'll document
 - _gcc_ (UCRT64) with the more modern UCRT with `$ pacman -S mingw-w64-ucrt-x86_64-gcc` in the MSYS2 terminal.
 - _gdb_ (UCRT64) with `$ pacman -S ucrt64/mingw-w64-ucrt-x86_64-gdb`
 - _make_ with `$ pacman -S make`
+- _jemalloc_ with `$ mingw-w64-ucrt-x86_64-jemalloc` (Since we require a concurrent memory allocator)
 
 4. Add relevant bin dirs to the PATH environment variable:
 
-- `C:\Projects\.dev\msys64\ucrt64\bin` (for gcc and gdb)
+- `C:\Projects\.dev\msys64\ucrt64\bin` (for gcc and gdb as well as jemalloc)
 - `C:\Projects\.dev\msys64\usr\bin` (for make)
 
 Now, you should be able to build the project with `make`.
