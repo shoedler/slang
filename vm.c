@@ -11,7 +11,7 @@
 #include "object.h"
 #include "vm.h"
 
-#if defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_ALLOCATIONS) || defined(DEBUG_TRACE_EXECUTION)
+#if defined(DEBUG_TRACE_EXECUTION)
 #include "debug.h"
 #endif
 
@@ -160,12 +160,11 @@ void define_native(HashTable* table, const char* name, NativeFn function, int ar
 }
 
 void define_value(HashTable* table, const char* name, Value value) {
-  // 🐛 Seemingly out of nowhere the pushed key and value get swapped on the stack...?! I don't know why.
-  // Funnily enough, it only happens when we start a nested module. E.g. we're in "main" and import "std",
-  // when the builtins get attached to the module instances field within the start_module function key and
-  // value are swapped! Same goes for the name (WTF). I've found this out because in the stack trace we now
-  // see the modules name and for nested modules it always printed __name. The current remedy is to just use
-  // variables for "key" and "value" and just use these instead of pushing and peeking.
+  // TODO (fix):🐛 Seemingly out of nowhere the pushed key and value get swapped on the stack...?! I don't know why. Funnily
+  // enough, it only happens when we start a nested module. E.g. we're in "main" and import "std", when the builtins get attached
+  // to the module instances field within the start_module function key and value are swapped! Same goes for the name (WTF). I've
+  // found this out because in the stack trace we now see the modules name and for nested modules it always printed __name. The
+  // current remedy is to just use variables for "key" and "value" and just use these instead of pushing and peeking.
   Value key = str_value(copy_string(name, (int)strlen(name)));
   push(key);
   push(value);
@@ -230,6 +229,7 @@ static void make_object(int count) {
 
 void init_vm() {
   reset_stack();
+
   vm.objects         = NULL;
   vm.module          = NULL;  // No active module
   vm.bytes_allocated = 0;
@@ -239,6 +239,8 @@ void init_vm() {
   vm.gray_capacity   = 0;
   vm.gray_stack      = NULL;
   vm.exit_on_frame   = 0;  // Default to exit on the first frame
+
+  gc_init_thread_pool(GC_MAX_THREAD);
 
   // Pause while we initialize the vm.
   vm.flags |= VM_FLAG_PAUSE_GC;
@@ -367,6 +369,7 @@ void free_vm() {
   memset(vm.special_method_names, 0, sizeof(vm.special_method_names));
   memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
   free_objects();
+  gc_shutdown_thread_pool();
 }
 
 void push(Value value) {
@@ -768,7 +771,7 @@ static void concatenate() {
   ObjString* a = AS_STR(peek(1));  // Peek, so it doesn't get freed by the GC
 
   int length  = a->length + b->length;
-  char* chars = ALLOCATE(char, length + 1);
+  char* chars = ALLOCATE_ARRAY(char, length + 1);
   memcpy(chars, a->chars, a->length);
   memcpy(chars + a->length, b->chars, b->length);
   chars[length] = '\0';

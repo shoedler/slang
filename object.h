@@ -24,7 +24,7 @@ typedef enum {
 // The base object construct.
 struct Obj {
   ObjGcType type;
-  atomic_bool is_marked;  // Use atomic_bool for thread-safe marking
+  atomic_bool is_marked;
   uint64_t hash;
   struct Obj* next;
 };

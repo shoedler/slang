@@ -6,37 +6,6 @@
 #include "value.h"
 #include "vm.h"
 
-#ifdef DEBUG_LOG_GC
-#include "debug.h"
-#endif
-
-// Allocates a new object of the given type.
-#define ALLOCATE_OBJ(type, object_type) (type*)allocate_object(sizeof(type), object_type)
-
-// Allocates a new object of the given type and size.
-// It also initializes the object's fields. Might trigger GC, but (obviously)
-// won't free the new object to be allocated.
-static Obj* allocate_object(size_t size, ObjGcType type) {
-  Obj* object = (Obj*)reallocate(NULL, 0,
-                                 size);  // Might trigger GC, but it's fine since our new object
-                                         // isn't referenced by anything yet -> not reachable by GC
-  object->type = type;
-  object->hash = (uint64_t)((uintptr_t)(object) >> 4 | (uintptr_t)(object) << 60);  // Get a better distribution of hash
-                                                                                    // values, by shifting the address
-
-  // Atomically reset the is_marked flag
-  atomic_init(&object->is_marked, false);
-
-  object->next = vm.objects;
-  vm.objects   = object;
-
-#ifdef DEBUG_LOG_GC_ALLOCATIONS
-  printf(ANSI_RED_STR("[GC] ") ANSI_MAGENTA_STR("[ALLOC] ") "%p allocate %zu for type %d\n", (void*)object, size, type);
-#endif
-
-  return object;
-}
-
 // Allocates a heap-allocated string in a string object.
 // The string object sort of acts like a wrapper for the c string.
 // Both the string object and the c string are heap-allocated.
@@ -137,7 +106,7 @@ ObjUpvalue* new_upvalue(Value* slot) {
 }
 
 ObjClosure* new_closure(ObjFunction* function) {
-  ObjUpvalue** upvalues = ALLOCATE(ObjUpvalue*, function->upvalue_count);
+  ObjUpvalue** upvalues = ALLOCATE_ARRAY(ObjUpvalue*, function->upvalue_count);
   for (int i = 0; i < function->upvalue_count; i++) {
     upvalues[i] = NULL;
   }
@@ -265,7 +234,7 @@ ObjString* copy_string(const char* chars, int length) {
     return interned;
   }
 
-  char* heap_chars = ALLOCATE(char, length + 1);
+  char* heap_chars = ALLOCATE_ARRAY(char, length + 1);
   memcpy(heap_chars, chars, length);
   heap_chars[length] = '\0';
   return allocate_string(heap_chars, length, hash);

@@ -56,7 +56,4 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
 // are swept and would result in dangling pointers within the hashtable.
 void hashtable_remove_white(HashTable* table);
 
-// Marks a hashtable by marking all its entries.
-void mark_hashtable(HashTable* table);
-
 #endif

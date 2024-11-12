@@ -102,6 +102,7 @@ typedef struct {
   Obj** gray_stack;  // Worklist for the garbage collector. This field is not
                      // managed by our own memory allocator, but rather by the
                      // system's allocator.
+                     // TODO: Remove in favor of a thread-local stack
 
   Value current_error;
   int flags;
