@@ -235,12 +235,9 @@ void init_vm() {
   vm.bytes_allocated = 0;
   vm.prev_gc_freed   = 0;
   vm.next_gc         = GC_DEFAULT_THRESHOLD;
-  vm.gray_count      = 0;
-  vm.gray_capacity   = 0;
-  vm.gray_stack      = NULL;
   vm.exit_on_frame   = 0;  // Default to exit on the first frame
 
-  gc_init_thread_pool(GC_MAX_THREAD);
+  gc_init_thread_pool(GC_THREAD_COUNT);
 
   // Pause while we initialize the vm.
   vm.flags |= VM_FLAG_PAUSE_GC;
@@ -368,7 +365,7 @@ void free_vm() {
   free_hashtable(&vm.modules);
   memset(vm.special_method_names, 0, sizeof(vm.special_method_names));
   memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
-  free_objects();
+  free_heap();
   gc_shutdown_thread_pool();
 }
 
@@ -410,7 +407,7 @@ static CallResult call_managed(ObjClosure* closure, int arg_count) {
   CHECK_ARGS(closure->function->arity, arg_count);
 
   if (vm.frame_count == FRAMES_MAX) {
-    runtime_error("Stack overflow.");
+    runtime_error("Stack overflow. Maximum call stack depth of %d reached.", FRAMES_MAX);
     return CALL_FAILED;
   }
 
@@ -1503,10 +1500,13 @@ Value interpret(const char* source, const char* source_path, const char* module_
   ObjFunction* function = compile_module(source);
   if (function == NULL) {
     exit_with_compile_error();
+    if (is_module) {
+      vm.module = enclosing_module;
+    }
     return nil_value();
   }
 
-  push(fn_value((Obj*)function));
+  push(fn_value((Obj*)function));  // Gc protection
   ObjClosure* closure = new_closure(function);
   pop();
   push(fn_value((Obj*)closure));

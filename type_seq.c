@@ -88,7 +88,7 @@ static bool seq_set_subs(Value receiver, Value index, Value value) {
 
 /**
  * TYPENAME_SEQ.SP_METHOD_CTOR(len: TYPENAME_INT) -> TYPENAME_SEQ
- * @brief Creates a new TYPENAME_NIL-initialized TYPENAME_SEQ of length 'len'.
+ * @brief Creates a new TYPENAME_NIL-initialized TYPENAME_SEQ of length 'len' with all items set to TYPENAME_NIL.
  *
  * TYPENAME_SEQ.SP_METHOD_CTOR(tuple: TYPENAME_TUPLE) -> TYPENAME_SEQ
  * @brief Creates a new TYPENAME_SEQ from a TYPENAME_TUPLE of values.
@@ -98,8 +98,8 @@ static Value seq_ctor(int argc, Value argv[]) {
   if (is_int(argv[1])) {
     ValueArray items;
     init_value_array(&items);
-    ObjSeq* seq = take_seq(&items);
-    push(seq_value(seq));  // GC Protection
+    ObjSeq* seq = take_seq(&items);  // TODO (optimize): Use prealloc_value_array
+    push(seq_value(seq));            // GC Protection
 
     int count = (int)argv[1].as.integer;
     for (int i = 0; i < count; i++) {
@@ -111,8 +111,7 @@ static Value seq_ctor(int argc, Value argv[]) {
   }
 
   if (is_tuple(argv[1])) {
-    ObjTuple* tuple = AS_TUPLE(argv[1]);
-
+    ObjTuple* tuple  = AS_TUPLE(argv[1]);
     ValueArray items = prealloc_value_array(tuple->items.count);
 
     // We can use memcpy here because the items array is already preallocated

@@ -107,7 +107,9 @@ static void gc_submit_custom_task(void (*function)(void*), void* arg, GCWorker* 
 static void gc_submit_mark_task(Obj* object, GCWorker* target_worker);
 static inline void gc_workers_unpause();
 static inline void gc_workers_pause();
+#ifdef DEBUG_GC_WORKER_STATS
 static void gc_print_worker_stats();
+#endif
 
 // Thread-local storage
 static __thread GCWorker* current_worker = NULL;
@@ -382,18 +384,17 @@ static void mark_range_task(void* arg) {
 }
 
 void parallel_mark_array(ValueArray* array) {
-  int chunk_size = (array->count + gc_thread_pool.worker_count - 1) / gc_thread_pool.worker_count;
+  static_assert(GC_PARALLEL_MARK_ARRAY_THRESHOLD > GC_THREAD_COUNT * 200,
+                "Probably not worth parallelizing if a chunk would be smaller than 200 elements. ");
+  int num_chunks = gc_thread_pool.worker_count;
+  int chunk_size = (array->count + num_chunks - 1) / num_chunks;
 
-  // Main thread handles first chunk
-  for (int i = 0; i < MIN(chunk_size, array->count); i++) {
-    mark_value(array->values[i]);
-  }
-
-  // Distribute remaining chunks to workers
-  for (int i = 1; i < gc_thread_pool.worker_count; i++) {
+  // Generate tasks in our own deque, since we can't push to other deques directly. Other workers will steal from us.
+  for (int i = 0; i < num_chunks; i++) {
     int start = i * chunk_size;
-    if (start >= array->count)
+    if (start >= array->count) {
       break;
+    }
 
     int end = MIN(start + chunk_size, array->count);
 
@@ -403,20 +404,13 @@ void parallel_mark_array(ValueArray* array) {
     arg->end              = end;
     arg->type             = MARK_ARRAY;
 
-    gc_submit_custom_task(mark_range_task, arg, &gc_thread_pool.workers[i]);
+    gc_submit_custom_task(mark_range_task, arg, current_worker);
   }
 }
 
 // Marks all entries in a value array gray.
 void mark_array(ValueArray* array) {
-  for (int i = 0; i < array->count; i++) {
-    mark_value(array->values[i]);
-  }
-
-  return;
-
-  // TODO: Probably not needed
-  if (array->count < GC_PARALLEL_MARK_THRESHOLD) {
+  if (array->count < GC_PARALLEL_MARK_ARRAY_THRESHOLD) {
     for (int i = 0; i < array->count; i++) {
       mark_value(array->values[i]);
     }
@@ -426,19 +420,13 @@ void mark_array(ValueArray* array) {
 }
 
 void parallel_mark_hashtable(HashTable* table) {
-  int chunk_size = (table->capacity + gc_thread_pool.worker_count - 1) / gc_thread_pool.worker_count;
+  static_assert(GC_PARALLEL_MARK_HASHTABLE_THRESHOLD > GC_THREAD_COUNT * 100,
+                "Probably not worth parallelizing if a chunk would be smaller than 100 elements. ");
+  int num_chunks = gc_thread_pool.worker_count;
+  int chunk_size = (table->capacity + num_chunks - 1) / num_chunks;
 
-  // Main thread handles first chunk
-  for (int i = 0; i < MIN(chunk_size, table->capacity); i++) {
-    Entry* entry = &table->entries[i];
-    if (!is_empty_internal(entry->key)) {
-      mark_value(entry->key);
-      mark_value(entry->value);
-    }
-  }
-
-  // Distribute remaining chunks to workers
-  for (int i = 1; i < gc_thread_pool.worker_count; i++) {
+  // Generate tasks in our own deque, since we can't push to other deques directly. Other workers will steal from us.
+  for (int i = 0; i < num_chunks; i++) {
     int start = i * chunk_size;
     if (start >= table->capacity) {
       break;
@@ -452,23 +440,12 @@ void parallel_mark_hashtable(HashTable* table) {
     arg->end              = end;
     arg->type             = MARK_HASHTABLE;
 
-    gc_submit_custom_task(mark_range_task, arg, &gc_thread_pool.workers[i]);
+    gc_submit_custom_task(mark_range_task, arg, current_worker);
   }
 }
 
 void mark_hashtable(HashTable* table) {
-  for (int i = 0; i < table->capacity; i++) {
-    Entry* entry = &table->entries[i];
-    if (!is_empty_internal(entry->key)) {
-      mark_value(entry->key);
-      mark_value(entry->value);
-    }
-  }
-
-  return;
-
-  // TODO: Probably not needed
-  if (table->count < GC_PARALLEL_MARK_THRESHOLD) {
+  if (table->count < GC_PARALLEL_MARK_HASHTABLE_THRESHOLD) {
     for (int i = 0; i < table->capacity; i++) {
       Entry* entry = &table->entries[i];
       if (!is_empty_internal(entry->key)) {
@@ -621,15 +598,13 @@ static void free_object(Obj* object) {
   }
 }
 
-void free_objects() {
+void free_heap() {
   Obj* object = vm.objects;
   while (object != NULL) {
     Obj* next = object->next;
     free_object(object);
     object = next;
   }
-
-  free(vm.gray_stack);
 }
 
 // Starts at the roots of the objects in the heap and marks all reachable objects. It's important that all root objects get marked
@@ -705,6 +680,9 @@ static void mark_roots() {
 }
 
 static void sweep_sequential() {
+  GC_SWEEP_LOG(ANSI_RED_STR("[GC]") " " ANSI_CYAN_STR("[SWEEP]") " Sweeping heap sequential\n");
+  GC_SWEEP_LOG("  Sweeping %zu objects\n", atomic_load(&gc_thread_pool.object_count));
+
   Obj* previous = NULL;
   Obj* object   = vm.objects;
 
@@ -730,6 +708,8 @@ static void sweep_sequential() {
       free_object(unreached);
     }
   }
+
+  GC_SWEEP_LOG("  Done sweeping\n\n");
 }
 
 // TODO: Does this need to be aligned?
@@ -749,7 +729,7 @@ static void sweep_chunk_task(void* arg) {
   Obj* new_start = NULL;
   Obj* new_end   = NULL;
 
-  GC_SWEEP_LOG("Worker %d: Sweeping chunk %p-%p (%zu objects)\n", current_worker->id, chunk->start, chunk->end, chunk->size);
+  GC_SWEEP_LOG("  Worker %d: Sweeping chunk %p-%p (%zu objects)\n", current_worker->id, chunk->start, chunk->end, chunk->size);
 
 #ifdef DEBUG_GC_WORKER_STATS
   size_t freed = 0;
@@ -788,7 +768,7 @@ static void sweep_chunk_task(void* arg) {
   chunk->start = new_start;  // Could be NULL if all objects in chunk were freed
   chunk->end   = new_end;    // Could be NULL if all objects in chunk were freed
 
-  GC_SWEEP_LOG("Worker %d: Done sweeping\n", current_worker->id);
+  GC_SWEEP_LOG("  Worker %d: Done sweeping\n", current_worker->id);
 #ifdef DEBUG_GC_WORKER_STATS
   // Update worker stats
   atomic_fetch_add(&current_worker->stats.objects_swept, freed);
@@ -799,20 +779,24 @@ static void sweep_chunk_task(void* arg) {
 // white objects. White objects are objects that have not been marked during the mark phase and are therefore unreachable.
 static void sweep() {
   size_t total_object_count = atomic_load(&gc_thread_pool.object_count);
-  int num_threads           = gc_thread_pool.worker_count;
 
   if (total_object_count <= GC_PARALLEL_SWEEP_THRESHOLD) {
     sweep_sequential();
     return;
   }
 
+  GC_SWEEP_LOG(ANSI_RED_STR("[GC]") " " ANSI_CYAN_STR("[SWEEP]") " Sweeping heap parallel\n");
+
   // Calculate base chunk size and remainder
   static_assert(
-      GC_PARALLEL_SWEEP_THRESHOLD >
-      (2 * GC_MAX_THREAD));  // We must have at least two objects per chunk so we can guarantee that start and end are different
-  int num_chunks         = num_threads;
-  size_t base_chunk_size = total_object_count / num_chunks;  // At least 2 objects per chunk
+      GC_PARALLEL_SWEEP_THRESHOLD > ((2 /* 2 objs per chunk */ * GC_THREAD_COUNT) * 2 /* we want 2*threadcount chunks */),
+      "We must have at least two objects per chunk so we can guarantee that start and end are different");
+  int num_chunks         = gc_thread_pool.worker_count * 2;  // *2, so *maybe* the main thread can help out after generating tasks
+  size_t base_chunk_size = total_object_count / num_chunks;
   size_t remainder       = total_object_count % num_chunks;
+
+  GC_SWEEP_LOG("  Sweeping %zu objects in %d chunks of size %zu with remainder %zu\n", total_object_count, num_chunks,
+               base_chunk_size, remainder);
 
   // Allocate chunks on heap since they'll be accessed asynchronously
   SweepChunk** chunks = malloc(sizeof(SweepChunk) * num_chunks);
@@ -822,17 +806,16 @@ static void sweep() {
     return;
   }
 
+  // Start the workers
+  gc_workers_unpause();
+
   // Distribute objects into chunks
   Obj* current = vm.objects;
   for (int chunk_i = 0; chunk_i < num_chunks; chunk_i++) {
     chunks[chunk_i] = malloc(sizeof(SweepChunk));
     if (chunks[chunk_i] == NULL) {
-      INTERNAL_ERROR("Failed to allocate memory for sweep chunk, falling back to sequential sweep");
-      for (int i = 0; i < chunk_i; i++) {
-        free(chunks[i]);
-      }
-      free(chunks);
-      sweep_sequential();
+      INTERNAL_ERROR("Failed to allocate memory for sweep chunk.");
+      exit(EMEM_ERROR);
       return;
     }
 
@@ -851,18 +834,15 @@ static void sweep() {
 
     chunks[chunk_i]->end = current;
     current              = current->next;  // Move to start of next chunk
-    // chunks[chunk_i].end->next = NULL;           // Detach end of chunk from start of next chunk
 
     // Submit task to worker
-    GC_SWEEP_LOG("Worker %d: Submitting sweep task for chunk %p-%p for worker %d (%zu objects)\n", current_worker->id,
-                 chunks[chunk_i]->start, chunks[chunk_i]->end, chunk_i, chunks[chunk_i]->size);
-    gc_submit_custom_task(sweep_chunk_task, chunks[chunk_i], &gc_thread_pool.workers[chunk_i]);
+    GC_SWEEP_LOG("  Worker %d: Submitting sweep task for chunk #%d %p-%p  (%zu objects)\n", current_worker->id, chunk_i,
+                 chunks[chunk_i]->start, chunks[chunk_i]->end, chunks[chunk_i]->size);
+    gc_submit_custom_task(sweep_chunk_task, chunks[chunk_i], current_worker);
   }
   assert(current == NULL &&
          "Object count mismatch, current should be at the end of the obj linked-list");  // TODO (optimize): Remove
 
-  // Start the workers
-  gc_workers_unpause();
   usleep(1000);  // TODO: Remove this hack - maybe this is what caused the wrong chunk_size in the first place. So we should test
                  // this again with chunks just being SweeChunk* and not SweepChunk**.
   // Wait for workers and pause them
@@ -888,6 +868,8 @@ static void sweep() {
   }
 
   free(chunks);
+
+  GC_SWEEP_LOG("  Done sweeping heap parallel\n\n");
 }
 
 #ifdef DEBUG_GC_PHASE_TIMES
@@ -929,9 +911,11 @@ static void print_phase_times(double start,
 void collect_garbage() {
   // TODO:  Parallelization
   //   TODO: Make a mark() function that decides whether to mark sequentially or in parallel
-  //   TODO: Refactor synchronization - maybe use condition variables instead of atomic booleans and busy-waiting
+  //   TODO: Refactor synchronization - use the simple approach of testing if there any tasks remaining (See claude output)
   //   TODO: Cleanup gc_wait_for_workers() and gc_worker() - maybe we can abstract the worker loop into a function
   //   TODO: Move deque operations to a separate file
+  //   TODO: Remove GCWorker param from gc_submit_custom_task and gc_submit_mark_task, because we can only assign to the current
+  //   worker.
   //   TODO: Do the TODOs sprinkled throughout the code
   //   TODO: Use function pointers to determine which mark/sweep function to use (sequential or parallel)
 #ifdef DEBUG_GC_PHASE_TIMES
@@ -950,11 +934,9 @@ void collect_garbage() {
   // It's important that all root objects get marked in this phase - if you e.g. had a root which is a long array which gets split
   // into different mark tasks and distributed between the workers, that'd be a problem because the workers are idle until after
   // mark_roots, leaving us with not all roots marked.
+  gc_workers_unpause();
   mark_roots();
   DEBUG_GC_PHASE_TIMESTAMP(mark_roots_time);
-
-  // Step 1.5: Enable the workers and wait for all workers to finish marking phase - Main thread participates in marking work
-  gc_workers_unpause();
   gc_wait_for_workers();
   gc_workers_pause();
   DEBUG_GC_PHASE_TIMESTAMP(mark_phase_time);
@@ -1220,6 +1202,26 @@ void gc_init_thread_pool(int num_threads) {
   atomic_init(&gc_thread_pool.object_count, object_count);
   atomic_init(&gc_thread_pool.paused, true);
 
+  // Set scheduling policy for worker threads
+  struct sched_param param;
+  pthread_attr_t attr;
+
+  pthread_attr_init(&attr);
+  pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+
+  // TODO: Maybe notify user if we can't set the scheduling policy or priority
+  if (pthread_attr_setschedpolicy(&attr, SCHED_RR) == 0) {
+    // Get priority range for SCHED_RR
+    int min_prio = sched_get_priority_min(SCHED_RR);
+    int max_prio = sched_get_priority_max(SCHED_RR);
+
+    // Set priority to 25% above minimum. This gives GC threads higher priority than normal threads but leaves room for real-time
+    // critical threads
+    param.sched_priority = min_prio + (max_prio - min_prio) / 4;
+    pthread_attr_setschedparam(&attr, &param);
+  }
+
+  // Initialize workers
   for (int i = 0; i < num_threads; i++) {
     GC_WORKER_LOG("Initializing worker %d\n", i);
     gc_thread_pool.workers[i].id = i;
@@ -1246,7 +1248,7 @@ void gc_init_thread_pool(int num_threads) {
       continue;
     }
 
-    int result = pthread_create(&gc_thread_pool.workers[i].thread, NULL, gc_worker, &gc_thread_pool.workers[i]);
+    int result = pthread_create(&gc_thread_pool.workers[i].thread, &attr, gc_worker, &gc_thread_pool.workers[i]);
     if (result != 0) {
       INTERNAL_ERROR("Failed to create worker thread %d: %s", i, strerror(result));
       gc_shutdown_thread_pool();

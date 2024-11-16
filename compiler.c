@@ -45,20 +45,19 @@ typedef struct {
   Precedence precedence;
 } ParseRule;
 
-// A struct declaring a local variable.
+// Local variable that lives on the stack.
 typedef struct {
   Token name;
   int depth;
-  bool is_captured;
+  bool is_captured;  // True if the variable is captured by an upvalue.
 } Local;
 
-// A struct declaring an upvalue.
 typedef struct {
   uint16_t index;
   bool is_local;
 } Upvalue;
 
-// A construct holding the compiler's state.
+// Compiler state.
 typedef struct Compiler {
   struct Compiler* enclosing;
   ObjFunction* function;
@@ -1237,7 +1236,7 @@ static int resolve_upvalue(Compiler* compiler, Token* name) {
     return add_upvalue(compiler, (uint16_t)local, true);
   }
 
-  // Recurse on outer scopes (compilers) to maybe find the variable there
+  // Recurse on upper scopes (compilers) to maybe find the variable there
   int upvalue = resolve_upvalue(compiler->enclosing, name);
   if (upvalue != -1) {
     return add_upvalue(compiler, (uint16_t)upvalue, false);

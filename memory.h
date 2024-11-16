@@ -12,8 +12,9 @@
 #define GC_DEFAULT_THRESHOLD 1024 * 1024 * 2
 
 // Parallelization config
-#define GC_MAX_THREAD (16)
-#define GC_PARALLEL_MARK_THRESHOLD 1000
+#define GC_THREAD_COUNT (16)
+#define GC_PARALLEL_MARK_ARRAY_THRESHOLD 10000     // TODO (optimize): Can probably be reduced a bit after synch refactoring
+#define GC_PARALLEL_MARK_HASHTABLE_THRESHOLD 2000  // TODO (optimize): Can probably be reduced a bit after synch refactoring
 #define GC_PARALLEL_SWEEP_THRESHOLD 100000
 #define GC_DEQUE_INITIAL_CAPACITY 1024
 #define GC_DEQUE_INITIAL_GARBAGE_CAPACITY 32
@@ -89,7 +90,7 @@ void mark_obj(Obj* object);
 Obj* allocate_object(size_t size, ObjGcType type);
 
 // Frees the vm's linked list of objects.
-void free_objects();
+void free_heap();
 
 // Initializes the thread pool for the garbage collector.
 void gc_init_thread_pool(int num_threads);
