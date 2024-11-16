@@ -15,7 +15,7 @@ fn foo() {
   let a14
   let a15
   let a16
-  foo() // [ExpectError] Uncaught error: Stack overflow.
+  foo() // [ExpectError] Uncaught error: Stack overflow. Maximum call stack depth of 64 reached. 
 }       // [ExpectError]     18 |   foo()
         // [ExpectError]               ~~
 foo()   // [ExpectError]   at line 18 in "foo" in module "main"

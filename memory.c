@@ -918,6 +918,7 @@ void collect_garbage() {
   //   worker.
   //   TODO: Do the TODOs sprinkled throughout the code
   //   TODO: Use function pointers to determine which mark/sweep function to use (sequential or parallel)
+  //   TODO: Learn if malloc_aligned / free_aligned is actually required...?
 #ifdef DEBUG_GC_PHASE_TIMES
   DEBUG_GC_PHASE_TIMESTAMP(start);
   double mutator_execution_time = start - mutator_stop_time;
@@ -1275,5 +1276,5 @@ void gc_shutdown_thread_pool() {
     ws_deque_free(gc_thread_pool.workers[i].deque);
   }
 
-  free(gc_thread_pool.workers);
+  _aligned_free(gc_thread_pool.workers);
 }

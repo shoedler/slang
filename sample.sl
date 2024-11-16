@@ -1,6 +1,6 @@
-
 import File
 import Perf
+import Gc
 
 let flow_rates = []
 let tunnels = []
@@ -97,13 +97,14 @@ fn solve {
   print "Cache size " + cache[2].len.to_str()
 }
 
-solve()
+solve() // In a fn, so we can collect the garbage after it's done to test the garbage collector
 
-print "----"
+print "-------------------"
+print "Done! - Collecting final garbage"
 
-import Gc
 Gc.collect()
 
+print "-------------------"
 
 // Slang output:
 // Part 1: 1460 took 1.05499110004166s

@@ -23,6 +23,17 @@
         "reveal": "silent"
       },
       "problemMatcher": "$gcc"
+    },
+    {
+      "label": "gcc-make-clean",
+      "type": "shell",
+      "command": "make",
+      "args": ["clean"],
+      "group": "build",
+      "presentation": {
+        "reveal": "silent"
+      },
+      "problemMatcher": "$gcc"
     }
   ]
 }

@@ -124,7 +124,7 @@ const createErrorMessages = (comparison, expectationType, expectedStream) => {
 
   if (comparison.unhandledAssertions.length > 0) {
     errorMessages.push(
-      chalk.bold(`▬ Test has more [${expectationType}]-expectations than output:`),
+      chalk.bold(`▬ Test specifies more [${expectationType}]-expectations than output:`),
     );
     for (const { value: expected, line } of comparison.unhandledAssertions) {
       errorMessages.push(
@@ -136,7 +136,9 @@ const createErrorMessages = (comparison, expectationType, expectedStream) => {
   }
 
   if (comparison.unhandledOutput.length > 0) {
-    errorMessages.push(chalk.bold(`▬ Test has more  ${expectedStream}-output than expected:`));
+    errorMessages.push(
+      chalk.bold(`▬ Execution generated more ${expectedStream}-output than expected:`),
+    );
     for (const actual of comparison.unhandledOutput) {
       errorMessages.push(`${chalk.red(` × Unhandled output. (in ${expectedStream}): `)} ${actual}`);
     }

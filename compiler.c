@@ -723,18 +723,18 @@ static void number(bool can_assign) {
 static void string(bool can_assign) {
   UNUSED(can_assign);
   // Build the string using a flexible array
-  size_t str_capacity = 0;
+  size_t str_capacity = 8;
   size_t str_length   = 0;
-  char* str_bytes     = 0;
+  char* str_bytes     = (char*)malloc(str_capacity);
 
-#define PUSH_CHAR(c)                                                   \
-  do {                                                                 \
-    if (str_capacity < str_length + 1) {                               \
-      size_t old   = str_capacity;                                     \
-      str_capacity = GROW_CAPACITY(old);                               \
-      str_bytes    = RESIZE_ARRAY(char, str_bytes, old, str_capacity); \
-    }                                                                  \
-    str_bytes[str_length++] = c;                                       \
+#define PUSH_CHAR(c)                                          \
+  do {                                                        \
+    if (str_capacity < str_length + 1) {                      \
+      size_t old   = str_capacity;                            \
+      str_capacity = GROW_CAPACITY(old);                      \
+      str_bytes    = (char*)realloc(str_bytes, str_capacity); \
+    }                                                         \
+    str_bytes[str_length++] = c;                              \
   } while (0)
 
   do {
@@ -771,7 +771,7 @@ static void string(bool can_assign) {
   emit_constant_here(str_value(copy_string(str_bytes, (int)str_length)));
 
   // Cleanup
-  FREE_ARRAY(char, str_bytes, str_capacity);
+  free(str_bytes);
 #undef PUSH_CHAR
 }
 

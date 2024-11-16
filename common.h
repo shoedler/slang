@@ -1,39 +1,44 @@
 #ifndef common_h
 #define common_h
 
-#include <jemalloc/jemalloc.h>
+#include <mimalloc.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#if defined(_WIN32) && !defined(JEMALLOC_NO_REPLACE)
-#define malloc(size) je_malloc(size)
-#define calloc(count, size) je_calloc(count, size)
-#define realloc(ptr, size) je_realloc(ptr, size)
-#define free(ptr) je_free(ptr)
-#endif
+//
+// Debugging flags
+//
 
-// Debug feature flags
-
+// Scanning & Compilation
 // #define DEBUG_PRINT_TOKENS  // Print the tokens the scanner produces
 // #define DEBUG_PRINT_CODE  // Print all compiled bytecode chunks
+
+// Virtual Machine
 // #define DEBUG_TRACE_EXECUTION  // Print the execution of the Vm, including stack traces.
 
-// #define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
-#define DEBUG_GC_PHASE_TIMES  // Log the time it takes for each phase of the Gc
+// Garbage Collection
+#define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
+// #define DEBUG_GC_PHASE_TIMES  // Log the time it takes for each phase of the Gc
 // #define DEBUG_GC_WORKER_STATS  // Log the statistics of the Gc worker
 // #define DEBUG_GC_WORKER  // Log the Gc worker's activity
 // #define DEBUG_GC_SWEEP  // Log the Gc sweep phase
 
+//
 // Feature flags
+//
 
 #define ENABLE_COLOR_OUTPUT  // Enable ANSI-colored output in terminal
 
+//
 // Constants
+//
 
 #define SLANG_VERSION "v0.0.1"
 
+//
 // Exit codes
+//
 
 #define EXIT_SUCCESS 0  // Successful termination
 #define EXIT_FAILURE 1  // General error
@@ -46,7 +51,9 @@
 #define EIO_ERROR 74   // Input/output error
 #define ESW_ERROR 75   // General internal logic error
 
+//
 // Color output macros
+//
 
 #ifdef ENABLE_COLOR_OUTPUT
 #define ANSI_COLOR_RED "\x1b[31m"
@@ -73,7 +80,9 @@
 #define ANSI_MAGENTA_STR(str) ANSI_COLOR_MAGENTA str ANSI_COLOR_RESET
 #define ANSI_CYAN_STR(str) ANSI_COLOR_CYAN str ANSI_COLOR_RESET
 
+//
 // Utility macros
+//
 
 #define ___PRINT_ERROR_HEADER(type) fprintf(stderr, ANSI_RED_STR(type) " at " ANSI_YELLOW_STR("%s(%u): "), __FILE__, __LINE__);
 #define INTERNAL_ERROR(format_literal, ...)              \
@@ -82,7 +91,7 @@
     fprintf(stderr, format_literal "\n", ##__VA_ARGS__); \
   } while (0)
 
-// Stringification Macro - don't use directly, use STR
+// Internal stringification Macro - don't use directly, use STR
 #define ___STRINGIFY(x) #x
 // Stringification Macro, wraps the argument in quotes
 #define STR(x) ___STRINGIFY(x)
@@ -94,5 +103,57 @@
 #define UNUSED(x) (void)(x)
 
 #define UINT8_COUNT (UINT8_MAX + 1)
+
+//
+// Mimalloc Overrides.
+// This is pretty much a copy of mimalloc-override.h, but a few defines have been removed do to compilation issues.
+//
+
+// Standard C allocation
+#define malloc(n) mi_malloc(n)
+#define calloc(n, c) mi_calloc(n, c)
+#define realloc(p, n) mi_realloc(p, n)
+#define free(p) mi_free(p)
+
+#define strdup(s) mi_strdup(s)
+#define strndup(s, n) mi_strndup(s, n)
+#define realpath(f, n) mi_realpath(f, n)
+
+// Microsoft extensions
+#define _expand(p, n) mi_expand(p, n)
+#define _recalloc(p, n, c) mi_recalloc(p, n, c)
+// #define _msize(p) mi_usable_size(p)
+
+#define _strdup(s) mi_strdup(s)
+#define _strndup(s, n) mi_strndup(s, n)
+#define _mbsdup(s) mi_mbsdup(s)
+#define _dupenv_s(b, n, v) mi_dupenv_s(b, n, v)
+// #define _wcsdup(s) (wchar_t*)mi_wcsdup((const unsigned short*)(s))
+// #define _wdupenv_s(b,n,v)       mi_wdupenv_s((unsigned short*)(b),n,(const unsigned short*)(v))
+
+// Various Posix and Unix variants
+#define reallocf(p, n) mi_reallocf(p, n)
+#define malloc_size(p) mi_usable_size(p)
+#define malloc_usable_size(p) mi_usable_size(p)
+#define malloc_good_size(sz) mi_malloc_good_size(sz)
+#define cfree(p) mi_free(p)
+#define valloc(n) mi_valloc(n)
+#define pvalloc(n) mi_pvalloc(n)
+#define reallocarray(p, s, n) mi_reallocarray(p, s, n)
+#define reallocarr(p, s, n) mi_reallocarr(p, s, n)
+#define memalign(a, n) mi_memalign(a, n)
+#define aligned_alloc(a, n) mi_aligned_alloc(a, n)
+#define posix_memalign(p, a, n) mi_posix_memalign(p, a, n)
+#define _posix_memalign(p, a, n) mi_posix_memalign(p, a, n)
+
+// Microsoft aligned variants
+#define _aligned_malloc(n, a) mi_malloc_aligned(n, a)
+#define _aligned_realloc(p, n, a) mi_realloc_aligned(p, n, a)
+#define _aligned_recalloc(p, s, n, a) mi_aligned_recalloc(p, s, n, a)
+#define _aligned_free(p) mi_free(p)
+#define _aligned_offset_malloc(n, a, o) mi_malloc_aligned_at(n, a, o)
+#define _aligned_offset_realloc(p, n, a, o) mi_realloc_aligned_at(p, n, a, o)
+#define _aligned_offset_recalloc(p, s, n, a, o) mi_recalloc_aligned_at(p, s, n, a, o)
+// #define _aligned_msize(p, a, o) mi_usable_size(p)
 
 #endif

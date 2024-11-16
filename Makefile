@@ -9,7 +9,7 @@ MAKEFLAGS += --no-print-directory
 # General compiler flags
 CFLAGS=-Wall -Wextra -Werror -std=c17 -m64 -D_UNICODE -DUNICODE
 LDFLAGS=-m64
-LIBS=-lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -luuid -lodbc32 -lodbccp32
+LIBS=-lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -luuid -lodbc32 -lodbccp32 -lmimalloc
 
 # Source files and output
 DEBUG_EXEC=bin/x64/debug/slang.exe
@@ -27,19 +27,9 @@ RELEASE_DEP_DIR=$(RELEASE_DIR).deps/
 DEBUG_DEP_CFLAGS=-MMD -MP -MF $(DEBUG_DEP_DIR)/$*.d
 RELEASE_DEP_CFLAGS=-MMD -MP -MF $(RELEASE_DEP_DIR)/$*.d
 
-# See https://github.com/jemalloc/jemalloc/blob/dev/TUNING.md for more information
-# background_thread:true - Enable background threads for purging dirty pages
-# metadata_thp:auto - Suggested for allocation-intensive programs (or set it to 'always')
-# dirty_decay_ms and muzzy_decay_ms - Set to values from exapmle "High resource consumption application, prioritizing CPU utilization" in the link above.
-export MALLOC_CONF="background_thread:true,metadata_thp:auto,dirty_decay_ms:30000,muzzy_decay_ms:30000"
-
-# Get jemalloc configuration
-JEMALLOC_LIBS := $(shell jemalloc-config --libs)
-JEMALLOC_LIBDIR := $(shell jemalloc-config --libdir)
-JEMALLOC_LDFLAGS := -L$(JEMALLOC_LIBDIR) -Wl,-rpath,$(JEMALLOC_LIBDIR) -ljemalloc
-
-# Add to existing flags
-LIBS += $(JEMALLOC_LIBS) $(JEMALLOC_LDFLAGS)
+# Mimalloc library path
+MIMALLOC_LIBDIR := /ucrt64/lib
+LDFLAGS += -L$(MIMALLOC_LIBDIR) -Wl,-rpath,$(MIMALLOC_LIBDIR)
 
 # Debug specific flags
 DEBUG_CFLAGS=$(CFLAGS) -g -O0 -D_DEBUG

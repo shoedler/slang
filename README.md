@@ -85,7 +85,6 @@ You can, for example, easily cache stuff:
   - [ ] Move `hash_value` to types (`uint64_t ObjClass.__hash(value: Value)`)
   - [ ] Move `to_str` to types (`Obj ObjClass.__to_str(value: Value)`)
   - [ ] Move `values_equal` to types (`bool ObjClass.__eq(a: Value, b: Value)`) **DUPE**, see "Optimizations".
-- [ ] Add an option to call `je_malloc_stats_print(NULL, NULL, NULL)` to print the allocator stats.
 
 ## Optimizations
 
