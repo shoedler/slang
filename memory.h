@@ -7,16 +7,9 @@
 // GC Configuration constants
 
 // Heap config
-#define GC_HEAP_GROW_FACTOR 2
-#define GC_HEAP_GROW_THRESHOLD 0x4000000  // 64 MB
-#define GC_HEAP_DEFAULT_THRESHOLD 1024 * 1024 * 2
-
-// Parallelization config
-#define GC_PARALLEL_MARK_ARRAY_THRESHOLD 10000     // TODO (optimize): Can probably be reduced a bit after synch refactoring
-#define GC_PARALLEL_MARK_HASHTABLE_THRESHOLD 2000  // TODO (optimize): Can probably be reduced a bit after synch refactoring
-#define GC_PARALLEL_SWEEP_THRESHOLD 100000
-#define GC_DEQUE_INITIAL_CAPACITY 1024
-#define GC_DEQUE_INITIAL_GARBAGE_CAPACITY 32
+#define HEAP_GROW_FACTOR 2
+#define HEAP_GROW_THRESHOLD 0x4000000  // 64 MB
+#define HEAP_DEFAULT_THRESHOLD 1024 * 1024 * 2
 
 // Allocate memory for an array. Might trigger gc.
 #define ALLOCATE_ARRAY(type, count) (type*)reallocate(NULL, 0, sizeof(type) * (count))
@@ -54,6 +47,18 @@
 // Free a dynamic array.
 #define FREE_ARRAY(type, pointer, old_count) reallocate(pointer, sizeof(type) * (old_count), 0)
 
+#ifdef DEBUG_GC_PHASE_TIMES
+typedef struct {
+  size_t cycle_count;
+  double cycle_start;  // Start timestamp of the current cycle
+  double mark_time;
+  double remove_white_time;
+  double sweep_time;
+  double prev_mutator_time;  // Time spent in the mutator before the current cycle
+  double runtime;            // Total runtime of the program
+} GcPhaseTimes;
+#endif
+
 // Reallocate memory. This is the single function which handles dynamic array memory management.
 // If old_size == 0 and new_size != 0, then the function allocates memory.
 // If old_size != 0 and new_size == 0, then the function frees memory.
@@ -61,7 +66,7 @@
 // If old_size != 0 and new_size > old_size, then the function expands memory.
 void* reallocate(void* pointer, size_t old_size, size_t new_size);
 
-// Tri-color gc
+// Tri-color (parallel) gc
 //
 // ░ White: At the beginning of a garbage collection, every object is white. This color means we have not reached or processed the
 // object at all.
@@ -74,24 +79,19 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size);
 // means the mark phase is done processing that object.
 void collect_garbage();
 
-// Marks a value gray. Only heap allocated values need to be marked. Currently, this is only objects.
+// Marks a value gray. Everything that is not an object is ignored.
 void mark_value(Value value);
 
-// Marks an object gray by setting its is_marked field to true. And adding it to the gray stack. (Worklist) The worklist is owned
-// by the vm and does not use our own memory allocation functions to decouple it from the garbage collector.
+// Marks an object gray by setting its is_marked field to true, indicating that it has been reached by the garbage collector.
 void mark_obj(Obj* object);
 
-// Allocates a new object of the given type and size. It also initializes the object's fields. Might trigger GC, but (obviously)
-// won't free the new object to be allocated.
+// Allocates a new object of the given type and size on the heap. It also initializes the object's fields.
 Obj* allocate_object(size_t size, ObjGcType type);
+
+// Frees an object from our heap. How we free an object depends on its type.
+void free_object(Obj* object);
 
 // Frees the vm's linked list of objects.
 void free_heap();
-
-// Initializes the thread pool for the garbage collector.
-void gc_init_thread_pool(int num_threads);
-
-// Shuts down the thread pool for the garbage collector and frees all resources.
-void gc_shutdown_thread_pool();
 
 #endif

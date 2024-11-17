@@ -1,6 +1,7 @@
 #ifndef vm_h
 #define vm_h
 
+#include <stdatomic.h>
 #include "builtin.h"
 #include "chunk.h"
 #include "hashtable.h"
@@ -68,7 +69,9 @@ typedef struct {
   Value* stack_top;   // Stack pointer
   HashTable strings;  // Interned strings
   ObjUpvalue* open_upvalues;
-  Obj* objects;
+
+  Obj* objects;  // Linked list of all objects in the VM (heap)
+  atomic_size_t object_count;
 
   HashTable modules;  // Modules
   ObjObject* module;  // The current module

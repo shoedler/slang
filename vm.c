@@ -7,6 +7,7 @@
 #include "builtin.h"
 #include "compiler.h"
 #include "file.h"
+#include "gc.h"
 #include "memory.h"
 #include "object.h"
 #include "sys.h"
@@ -236,8 +237,9 @@ void init_vm() {
   vm.module          = NULL;  // No active module
   vm.bytes_allocated = 0;
   vm.prev_gc_freed   = 0;
-  vm.next_gc         = GC_HEAP_DEFAULT_THRESHOLD;
+  vm.next_gc         = HEAP_DEFAULT_THRESHOLD;
   vm.exit_on_frame   = 0;  // Default to exit on the first frame
+  atomic_init(&vm.object_count, 0);
 
   gc_init_thread_pool(get_cpu_core_count());
 
