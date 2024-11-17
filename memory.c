@@ -73,7 +73,7 @@ typedef struct {
   alignas(64) WorkStealingDeque* deque;
   alignas(64) pthread_t thread;
   alignas(64) int id;
-  alignas(64) atomic_bool is_idle;
+  alignas(64) atomic_bool done;
 #ifdef DEBUG_GC_WORKER_STATS
   alignas(64) GCWorkerStats stats;
 #endif
@@ -83,8 +83,11 @@ typedef struct {
   GCWorker* workers;
   int worker_count;
   atomic_bool shutdown;
-  atomic_bool paused;
   atomic_size_t object_count;  // For sweep parallelization
+
+  // Add synchronization primitives
+  atomic_bool should_work;
+  HANDLE work_event;  // Event to signal work
 } GCThreadPool;
 
 typedef struct {
@@ -103,10 +106,8 @@ typedef struct {
 // Forward declarations
 static void blacken_object(Obj* object);
 static void gc_wait_for_workers(void);
-static void gc_submit_custom_task(void (*function)(void*), void* arg, GCWorker* target_worker);
-static void gc_submit_mark_task(Obj* object, GCWorker* target_worker);
-static inline void gc_workers_unpause();
-static inline void gc_workers_pause();
+static void gc_submit_custom_task(void (*function)(void*), void* arg);
+static void gc_submit_mark_task(Obj* object);
 #ifdef DEBUG_GC_WORKER_STATS
 static void gc_print_worker_stats();
 #endif
@@ -351,7 +352,10 @@ void mark_obj(Obj* object) {
 
   // Atomically check and set the is_marked flag
   if (!atomic_exchange(&object->is_marked, true)) {
-    gc_submit_mark_task(object, current_worker);
+#ifdef DEBUG_GC_WORKER_STATS
+    atomic_fetch_add(&current_worker->stats.objects_marked, 1);
+#endif
+    gc_submit_mark_task(object);  // TODO: Test blacken_object directly
   }
 }
 
@@ -404,7 +408,7 @@ void parallel_mark_array(ValueArray* array) {
     arg->end              = end;
     arg->type             = MARK_ARRAY;
 
-    gc_submit_custom_task(mark_range_task, arg, current_worker);
+    gc_submit_custom_task(mark_range_task, arg);
   }
 }
 
@@ -440,7 +444,7 @@ void parallel_mark_hashtable(HashTable* table) {
     arg->end              = end;
     arg->type             = MARK_HASHTABLE;
 
-    gc_submit_custom_task(mark_range_task, arg, current_worker);
+    gc_submit_custom_task(mark_range_task, arg);
   }
 }
 
@@ -533,7 +537,7 @@ Obj* allocate_object(size_t size, ObjGcType type) {
   atomic_init(&object->is_marked, false);
 
   // Atomically increment the object count
-  atomic_fetch_add(&gc_thread_pool.object_count, 1);
+  atomic_fetch_add_explicit(&gc_thread_pool.object_count, 1, memory_order_relaxed);
 
   object->next = vm.objects;
   vm.objects   = object;
@@ -806,9 +810,6 @@ static void sweep() {
     return;
   }
 
-  // Start the workers
-  gc_workers_unpause();
-
   // Distribute objects into chunks
   Obj* current = vm.objects;
   for (int chunk_i = 0; chunk_i < num_chunks; chunk_i++) {
@@ -838,16 +839,13 @@ static void sweep() {
     // Submit task to worker
     GC_SWEEP_LOG("  Worker %d: Submitting sweep task for chunk #%d %p-%p  (%zu objects)\n", current_worker->id, chunk_i,
                  chunks[chunk_i]->start, chunks[chunk_i]->end, chunks[chunk_i]->size);
-    gc_submit_custom_task(sweep_chunk_task, chunks[chunk_i], current_worker);
+    gc_submit_custom_task(sweep_chunk_task, chunks[chunk_i]);
   }
   assert(current == NULL &&
          "Object count mismatch, current should be at the end of the obj linked-list");  // TODO (optimize): Remove
 
-  usleep(1000);  // TODO: Remove this hack - maybe this is what caused the wrong chunk_size in the first place. So we should test
-                 // this again with chunks just being SweeChunk* and not SweepChunk**.
   // Wait for workers and pause them
   gc_wait_for_workers();
-  gc_workers_pause();
 
   // TODO: Return here if no objects were freed
 
@@ -935,11 +933,12 @@ void collect_garbage() {
   // It's important that all root objects get marked in this phase - if you e.g. had a root which is a long array which gets split
   // into different mark tasks and distributed between the workers, that'd be a problem because the workers are idle until after
   // mark_roots, leaving us with not all roots marked.
-  gc_workers_unpause();
+  atomic_store(&gc_thread_pool.should_work, true);
+  SetEvent(gc_thread_pool.work_event);
+
   mark_roots();
   DEBUG_GC_PHASE_TIMESTAMP(mark_roots_time);
   gc_wait_for_workers();
-  gc_workers_pause();
   DEBUG_GC_PHASE_TIMESTAMP(mark_phase_time);
 
   // Step 2: Handle interned strings
@@ -950,6 +949,7 @@ void collect_garbage() {
   sweep();
   DEBUG_GC_PHASE_TIMESTAMP(sweep_time);
 
+  atomic_store(&gc_thread_pool.should_work, false);
   current_worker = NULL;
 
   // Update GC thresholds
@@ -970,89 +970,110 @@ void collect_garbage() {
 #endif
 }
 
-static inline void gc_workers_unpause() {
-  atomic_store(&gc_thread_pool.paused, false);
-  atomic_thread_fence(memory_order_seq_cst);  // Ensure all marks are visible
+static void gc_process_task(GCTask task) {
+#ifdef DEBUG_GC_WORKER
+  if (current_worker->id == 0) {
+    GC_WORKER_LOG("Main thread executing task %p of type %d\n", (void*)&task, task.type);
+  } else {
+    GC_WORKER_LOG("Worker %d executing task %p of type %d\n", current_worker->id, (void*)&task, task.type);
+  }
+#endif
+  switch (task.type) {
+    case TASK_MARK_OBJ: blacken_object(task.obj); break;
+    case TASK_CUSTOM: task.function(task.arg); break;
+    default: INTERNAL_ERROR("Unknown task type: %d", task.type); break;
+  }
 }
 
-static inline void gc_workers_pause() {
-  atomic_store(&gc_thread_pool.paused, true);
-  atomic_thread_fence(memory_order_seq_cst);  // Ensure all marks are visible
+static bool gc_worker_complete_work() {
+  // Do our own work
+  GCTask task;
+  bool have_task = ws_deque_pop(current_worker->deque, &task);
+
+  // Try to steal work if we don't have any of our own
+  if (!have_task) {
+    for (int attempt = 0; attempt < GC_WORKER_MAX_STEAL_ATTEMPTS; attempt++) {
+      for (int i = 0; i < gc_thread_pool.worker_count; i++) {
+        if (i == current_worker->id) {
+          continue;
+        }
+
+#ifdef DEBUG_GC_WORKER_STATS
+        current_worker->stats.work_steal_attempts++;
+#endif
+        if (ws_deque_steal(gc_thread_pool.workers[i].deque, &task)) {
+#ifdef DEBUG_GC_WORKER_STATS
+          current_worker->stats.successful_steals++;
+#endif
+          have_task = true;
+          break;
+        }
+      }
+      if (have_task) {
+        break;
+      }
+    }
+  }
+
+  if (have_task) {
+    gc_process_task(task);
+  }
+
+  return !have_task;
+}
+
+static void gc_wait_for_workers() {
+  bool all_done;
+  do {
+    //     // Do all of our own work
+    //     GCTask task;
+    //     while (ws_deque_pop(current_worker->deque, &task)) {
+    //       gc_process_task(task);
+    //     }
+
+    //     for (int i = 1; i < gc_thread_pool.worker_count; i++) {
+    // #ifdef DEBUG_GC_WORKER_STATS
+    //       current_worker->stats.work_steal_attempts++;
+    // #endif
+    //       if (ws_deque_steal(gc_thread_pool.workers[i].deque, &task)) {
+    // #ifdef DEBUG_GC_WORKER_STATS
+    //         current_worker->stats.successful_steals++;
+    // #endif
+    //         gc_process_task(task);
+    //         break;  // Only process one stolen task per iteration
+    //       }
+    //     }
+    if (!gc_worker_complete_work()) {
+      continue;
+    }
+
+    // Check if all workers are done - skip worker 0, since that's us
+    all_done = true;
+    for (int i = 1; i < gc_thread_pool.worker_count; i++) {
+      if (!atomic_load(&gc_thread_pool.workers[i].done)) {
+        all_done = false;
+        break;
+      }
+    }
+    // TODO: Check if we can just set all_done to true here
+  } while (!all_done);
 }
 
 static void* gc_worker(void* arg) {
   GCWorker* worker = (GCWorker*)arg;
   current_worker   = worker;
-
   GC_WORKER_LOG("Worker %d started\n", worker->id);
 
   while (!atomic_load(&gc_thread_pool.shutdown)) {
-    // Check if we should pause and chill for a bit
-    if (atomic_load(&gc_thread_pool.paused)) {
-      atomic_store(&worker->is_idle, true);
-      usleep(1000);
+    // Between GC cycles - deep sleep with no busy waiting
+    if (!atomic_load(&gc_thread_pool.should_work)) {
+      WaitForSingleObject(gc_thread_pool.work_event, INFINITE);
       continue;
     }
-    atomic_store(&worker->is_idle, false);
 
-    // It's go time. First, check if we have work in our own deque.
-    GCTask task;
-    bool have_task = ws_deque_pop(worker->deque, &task);
-    GC_WORKER_LOG("Worker %d has own task: %s\n", worker->id, have_task ? "yes" : "no");
-
-    // Try to steal work if we don't have any
-    if (!have_task) {
-      for (int attempt = 0; attempt < GC_WORKER_MAX_STEAL_ATTEMPTS; attempt++) {
-#ifdef DEBUG_GC_WORKER_STATS
-        worker->stats.work_steal_attempts++;
-#endif
-
-        for (int i = 0; i < gc_thread_pool.worker_count; i++) {
-          if (i == worker->id) {
-            continue;
-          }
-
-          // // Exponential backoff
-          // if (attempt > 0) {
-          //   int backoff = GC_DEQUE_WORK_STEALING_BACKOFF_MIN_US << (attempt - 1);
-          //   if (backoff > GC_DEQUE_WORK_STEALING_BACKOFF_MAX_US) {
-          //     backoff = GC_DEQUE_WORK_STEALING_BACKOFF_MAX_US;
-          //   }
-          //   usleep(backoff);
-          // }
-
-          // Try to steal
-          if (ws_deque_steal(gc_thread_pool.workers[i].deque, &task)) {
-            GC_WORKER_LOG("Worker %d stole task %p from worker %d\n", worker->id, (void*)&task, i);
-#ifdef DEBUG_GC_WORKER_STATS
-            worker->stats.successful_steals++;
-#endif
-            have_task = true;
-            break;
-          }
-        }
-
-        if (have_task) {
-          break;
-        }
-      }
-    }
-
-    if (have_task) {
-      GC_WORKER_LOG("Worker %d executing task %p of type %d\n", worker->id, (void*)&task, task.type);
-
-      switch (task.type) {
-        case TASK_MARK_OBJ: blacken_object(task.obj);
-#ifdef DEBUG_GC_WORKER_STATS
-          atomic_fetch_add(&worker->stats.objects_marked, 1);
-#endif
-          break;
-        case TASK_CUSTOM: task.function(task.arg); break;
-        default: INTERNAL_ERROR("Unknown task type: %d", task.type); break;
-      }
-    } else {
-      // No work found, let's wait until the pool is unpaused again.
-      atomic_store(&worker->is_idle, true);
+    atomic_store(&worker->done, false);
+    if (gc_worker_complete_work()) {
+      atomic_store(&worker->done, true);
       usleep(1000);
     }
   }
@@ -1061,57 +1082,20 @@ static void* gc_worker(void* arg) {
   return NULL;
 }
 
-static void gc_submit_mark_task(Obj* object, GCWorker* target_worker) {
-  GCTask task = {.type = TASK_MARK_OBJ, .obj = object};
-  if (!ws_deque_push(gc_thread_pool.workers[target_worker->id].deque,
-                     task)) {  // TODO (refactor): Remove this check, we should always be able to push with the current design
-    INTERNAL_ERROR("Failed to push mark task to worker %d, executing task immediately", target_worker->id);
-    // Execute task immediately if we couldn't queue it
-    blacken_object(object);
+static void gc_submit_task(GCTask task) {
+  atomic_store(&current_worker->done, false);
+  if (!ws_deque_push(current_worker->deque, task)) {
+    INTERNAL_ERROR("Failed to push task to current worker's deque");
+    exit(EMEM_ERROR);
   }
 }
 
-static void gc_submit_custom_task(void (*function)(void*), void* arg, GCWorker* target_worker) {
-  GCTask task = {.type = TASK_CUSTOM, .function = function, .arg = arg};
-  if (!ws_deque_push(gc_thread_pool.workers[target_worker->id].deque,
-                     task)) {  // TODO (refactor): Remove this check, we should always be able to push with the current design
-    INTERNAL_ERROR("Failed to push custom task to worker %d, executing task immediately", target_worker->id);
-    // Execute task immediately if we couldn't queue it
-    function(arg);
-  }
+static void gc_submit_mark_task(Obj* object) {
+  gc_submit_task((GCTask){.type = TASK_MARK_OBJ, .obj = object});
 }
 
-static void gc_wait_for_workers() {
-  bool all_idle;
-  do {
-    // Do our own work
-    while (!ws_deque_empty(current_worker->deque)) {
-      GCTask task;
-      GC_WORKER_LOG("Main thread trying to pop task from own deque\n");
-      if (ws_deque_pop(current_worker->deque, &task)) {
-        GC_WORKER_LOG("Main thread executing task %p of type %d\n", (void*)&task, task.type);
-        switch (task.type) {
-          case TASK_MARK_OBJ: blacken_object(task.obj);
-#ifdef DEBUG_GC_WORKER_STATS
-            atomic_fetch_add(&current_worker->stats.objects_marked, 1);
-#endif
-            break;
-          case TASK_CUSTOM: task.function(task.arg); break;
-          default: INTERNAL_ERROR("Unknown task type: %d", task.type); break;
-        }
-      }
-    }
-
-    // Check if all workers are idle, because we are
-    all_idle = true;
-    for (int i = 0; i < gc_thread_pool.worker_count; i++) {
-      if (!atomic_load(&gc_thread_pool.workers[i].is_idle)) {
-        all_idle = false;
-        break;
-      }
-    }
-
-  } while (!all_idle);
+static void gc_submit_custom_task(void (*function)(void*), void* arg) {
+  gc_submit_task((GCTask){.type = TASK_CUSTOM, .function = function, .arg = arg});
 }
 
 // Monitoring and statistics
@@ -1179,6 +1163,18 @@ void gc_init_thread_pool(int num_threads) {
     exit(ESW_ERROR);
   }
 
+  // Prioritize main thread
+  HANDLE main_thread_handle = GetCurrentThread();
+  if (!SetThreadPriority(main_thread_handle, THREAD_PRIORITY_HIGHEST)) {
+    // Log warning but continue - not critical
+    GC_WORKER_LOG("Warning: Could not set main thread priority: %lu\n", GetLastError());
+  }
+  DWORD_PTR main_thread_affinity_mask = 1ULL;  // Assign main thread to core 0
+  if (!SetThreadAffinityMask(main_thread_handle, main_thread_affinity_mask)) {
+    // Log warning but continue - not critical
+    GC_WORKER_LOG("Warning: Could not set main thread affinity: %lu\n", GetLastError());
+  }
+
   gc_thread_pool.worker_count = num_threads;
   size_t alloc_size           = num_threads * sizeof(GCWorker);
 
@@ -1187,12 +1183,7 @@ void gc_init_thread_pool(int num_threads) {
     INTERNAL_ERROR("Failed to allocate memory for worker threads");
     exit(EMEM_ERROR);
   }
-
   memset(gc_thread_pool.workers, 0, alloc_size);
-  if (!gc_thread_pool.workers) {
-    INTERNAL_ERROR("Failed to allocate memory for worker threads");
-    exit(EMEM_ERROR);
-  }
 
   size_t object_count = 0;
   for (Obj* object = vm.objects; object != NULL; object = object->next) {
@@ -1201,59 +1192,50 @@ void gc_init_thread_pool(int num_threads) {
 
   atomic_init(&gc_thread_pool.shutdown, false);
   atomic_init(&gc_thread_pool.object_count, object_count);
-  atomic_init(&gc_thread_pool.paused, true);
 
-  // Set scheduling policy for worker threads
-  struct sched_param param;
-  pthread_attr_t attr;
-
-  pthread_attr_init(&attr);
-  pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-
-  // TODO: Maybe notify user if we can't set the scheduling policy or priority
-  if (pthread_attr_setschedpolicy(&attr, SCHED_RR) == 0) {
-    // Get priority range for SCHED_RR
-    int min_prio = sched_get_priority_min(SCHED_RR);
-    int max_prio = sched_get_priority_max(SCHED_RR);
-
-    // Set priority to 25% above minimum. This gives GC threads higher priority than normal threads but leaves room for real-time
-    // critical threads
-    param.sched_priority = min_prio + (max_prio - min_prio) / 4;
-    pthread_attr_setschedparam(&attr, &param);
-  }
+  // Initialize sync primitives
+  atomic_init(&gc_thread_pool.should_work, false);                   // TODO: We can concat the thread creation loops again
+  gc_thread_pool.work_event = CreateEvent(NULL, TRUE, FALSE, NULL);  // Manual reset event
 
   // Initialize workers
   for (int i = 0; i < num_threads; i++) {
     GC_WORKER_LOG("Initializing worker %d\n", i);
     gc_thread_pool.workers[i].id = i;
+    atomic_init(&gc_thread_pool.workers[i].done, false);
 
-// Initialize worker stats
 #ifdef DEBUG_GC_WORKER_STATS
+    // Initialize worker stats
     atomic_init(&gc_thread_pool.workers[i].stats.objects_marked, 0);
     atomic_init(&gc_thread_pool.workers[i].stats.objects_swept, 0);
     gc_thread_pool.workers[i].stats.work_steal_attempts = 0;
     gc_thread_pool.workers[i].stats.successful_steals   = 0;
 #endif
-
-    atomic_init(&gc_thread_pool.workers[i].is_idle, true);
-
     gc_thread_pool.workers[i].deque = ws_deque_init(GC_DEQUE_INITIAL_CAPACITY);
     if (!gc_thread_pool.workers[i].deque) {
       INTERNAL_ERROR("Failed to initialize work-stealing deque for worker %d", i);
       gc_shutdown_thread_pool();
       exit(EMEM_ERROR);
     }
+  }
 
-    // Create worker threads, main thread is worker 0, so we skip that
-    if (i == 0) {
-      continue;
-    }
-
-    int result = pthread_create(&gc_thread_pool.workers[i].thread, &attr, gc_worker, &gc_thread_pool.workers[i]);
+  // Create worker threads, main thread is worker 0, so we skip that
+  for (int i = 1; i < num_threads; i++) {
+    int result = pthread_create(&gc_thread_pool.workers[i].thread, NULL, gc_worker, &gc_thread_pool.workers[i]);
     if (result != 0) {
       INTERNAL_ERROR("Failed to create worker thread %d: %s", i, strerror(result));
       gc_shutdown_thread_pool();
       exit(ESW_ERROR);
+    }
+    HANDLE thread_handle = (HANDLE)gc_thread_pool.workers[i].thread;
+    if (!SetThreadPriority(thread_handle, THREAD_PRIORITY_ABOVE_NORMAL)) {
+      // Log warning but continue - not critical
+      GC_WORKER_LOG("Warning: Could not set thread priority: %lu\n", GetLastError());
+    }
+    // Affinity
+    DWORD_PTR affinity_mask = (1ULL) << i;  // Assign each worker to a different core
+    if (!SetThreadAffinityMask(thread_handle, affinity_mask)) {
+      // Log warning but continue - not critical
+      GC_WORKER_LOG("Warning: Could not set thread affinity: %lu\n", GetLastError());
     }
   }
 }
@@ -1264,12 +1246,18 @@ void gc_shutdown_thread_pool() {
   }
 
   atomic_store(&gc_thread_pool.shutdown, true);
-  usleep(1000);  // TODO: Remove this hack, once we have proper synchronization
+  atomic_store(&gc_thread_pool.should_work, true);
+
+  // Wake up all workers so they can see shutdown flag
+  SetEvent(gc_thread_pool.work_event);
 
   // Join only threads 1 onwards (not worker[0] which is main thread)
   for (int i = 1; i < gc_thread_pool.worker_count; i++) {
     pthread_join(gc_thread_pool.workers[i].thread, NULL);
   }
+
+  // Free sync resources
+  CloseHandle(gc_thread_pool.work_event);
 
   // Free all deques including worker[0]'s
   for (int i = 0; i < gc_thread_pool.worker_count; i++) {

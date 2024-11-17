@@ -109,7 +109,7 @@ print "-------------------"
 // Slang output:
 // Part 1: 1460 took 1.05499110004166s
 // Cache size 573172
-// Part 2: 2117 took 310.2654574000s (5 minutes 10 seconds)
+// Part 2: 2117 took 310.2654574000s (4 minutes 50 seconds)
 // Cache size 244166
 
 // Js output (Ran on a tiny bit slower machine):

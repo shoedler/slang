@@ -18,8 +18,8 @@
 // #define DEBUG_TRACE_EXECUTION  // Print the execution of the Vm, including stack traces.
 
 // Garbage Collection
-#define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
-// #define DEBUG_GC_PHASE_TIMES  // Log the time it takes for each phase of the Gc
+// #define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
+#define DEBUG_GC_PHASE_TIMES  // Log the time it takes for each phase of the Gc
 // #define DEBUG_GC_WORKER_STATS  // Log the statistics of the Gc worker
 // #define DEBUG_GC_WORKER  // Log the Gc worker's activity
 // #define DEBUG_GC_SWEEP  // Log the Gc sweep phase
