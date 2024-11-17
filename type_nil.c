@@ -1,5 +1,7 @@
 #include "builtin.h"
 #include "common.h"
+#include "object.h"
+#include "value.h"
 #include "vm.h"
 
 static bool nil_get_prop(Value receiver, ObjString* name, Value* result);

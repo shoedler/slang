@@ -1,9 +1,6 @@
 #ifndef file_h
 #define file_h
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "common.h"
 
 #define SLANG_EXTENSION ".sl"

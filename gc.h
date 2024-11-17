@@ -1,8 +1,7 @@
 #ifndef GC_H
 #define GC_H
 
-#include "gc_deque.h" 
-#include <pthread.h>
+#include <stdbool.h>
 #include "hashtable.h"
 #include "value.h"
 
@@ -87,7 +86,8 @@ void gc_wake_workers();
 // Puts workers to sleep.
 void gc_workers_put_to_sleep();
 
-// Intended to only be called from the main thread. Executes the threads own work and participates by trying to steal work, waits for all workers to finish.
+// Intended to only be called from the main thread. Executes the threads own work and participates by trying to steal work, waits
+// for all workers to finish.
 void gc_wait_for_workers(void);
 
 #ifdef DEBUG_GC_WORKER_STATS
@@ -107,5 +107,4 @@ void gc_print_worker_stats();
 #define GC_WORKER_STATS_INC_FREED()
 #endif
 
-#endif // GC_H
-
+#endif  // GC_H

@@ -1,5 +1,10 @@
 #include "sys.h"
+#include <profileapi.h>
+#include <processthreadsapi.h>
 #include <stdio.h>
+#include <sysinfoapi.h>
+#include <windows.h>
+#include <winnt.h>
 #include "assert.h"
 #include "common.h"
 

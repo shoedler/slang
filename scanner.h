@@ -1,6 +1,8 @@
 #ifndef scanner_h
 #define scanner_h
 
+#include <stdbool.h>
+
 // Hexadecimal (base-16) digits can represent 4 bits each (since 16=2^4). Given the 53-bit precision of a
 // double, the longest hexadecimal literal that can fit without loss of precision would be 53/4=13.25 digits.
 // Since we cannot have a fraction of a digit, the practical maximum length is 13 digits (excluding any prefix

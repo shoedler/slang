@@ -2,8 +2,10 @@
 #define vm_h
 
 #include <stdatomic.h>
-#include "builtin.h"
+#include <stddef.h>
+#include <stdint.h>
 #include "chunk.h"
+#include "common.h"
 #include "hashtable.h"
 #include "object.h"
 #include "value.h"
@@ -418,7 +420,7 @@ static inline int callable_get_arity(Value callable) {
 
 static inline ObjString* fn_get_name(Value fn) {
   if (is_bound_method(fn)) {
-    fn = fn_value((Obj*)AS_BOUND_METHOD(fn)->method);
+    fn = fn_value(AS_BOUND_METHOD(fn)->method);
   }
   if (is_closure(fn)) {
     fn = fn_value((Obj*)AS_CLOSURE(fn)->function);

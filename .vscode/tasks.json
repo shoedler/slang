@@ -34,6 +34,54 @@
         "reveal": "silent"
       },
       "problemMatcher": "$gcc"
+    },
+    {
+      "label": "lint:comiledb:regen-compile-commands",
+      "detail": "Regenerate compile_commands.json, this should be done when you add new files to the project, to make sure clang-tidy can find them.",
+      "type": "shell",
+      "command": "compiledb",
+      "args": ["make", "release"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "lint:clang-tidy:fix-includes",
+      "type": "shell",
+      "command": "clang-tidy",
+      "args": [
+        "-checks=-*,misc-include-cleaner",
+        "-fix",
+        "-fix-errors",
+        "-p=./compile_commands.json",
+        "-header-filter=./*.h",
+        "./*.h",
+        "./*.c"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "lint:clang-tidy:codestyle",
+      "type": "shell",
+      "command": "clang-tidy",
+      "args": [
+        "-checks=-*,clang-analyzer-*,google-,readability-*,-clang-analyzer-security.insecureAPI.*",
+        "--config=\"{CheckOptions: [{key: readability-identifier-length.MinimumVariableNameLength, value: 2}, {key: readability-identifier-length.MinimumParameterNameLength, value: 2}]}\"",
+        "-p=./compile_commands.json",
+        "-header-filter=./*.h",
+        "./*.h",
+        "./*.c"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": "$gcc"
     }
   ]
 }

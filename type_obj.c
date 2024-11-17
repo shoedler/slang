@@ -1,7 +1,11 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "builtin.h"
 #include "common.h"
+#include "hashtable.h"
+#include "object.h"
+#include "value.h"
 #include "vm.h"
 
 static bool obj_get_prop(Value receiver, ObjString* name, Value* result);
@@ -92,6 +96,7 @@ static Value instance_object_to_str(int argc, Value* argv) {
   size_t buf_size = VALUE_STRFTM_INSTANCE_LEN + name->length;
   char* chars     = malloc(buf_size);
   snprintf(chars, buf_size, VALUE_STRFTM_INSTANCE, name->chars);
+
   // Intuitively, you'd expect to use take_string here, but we don't know where malloc
   // allocates the memory - we don't want this block in our own memory pool.
   ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
@@ -137,10 +142,8 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
     // Expand chars to fit the separator, delimiter plus the next key and value
     size_t new_buf_size = strlen(chars) + strlen(key_str->chars) + strlen(value_str->chars) +
                           (STR_LEN(VALUE_STR_OBJECT_SEPARATOR) - 1) + (sizeof(VALUE_STR_OBJECT_DELIM)) +
-                          (STR_LEN(VALUE_STR_OBJECT_END));  // Consider the closing bracket -
-                                                            // if we're done after this
-                                                            // iteration we won't need to
-                                                            // expand and can just slap it on there
+                          (STR_LEN(VALUE_STR_OBJECT_END));  // Consider the closing bracket - if we're done after this iteration
+                                                            // we won't need to expand and can just slap it on there
 
     // Expand if necessary
     if (new_buf_size > buf_size) {
@@ -184,26 +187,28 @@ static Value obj_to_str(int argc, Value argv[]) {
   // Handle anonymous objects and instance objects differently
   if (is_obj(argv[0])) {
     return anonymous_object_to_str(argc, argv);
-  } else {
-    return instance_object_to_str(argc, argv);
   }
 
-  // This here is the catch-all for all values. We print the type-name and memory address of the value.
-  ObjString* t_name = argv[0].type->name;
+  return instance_object_to_str(argc, argv);
 
-  // Print the memory address of the object using (void*)AS_OBJ(argv[0]).
-  // We need to know the size of the buffer to allocate, so we calculate it first.
-  size_t adr_str_len = snprintf(NULL, 0, "%p", (void*)argv[0].as.obj);
+  // TODO (refactor): Currently, only ObjObject objs are anonymous. The rest is handled as an instance.
 
-  size_t buf_size = VALUE_STRFMT_OBJ_LEN + t_name->length + adr_str_len;
-  char* chars     = malloc(buf_size);
-  snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name->chars, (void*)argv[0].as.obj);
-  // Intuitively, you'd expect to use take_string here, but we don't know where malloc
-  // allocates the memory - we don't want this block in our own memory pool.
-  ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
+  // // This here is the catch-all for all values. We print the type-name and memory address of the value.
+  // ObjString* t_name = argv[0].type->name;
 
-  free(chars);
-  return str_value(str_obj);
+  // // Print the memory address of the object using (void*)AS_OBJ(argv[0]).
+  // // We need to know the size of the buffer to allocate, so we calculate it first.
+  // size_t adr_str_len = snprintf(NULL, 0, "%p", (void*)argv[0].as.obj);
+
+  // size_t buf_size = VALUE_STRFMT_OBJ_LEN + t_name->length + adr_str_len;
+  // char* chars     = malloc(buf_size);
+  // snprintf(chars, buf_size, VALUE_STRFMT_OBJ, t_name->chars, (void*)argv[0].as.obj);
+  // // Intuitively, you'd expect to use take_string here, but we don't know where malloc
+  // // allocates the memory - we don't want this block in our own memory pool.
+  // ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
+
+  // free(chars);
+  // return str_value(str_obj);
 }
 
 #define NATIVE_ENUMERABLE_GET_VALUE_ARRAY(value)                   \

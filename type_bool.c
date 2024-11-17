@@ -1,5 +1,7 @@
 #include "builtin.h"
 #include "common.h"
+#include "object.h"
+#include "value.h"
 #include "vm.h"
 
 static bool bool_get_prop(Value receiver, ObjString* name, Value* result);
@@ -50,8 +52,8 @@ static Value bool_to_str(int argc, Value argv[]) {
   if (argv[0].as.boolean) {
     ObjString* str_obj = copy_string(VALUE_STR_TRUE, STR_LEN(VALUE_STR_TRUE));
     return str_value(str_obj);
-  } else {
-    ObjString* str_obj = copy_string(VALUE_STR_FALSE, STR_LEN(VALUE_STR_FALSE));
-    return str_value(str_obj);
   }
+
+  ObjString* str_obj = copy_string(VALUE_STR_FALSE, STR_LEN(VALUE_STR_FALSE));
+  return str_value(str_obj);
 }

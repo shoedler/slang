@@ -2,10 +2,16 @@
 #define object_h
 
 #include <stdatomic.h>
+#include <stdint.h>
 #include "chunk.h"
-#include "common.h"
 #include "hashtable.h"
 #include "value.h"
+
+#define FNV_1A_64_OFFSET_BASIS 14695981039346656037ULL  // FNV-1a 64-bit hash offset basis used for hashing strings
+#define FNV_1A_64_PRIME 1099511628211ULL                // FNV-1a 64-bit prime used for hashing strings
+#define TUPLE_HASH_INITIAL 0x345678                     // Initial hash value for hashing tuples (borrowed from Python)
+#define TUPLE_HASH_MULTIPLIER 1000003                   // Multiplier for hashing tuples (borrowed from Python)
+#define TUPLE_HASH_OFFSET 97531                         // Offset for hashing tuples (borrowed from Python)
 
 // The type of an object. Tells the garbage collector how to free the object.
 typedef enum {

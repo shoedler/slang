@@ -1,6 +1,9 @@
+#include <stddef.h>
 #include "builtin.h"
 #include "common.h"
-#include "file.h"
+#include "hashtable.h"
+#include "object.h"
+#include "value.h"
 #include "vm.h"
 
 static Value native_debug_stack(int argc, Value argv[]);

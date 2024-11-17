@@ -3,9 +3,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "chunk.h"
 #include "common.h"
+#include "hashtable.h"
 #include "memory.h"
+#include "object.h"
 #include "scanner.h"
+#include "stdint.h"
+#include "value.h"
+#include "vm.h"
 
 #ifdef DEBUG_PRINT_CODE
 #include "debug.h"
@@ -63,9 +69,9 @@ typedef struct Compiler {
   ObjFunction* function;
   FunctionType type;
 
-  Local locals[2048];
+  Local locals[MAX_LOCALS];
   int local_count;
-  Upvalue upvalues[2048];
+  Upvalue upvalues[MAX_UPVALUES];
   int scope_depth;
 
   // Brake jumps need to be stored because we don't know the offset of the jump when we compile them.
@@ -310,10 +316,10 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
         break;
       }
       INTERNAL_ERROR("Module name not found in the fields of the active module (module." STR(SP_PROP_MODULE_NAME) ").");
-      current->function->name = copy_string("(Unnamed module)", 16);
+      current->function->name = copy_string("(Unnamed module)", STR_LEN("(Unnamed module)"));
       break;
     }
-    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("(anon)", 6); break;
+    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("(anon)", STR_LEN("(anon)")); break;
     case TYPE_CONSTRUCTOR: current->function->name = vm.special_method_names[SPECIAL_METHOD_CTOR]; break;
     default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }
@@ -689,11 +695,15 @@ static void number(bool can_assign) {
       long long value = strtoll(parser.previous.start + 2, NULL, 16);
       emit_constant_here(int_value(value));
       return;
-    } else if ((kind == 'b' || kind == 'B')) {
+    }
+
+    if ((kind == 'b' || kind == 'B')) {
       long long value = strtoll(parser.previous.start + 2, NULL, 2);
       emit_constant_here(int_value(value));
       return;
-    } else if ((kind == 'o' || kind == 'O')) {
+    }
+
+    if ((kind == 'o' || kind == 'O')) {
       long long value = strtoll(parser.previous.start + 2, NULL, 8);
       emit_constant_here(int_value(value));
       return;
@@ -824,8 +834,10 @@ static void binary(bool can_assign) {
 // name onto the stack.
 // 'name' can be a synthetic token, but 'error_start' must be the actual token from the source code.
 static void named_variable(Token name, bool can_assign, Token error_start) {
-  uint16_t get_op, set_op;
+  uint16_t get_op;
+  uint16_t set_op;
   int arg = resolve_local(current, &name);
+
   if (arg != -1) {
     get_op = OP_GET_LOCAL;
     set_op = OP_SET_LOCAL;
@@ -1076,7 +1088,9 @@ static void this_(bool can_assign) {
   if (current_class == NULL) {
     error("Can't use 'this' outside of a class.");
     return;
-  } else if (current->type == TYPE_METHOD_STATIC) {
+  }
+
+  if (current->type == TYPE_METHOD_STATIC) {
     error("Can't use 'this' in a static method.");
     return;
   }
@@ -1191,12 +1205,12 @@ static uint16_t string_constant(Token* name) {
 }
 
 // Checks whether the text content of two tokens is equal.
-static bool identifiers_equal(Token* a, Token* b) {
-  if (a->length != b->length) {
+static bool identifiers_equal(Token* id_a, Token* id_b) {
+  if (id_a->length != id_b->length) {
     return false;
   }
 
-  return memcmp(a->start, b->start, a->length) == 0;
+  return memcmp(id_a->start, id_b->start, id_a->length) == 0;
 }
 
 // Resolves a local variable by looking it up in the current compilers
@@ -1227,8 +1241,9 @@ static int resolve_local(Compiler* compiler, Token* name) {
 // Returns the index of the upvalue in the current compiler's upvalues array, or
 // -1 if it is not found.
 static int resolve_upvalue(Compiler* compiler, Token* name) {
-  if (compiler->enclosing == NULL)
+  if (compiler->enclosing == NULL) {
     return -1;
+  }
 
   int local = resolve_local(compiler->enclosing, name);
   if (local != -1) {
@@ -1247,8 +1262,8 @@ static int resolve_upvalue(Compiler* compiler, Token* name) {
 
 // Adds a local variable to the current compiler's local variables array.
 static void add_local(Token name) {
-  if (current->local_count == (int)(UINT32_MAX - 1)) {
-    error("Too many local variables in this scope.");
+  if (current->local_count == MAX_LOCALS) {
+    error("Can't have more than " STR(MAX_LOCALS) " local variables in one scope.");
     return;
   }
 
@@ -1259,10 +1274,9 @@ static void add_local(Token name) {
   local->is_captured = false;
 }
 
-// Adds an upvalue to the current compiler's upvalues array.
-// Checks whether the upvalue is already in the array. If so, it returns its
-// index. Otherwise, it adds it to the array and returns the new index.
-// Logs a compile error if the upvalue count exceeds the maximum and returns 0.
+// Adds an upvalue to the current compiler's upvalues array. Checks whether the upvalue is already in the array. If so, it returns
+// its index. Otherwise, it adds it to the array and returns the new index. Logs a compile error if the upvalue count exceeds the
+// maximum and returns 0.
 static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
   int upvalue_count = compiler->function->upvalue_count;
 
@@ -1273,8 +1287,8 @@ static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
     }
   }
 
-  if (upvalue_count == (int)(UINT32_MAX - 1)) {
-    error("Too many closure variables in function.");
+  if (upvalue_count == MAX_UPVALUES) {
+    error("Can't have more than " STR(MAX_UPVALUES) " closure variables in one function.");
     return 0;
   }
 
@@ -1514,7 +1528,7 @@ static void destructuring_assignment(DestructureType type, bool rhs_is_import) {
       // Mark the variable as initialized. We cannot use mark_initialized() here, because that would just mark the most
       // recent local. So we need to do it manually.
       current->locals[var->local].depth = current->scope_depth;
-      emit_two(OP_SET_LOCAL, (uint16_t)(var->local), error_start);
+      emit_two(OP_SET_LOCAL, var->local, error_start);
       emit_one(OP_POP, error_start);  // Discard the value.
     } else {
       emit_two(OP_DEFINE_GLOBAL, var->global, error_start);  // Also pops the value.

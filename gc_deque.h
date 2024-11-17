@@ -3,11 +3,12 @@
 
 #include <stdalign.h>
 #include <stdatomic.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
-#include <unistd.h>
-#include "common.h"
 
 #define GC_DEQUE_INITIAL_GARBAGE_CAPACITY 32
+#define GC_DEQUE_ALIGNMENT 64
 
 typedef struct GCTask {
   void (*function)(void* arg);
@@ -20,9 +21,9 @@ struct RingBuf;
 // Work-stealing deque structure
 typedef struct WorkStealingDeque {
   // Cache line alignment for atomic variables
-  alignas(64) atomic_int_least64_t top;
-  alignas(64) atomic_int_least64_t bottom;
-  alignas(64) atomic_uintptr_t buffer;  // Points to RingBuf
+  alignas(GC_DEQUE_ALIGNMENT) atomic_int_least64_t top;
+  alignas(GC_DEQUE_ALIGNMENT) atomic_int_least64_t bottom;
+  alignas(GC_DEQUE_ALIGNMENT) atomic_uintptr_t buffer;  // Points to RingBuf
 
   // Store old buffers for cleanup
   struct RingBuf** garbage;

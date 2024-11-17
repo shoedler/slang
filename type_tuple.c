@@ -1,7 +1,8 @@
-#include <stdlib.h>
 #include <string.h>
 #include "builtin.h"
 #include "common.h"
+#include "value.h"
+#include "object.h"
 #include "vm.h"
 
 static bool tuple_get_prop(Value receiver, ObjString* name, Value* result);

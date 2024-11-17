@@ -1,7 +1,21 @@
 #include "gc.h"
+#include <handleapi.h>
+#include <minwindef.h>
+#include <pthread.h>
+#include <stdatomic.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <synchapi.h>
+#include <unistd.h>
 #include <windows.h>
+#include <winnt.h>
+#include "common.h"
+#include "gc_deque.h"
+#include "hashtable.h"
 #include "memory.h"
 #include "sys.h"
+#include "value.h"
 #include "vm.h"
 
 #if defined(DEBUG_GC_WORKER) || defined(DEBUG_GC_SWEEP)
@@ -9,12 +23,12 @@
 #endif
 
 typedef struct {
-  alignas(64) WorkStealingDeque* deque;
-  alignas(64) pthread_t thread;
-  alignas(64) int id;
-  alignas(64) atomic_bool done;
+  alignas(GC_DEQUE_ALIGNMENT) WorkStealingDeque* deque;
+  alignas(GC_DEQUE_ALIGNMENT) pthread_t thread;
+  alignas(GC_DEQUE_ALIGNMENT) int id;
+  alignas(GC_DEQUE_ALIGNMENT) atomic_bool done;
 #ifdef DEBUG_GC_WORKER_STATS
-  alignas(64) GCWorkerStats stats;
+  alignas(GC_DEQUE_ALIGNMENT) GCWorkerStats stats;
 #endif
 } GCWorker;
 
@@ -58,7 +72,7 @@ static void gc_worker_add_task(void (*function)(void*), void* arg) {
   atomic_store(&current_worker->done, false);
   if (!ws_deque_push(current_worker->deque, (GCTask){.function = function, .arg = arg})) {
     INTERNAL_ERROR("Failed to push task to current worker's deque");
-    exit(EMEM_ERROR);
+    exit(SLANG_EXIT_MEMORY_ERROR);
   }
 }
 
@@ -103,7 +117,7 @@ static bool gc_worker_do_work() {
 }
 
 void gc_wait_for_workers() {
-  bool all_done;
+  bool all_done = false;
   do {
     if (gc_worker_do_work()) {
       continue;
@@ -223,9 +237,9 @@ void gc_parallel_mark_hashtable(HashTable* table) {
 }
 
 typedef struct {
-  alignas(64) Obj* start;   // Inclusive. If NULL, then the whole chunk was freed
-  alignas(64) Obj* end;     // Inclusive too
-  alignas(64) size_t size;  // Number of objects in the chunk. E.g. size=4 means 0=start, 1, 2, 3=end
+  alignas(GC_DEQUE_ALIGNMENT) Obj* start;   // Inclusive. If NULL, then the whole chunk was freed
+  alignas(GC_DEQUE_ALIGNMENT) Obj* end;     // Inclusive too
+  alignas(GC_DEQUE_ALIGNMENT) size_t size;  // Number of objects in the chunk. E.g. size=4 means 0=start, 1, 2, 3=end
 } SweepChunk;
 
 static void gc_sweep_chunk_task(void* arg) {
@@ -420,7 +434,7 @@ void gc_init_thread_pool(int num_threads) {
 
   if (num_threads <= 0) {
     INTERNAL_ERROR("Invalid number of threads: %d", num_threads);
-    exit(ESW_ERROR);
+    exit(SLANG_EXIT_SW_ERROR);
   }
 
   // Initialize thread pool struct with aligned memory
@@ -429,7 +443,7 @@ void gc_init_thread_pool(int num_threads) {
   gc_thread_pool.workers      = _aligned_malloc(alloc_size, 64);
   if (!gc_thread_pool.workers) {
     INTERNAL_ERROR("Failed to allocate memory for worker threads");
-    exit(EMEM_ERROR);
+    exit(SLANG_EXIT_MEMORY_ERROR);
   }
   memset(gc_thread_pool.workers, 0, alloc_size);
 
@@ -455,7 +469,7 @@ void gc_init_thread_pool(int num_threads) {
     if (!gc_thread_pool.workers[i].deque) {
       INTERNAL_ERROR("Failed to initialize work-stealing deque for worker %d", i);
       gc_shutdown_thread_pool();
-      exit(EMEM_ERROR);
+      exit(SLANG_EXIT_MEMORY_ERROR);
     }
   }
 
@@ -465,7 +479,7 @@ void gc_init_thread_pool(int num_threads) {
     if (result != 0) {
       INTERNAL_ERROR("Failed to create worker thread %d: %s", i, strerror(result));
       gc_shutdown_thread_pool();
-      exit(ESW_ERROR);
+      exit(SLANG_EXIT_SW_ERROR);
     }
     prioritize_thread((HANDLE)gc_thread_pool.workers[i].thread, i);
   }

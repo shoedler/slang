@@ -1,16 +1,18 @@
 #include "memory.h"
 
 #include <assert.h>
-#include <pthread.h>
 #include <stdalign.h>
 #include <stdatomic.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include "chunk.h"
+#include "common.h"
 #include "compiler.h"
 #include "gc.h"
-#include "gc_deque.h"
-#include "sys.h"
+#include "hashtable.h"
+#include "object.h"
+#include "value.h"
 #include "vm.h"
 
 static void blacken_object(Obj* object);
@@ -37,7 +39,7 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size) {
   void* result = realloc(pointer, new_size);
   if (result == NULL) {
     INTERNAL_ERROR("Not enough memory to reallocate");
-    exit(EMEM_ERROR);
+    exit(SLANG_EXIT_MEMORY_ERROR);
   }
 
   return result;
@@ -172,7 +174,7 @@ static void blacken_object(Obj* object) {
     case OBJ_GC_BOUND_METHOD: {
       ObjBoundMethod* bound = (ObjBoundMethod*)object;
       mark_value(bound->receiver);
-      mark_obj((Obj*)bound->method);
+      mark_obj(bound->method);
       break;
     }
     case OBJ_GC_CLASS: {

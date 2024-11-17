@@ -33,12 +33,12 @@ const char* get_line_start(Token token) {
   return line_start;
 }
 
-static bool is_digit(char c) {
-  return c >= '0' && c <= '9';
+static bool is_digit(char chr) {
+  return chr >= '0' && chr <= '9';
 }
 
-static bool is_alpha(char c) {
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+static bool is_alpha(char chr) {
+  return (chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z') || chr == '_';
 }
 
 static bool is_at_end() {
@@ -100,8 +100,8 @@ static Token error_token(const char* message) {
 
 static void skip_whitespace() {
   for (;;) {
-    char c = peek();
-    switch (c) {
+    char chr = peek();
+    switch (chr) {
       case ' ':
       case '\r':
       case '\t': advance(); break;
@@ -231,55 +231,7 @@ static Token identifier() {
   return make_token(identifier_type());
 }
 
-static Token number(char c) {
-  if (c == '0') {
-    char kind = peek();
-    if (kind == 'x' || kind == 'X') {
-      // Hexadecimal
-      advance();
-      int num_digits = 0;
-      while (is_digit(peek()) || (peek() >= 'a' && peek() <= 'f') || (peek() >= 'A' && peek() <= 'F')) {
-        advance();
-        num_digits++;
-      }
-      // Check literal length - this does not account for the actual value that results when parsing the
-      // literal
-      if (num_digits <= 0 || num_digits > MAX_HEX_DIGITS) {
-        return error_token("Hexadecimal number literal must have at least one digit/letter and at most " STR(MAX_HEX_DIGITS) ".");
-      }
-      return make_token(TOKEN_NUMBER);
-    } else if (kind == 'b' || kind == 'B') {
-      // Binary
-      advance();
-      int num_digits = 0;
-      while (peek() == '0' || peek() == '1') {
-        advance();
-        num_digits++;
-      }
-      // Check literal length - this does not account for the actual value that results when parsing the
-      // literal
-      if (num_digits <= 0 || num_digits > MAX_BINARY_DIGITS) {
-        return error_token("Binary number literal must have at least one digit and at most " STR(MAX_BINARY_DIGITS) ".");
-      }
-      return make_token(TOKEN_NUMBER);
-    } else if (kind == 'o' || kind == 'O') {
-      // Octal - must be 0o, none of those silly 0123 things
-      advance();
-      int num_digits = 0;
-      while (peek() >= '0' && peek() <= '7') {
-        advance();
-        num_digits++;
-      }
-      // Check literal length - this does not account for the actual value that results when parsing the
-      // literal
-      if (num_digits <= 0 || num_digits > MAX_OCTAL_DIGITS) {
-        return error_token("Octal number literal must have at least one digit and at most " STR(MAX_OCTAL_DIGITS) ".");
-      }
-      return make_token(TOKEN_NUMBER);
-    }
-    // Otherwise, it's just a decimal
-  }
-
+static Token decimal() {
   while (is_digit(peek())) {
     advance();
   }
@@ -298,6 +250,70 @@ static Token number(char c) {
 #endif
 
   return make_token(TOKEN_NUMBER);
+}
+
+static Token number(char chr) {
+  if (chr != '0') {
+    return decimal();
+  }
+
+  Token number_token;
+  char kind = peek();
+  switch (kind) {
+    case 'x':
+    case 'X': {  // Hexadecimal
+      advance();
+      int num_digits = 0;
+      while (is_digit(peek()) || (peek() >= 'a' && peek() <= 'f') || (peek() >= 'A' && peek() <= 'F')) {
+        advance();
+        num_digits++;
+      }
+      // Check literal length - this does not account for the actual value that results when parsing the literal
+      if (num_digits <= 0 || num_digits > MAX_HEX_DIGITS) {
+        return error_token("Hexadecimal number literal must have at least one digit/letter and at most " STR(MAX_HEX_DIGITS) ".");
+      }
+      number_token = make_token(TOKEN_NUMBER);
+      break;
+    }
+    case 'b':  // Binary
+    case 'B': {
+      advance();
+      int num_digits = 0;
+      while (peek() == '0' || peek() == '1') {
+        advance();
+        num_digits++;
+      }
+      // Check literal length - this does not account for the actual value that results when parsing the literal
+      if (num_digits <= 0 || num_digits > MAX_BINARY_DIGITS) {
+        return error_token("Binary number literal must have at least one digit and at most " STR(MAX_BINARY_DIGITS) ".");
+      }
+      number_token = make_token(TOKEN_NUMBER);
+      break;
+    }
+    case 'o':  // Octal
+    case 'O': {
+      advance();
+      int num_digits = 0;
+      while (peek() >= '0' && peek() <= '7') {
+        advance();
+        num_digits++;
+      }
+      // Check literal length - this does not account for the actual value that results when parsing the literal
+      if (num_digits <= 0 || num_digits > MAX_OCTAL_DIGITS) {
+        return error_token("Octal number literal must have at least one digit and at most " STR(MAX_OCTAL_DIGITS) ".");
+      }
+      number_token = make_token(TOKEN_NUMBER);
+      break;
+    }
+
+    default: return decimal();  // Otherwise, it's just a decimal
+  }
+
+#ifdef DEBUG_PRINT_TOKENS
+  printf("NUMBER: %.*s\n", (int)(scanner.current - scanner.start), scanner.start);
+#endif
+
+  return number_token;
 }
 
 static Token string() {
@@ -336,17 +352,17 @@ Token scan_token() {
     return make_token(TOKEN_EOF);
   }
 
-  char c = advance();
+  char chr = advance();
 
-  if (is_digit(c)) {
-    return number(c);
+  if (is_digit(chr)) {
+    return number(chr);
   }
 
-  if (is_alpha(c)) {
+  if (is_alpha(chr)) {
     return identifier();
   }
 
-  switch (c) {
+  switch (chr) {
     case '(': return make_token(TOKEN_OPAR);
     case ')': return make_token(TOKEN_CPAR);
     case '{': return make_token(TOKEN_OBRACE);

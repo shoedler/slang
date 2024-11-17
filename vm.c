@@ -1,16 +1,21 @@
 #include <math.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "builtin.h"
+#include "chunk.h"
+#include "common.h"
 #include "compiler.h"
 #include "file.h"
 #include "gc.h"
+#include "hashtable.h"
 #include "memory.h"
 #include "object.h"
 #include "sys.h"
+#include "value.h"
 #include "vm.h"
 
 #if defined(DEBUG_TRACE_EXECUTION)
@@ -60,39 +65,41 @@ static void dump_location() {
   fprintf(stderr, "\n %5d | ", source.line);
 
   // Print the source code line
-  for (const char* c = source.start; c < error_end || (c >= error_end && *c != '\n' && *c != '\0'); c++) {
-    if (*c == '\r') {
+  for (const char* chr = source.start; chr < error_end || (chr >= error_end && *chr != '\n' && *chr != '\0'); chr++) {
+    if (*chr == '\r') {
       continue;
     }
 
-    if (*c == '\n') {
+    if (*chr == '\n') {
       fputs("...", stderr);
       break;
-    } else if (*c == '/' && c[1] == '/') {
-      break;  // Break if we reach a line comment
-    } else {
-      fputc(*c, stderr);
     }
+
+    if (*chr == '/' && chr[1] == '/') {
+      break;  // Break if we reach a line comment
+    }
+
+    fputc(*chr, stderr);
   }
 
   // Newline and padding
   fputs("\n         ", stderr);
-  for (const char* c = source.start; c < error_start; c++) {
+  for (const char* chr = source.start; chr < error_start; chr++) {
     fputc(' ', stderr);
   }
 
   // Print the squiggly line
   fputs(ANSI_COLOR_RED, stderr);
-  for (const char* c = error_start; c < error_end; c++) {
-    if (*c == '\r') {
+  for (const char* chr = error_start; chr < error_end; chr++) {
+    if (*chr == '\r') {
       continue;
     }
 
-    if (*c == '\n') {
+    if (*chr == '\n') {
       break;
-    } else {
-      fputc('~', stderr);
     }
+
+    fputc('~', stderr);
   }
   fputs(ANSI_COLOR_RESET, stderr);
 
@@ -144,7 +151,7 @@ void runtime_error(const char* format, ...) {
 static void exit_with_compile_error() {
   free_vm();
   // TODO (recovery): Find a way to progpagate errors */
-  exit(ECOMPILE_ERROR);
+  exit(SLANG_EXIT_COMPILE_ERROR);
 }
 
 void define_native(HashTable* table, const char* name, NativeFn function, int arity) {
@@ -449,9 +456,13 @@ static CallResult call_native(ObjNative* native, int arg_count) {
 static CallResult call_value(Value callable, int arg_count) {
   if (is_native(callable)) {
     return call_native(AS_NATIVE(callable), arg_count);
-  } else if (is_closure(callable)) {
+  }
+
+  if (is_closure(callable)) {
     return call_managed(AS_CLOSURE(callable), arg_count);
-  } else if (is_bound_method(callable)) {
+  }
+
+  if (is_bound_method(callable)) {
     ObjBoundMethod* bound        = AS_BOUND_METHOD(callable);
     vm.stack_top[-arg_count - 1] = bound->receiver;
     switch (bound->method->type) {
@@ -459,7 +470,9 @@ static CallResult call_value(Value callable, int arg_count) {
       case OBJ_GC_NATIVE: return call_native((ObjNative*)bound->method, arg_count);
       default: break;  // Non-callable object type.
     }
-  } else if (is_class(callable)) {
+  }
+
+  if (is_class(callable)) {
     ObjClass* klass = AS_CLASS(callable);
     // Construct a new instance of the class.
     // We just replace the class on the stack (callable) with an instance of it.
@@ -481,7 +494,9 @@ static CallResult call_value(Value callable, int arg_count) {
           return CALL_FAILED;
         }
       }
-    } else if (arg_count != 0) {
+    }
+
+    if (arg_count != 0) {
       runtime_error("Expected 0 arguments but got %d.", arg_count);
       return CALL_FAILED;
     }
@@ -554,7 +569,9 @@ Value exec_callable(Value callable, int arg_count) {
 
   if (result == CALL_RETURNED) {
     return pop();
-  } else if (result == CALL_RUNNING) {
+  }
+
+  if (result == CALL_RUNNING) {
     return run_frame();
   }
 
@@ -633,7 +650,7 @@ static void define_method(ObjString* name, FunctionType type) {
     }
     default: {
       INTERNAL_ERROR("Unknown method FunctionType %d", type);
-      exit(ESW_ERROR);
+      exit(SLANG_EXIT_SW_ERROR);
     }
   }
 
@@ -657,7 +674,7 @@ bool inherits(ObjClass* klass, ObjClass* base) {
 char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path) {
   if (module_path == NULL && module_name == NULL) {
     INTERNAL_ERROR("Cannot resolve module path. Both module name and path are NULL.");
-    exit(EMEM_ERROR);
+    exit(SLANG_EXIT_MEMORY_ERROR);
   }
 
   char* absolute_file_path;
@@ -683,7 +700,7 @@ char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* mod
       if (absolute_file_path == NULL) {
         INTERNAL_ERROR("Could not import module '%s'. Out of memory.",
                        module_name == NULL ? module_path->chars : module_name->chars);
-        exit(EMEM_ERROR);
+        exit(SLANG_EXIT_MEMORY_ERROR);
       }
 
       strcpy(absolute_file_path, module_path->chars);
@@ -695,7 +712,7 @@ char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* mod
         "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
         "'%s'",
         module_name->chars, cwd->chars, module_path == NULL ? "NULL" : module_path->chars);
-    exit(EIO_ERROR);
+    exit(SLANG_EXIT_IO_ERROR);
   }
 
   return absolute_file_path;
@@ -768,18 +785,18 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
 // Concatenates two strings on the stack (pops them) into a new string and pushes it onto the stack
 // `Stack: ...[a][b]` → `Stack: ...[a+b]`
 static void concatenate() {
-  ObjString* b = AS_STR(peek(0));  // Peek, so it doesn't get freed by the GC
-  ObjString* a = AS_STR(peek(1));  // Peek, so it doesn't get freed by the GC
+  ObjString* right = AS_STR(peek(0));  // Peek, so it doesn't get freed by the GC
+  ObjString* left  = AS_STR(peek(1));  // Peek, so it doesn't get freed by the GC
 
-  int length  = a->length + b->length;
+  int length  = left->length + right->length;
   char* chars = ALLOCATE_ARRAY(char, length + 1);
-  memcpy(chars, a->chars, a->length);
-  memcpy(chars + a->length, b->chars, b->length);
+  memcpy(chars, left->chars, left->length);
+  memcpy(chars + left->length, right->chars, right->length);
   chars[length] = '\0';
 
   ObjString* result = take_string(chars, length);
-  pop();  // b
-  pop();  // a
+  pop();  // right
+  pop();  // left
   push(str_value(result));
 }
 
@@ -804,8 +821,9 @@ static bool handle_error() {
   // Rewind the stack to the last handler, or the exit slot
   for (stack_offset = (int)(vm.stack_top - vm.stack - 1);                 // Start at the top of the stack
        stack_offset >= exit_slot && !is_handler(vm.stack[stack_offset]);  // Stop at the exit slot or handler
-       stack_offset--)
+       stack_offset--) {
     ;
+  }
 
   // Did we find a handler within the current frame?
   if (stack_offset < exit_slot) {
@@ -829,13 +847,14 @@ static bool handle_error() {
   // handler (stack_offset) is.
   for (frame_offset = vm.frame_count - 1;  // Start at the top of the frame stack
        frame_offset >= 0 && (int)(vm.frames[frame_offset].slots - vm.stack) > stack_offset;  // Stop at the frame
-       frame_offset--)
+       frame_offset--) {
     ;
+  }
 
   // Did we find a frame that owns the handler?
   if (frame_offset == -1) {
     INTERNAL_ERROR("Call stack corrupted. No call frame found that owns the handler.");
-    exit(ESW_ERROR);
+    exit(SLANG_EXIT_SW_ERROR);
   }
 
   // We have the handler's index/offset in the stack and the frame it belongs to. Now let's reset the Vm to
@@ -867,76 +886,78 @@ static Value run() {
 // stack, and pushes the result.
 //
 // TODO (optimize): These probably have some potential for optimization.
-#define MAKE_BINARY_OP(operator, b_check)                                                                                 \
-  {                                                                                                                       \
-    Value b = pop();                                                                                                      \
-    Value a = pop();                                                                                                      \
-    if (is_int(a) && is_int(b)) {                                                                                         \
-      b_check;                                                                                                            \
-      push(int_value(a.as.integer operator b.as.integer));                                                                \
-      break;                                                                                                              \
-    }                                                                                                                     \
-    if (is_float(a)) {                                                                                                    \
-      if (is_int(b)) {                                                                                                    \
-        b_check;                                                                                                          \
-        push(float_value(a.as.float_ operator(double) b.as.integer));                                                     \
-        break;                                                                                                            \
-      } else if (is_float(b)) {                                                                                           \
-        b_check;                                                                                                          \
-        push(float_value(a.as.float_ operator b.as.float_));                                                              \
-        break;                                                                                                            \
-      }                                                                                                                   \
-    } else if (is_float(b)) {                                                                                             \
-      if (is_int(a)) {                                                                                                    \
-        b_check;                                                                                                          \
-        push(float_value((double)a.as.integer operator b.as.float_));                                                     \
-        break;                                                                                                            \
-      }                                                                                                                   \
-    }                                                                                                                     \
-    runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", #operator, a.type->name->chars, \
-                  b.type->name->chars);                                                                                   \
-    goto finish_error;                                                                                                    \
+#define MAKE_BINARY_OP(operator, b_check)                                                                                    \
+  {                                                                                                                          \
+    Value right = pop();                                                                                                     \
+    Value left  = pop();                                                                                                     \
+    if (is_int(left) && is_int(right)) {                                                                                     \
+      b_check;                                                                                                               \
+      push(int_value(left.as.integer operator right.as.integer));                                                            \
+      break;                                                                                                                 \
+    }                                                                                                                        \
+    if (is_float(left)) {                                                                                                    \
+      if (is_int(right)) {                                                                                                   \
+        b_check;                                                                                                             \
+        push(float_value(left.as.float_ operator(double) right.as.integer));                                                 \
+        break;                                                                                                               \
+      }                                                                                                                      \
+      if (is_float(right)) {                                                                                                 \
+        b_check;                                                                                                             \
+        push(float_value(left.as.float_ operator right.as.float_));                                                          \
+        break;                                                                                                               \
+      }                                                                                                                      \
+    } else if (is_float(right)) {                                                                                            \
+      if (is_int(left)) {                                                                                                    \
+        b_check;                                                                                                             \
+        push(float_value((double)left.as.integer operator right.as.float_));                                                 \
+        break;                                                                                                               \
+      }                                                                                                                      \
+    }                                                                                                                        \
+    runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", #operator, left.type->name->chars, \
+                  right.type->name->chars);                                                                                  \
+    goto finish_error;                                                                                                       \
   }
 
 #define BIN_ADD MAKE_BINARY_OP(+, (void)0)
 #define BIN_SUB MAKE_BINARY_OP(-, (void)0)
 #define BIN_MUL MAKE_BINARY_OP(*, (void)0)
-#define BIN_DIV                                                                         \
-  MAKE_BINARY_OP(                                                                       \
-      /, if ((is_int(b) && b.as.integer == 0) || (is_float(b) && b.as.float_ == 0.0)) { \
-          runtime_error("Division by zero.");                                           \
-          goto finish_error;                                                            \
+#define BIN_DIV                                                                                         \
+  MAKE_BINARY_OP(                                                                                       \
+      /, if ((is_int(right) && right.as.integer == 0) || (is_float(right) && right.as.float_ == 0.0)) { \
+          runtime_error("Division by zero.");                                                           \
+          goto finish_error;                                                                            \
         })
 
 // Perform a comparison operation on the top two values on the stack. This consumes two pieces of data from the
 // stack, and pushes the result.
 //
 // TODO (optimize): These probably have some potential for optimization.
-#define MAKE_COMPARATOR(operator)                                                                                             \
-  {                                                                                                                           \
-    Value b = pop();                                                                                                          \
-    Value a = pop();                                                                                                          \
-    if (is_int(a) && is_int(b)) {                                                                                             \
-      push(bool_value(a.as.integer operator b.as.integer));                                                                   \
-      break;                                                                                                                  \
-    }                                                                                                                         \
-    if (is_float(a)) {                                                                                                        \
-      if (is_int(b)) {                                                                                                        \
-        push(bool_value(a.as.float_ operator b.as.integer));                                                                  \
-        break;                                                                                                                \
-      } else if (is_float(b)) {                                                                                               \
-        push(bool_value(a.as.float_ operator b.as.float_));                                                                   \
-        break;                                                                                                                \
-      }                                                                                                                       \
-    } else if (is_float(b)) {                                                                                                 \
-      if (is_int(a)) {                                                                                                        \
-        push(bool_value(a.as.integer operator b.as.integer));                                                                 \
-        break;                                                                                                                \
-      }                                                                                                                       \
-    }                                                                                                                         \
-    runtime_error("Incompatible types for comparison operand %s. Left was %s, right was %s.", #operator, a.type->name->chars, \
-                  b.type->name->chars);                                                                                       \
-    goto finish_error;                                                                                                        \
+#define MAKE_COMPARATOR(operator)                                                                                                \
+  {                                                                                                                              \
+    Value right = pop();                                                                                                         \
+    Value left  = pop();                                                                                                         \
+    if (is_int(left) && is_int(right)) {                                                                                         \
+      push(bool_value(left.as.integer operator right.as.integer));                                                               \
+      break;                                                                                                                     \
+    }                                                                                                                            \
+    if (is_float(left)) {                                                                                                        \
+      if (is_int(right)) {                                                                                                       \
+        push(bool_value(left.as.float_ operator right.as.integer));                                                              \
+        break;                                                                                                                   \
+      }                                                                                                                          \
+      if (is_float(right)) {                                                                                                     \
+        push(bool_value(left.as.float_ operator right.as.float_));                                                               \
+        break;                                                                                                                   \
+      }                                                                                                                          \
+    } else if (is_float(right)) {                                                                                                \
+      if (is_int(left)) {                                                                                                        \
+        push(bool_value(left.as.integer operator right.as.integer));                                                             \
+        break;                                                                                                                   \
+      }                                                                                                                          \
+    }                                                                                                                            \
+    runtime_error("Incompatible types for comparison operand %s. Left was %s, right was %s.", #operator, left.type->name->chars, \
+                  right.type->name->chars);                                                                                      \
+    goto finish_error;                                                                                                           \
   }
 
 #define BIN_LT MAKE_COMPARATOR(<)
@@ -957,8 +978,7 @@ static Value run() {
     printf("\n");
 #endif
 
-    uint16_t instruction;
-    switch (instruction = READ_ONE()) {
+    switch (READ_ONE()) {
       case OP_CONSTANT: {
         Value constant = READ_CONSTANT();
         push(constant);
@@ -1118,15 +1138,15 @@ static Value run() {
         break;
       }
       case OP_EQ: {
-        Value b = pop();
-        Value a = pop();
-        push(bool_value(values_equal(a, b)));
+        Value right = pop();
+        Value left  = pop();
+        push(bool_value(values_equal(left, right)));
         break;
       }
       case OP_NEQ: {
-        Value b = pop();
-        Value a = pop();
-        push(bool_value(!values_equal(a, b)));
+        Value right = pop();
+        Value left  = pop();
+        push(bool_value(!values_equal(left, right)));
         break;
       }
       case OP_GT: BIN_GT
@@ -1137,55 +1157,57 @@ static Value run() {
         if (is_str(peek(0)) && is_str(peek(1))) {
           concatenate();
           break;
-        } else
-          BIN_ADD
+        }
+        BIN_ADD
       }
       case OP_SUBTRACT: BIN_SUB
       case OP_MULTIPLY: BIN_MUL
       case OP_DIVIDE: BIN_DIV
       case OP_MODULO: {
         // Pretty much the same as MAKE_BINARY_OP, but expanded bc we use fmod(double, double) for floats
-        Value b = pop();
-        Value a = pop();
+        Value right = pop();
+        Value left  = pop();
 
-        if (is_int(a) && is_int(b)) {
-          if (b.as.integer == 0) {
+        if (is_int(left) && is_int(right)) {
+          if (right.as.integer == 0) {
             runtime_error("Modulo by zero.");
             goto finish_error;
           }
-          push(int_value(a.as.integer % b.as.integer));
+          push(int_value(left.as.integer % right.as.integer));
           break;
         }
 
-        if (is_float(a)) {
-          if (is_int(b)) {
-            if (b.as.integer == 0) {
+        if (is_float(left)) {
+          if (is_int(right)) {
+            if (right.as.integer == 0) {
               runtime_error("Modulo by zero.");
               goto finish_error;
             }
-            push(float_value(fmod(a.as.float_, (double)b.as.integer)));
-            break;
-          } else if (is_float(b)) {
-            if (b.as.float_ == 0) {
-              runtime_error("Modulo by zero.");
-              goto finish_error;
-            }
-            push(float_value(fmod(a.as.float_, b.as.float_)));
+            push(float_value(fmod(left.as.float_, (double)right.as.integer)));
             break;
           }
-        } else if (is_float(b)) {
-          if (is_int(a)) {
-            if (b.as.integer == 0) {
+
+          if (is_float(right)) {
+            if (right.as.float_ == 0) {
               runtime_error("Modulo by zero.");
               goto finish_error;
             }
-            push(float_value(fmod((double)a.as.integer, b.as.float_)));
+            push(float_value(fmod(left.as.float_, right.as.float_)));
+            break;
+          }
+        } else if (is_float(right)) {
+          if (is_int(left)) {
+            if (right.as.integer == 0) {
+              runtime_error("Modulo by zero.");
+              goto finish_error;
+            }
+            push(float_value(fmod((double)left.as.integer, right.as.float_)));
             break;
           }
         }
 
-        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", a.type->name->chars,
-                      b.type->name->chars);
+        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", left.type->name->chars,
+                      right.type->name->chars);
         goto finish_error;
       }
       case OP_NOT: push(bool_value(is_falsey(pop()))); break;
@@ -1230,8 +1252,9 @@ static Value run() {
       }
       case OP_JUMP_IF_FALSE: {
         uint16_t offset = READ_ONE();
-        if (is_falsey(peek(0)))
+        if (is_falsey(peek(0))) {
           frame->ip += offset;
+        }
         break;
       }
       case OP_LOOP: {

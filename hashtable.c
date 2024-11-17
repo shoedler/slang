@@ -1,5 +1,7 @@
 #include "hashtable.h"
-#include <memory.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 #include "memory.h"
 #include "value.h"
 #include "vm.h"
@@ -28,12 +30,12 @@ static Entry* find_entry(Entry* entries, int capacity, Value key) {
       if (is_nil(entry->value)) {
         // Empty entry.
         return tombstone != NULL ? tombstone : entry;
-      } else {
-        // We found a tombstone. We need to keep looking in case the key is after it, but we'll use this entry as the insertion
-        // point if the key ends up not being found.
-        if (tombstone == NULL) {
-          tombstone = entry;
-        }
+      }
+
+      // We found a tombstone. We need to keep looking in case the key is after it, but we'll use this entry as the insertion
+      // point if the key ends up not being found.
+      if (tombstone == NULL) {
+        tombstone = entry;
       }
     } else if (values_equal(entry->key, key)) {
       // We found the key.

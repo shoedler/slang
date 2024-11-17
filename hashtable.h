@@ -1,7 +1,8 @@
 #ifndef table_h
 #define table_h
 
-#include "common.h"
+#include <stdbool.h>
+#include <stdint.h>
 #include "value.h"
 
 #define TABLE_MAX_LOAD 0.75

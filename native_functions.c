@@ -1,7 +1,10 @@
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include "builtin.h"
 #include "common.h"
+#include "value.h"
+#include "hashtable.h"
 #include "vm.h"
 
 void register_native_functions() {

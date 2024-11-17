@@ -1,8 +1,9 @@
 #ifndef value_h
 #define value_h
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
-#include "common.h"
 
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
@@ -86,7 +87,7 @@ typedef struct {
 } ValueArray;
 
 // Determines whether two values are equal.
-bool values_equal(Value a, Value b);
+bool values_equal(Value left, Value right);
 
 // Initialize a value array.
 void init_value_array(ValueArray* array);

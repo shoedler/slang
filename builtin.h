@@ -1,6 +1,9 @@
 #ifndef builtin_h
 #define builtin_h
 
+#include <stddef.h>
+#include <stdlib.h>
+#include "common.h"
 #include "value.h"
 #include "vm.h"
 
@@ -165,21 +168,21 @@ extern Value native_typeof(int argc, Value argv[]);
                   receiver.type->name->chars, index.type->name->chars);                                 \
     return false;                                                                                       \
   }                                                                                                     \
-  long long i = index.as.integer;                                                                       \
-  if (i >= items.count) {                                                                               \
+  long long idx = index.as.integer;                                                                     \
+  if (idx >= items.count) {                                                                             \
     *result = nil_value();                                                                              \
     return true;                                                                                        \
   }                                                                                                     \
                                                                                                         \
   /* Negative index */                                                                                  \
-  if (i < 0) {                                                                                          \
-    i += items.count;                                                                                   \
+  if (idx < 0) {                                                                                        \
+    idx += items.count;                                                                                 \
   }                                                                                                     \
-  if (i < 0) {                                                                                          \
+  if (idx < 0) {                                                                                        \
     *result = nil_value();                                                                              \
     return true;                                                                                        \
   }                                                                                                     \
-  *result = items.values[i];                                                                            \
+  *result = items.values[idx];                                                                          \
   return true;
 
 //

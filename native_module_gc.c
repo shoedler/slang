@@ -1,7 +1,11 @@
+#include <stddef.h>
+#include <string.h>
 #include "builtin.h"
 #include "common.h"
+#include "hashtable.h"
 #include "memory.h"
-#include "file.h"
+#include "object.h"
+#include "value.h"
 #include "vm.h"
 
 static Value native_gc_collect(int argc, Value argv[]);
@@ -45,7 +49,8 @@ static Value native_gc_stats(int argc, Value argv[]) {
   HashTable fields;
   init_hashtable(&fields);
 
-  hashtable_set(&fields, str_value(copy_string("bytes_allocated", (int)strlen("bytes_allocated"))), int_value(vm.bytes_allocated));
+  hashtable_set(&fields, str_value(copy_string("bytes_allocated", (int)strlen("bytes_allocated"))),
+                int_value(vm.bytes_allocated));
   hashtable_set(&fields, str_value(copy_string("next_gc", (int)strlen("next_gc"))), int_value(vm.next_gc));
   hashtable_set(&fields, str_value(copy_string("prev_gc_freed", (int)strlen("prev_gc_freed"))), int_value(vm.prev_gc_freed));
 

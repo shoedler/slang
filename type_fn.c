@@ -1,6 +1,9 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include "builtin.h"
 #include "common.h"
+#include "object.h"
+#include "value.h"
 #include "vm.h"
 
 #define NATIVE_CHECK_RECEIVER_IS_FN()                                                                      \
@@ -69,7 +72,7 @@ static Value fn_to_str(int argc, Value argv[]) {
 
   // Bound methods can be closures or native functions
   if (is_bound_method(fn)) {
-    fn = fn_value((Obj*)AS_BOUND_METHOD(fn)->method);
+    fn = fn_value(AS_BOUND_METHOD(fn)->method);
   }
 
   // Closures are functions

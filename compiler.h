@@ -2,15 +2,16 @@
 #define compiler_h
 
 #include "object.h"
-#include "vm.h"
 
 // We can lift this to UINT16_MAX, but it's hard to test for, so we'll keep it
 // at UINT8_MAX for now.
 #define MAX_FN_ARGS 255             // UINT8_MAX
 #define MAX_DESTRUCTURING_VARS 255  // UINT8_MAX
 
-#define MAX_CONSTANTS 65535             // UINT16_MAX
-#define MAX_JUMP 65535                  // UINT16_MAX
+#define MAX_LOCALS (1024 * 3)    // Arbitrary, could to UINT32_MAX theoretically, but gl with an array of that size on the stack.
+#define MAX_UPVALUES (1024 * 3)  // Arbitrary, could to UINT32_MAX theoretically, but gl with an array of that size on the stack.
+#define MAX_CONSTANTS 65535      // UINT16_MAX
+#define MAX_JUMP 65535           // UINT16_MAX
 #define MAX_SEQ_LITERAL_ITEMS 65535     // UINT16_MAX
 #define MAX_TUPLE_LITERAL_ITEMS 65535   // UINT16_MAX
 #define MAX_OBJECT_LITERAL_ITEMS 65535  // UINT16_MAX

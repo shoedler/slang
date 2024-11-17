@@ -1,7 +1,9 @@
+#include <stddef.h>
 #include "builtin.h"
 #include "common.h"
-#include "file.h"
+#include "object.h"
 #include "sys.h"
+#include "value.h"
 #include "vm.h"
 
 static Value native_perf_now(int argc, Value argv[]);
@@ -36,5 +38,5 @@ static Value native_perf_since(int argc, Value argv[]) {
   UNUSED(argc);
   NATIVE_CHECK_ARG_AT(1, vm.float_class);
 
-  return float_value(get_time() - (double)argv[1].as.float_);
+  return float_value(get_time() - argv[1].as.float_);
 }

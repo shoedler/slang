@@ -1,9 +1,9 @@
 #ifndef chunk_h
 #define chunk_h
 
-#include "common.h"
 #include "scanner.h"
 #include "value.h"
+#include <stdint.h>
 
 typedef enum {
   /**

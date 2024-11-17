@@ -1,8 +1,8 @@
 #ifndef SYS_H
 #define SYS_H
 
-#include <windows.h>
 #include <stddef.h>
+#include <windows.h>
 
 // Sets the main thread's priority to an above normal level.
 void prioritize_main_thread();
@@ -16,4 +16,4 @@ size_t get_cpu_core_count();
 // Returns a high-resolution timestamp in seconds.
 double get_time();
 
-#endif // SYS_H
+#endif  // SYS_H

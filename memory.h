@@ -1,8 +1,9 @@
 #ifndef memory_h
 #define memory_h
 
-#include "common.h"
+#include <stddef.h>
 #include "object.h"
+#include "value.h"
 
 // GC Configuration constants
 

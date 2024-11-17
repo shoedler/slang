@@ -1,6 +1,9 @@
+#include <stdint.h>
 #include <string.h>
 #include "builtin.h"
 #include "common.h"
+#include "object.h"
+#include "value.h"
 #include "vm.h"
 
 static bool str_get_prop(Value receiver, ObjString* name, Value* result);
@@ -46,22 +49,22 @@ static bool str_get_subs(Value receiver, Value index, Value* result) {
     false;
   }
 
-  long long i = index.as.integer;
-  if (i >= string->length) {
+  long long idx = index.as.integer;
+  if (idx >= string->length) {
     *result = nil_value();
     return true;
   }
 
   // Negative index
-  if (i < 0) {
-    i += string->length;
+  if (idx < 0) {
+    idx += string->length;
   }
-  if (i < 0) {
+  if (idx < 0) {
     *result = nil_value();
     return true;
   }
 
-  ObjString* char_str = copy_string(string->chars + i, 1);
+  ObjString* char_str = copy_string(string->chars + idx, 1);
   *result             = str_value(char_str);
   return true;
 }

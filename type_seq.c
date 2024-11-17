@@ -1,7 +1,9 @@
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include "builtin.h"
 #include "common.h"
+#include "object.h"
+#include "value.h"
 #include "vm.h"
 
 static bool seq_get_prop(Value receiver, ObjString* name, Value* result);
@@ -74,15 +76,15 @@ static bool seq_set_subs(Value receiver, Value index, Value value) {
     return false;
   }
 
-  long long i = index.as.integer;
-  ObjSeq* seq = AS_SEQ(receiver);
+  long long idx = index.as.integer;
+  ObjSeq* seq   = AS_SEQ(receiver);
 
-  if (i < 0 || i >= seq->items.count) {
-    runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", i, seq->items.count);
+  if (idx < 0 || idx >= seq->items.count) {
+    runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", idx, seq->items.count);
     return false;
   }
 
-  seq->items.values[i] = value;
+  seq->items.values[idx] = value;
   return true;
 }
 

@@ -5,8 +5,13 @@ Since I'm new to GCC, and likely forget the process in the future, I'll document
 
 ## Toolchain Setup for Windows 11
 
+> [!NOTE]
+>
+> We'll be using MSYS2' UCRT64 toolchain exclusively for this project. It's more modern, linking against the Universal C Runtime
+> (UCRT) instead of the older MSVCRT. This is a personal preference and might not be suitable for all projects.
+
 1. Install [MSYS2](https://www.msys2.org/) (I installed it in `C:\Projects\.dev\msys64`)
-2. Optionally, add a windows Terminal profile for the UCRT64 (Universal C Runtime) shell:
+2. Optionally, add a windows Terminal profile for the UCRT64 shell:
 
 ```json
 {
@@ -25,11 +30,18 @@ Since I'm new to GCC, and likely forget the process in the future, I'll document
 
 - _gcc_ (UCRT64) with the more modern UCRT with `$ pacman -S mingw-w64-ucrt-x86_64-gcc` in the MSYS2 terminal.
 - _gdb_ (UCRT64) with `$ pacman -S ucrt64/mingw-w64-ucrt-x86_64-gdb`
+- _clang-tidy_ with `$ pacman -S mingw-w64-ucrt-x86_64-clang-tools-extra`
 - _make_ with `$ pacman -S make`
 - ~~_jemalloc_ with `$ pacman -S mingw-w64-ucrt-x86_64-jemalloc` (Since we require a concurrent memory allocator)~~
 - _mimalloc_ with `pacman -S mingw-w64-ucrt-x86_64-mimalloc`
 
-4. Add relevant bin dirs to the PATH environment variable:
+> [!NOTE]
+>
+> Also, if you want to rebuild the _compile_commands.json_ file - required for `clang-tidy`, you can install `compiledb` with `$ pip install compiledb`.
+> (Requires Python and pip to be installed on your host machine)
+> This is necessary if you change the build system or add new files to the project. Run it with `compiledb make release` in the project root.
+
+5. Add relevant bin dirs to the PATH environment variable of your host machine:
 
 - `C:\Projects\.dev\msys64\ucrt64\bin` (for gcc and gdb as well as jemalloc)
 - `C:\Projects\.dev\msys64\usr\bin` (for make)

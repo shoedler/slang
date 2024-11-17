@@ -1,8 +1,9 @@
-#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "common.h"
 #include "memory.h"
 #include "object.h"
 #include "value.h"
@@ -66,14 +67,14 @@ void free_value_array(ValueArray* array) {
   init_value_array(array);
 }
 
-int is_digit(char c) {
-  return c >= '0' && c <= '9';
+int is_digit(char chr) {
+  return chr >= '0' && chr <= '9';
 }
 
 double string_to_double(char* str, int length) {
   double result              = 0.0;
   double decimal_place_value = 1.0;
-  bool found_decimal_place   = false;  // This acts as a boolean flag to track if we've encountered a decimal point
+  bool found_decimal_place   = false;
 
   for (int i = 0; i < length; ++i) {
     if (is_digit(str[i])) {
@@ -94,38 +95,38 @@ double string_to_double(char* str, int length) {
   return result;
 }
 
-bool values_equal(Value a, Value b) {
+bool values_equal(Value left, Value right) {
   // TODO (optimize): This is hot, maybe we can do better?
-  if (a.type != b.type) {
+  if (left.type != right.type) {
     return false;
   }
 
   // All non-object types are handled "manually". Obj are compared by their hash.
-  if (is_nil(a)) {
+  if (is_nil(left)) {
     return true;
   }
-  if (is_empty_internal(a)) {
+  if (is_empty_internal(left)) {
     return true;
   }
-  if (is_bool(a)) {
-    return a.as.boolean == b.as.boolean;
+  if (is_bool(left)) {
+    return left.as.boolean == right.as.boolean;
   }
-  if (is_int(a)) {
-    return a.as.integer == b.as.integer;
+  if (is_int(left)) {
+    return left.as.integer == right.as.integer;
   }
-  if (is_float(a)) {
-    return a.as.float_ == b.as.float_;
+  if (is_float(left)) {
+    return left.as.float_ == right.as.float_;
   }
-  if (is_str(a)) {
-    return AS_STR(a) == AS_STR(b);  // Works, because strings are interned
+  if (is_str(left)) {
+    return AS_STR(left) == AS_STR(right);  // Works, because strings are interned
   }
-  if (is_handler(a)) {
+  if (is_handler(left)) {
     INTERNAL_ERROR("Cannot compare a value to a error handler. Vm has leaked a stack value.");
     return false;
   }
 
   // We trust that all non-object types are handled above.
-  return a.as.obj->hash == b.as.obj->hash;
+  return left.as.obj->hash == right.as.obj->hash;
 }
 
 // Hashes a double. Borrowed from Lua.
@@ -162,58 +163,59 @@ uint64_t hash_value(Value value) {
   return value.as.obj->hash;
 }
 
-int print_value_safe(FILE* f, Value value) {
+int print_value_safe(FILE* file, Value value) {
   if (is_bool(value)) {
-    return fprintf(f, value.as.boolean ? VALUE_STR_TRUE : VALUE_STR_FALSE);
+    return fprintf(file, value.as.boolean ? VALUE_STR_TRUE : VALUE_STR_FALSE);
   }
   if (is_nil(value)) {
-    return fprintf(f, VALUE_STR_NIL);
+    return fprintf(file, VALUE_STR_NIL);
   }
   if (is_handler(value)) {
-    return fprintf(f, VALUE_STRFMT_HANDLER, value.as.handler);
+    return fprintf(file, VALUE_STRFMT_HANDLER, value.as.handler);
   }
   if (is_int(value)) {
-    return fprintf(f, VALUE_STR_INT, value.as.integer);
+    return fprintf(file, VALUE_STR_INT, value.as.integer);
   }
   if (is_float(value)) {
-    return fprintf(f, VALUE_STR_FLOAT, value.as.float_);
+    return fprintf(file, VALUE_STR_FLOAT, value.as.float_);
   }
   if (is_empty_internal(value)) {
-    return fprintf(f, VALUE_STR_EMPTY_INTERNAL);
+    return fprintf(file, VALUE_STR_EMPTY_INTERNAL);
   }
 
   if (is_str(value)) {
-    return fprintf(f, "%s", AS_CSTRING(value));
+    return fprintf(file, "%s", AS_CSTRING(value));
   }
   if (is_closure(value)) {
-    return fprintf(f, VALUE_STRFMT_FUNCTION, AS_CLOSURE(value)->function->name->chars);
+    return fprintf(file, VALUE_STRFMT_FUNCTION, AS_CLOSURE(value)->function->name->chars);
   }
   if (is_function(value)) {
-    return fprintf(f, VALUE_STRFMT_FUNCTION, AS_FUNCTION(value)->name->chars);
+    return fprintf(file, VALUE_STRFMT_FUNCTION, AS_FUNCTION(value)->name->chars);
   }
   if (is_class(value)) {
-    return fprintf(f, VALUE_STRFMT_CLASS, AS_CLASS(value)->name->chars);
+    return fprintf(file, VALUE_STRFMT_CLASS, AS_CLASS(value)->name->chars);
   }
   if (is_native(value)) {
-    return fprintf(f, VALUE_STRFMT_NATIVE, AS_NATIVE(value)->name->chars);
+    return fprintf(file, VALUE_STRFMT_NATIVE, AS_NATIVE(value)->name->chars);
   }
   if (is_bound_method(value)) {
     ObjBoundMethod* bound = AS_BOUND_METHOD(value);
     if (bound->method == NULL) {
-      return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(corrupt)");
+      return fprintf(file, VALUE_STRFMT_BOUND_METHOD, "(corrupt)");
     }
 
     if (bound->method->type == OBJ_GC_CLOSURE) {
       if (((ObjClosure*)bound->method)->function->name != NULL) {
-        return fprintf(f, VALUE_STRFMT_BOUND_METHOD, ((ObjClosure*)bound->method)->function->name->chars);
-      } else {
-        return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(corrupt closure)");
+        return fprintf(file, VALUE_STRFMT_BOUND_METHOD, ((ObjClosure*)bound->method)->function->name->chars);
       }
-    } else if (bound->method->type == OBJ_GC_NATIVE) {
-      return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(native)");
-    } else {
-      return fprintf(f, VALUE_STRFMT_BOUND_METHOD, "(unknown)");
+      return fprintf(file, VALUE_STRFMT_BOUND_METHOD, "(corrupt closure)");
     }
+
+    if (bound->method->type == OBJ_GC_NATIVE) {
+      return fprintf(file, VALUE_STRFMT_BOUND_METHOD, "(native)");
+    }
+
+    return fprintf(file, VALUE_STRFMT_BOUND_METHOD, "(unknown)");
   }
 
   if (is_tuple(value) || is_seq(value)) {
@@ -233,21 +235,21 @@ int print_value_safe(FILE* f, Value value) {
 
     ValueArray items = AS_VALUE_ARRAY(value);
 
-    int written = fprintf(f, start);
+    int written = fprintf(file, start);
     for (int i = 0; i < items.count; i++) {
-      written += print_value_safe(f, items.values[i]);
+      written += print_value_safe(file, items.values[i]);
       if (i < items.count - 1) {
-        written += fprintf(f, delim);
+        written += fprintf(file, delim);
       }
     }
-    written += fprintf(f, end);
+    written += fprintf(file, end);
     return written;
   }
 
   if (is_obj(value)) {
     ObjObject* object = AS_OBJECT(value);
 
-    int written   = fprintf(f, VALUE_STR_OBJECT_START);
+    int written   = fprintf(file, VALUE_STR_OBJECT_START);
     int processed = 0;
     for (int i = 0; i < object->fields.capacity; i++) {
       if (is_empty_internal(object->fields.entries[i].key)) {
@@ -255,19 +257,19 @@ int print_value_safe(FILE* f, Value value) {
       }
       Entry* entry = &object->fields.entries[i];
 
-      written += print_value_safe(f, entry->key);
-      written += fprintf(f, VALUE_STR_OBJECT_SEPARATOR);
-      written += print_value_safe(f, entry->value);
+      written += print_value_safe(file, entry->key);
+      written += fprintf(file, VALUE_STR_OBJECT_SEPARATOR);
+      written += print_value_safe(file, entry->value);
 
       if (processed < object->fields.count - 1) {
-        written += fprintf(f, VALUE_STR_OBJECT_DELIM);
+        written += fprintf(file, VALUE_STR_OBJECT_DELIM);
       }
       processed++;
     }
-    written += fprintf(f, VALUE_STR_OBJECT_END);
+    written += fprintf(file, VALUE_STR_OBJECT_END);
     return written;
   }
 
   // Everything else is an instance.
-  return fprintf(f, VALUE_STRFTM_INSTANCE, value.type->name->chars);
+  return fprintf(file, VALUE_STRFTM_INSTANCE, value.type->name->chars);
 }

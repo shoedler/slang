@@ -18,7 +18,7 @@
 // #define DEBUG_TRACE_EXECUTION  // Print the execution of the Vm, including stack traces.
 
 // Garbage Collection
-// #define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
+#define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
 // #define DEBUG_GC_PHASE_TIMES   // Log the time it takes for each phase of the Gc
 // #define DEBUG_GC_WORKER_STATS  // Log the statistics of the Gc worker
 // #define DEBUG_GC_HEAP_STATS    // Log the heap statistics
@@ -29,28 +29,28 @@
 // Feature flags
 //
 
-#define ENABLE_COLOR_OUTPUT  // Enable ANSI-colored output in terminal
+// #define ENABLE_COLOR_OUTPUT  // Enable ANSI-colored output in terminal
 
 //
 // Constants
 //
 
-#define SLANG_VERSION "v0.0.1"
+#define SLANG_VERSION "v0.0.2"
 
 //
 // Exit codes
 //
 
-#define EXIT_SUCCESS 0  // Successful termination
-#define EXIT_FAILURE 1  // General error
-
-#define ECOMPILE_ERROR 2  // Compilation error
-#define ERUNTIME_ERROR 3  // Runtime error
-
-#define EBAD_USAGE 64  // Command line usage error
-#define EMEM_ERROR 70  // Memory related error
-#define EIO_ERROR 74   // Input/output error
-#define ESW_ERROR 75   // General internal logic error
+typedef enum {
+  SLANG_EXIT_SUCCESS       = 0,   // Successful termination
+  SLANG_EXIT_FAILURE       = 1,   // General error
+  SLANG_EXIT_COMPILE_ERROR = 2,   // Compilation error
+  SLANG_EXIT_RUNTIME_ERROR = 3,   // Runtime error
+  SLANG_EXIT_BAD_USAGE     = 64,  // Command line usage error
+  SLANG_EXIT_MEMORY_ERROR  = 70,  // Memory related error
+  SLANG_EXIT_IO_ERROR      = 74,  // Input/output error
+  SLANG_EXIT_SW_ERROR      = 75   // General internal logic error
+} SlangExitCode;
 
 //
 // Color output macros

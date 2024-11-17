@@ -1,5 +1,10 @@
 #include "gc_deque.h"
 #include <assert.h>
+#include <stdalign.h>
+#include <stdatomic.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 typedef struct RingBuf {
   int64_t capacity;
@@ -11,41 +16,41 @@ typedef struct RingBuf {
 static RingBuf* ring_buf_init(int64_t capacity) {
   assert(capacity > 0 && !(capacity & (capacity - 1)) && "Capacity must be power of 2!");
 
-  RingBuf* rb = (RingBuf*)malloc(sizeof(RingBuf));
-  if (!rb) {
+  RingBuf* ring_buf = (RingBuf*)malloc(sizeof(RingBuf));
+  if (!ring_buf) {
     return NULL;
   }
 
-  rb->capacity = capacity;
-  rb->mask     = capacity - 1;
-  rb->buffer   = (GCTask*)calloc(capacity, sizeof(GCTask));
+  ring_buf->capacity = capacity;
+  ring_buf->mask     = capacity - 1;
+  ring_buf->buffer   = (GCTask*)calloc(capacity, sizeof(GCTask));
 
-  if (!rb->buffer) {
-    free(rb);
+  if (!ring_buf->buffer) {
+    free(ring_buf);
     return NULL;
   }
 
-  return rb;
+  return ring_buf;
 }
 
 // Store task at modulo index
-static void ring_buf_store(RingBuf* rb, int64_t i, GCTask task) {
-  rb->buffer[i & rb->mask] = task;
+static void ring_buf_store(RingBuf* ring_buf, int64_t index, GCTask task) {
+  ring_buf->buffer[index & ring_buf->mask] = task;
 }
 
 // Load task at modulo index
-static GCTask ring_buf_load(RingBuf* rb, int64_t i) {
-  return rb->buffer[i & rb->mask];
+static GCTask ring_buf_load(RingBuf* ring_buf, int64_t index) {
+  return ring_buf->buffer[index & ring_buf->mask];
 }
 // Resize the ring buffer
-static RingBuf* ring_buf_resize(RingBuf* rb, int64_t bottom, int64_t top) {
-  RingBuf* new_rb = ring_buf_init(rb->capacity * 2);
+static RingBuf* ring_buf_resize(RingBuf* ring_buf, int64_t bottom, int64_t top) {
+  RingBuf* new_rb = ring_buf_init(ring_buf->capacity * 2);
   if (!new_rb) {
     return NULL;
   }
 
   for (int64_t i = top; i != bottom; ++i) {
-    ring_buf_store(new_rb, i, ring_buf_load(rb, i));
+    ring_buf_store(new_rb, i, ring_buf_load(ring_buf, i));
   }
 
   return new_rb;
@@ -57,23 +62,23 @@ WorkStealingDeque* ws_deque_init(int64_t initial_capacity) {
     return NULL;
   }
 
-  RingBuf* rb = ring_buf_init(initial_capacity);
-  if (!rb) {
+  RingBuf* ring_buf = ring_buf_init(initial_capacity);
+  if (!ring_buf) {
     free(deque);
     return NULL;
   }
 
   atomic_init(&deque->top, 0);
   atomic_init(&deque->bottom, 0);
-  atomic_init(&deque->buffer, (uintptr_t)rb);
+  atomic_init(&deque->buffer, (uintptr_t)ring_buf);
 
   deque->garbage_capacity = GC_DEQUE_INITIAL_GARBAGE_CAPACITY;
   deque->garbage          = (RingBuf**)malloc(sizeof(RingBuf*) * deque->garbage_capacity);
   deque->garbage_size     = 0;
 
   if (!deque->garbage) {
-    free(rb->buffer);
-    free(rb);
+    free(ring_buf->buffer);
+    free(ring_buf);
     free(deque);
     return NULL;
   }
@@ -82,9 +87,9 @@ WorkStealingDeque* ws_deque_init(int64_t initial_capacity) {
 }
 
 size_t ws_deque_size(WorkStealingDeque* deque) {
-  int64_t b = atomic_load_explicit(&deque->bottom, memory_order_relaxed);
-  int64_t t = atomic_load_explicit(&deque->top, memory_order_relaxed);
-  return b >= t ? (size_t)(b - t) : 0;
+  int64_t bottom = atomic_load_explicit(&deque->bottom, memory_order_relaxed);
+  int64_t top    = atomic_load_explicit(&deque->top, memory_order_relaxed);
+  return bottom >= top ? (size_t)(bottom - top) : 0;
 }
 
 size_t ws_deque_capacity(WorkStealingDeque* deque) {
@@ -96,14 +101,15 @@ bool ws_deque_empty(WorkStealingDeque* deque) {
 }
 
 bool ws_deque_push(WorkStealingDeque* deque, GCTask task) {
-  int64_t b   = atomic_load_explicit(&deque->bottom, memory_order_relaxed);
-  int64_t t   = atomic_load_explicit(&deque->top, memory_order_acquire);
-  RingBuf* rb = (RingBuf*)atomic_load_explicit(&deque->buffer, memory_order_relaxed);
+  int64_t bottom    = atomic_load_explicit(&deque->bottom, memory_order_relaxed);
+  int64_t top       = atomic_load_explicit(&deque->top, memory_order_acquire);
+  RingBuf* ring_buf = (RingBuf*)atomic_load_explicit(&deque->buffer, memory_order_relaxed);
 
-  if (rb->capacity < (b - t) + 1) {
-    RingBuf* new_rb = ring_buf_resize(rb, b, t);
-    if (!new_rb)
+  if (ring_buf->capacity < (bottom - top) + 1) {
+    RingBuf* new_rb = ring_buf_resize(ring_buf, bottom, top);
+    if (!new_rb) {
       return false;
+    }
 
     if (deque->garbage_size == deque->garbage_capacity) {
       size_t new_capacity   = deque->garbage_capacity * 2;
@@ -117,42 +123,42 @@ bool ws_deque_push(WorkStealingDeque* deque, GCTask task) {
       deque->garbage_capacity = new_capacity;
     }
 
-    deque->garbage[deque->garbage_size++] = rb;
+    deque->garbage[deque->garbage_size++] = ring_buf;
     atomic_store_explicit(&deque->buffer, (uintptr_t)new_rb, memory_order_relaxed);
-    rb = new_rb;
+    ring_buf = new_rb;
   }
 
-  ring_buf_store(rb, b, task);
+  ring_buf_store(ring_buf, bottom, task);
   atomic_thread_fence(memory_order_release);
-  atomic_store_explicit(&deque->bottom, b + 1, memory_order_relaxed);
+  atomic_store_explicit(&deque->bottom, bottom + 1, memory_order_relaxed);
   return true;
 }
 
 bool ws_deque_pop(WorkStealingDeque* deque, GCTask* task) {
-  int64_t b   = atomic_load_explicit(&deque->bottom, memory_order_relaxed) - 1;
-  RingBuf* rb = (RingBuf*)atomic_load_explicit(&deque->buffer, memory_order_relaxed);
+  int64_t bottom    = atomic_load_explicit(&deque->bottom, memory_order_relaxed) - 1;
+  RingBuf* ring_buf = (RingBuf*)atomic_load_explicit(&deque->buffer, memory_order_relaxed);
 
-  atomic_store_explicit(&deque->bottom, b, memory_order_relaxed);
+  atomic_store_explicit(&deque->bottom, bottom, memory_order_relaxed);
   atomic_thread_fence(memory_order_seq_cst);
 
-  int64_t t    = atomic_load_explicit(&deque->top, memory_order_relaxed);
+  int64_t top  = atomic_load_explicit(&deque->top, memory_order_relaxed);
   bool success = false;
 
-  if (t <= b) {
-    if (t == b) {
-      if (!atomic_compare_exchange_strong_explicit(&deque->top, &t, t + 1, memory_order_seq_cst, memory_order_relaxed)) {
+  if (top <= bottom) {
+    if (top == bottom) {
+      if (!atomic_compare_exchange_strong_explicit(&deque->top, &top, top + 1, memory_order_seq_cst, memory_order_relaxed)) {
         success = false;
       } else {
-        *task   = ring_buf_load(rb, b);
+        *task   = ring_buf_load(ring_buf, bottom);
         success = true;
       }
-      atomic_store_explicit(&deque->bottom, b + 1, memory_order_relaxed);
+      atomic_store_explicit(&deque->bottom, bottom + 1, memory_order_relaxed);
     } else {
-      *task   = ring_buf_load(rb, b);
+      *task   = ring_buf_load(ring_buf, bottom);
       success = true;
     }
   } else {
-    atomic_store_explicit(&deque->bottom, b + 1, memory_order_relaxed);
+    atomic_store_explicit(&deque->bottom, bottom + 1, memory_order_relaxed);
     success = false;
   }
 
@@ -160,15 +166,15 @@ bool ws_deque_pop(WorkStealingDeque* deque, GCTask* task) {
 }
 
 bool ws_deque_steal(WorkStealingDeque* deque, GCTask* task) {
-  int64_t t = atomic_load_explicit(&deque->top, memory_order_acquire);
+  int64_t top = atomic_load_explicit(&deque->top, memory_order_acquire);
   atomic_thread_fence(memory_order_seq_cst);
-  int64_t b = atomic_load_explicit(&deque->bottom, memory_order_acquire);
+  int64_t bottom = atomic_load_explicit(&deque->bottom, memory_order_acquire);
 
-  if (t < b) {
-    RingBuf* rb = (RingBuf*)atomic_load_explicit(&deque->buffer, memory_order_consume);
-    *task       = ring_buf_load(rb, t);
+  if (top < bottom) {
+    RingBuf* ring_buf = (RingBuf*)atomic_load_explicit(&deque->buffer, memory_order_consume);
+    *task             = ring_buf_load(ring_buf, top);
 
-    if (!atomic_compare_exchange_strong_explicit(&deque->top, &t, t + 1, memory_order_seq_cst, memory_order_relaxed)) {
+    if (!atomic_compare_exchange_strong_explicit(&deque->top, &top, top + 1, memory_order_seq_cst, memory_order_relaxed)) {
       return false;
     }
 
@@ -183,9 +189,9 @@ void ws_deque_free(WorkStealingDeque* deque) {
     return;
   }
 
-  RingBuf* rb = (RingBuf*)atomic_load_explicit(&deque->buffer, memory_order_relaxed);
-  free(rb->buffer);
-  free(rb);
+  RingBuf* ring_buf = (RingBuf*)atomic_load_explicit(&deque->buffer, memory_order_relaxed);
+  free(ring_buf->buffer);
+  free(ring_buf);
 
   for (size_t i = 0; i < deque->garbage_size; i++) {
     free(deque->garbage[i]->buffer);

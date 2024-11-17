@@ -1,5 +1,8 @@
-#include <memory.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
+#include "chunk.h"
 #include "hashtable.h"
 #include "memory.h"
 #include "object.h"
@@ -150,22 +153,22 @@ ObjNative* new_native(NativeFn function, ObjString* name, int arity) {
 
 // Hashes a string using the FNV-1a algorithm.
 static uint64_t hash_string(const char* key, int length) {
-  uint64_t hash = 14695981039346656037ULL;  // FNV-1a 64-bit hash offset basis
+  uint64_t hash = FNV_1A_64_OFFSET_BASIS;  // FNV-1a 64-bit hash offset basis
   for (int i = 0; i < length; i++) {
     hash ^= (uint8_t)key[i];
-    hash *= 1099511628211ULL;  // FNV-1a 64-bit prime
+    hash *= FNV_1A_64_PRIME;  // FNV-1a 64-bit prime
   }
   return hash;
 }
 
 // // Hashes a tuple. Borrowed from Python.
 static uint64_t hash_tuple(ValueArray* items) {
-  uint64_t t      = items->count;
-  uint64_t result = 0x345678;
-  for (uint64_t i = 0; i < t; i++) {
-    result = (result * 1000003) ^ hash_value(items->values[i]);
+  uint64_t length = items->count;
+  uint64_t result = TUPLE_HASH_INITIAL;
+  for (uint64_t i = 0; i < length; i++) {
+    result = (result * TUPLE_HASH_MULTIPLIER) ^ hash_value(items->values[i]);
   }
-  result += 97531;
+  result += TUPLE_HASH_OFFSET;
   return result;
 }
 

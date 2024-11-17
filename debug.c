@@ -1,7 +1,8 @@
 #include "debug.h"
+#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "chunk.h"
+#include "common.h"
 #include "object.h"
 #include "value.h"
 #include "vm.h"
@@ -28,8 +29,9 @@
 void debug_print_value(Value value) {
   int written = print_value_safe(stdout, value);
 
-  if (written < 0)
+  if (written < 0) {
     written = 0;
+  }
 
   // Pad or erase to fit VALUE_STR_LEN
   if (written < VALUE_STR_LEN) {
@@ -70,7 +72,7 @@ static int byte_instruction(const char* name, Chunk* chunk, int offset) {
 static int jump_instruction(const char* name, int sign, Chunk* chunk, int offset) {
   uint16_t jump = chunk->code[offset + 1];
   char jmp_str[13];
-  sprintf(jmp_str, "%04d -> %04d", offset, offset + 3 + sign * jump);
+  sprintf(jmp_str, "%04d -> %04d", offset, offset + 3 + (sign * jump));
   PRINT_OPCODE(name);
   PRINT_NO_NUM();
   PRINT_VALUE_STR(jmp_str);
