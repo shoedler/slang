@@ -9,6 +9,7 @@
 #include "file.h"
 #include "memory.h"
 #include "object.h"
+#include "sys.h"
 #include "vm.h"
 
 #if defined(DEBUG_TRACE_EXECUTION)
@@ -228,16 +229,17 @@ static void make_object(int count) {
 }
 
 void init_vm() {
+  prioritize_main_thread();
   reset_stack();
 
   vm.objects         = NULL;
   vm.module          = NULL;  // No active module
   vm.bytes_allocated = 0;
   vm.prev_gc_freed   = 0;
-  vm.next_gc         = GC_DEFAULT_THRESHOLD;
+  vm.next_gc         = GC_HEAP_DEFAULT_THRESHOLD;
   vm.exit_on_frame   = 0;  // Default to exit on the first frame
 
-  gc_init_thread_pool(GC_THREAD_COUNT);
+  gc_init_thread_pool(get_cpu_core_count());
 
   // Pause while we initialize the vm.
   vm.flags |= VM_FLAG_PAUSE_GC;

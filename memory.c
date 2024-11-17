@@ -7,11 +7,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "compiler.h"
+#include "sys.h"
 #include "vm.h"
-
-#ifdef DEBUG_GC_PHASE_TIMES
-#include <windows.h>
-#endif
 
 #ifdef DEBUG_GC_WORKER
 #define GC_WORKER_LOG(...) printf(__VA_ARGS__)
@@ -25,20 +22,9 @@
 #define GC_SWEEP_LOG(...)
 #endif
 
-typedef enum {
-  TASK_CUSTOM,
-  TASK_MARK_OBJ
-} GCTaskType;
-
 typedef struct GCTask {
-  GCTaskType type;
-  union {
-    struct {  // For TASK_CUSTOM
-      void (*function)(void* arg);
-      void* arg;
-    };
-    Obj* obj;  // For TASK_MARK_OBJ
-  };
+  void (*function)(void* arg);
+  void* arg;
 } GCTask;
 
 // Ring buffer for the deque
@@ -106,8 +92,7 @@ typedef struct {
 // Forward declarations
 static void blacken_object(Obj* object);
 static void gc_wait_for_workers(void);
-static void gc_submit_custom_task(void (*function)(void*), void* arg);
-static void gc_submit_mark_task(Obj* object);
+static void gc_worker_add_task(void (*function)(void*), void* arg);
 #ifdef DEBUG_GC_WORKER_STATS
 static void gc_print_worker_stats();
 #endif
@@ -355,7 +340,7 @@ void mark_obj(Obj* object) {
 #ifdef DEBUG_GC_WORKER_STATS
     atomic_fetch_add(&current_worker->stats.objects_marked, 1);
 #endif
-    gc_submit_mark_task(object);  // TODO: Test blacken_object directly
+    blacken_object(object);
   }
 }
 
@@ -388,8 +373,10 @@ static void mark_range_task(void* arg) {
 }
 
 void parallel_mark_array(ValueArray* array) {
-  static_assert(GC_PARALLEL_MARK_ARRAY_THRESHOLD > GC_THREAD_COUNT * 200,
-                "Probably not worth parallelizing if a chunk would be smaller than 200 elements. ");
+#ifdef DEBUG_GC_WORKER
+  assert(GC_PARALLEL_MARK_ARRAY_THRESHOLD > gc_thread_pool.worker_count * 200 &&
+         "Probably not worth parallelizing if a chunk would be smaller than 200 elements. ");
+#endif
   int num_chunks = gc_thread_pool.worker_count;
   int chunk_size = (array->count + num_chunks - 1) / num_chunks;
 
@@ -408,7 +395,7 @@ void parallel_mark_array(ValueArray* array) {
     arg->end              = end;
     arg->type             = MARK_ARRAY;
 
-    gc_submit_custom_task(mark_range_task, arg);
+    gc_worker_add_task(mark_range_task, arg);
   }
 }
 
@@ -424,8 +411,10 @@ void mark_array(ValueArray* array) {
 }
 
 void parallel_mark_hashtable(HashTable* table) {
-  static_assert(GC_PARALLEL_MARK_HASHTABLE_THRESHOLD > GC_THREAD_COUNT * 100,
-                "Probably not worth parallelizing if a chunk would be smaller than 100 elements. ");
+#ifdef DEBUG_GC_WORKER
+  assert(GC_PARALLEL_MARK_HASHTABLE_THRESHOLD > gc_thread_pool.worker_count * 100 &&
+         "Probably not worth parallelizing if a chunk would be smaller than 100 elements. ");
+#endif
   int num_chunks = gc_thread_pool.worker_count;
   int chunk_size = (table->capacity + num_chunks - 1) / num_chunks;
 
@@ -444,7 +433,7 @@ void parallel_mark_hashtable(HashTable* table) {
     arg->end              = end;
     arg->type             = MARK_HASHTABLE;
 
-    gc_submit_custom_task(mark_range_task, arg);
+    gc_worker_add_task(mark_range_task, arg);
   }
 }
 
@@ -683,6 +672,11 @@ static void mark_roots() {
   mark_compiler_roots();
 }
 
+static void mark() {
+  mark_roots();
+  gc_wait_for_workers();
+}
+
 static void sweep_sequential() {
   GC_SWEEP_LOG(ANSI_RED_STR("[GC]") " " ANSI_CYAN_STR("[SWEEP]") " Sweeping heap sequential\n");
   GC_SWEEP_LOG("  Sweeping %zu objects\n", atomic_load(&gc_thread_pool.object_count));
@@ -716,7 +710,6 @@ static void sweep_sequential() {
   GC_SWEEP_LOG("  Done sweeping\n\n");
 }
 
-// TODO: Does this need to be aligned?
 typedef struct {
   alignas(64) Obj* start;   // Inclusive. If NULL, then the whole chunk was freed
   alignas(64) Obj* end;     // Inclusive too
@@ -739,7 +732,9 @@ static void sweep_chunk_task(void* arg) {
   size_t freed = 0;
 #endif
 
-  assert(current != NULL && "Object count mismatch");  // TODO (optimize): Remove
+#ifdef DEBUG_GC_SWEEP
+  assert(current != NULL && "Object count mismatch");
+#endif
   for (size_t i = 0; i < chunk_size; i++) {
     // Atomically check and reset the is_marked flag
     if (atomic_exchange(&current->is_marked, false)) {  // Object is marked (black), keep it
@@ -791,10 +786,12 @@ static void sweep() {
 
   GC_SWEEP_LOG(ANSI_RED_STR("[GC]") " " ANSI_CYAN_STR("[SWEEP]") " Sweeping heap parallel\n");
 
-  // Calculate base chunk size and remainder
-  static_assert(
-      GC_PARALLEL_SWEEP_THRESHOLD > ((2 /* 2 objs per chunk */ * GC_THREAD_COUNT) * 2 /* we want 2*threadcount chunks */),
-      "We must have at least two objects per chunk so we can guarantee that start and end are different");
+// Calculate base chunk size and remainder
+#ifdef DEBUG_GC_SWEEP
+  assert(GC_PARALLEL_SWEEP_THRESHOLD >
+             ((2 /* 2 objs per chunk */ * gc_thread_pool.worker_count) * 2 /* we want 2*threadcount chunks */) &&
+         "We must have at least two objects per chunk so we can guarantee that start and end are different");
+#endif
   int num_chunks         = gc_thread_pool.worker_count * 2;  // *2, so *maybe* the main thread can help out after generating tasks
   size_t base_chunk_size = total_object_count / num_chunks;
   size_t remainder       = total_object_count % num_chunks;
@@ -839,15 +836,14 @@ static void sweep() {
     // Submit task to worker
     GC_SWEEP_LOG("  Worker %d: Submitting sweep task for chunk #%d %p-%p  (%zu objects)\n", current_worker->id, chunk_i,
                  chunks[chunk_i]->start, chunks[chunk_i]->end, chunks[chunk_i]->size);
-    gc_submit_custom_task(sweep_chunk_task, chunks[chunk_i]);
+    gc_worker_add_task(sweep_chunk_task, chunks[chunk_i]);
   }
-  assert(current == NULL &&
-         "Object count mismatch, current should be at the end of the obj linked-list");  // TODO (optimize): Remove
+#ifdef DEBUG_GC_SWEEP
+  assert(current == NULL && "Object count mismatch, current should be at the end of the obj linked-list");
+#endif
 
-  // Wait for workers and pause them
+  // Only begin stitching the list back together after all chunks have been processed
   gc_wait_for_workers();
-
-  // TODO: Return here if no objects were freed
 
   // Stitch the list back together, being careful about NULLs
   vm.objects = NULL;
@@ -885,19 +881,13 @@ static double get_time() {
 
 #define DEBUG_GC_PHASE_TIMESTAMP(varname) double varname = get_time();
 
-static void print_phase_times(double start,
-                              double mark_roots_time,
-                              double mark_phase_time,
-                              double remove_white_time,
-                              double sweep_time,
-                              double mutator_time) {
+static void print_phase_times(double start, double mark_time, double remove_white_time, double sweep_time, double mutator_time) {
   printf(ANSI_RED_STR(
       "[GC]") " " ANSI_MAGENTA_STR("[Cycle %d]")" Phase Times"
               ":\n", gc_cycle_count++);
   printf("  Mutator execution time:        %fms\n", (mutator_time) * 1000);
-  printf("  1) Mark roots time:            %fms\n", (mark_roots_time - start) * 1000);
-  printf("     Mark phase time:            %fms\n", (mark_phase_time - mark_roots_time) * 1000);
-  printf("  2) Remove white strings time:  %fms\n", (remove_white_time - mark_phase_time) * 1000);
+  printf("  1) Mark time:                  %fms\n", (mark_time - start) * 1000);
+  printf("  2) Remove white strings time:  %fms\n", (remove_white_time - mark_time) * 1000);
   printf("  3) Sweep time:                 %fms\n", (sweep_time - remove_white_time) * 1000);
   printf("  Total GC pause time:           " ANSI_CYAN_STR("%fms") "\n", (sweep_time - start) * 1000);
   printf("\n");
@@ -908,14 +898,8 @@ static void print_phase_times(double start,
 
 void collect_garbage() {
   // TODO:  Parallelization
-  //   TODO: Make a mark() function that decides whether to mark sequentially or in parallel
-  //   TODO: Refactor synchronization - use the simple approach of testing if there any tasks remaining (See claude output)
-  //   TODO: Cleanup gc_wait_for_workers() and gc_worker() - maybe we can abstract the worker loop into a function
   //   TODO: Move deque operations to a separate file
-  //   TODO: Remove GCWorker param from gc_submit_custom_task and gc_submit_mark_task, because we can only assign to the current
-  //   worker.
   //   TODO: Do the TODOs sprinkled throughout the code
-  //   TODO: Use function pointers to determine which mark/sweep function to use (sequential or parallel)
   //   TODO: Learn if malloc_aligned / free_aligned is actually required...?
 #ifdef DEBUG_GC_PHASE_TIMES
   DEBUG_GC_PHASE_TIMESTAMP(start);
@@ -928,20 +912,17 @@ void collect_garbage() {
   // Main thread acts as worker 0 for a GC cycle.
   current_worker = &gc_thread_pool.workers[0];
 
-  // Step 1: Mark roots - this is single-threaded. Generates work for workers, essentially each mark-task can be viewed as a
-  // as a gray object that needs to be blackened.
-  // It's important that all root objects get marked in this phase - if you e.g. had a root which is a long array which gets split
-  // into different mark tasks and distributed between the workers, that'd be a problem because the workers are idle until after
-  // mark_roots, leaving us with not all roots marked.
   atomic_store(&gc_thread_pool.should_work, true);
   SetEvent(gc_thread_pool.work_event);
 
-  mark_roots();
-  DEBUG_GC_PHASE_TIMESTAMP(mark_roots_time);
-  gc_wait_for_workers();
-  DEBUG_GC_PHASE_TIMESTAMP(mark_phase_time);
+  // Step 1: Mark roots - this is single-threaded. Generates work for workers, essentially each mark-task can be viewed as a as a
+  // gray object that needs to be blackened. It's important that all root objects get marked in this phase - if you e.g. had a
+  // root which is a long array which gets split into different mark tasks and distributed between the workers, that'd be a
+  // problem because the workers are idle until after mark_roots, leaving us with not all roots marked.
+  mark();
+  DEBUG_GC_PHASE_TIMESTAMP(mark_time);
 
-  // Step 2: Handle interned strings
+  // Step 2: Handle interned strings.
   hashtable_remove_white(&vm.strings);
   DEBUG_GC_PHASE_TIMESTAMP(remove_white_time);
 
@@ -962,7 +943,7 @@ void collect_garbage() {
   vm.prev_gc_freed = before - vm.bytes_allocated;
 
 #ifdef DEBUG_GC_PHASE_TIMES
-  print_phase_times(start, mark_roots_time, mark_phase_time, remove_white_time, sweep_time, mutator_execution_time);
+  print_phase_times(start, mark_time, remove_white_time, sweep_time, mutator_execution_time);
 #endif
 
 #ifdef DEBUG_GC_WORKER_STATS
@@ -978,11 +959,8 @@ static void gc_process_task(GCTask task) {
     GC_WORKER_LOG("Worker %d executing task %p of type %d\n", current_worker->id, (void*)&task, task.type);
   }
 #endif
-  switch (task.type) {
-    case TASK_MARK_OBJ: blacken_object(task.obj); break;
-    case TASK_CUSTOM: task.function(task.arg); break;
-    default: INTERNAL_ERROR("Unknown task type: %d", task.type); break;
-  }
+  task.function(task.arg);
+  ;
 }
 
 static bool gc_worker_complete_work() {
@@ -992,24 +970,19 @@ static bool gc_worker_complete_work() {
 
   // Try to steal work if we don't have any of our own
   if (!have_task) {
-    for (int attempt = 0; attempt < GC_WORKER_MAX_STEAL_ATTEMPTS; attempt++) {
-      for (int i = 0; i < gc_thread_pool.worker_count; i++) {
-        if (i == current_worker->id) {
-          continue;
-        }
+    for (int i = 0; i < gc_thread_pool.worker_count; i++) {
+      if (i == current_worker->id) {
+        continue;
+      }
 
 #ifdef DEBUG_GC_WORKER_STATS
-        current_worker->stats.work_steal_attempts++;
+      current_worker->stats.work_steal_attempts++;
 #endif
-        if (ws_deque_steal(gc_thread_pool.workers[i].deque, &task)) {
+      if (ws_deque_steal(gc_thread_pool.workers[i].deque, &task)) {
 #ifdef DEBUG_GC_WORKER_STATS
-          current_worker->stats.successful_steals++;
+        current_worker->stats.successful_steals++;
 #endif
-          have_task = true;
-          break;
-        }
-      }
-      if (have_task) {
+        have_task = true;
         break;
       }
     }
@@ -1025,24 +998,6 @@ static bool gc_worker_complete_work() {
 static void gc_wait_for_workers() {
   bool all_done;
   do {
-    //     // Do all of our own work
-    //     GCTask task;
-    //     while (ws_deque_pop(current_worker->deque, &task)) {
-    //       gc_process_task(task);
-    //     }
-
-    //     for (int i = 1; i < gc_thread_pool.worker_count; i++) {
-    // #ifdef DEBUG_GC_WORKER_STATS
-    //       current_worker->stats.work_steal_attempts++;
-    // #endif
-    //       if (ws_deque_steal(gc_thread_pool.workers[i].deque, &task)) {
-    // #ifdef DEBUG_GC_WORKER_STATS
-    //         current_worker->stats.successful_steals++;
-    // #endif
-    //         gc_process_task(task);
-    //         break;  // Only process one stolen task per iteration
-    //       }
-    //     }
     if (!gc_worker_complete_work()) {
       continue;
     }
@@ -1055,7 +1010,6 @@ static void gc_wait_for_workers() {
         break;
       }
     }
-    // TODO: Check if we can just set all_done to true here
   } while (!all_done);
 }
 
@@ -1082,20 +1036,12 @@ static void* gc_worker(void* arg) {
   return NULL;
 }
 
-static void gc_submit_task(GCTask task) {
+static void gc_worker_add_task(void (*function)(void*), void* arg) {
   atomic_store(&current_worker->done, false);
-  if (!ws_deque_push(current_worker->deque, task)) {
+  if (!ws_deque_push(current_worker->deque, (GCTask){.function = function, .arg = arg})) {
     INTERNAL_ERROR("Failed to push task to current worker's deque");
     exit(EMEM_ERROR);
   }
-}
-
-static void gc_submit_mark_task(Obj* object) {
-  gc_submit_task((GCTask){.type = TASK_MARK_OBJ, .obj = object});
-}
-
-static void gc_submit_custom_task(void (*function)(void*), void* arg) {
-  gc_submit_task((GCTask){.type = TASK_CUSTOM, .function = function, .arg = arg});
 }
 
 // Monitoring and statistics
@@ -1163,41 +1109,30 @@ void gc_init_thread_pool(int num_threads) {
     exit(ESW_ERROR);
   }
 
-  // Prioritize main thread
-  HANDLE main_thread_handle = GetCurrentThread();
-  if (!SetThreadPriority(main_thread_handle, THREAD_PRIORITY_HIGHEST)) {
-    // Log warning but continue - not critical
-    GC_WORKER_LOG("Warning: Could not set main thread priority: %lu\n", GetLastError());
-  }
-  DWORD_PTR main_thread_affinity_mask = 1ULL;  // Assign main thread to core 0
-  if (!SetThreadAffinityMask(main_thread_handle, main_thread_affinity_mask)) {
-    // Log warning but continue - not critical
-    GC_WORKER_LOG("Warning: Could not set main thread affinity: %lu\n", GetLastError());
-  }
-
+  // Initialize thread pool struct with aligned memory
   gc_thread_pool.worker_count = num_threads;
   size_t alloc_size           = num_threads * sizeof(GCWorker);
-
-  gc_thread_pool.workers = _aligned_malloc(alloc_size, 64);
+  gc_thread_pool.workers      = _aligned_malloc(alloc_size, 64);
   if (!gc_thread_pool.workers) {
     INTERNAL_ERROR("Failed to allocate memory for worker threads");
     exit(EMEM_ERROR);
   }
   memset(gc_thread_pool.workers, 0, alloc_size);
 
+  // Count objects in the heap - that's actually not necessary, if the first thing we do in the Vm init is initialize the thread
+  // pool. Just as a precaution, we'll do it anyway. If the count is off, sweeping won't work properly.
   size_t object_count = 0;
   for (Obj* object = vm.objects; object != NULL; object = object->next) {
     object_count++;
   }
 
+  // Initialize sync primitives
   atomic_init(&gc_thread_pool.shutdown, false);
   atomic_init(&gc_thread_pool.object_count, object_count);
-
-  // Initialize sync primitives
-  atomic_init(&gc_thread_pool.should_work, false);                   // TODO: We can concat the thread creation loops again
+  atomic_init(&gc_thread_pool.should_work, false);
   gc_thread_pool.work_event = CreateEvent(NULL, TRUE, FALSE, NULL);  // Manual reset event
 
-  // Initialize workers
+  // Initialize worker structs
   for (int i = 0; i < num_threads; i++) {
     GC_WORKER_LOG("Initializing worker %d\n", i);
     gc_thread_pool.workers[i].id = i;
@@ -1226,17 +1161,7 @@ void gc_init_thread_pool(int num_threads) {
       gc_shutdown_thread_pool();
       exit(ESW_ERROR);
     }
-    HANDLE thread_handle = (HANDLE)gc_thread_pool.workers[i].thread;
-    if (!SetThreadPriority(thread_handle, THREAD_PRIORITY_ABOVE_NORMAL)) {
-      // Log warning but continue - not critical
-      GC_WORKER_LOG("Warning: Could not set thread priority: %lu\n", GetLastError());
-    }
-    // Affinity
-    DWORD_PTR affinity_mask = (1ULL) << i;  // Assign each worker to a different core
-    if (!SetThreadAffinityMask(thread_handle, affinity_mask)) {
-      // Log warning but continue - not critical
-      GC_WORKER_LOG("Warning: Could not set thread affinity: %lu\n", GetLastError());
-    }
+    prioritize_thread((HANDLE)gc_thread_pool.workers[i].thread, i);
   }
 }
 
@@ -1248,7 +1173,7 @@ void gc_shutdown_thread_pool() {
   atomic_store(&gc_thread_pool.shutdown, true);
   atomic_store(&gc_thread_pool.should_work, true);
 
-  // Wake up all workers so they can see shutdown flag
+  // Wake up all workers so they can see the shutdown flag
   SetEvent(gc_thread_pool.work_event);
 
   // Join only threads 1 onwards (not worker[0] which is main thread)

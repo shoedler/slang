@@ -19,7 +19,7 @@
 
 // Garbage Collection
 // #define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
-#define DEBUG_GC_PHASE_TIMES  // Log the time it takes for each phase of the Gc
+// #define DEBUG_GC_PHASE_TIMES  // Log the time it takes for each phase of the Gc
 // #define DEBUG_GC_WORKER_STATS  // Log the statistics of the Gc worker
 // #define DEBUG_GC_WORKER  // Log the Gc worker's activity
 // #define DEBUG_GC_SWEEP  // Log the Gc sweep phase
@@ -84,12 +84,23 @@
 // Utility macros
 //
 
-#define ___PRINT_ERROR_HEADER(type) fprintf(stderr, ANSI_RED_STR(type) " at " ANSI_YELLOW_STR("%s(%u): "), __FILE__, __LINE__);
-#define INTERNAL_ERROR(format_literal, ...)              \
-  do {                                                   \
-    ___PRINT_ERROR_HEADER("INTERNAL ERROR");             \
-    fprintf(stderr, format_literal "\n", ##__VA_ARGS__); \
+#define ___PRINT_INTERNAL_MSG_HEADER(type, ANSI_COLOR) \
+  fprintf(stderr, ANSI_COLOR type ANSI_COLOR_RESET " at " ANSI_MAGENTA_STR("%s(%u): "), __FILE__, __LINE__);
+#define INTERNAL_ERROR(format_literal, ...)                         \
+  do {                                                              \
+    ___PRINT_INTERNAL_MSG_HEADER("INTERNAL ERROR", ANSI_COLOR_RED); \
+    fprintf(stderr, format_literal "\n", ##__VA_ARGS__);            \
   } while (0)
+
+#ifdef _DEBUG
+#define DEBUG_WARNING(format_literal, ...)                         \
+  do {                                                             \
+    ___PRINT_INTERNAL_MSG_HEADER("DEBUG WARN", ANSI_COLOR_YELLOW); \
+    fprintf(stderr, format_literal "\n", ##__VA_ARGS__);           \
+  } while (0)
+#else
+#define DEBUG_WARNING(format_literal, ...)
+#endif
 
 // Internal stringification Macro - don't use directly, use STR
 #define ___STRINGIFY(x) #x

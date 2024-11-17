@@ -9,18 +9,14 @@
 // Heap config
 #define GC_HEAP_GROW_FACTOR 2
 #define GC_HEAP_GROW_THRESHOLD 0x4000000  // 64 MB
-#define GC_DEFAULT_THRESHOLD 1024 * 1024 * 2
+#define GC_HEAP_DEFAULT_THRESHOLD 1024 * 1024 * 2
 
 // Parallelization config
-#define GC_THREAD_COUNT (16)
 #define GC_PARALLEL_MARK_ARRAY_THRESHOLD 10000     // TODO (optimize): Can probably be reduced a bit after synch refactoring
 #define GC_PARALLEL_MARK_HASHTABLE_THRESHOLD 2000  // TODO (optimize): Can probably be reduced a bit after synch refactoring
 #define GC_PARALLEL_SWEEP_THRESHOLD 100000
 #define GC_DEQUE_INITIAL_CAPACITY 1024
 #define GC_DEQUE_INITIAL_GARBAGE_CAPACITY 32
-#define GC_WORKER_MAX_STEAL_ATTEMPTS 3
-#define GC_DEQUE_WORK_STEALING_BACKOFF_MIN_US 1  // Must be > 0
-#define GC_DEQUE_WORK_STEALING_BACKOFF_MAX_US 100
 
 // Allocate memory for an array. Might trigger gc.
 #define ALLOCATE_ARRAY(type, count) (type*)reallocate(NULL, 0, sizeof(type) * (count))

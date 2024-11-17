@@ -1,7 +1,7 @@
-#include <windows.h>
 #include "builtin.h"
 #include "common.h"
 #include "file.h"
+#include "sys.h"
 #include "vm.h"
 
 static Value native_perf_now(int argc, Value argv[]);
@@ -15,15 +15,6 @@ void register_native_perf_module() {
 
   define_native(&perf_module->fields, "now", native_perf_now, 0);
   define_native(&perf_module->fields, "since", native_perf_since, 1);
-}
-
-static double get_time() {
-  LARGE_INTEGER frequency;
-  LARGE_INTEGER now;
-  QueryPerformanceFrequency(&frequency);
-  QueryPerformanceCounter(&now);
-
-  return (double)now.QuadPart / frequency.QuadPart;
 }
 
 /**
