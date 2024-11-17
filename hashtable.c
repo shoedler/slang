@@ -47,7 +47,7 @@ static Entry* find_entry(Entry* entries, int capacity, Value key) {
 // Adjusts the capacity of the hashtable to be at least of size capacity.
 // Creates a new hashtable and copies the entries over.
 static void adjust_capacity(HashTable* table, int capacity) {
-  Entry* entries = ALLOCATE(Entry, capacity);
+  Entry* entries = ALLOCATE_ARRAY(Entry, capacity);
   for (int i = 0; i < capacity; i++) {
     entries[i].key   = empty_internal_value();
     entries[i].value = nil_value();
@@ -197,16 +197,8 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
 void hashtable_remove_white(HashTable* table) {
   for (int i = 0; i < table->capacity; i++) {
     Entry* entry = &table->entries[i];
-    if (!is_empty_internal(entry->key) && !(entry->key.as.obj->is_marked)) {
+    if (!is_empty_internal(entry->key) && !atomic_load(&entry->key.as.obj->is_marked)) {
       hashtable_delete(table, entry->key);
     }
-  }
-}
-
-void mark_hashtable(HashTable* table) {
-  for (int i = 0; i < table->capacity; i++) {
-    Entry* entry = &table->entries[i];
-    mark_value(entry->key);
-    mark_value(entry->value);
   }
 }

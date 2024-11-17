@@ -1,6 +1,7 @@
 #ifndef vm_h
 #define vm_h
 
+#include <stdatomic.h>
 #include "builtin.h"
 #include "chunk.h"
 #include "hashtable.h"
@@ -25,6 +26,7 @@
 #define SP_PROP_NAME __name
 #define SP_PROP_FILE_PATH __file_path
 #define SP_PROP_MODULE_NAME __module_name
+#define SP_PROP_PARENT_MODULE __parent_module
 
 // Holds the state of a stack frame.
 // Represents a single ongoing function call.
@@ -67,7 +69,9 @@ typedef struct {
   Value* stack_top;   // Stack pointer
   HashTable strings;  // Interned strings
   ObjUpvalue* open_upvalues;
-  Obj* objects;
+
+  Obj* objects;  // Linked list of all objects in the VM (heap)
+  atomic_size_t object_count;
 
   HashTable modules;  // Modules
   ObjObject* module;  // The current module
@@ -97,11 +101,6 @@ typedef struct {
   size_t bytes_allocated;  // Number of bytes currently allocated.
   size_t prev_gc_freed;    // Number of bytes freed in the last garbage collection.
   size_t next_gc;          // Number of bytes at which the next garbage collection will occur.
-  int gray_count;
-  int gray_capacity;
-  Obj** gray_stack;  // Worklist for the garbage collector. This field is not
-                     // managed by our own memory allocator, but rather by the
-                     // system's allocator.
 
   Value current_error;
   int flags;
@@ -121,7 +120,7 @@ void free_vm();
 // Clears the error state of the Vm.
 void clear_error();
 
-// Creates a new module instance.
+// Creates a new module instance. [source_path] is optional. The [module_name] however, is required.
 ObjObject* make_module(const char* source_path, const char* module_name);
 
 // Creates a new module instance and sets it as the current module.
@@ -274,7 +273,7 @@ static inline bool is_class(Value value) {
   return value.type == vm.class_class;
 }
 
-// Wraps an object-obj into a value.
+// Wraps an obj-object into a value.
 static inline Value obj_value(ObjObject* value) {
   return (Value){.type = vm.obj_class, {.obj = (Obj*)value}};
 }
@@ -283,7 +282,7 @@ static inline bool is_obj(Value value) {
   return value.type == vm.obj_class;
 }
 
-// Wraps an object-obj into a value. The type of the value is inferred by the instance type of the object-obj.
+// Wraps an obj-object into a value. The type of the value is inferred by the instance type of the obj-object.
 static inline Value instance_value(ObjObject* instance) {
   return (Value){.type = instance->instance_class, {.obj = (Obj*)instance}};
 }

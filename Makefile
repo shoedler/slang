@@ -9,7 +9,7 @@ MAKEFLAGS += --no-print-directory
 # General compiler flags
 CFLAGS=-Wall -Wextra -Werror -std=c17 -m64 -D_UNICODE -DUNICODE
 LDFLAGS=-m64
-LIBS=-lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -luuid -lodbc32 -lodbccp32
+LIBS=-lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -luuid -lodbc32 -lodbccp32 -lmimalloc
 
 # Source files and output
 DEBUG_EXEC=bin/x64/debug/slang.exe
@@ -26,6 +26,10 @@ RELEASE_DEP_DIR=$(RELEASE_DIR).deps/
 # Dependency generation flags
 DEBUG_DEP_CFLAGS=-MMD -MP -MF $(DEBUG_DEP_DIR)/$*.d
 RELEASE_DEP_CFLAGS=-MMD -MP -MF $(RELEASE_DEP_DIR)/$*.d
+
+# Mimalloc library path
+MIMALLOC_LIBDIR := /ucrt64/lib
+LDFLAGS += -L$(MIMALLOC_LIBDIR) -Wl,-rpath,$(MIMALLOC_LIBDIR)
 
 # Debug specific flags
 DEBUG_CFLAGS=$(CFLAGS) -g -O0 -D_DEBUG

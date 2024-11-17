@@ -9,7 +9,7 @@ char* ensure_slang_extension(const char* path) {
   // Maybe the path already has the extension. In that case, return the same path
   size_t path_len = strlen(path);
   if (path_len >= SLANG_EXTENSION_LEN && strcmp(path + path_len - SLANG_EXTENSION_LEN, SLANG_EXTENSION) == 0) {
-    return _strdup(path);
+    return strdup(path);
   }
 
   // If not, we need to append the extension
@@ -34,7 +34,7 @@ char* base(const char* path) {
 
   size_t len = strlen(path);
   if (len == 0) {
-    return _strdup(path);
+    return strdup(path);
   }
 
   char* base = (char*)malloc(len + 1);
@@ -81,10 +81,10 @@ bool file_exists(const char* path) {
 }
 
 // Cleans a path (windows-style) by replacing all '/' with '\'. Returns a new string with the normalized
-// path.
+// path. The caller is responsible for freeing the returned string.
 char* clean_path(const char* path, bool no_prefixed_separators) {
   if (path == NULL || *path == '\0') {
-    return _strdup("");  // Return an empty string for NULL or empty input
+    return strdup("");  // Return an empty string for NULL or empty input
   }
 
   size_t len   = strlen(path);

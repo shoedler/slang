@@ -7,11 +7,13 @@
 #include "builtin.h"
 #include "compiler.h"
 #include "file.h"
+#include "gc.h"
 #include "memory.h"
 #include "object.h"
+#include "sys.h"
 #include "vm.h"
 
-#if defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_ALLOCATIONS) || defined(DEBUG_TRACE_EXECUTION)
+#if defined(DEBUG_TRACE_EXECUTION)
 #include "debug.h"
 #endif
 
@@ -160,12 +162,11 @@ void define_native(HashTable* table, const char* name, NativeFn function, int ar
 }
 
 void define_value(HashTable* table, const char* name, Value value) {
-  // 🐛 Seemingly out of nowhere the pushed key and value get swapped on the stack...?! I don't know why.
-  // Funnily enough, it only happens when we start a nested module. E.g. we're in "main" and import "std",
-  // when the builtins get attached to the module instances field within the start_module function key and
-  // value are swapped! Same goes for the name (WTF). I've found this out because in the stack trace we now
-  // see the modules name and for nested modules it always printed __name. The current remedy is to just use
-  // variables for "key" and "value" and just use these instead of pushing and peeking.
+  // TODO (fix):🐛 Seemingly out of nowhere the pushed key and value get swapped on the stack...?! I don't know why. Funnily
+  // enough, it only happens when we start a nested module. E.g. we're in "main" and import "std", when the builtins get attached
+  // to the module instances field within the start_module function key and value are swapped! Same goes for the name (WTF). I've
+  // found this out because in the stack trace we now see the modules name and for nested modules it always printed __name. The
+  // current remedy is to just use variables for "key" and "value" and just use these instead of pushing and peeking.
   Value key = str_value(copy_string(name, (int)strlen(name)));
   push(key);
   push(value);
@@ -229,16 +230,18 @@ static void make_object(int count) {
 }
 
 void init_vm() {
+  prioritize_main_thread();
   reset_stack();
+
   vm.objects         = NULL;
   vm.module          = NULL;  // No active module
   vm.bytes_allocated = 0;
   vm.prev_gc_freed   = 0;
-  vm.next_gc         = GC_DEFAULT_THRESHOLD;
-  vm.gray_count      = 0;
-  vm.gray_capacity   = 0;
-  vm.gray_stack      = NULL;
+  vm.next_gc         = HEAP_DEFAULT_THRESHOLD;
   vm.exit_on_frame   = 0;  // Default to exit on the first frame
+  atomic_init(&vm.object_count, 0);
+
+  gc_init_thread_pool(get_cpu_core_count());
 
   // Pause while we initialize the vm.
   vm.flags |= VM_FLAG_PAUSE_GC;
@@ -366,7 +369,8 @@ void free_vm() {
   free_hashtable(&vm.modules);
   memset(vm.special_method_names, 0, sizeof(vm.special_method_names));
   memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
-  free_objects();
+  free_heap();
+  gc_shutdown_thread_pool();
 }
 
 void push(Value value) {
@@ -407,7 +411,7 @@ static CallResult call_managed(ObjClosure* closure, int arg_count) {
   CHECK_ARGS(closure->function->arity, arg_count);
 
   if (vm.frame_count == FRAMES_MAX) {
-    runtime_error("Stack overflow.");
+    runtime_error("Stack overflow. Maximum call stack depth of %d reached.", FRAMES_MAX);
     return CALL_FAILED;
   }
 
@@ -768,7 +772,7 @@ static void concatenate() {
   ObjString* a = AS_STR(peek(1));  // Peek, so it doesn't get freed by the GC
 
   int length  = a->length + b->length;
-  char* chars = ALLOCATE(char, length + 1);
+  char* chars = ALLOCATE_ARRAY(char, length + 1);
   memcpy(chars, a->chars, a->length);
   memcpy(chars + a->length, b->chars, b->length);
   chars[length] = '\0';
@@ -1500,10 +1504,13 @@ Value interpret(const char* source, const char* source_path, const char* module_
   ObjFunction* function = compile_module(source);
   if (function == NULL) {
     exit_with_compile_error();
+    if (is_module) {
+      vm.module = enclosing_module;
+    }
     return nil_value();
   }
 
-  push(fn_value((Obj*)function));
+  push(fn_value((Obj*)function));  // Gc protection
   ObjClosure* closure = new_closure(function);
   pop();
   push(fn_value((Obj*)closure));

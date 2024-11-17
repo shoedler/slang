@@ -45,20 +45,19 @@ typedef struct {
   Precedence precedence;
 } ParseRule;
 
-// A struct declaring a local variable.
+// Local variable that lives on the stack.
 typedef struct {
   Token name;
   int depth;
-  bool is_captured;
+  bool is_captured;  // True if the variable is captured by an upvalue.
 } Local;
 
-// A struct declaring an upvalue.
 typedef struct {
   uint16_t index;
   bool is_local;
 } Upvalue;
 
-// A construct holding the compiler's state.
+// Compiler state.
 typedef struct Compiler {
   struct Compiler* enclosing;
   ObjFunction* function;
@@ -724,18 +723,18 @@ static void number(bool can_assign) {
 static void string(bool can_assign) {
   UNUSED(can_assign);
   // Build the string using a flexible array
-  size_t str_capacity = 0;
+  size_t str_capacity = 8;
   size_t str_length   = 0;
-  char* str_bytes     = 0;
+  char* str_bytes     = (char*)malloc(str_capacity);
 
-#define PUSH_CHAR(c)                                                   \
-  do {                                                                 \
-    if (str_capacity < str_length + 1) {                               \
-      size_t old   = str_capacity;                                     \
-      str_capacity = GROW_CAPACITY(old);                               \
-      str_bytes    = RESIZE_ARRAY(char, str_bytes, old, str_capacity); \
-    }                                                                  \
-    str_bytes[str_length++] = c;                                       \
+#define PUSH_CHAR(c)                                          \
+  do {                                                        \
+    if (str_capacity < str_length + 1) {                      \
+      size_t old   = str_capacity;                            \
+      str_capacity = GROW_CAPACITY(old);                      \
+      str_bytes    = (char*)realloc(str_bytes, str_capacity); \
+    }                                                         \
+    str_bytes[str_length++] = c;                              \
   } while (0)
 
   do {
@@ -772,7 +771,7 @@ static void string(bool can_assign) {
   emit_constant_here(str_value(copy_string(str_bytes, (int)str_length)));
 
   // Cleanup
-  FREE_ARRAY(char, str_bytes, str_capacity);
+  free(str_bytes);
 #undef PUSH_CHAR
 }
 
@@ -1237,7 +1236,7 @@ static int resolve_upvalue(Compiler* compiler, Token* name) {
     return add_upvalue(compiler, (uint16_t)local, true);
   }
 
-  // Recurse on outer scopes (compilers) to maybe find the variable there
+  // Recurse on upper scopes (compilers) to maybe find the variable there
   int upvalue = resolve_upvalue(compiler->enclosing, name);
   if (upvalue != -1) {
     return add_upvalue(compiler, (uint16_t)upvalue, false);

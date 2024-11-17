@@ -1,18 +1,19 @@
 #include "memory.h"
+
+#include <assert.h>
+#include <pthread.h>
+#include <stdalign.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "compiler.h"
+#include "gc.h"
+#include "gc_deque.h"
+#include "sys.h"
 #include "vm.h"
 
-#if defined(DEBUG_LOG_GC) || defined(DEBUG_LOG_GC_FREE)
-#include <stdio.h>
-#include "debug.h"
-#include "value.h"
-#endif
-
-#ifdef DEBUG_LOG_GC_FREE
-#include "string.h"
-#endif
+static void blacken_object(Obj* object);
 
 void* reallocate(void* pointer, size_t old_size, size_t new_size) {
   vm.bytes_allocated += new_size - old_size;
@@ -21,13 +22,14 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size) {
     // Only collect_garbage if we're not freeing memory
 #ifdef DEBUG_STRESS_GC
     collect_garbage();
-#endif
+#else
     if (vm.bytes_allocated > vm.next_gc) {
       collect_garbage();
     }
+#endif
   }
 
-  if (new_size == 0) {
+  if (new_size == 0) {  // Freeing
     free(pointer);
     return NULL;
   }
@@ -41,6 +43,83 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size) {
   return result;
 }
 
+Obj* allocate_object(size_t size, ObjGcType type) {
+  Obj* object = (Obj*)reallocate(NULL, 0,
+                                 size);  // Might trigger GC, but it's fine since our new object
+                                         // isn't referenced by anything yet -> not reachable by GC
+  object->type = type;
+  object->hash = (uint64_t)((uintptr_t)(object) >> 4 | (uintptr_t)(object) << 60);  // Get a better distribution of hash
+                                                                                    // values, by shifting the address
+
+  // Atomically reset the is_marked flag
+  atomic_init(&object->is_marked, false);
+
+  // Atomically increment the object count
+  atomic_fetch_add_explicit(&vm.object_count, 1, memory_order_relaxed);
+
+  object->next = vm.objects;
+  vm.objects   = object;
+
+  return object;
+}
+
+void free_object(Obj* object) {
+  // Atomically decrement the object count. Doesn't matter that this is at the top, since we only check the object count at the
+  // end of the GC cycle.
+  atomic_fetch_sub(&vm.object_count, 1);
+  GC_WORKER_STATS_INC_FREED();
+
+  switch (object->type) {
+    case OBJ_GC_BOUND_METHOD: FREE(ObjBoundMethod, object); break;
+    case OBJ_GC_CLASS: {
+      ObjClass* klass = (ObjClass*)object;
+      free_hashtable(&klass->methods);
+      free_hashtable(&klass->static_methods);
+      FREE(ObjClass, object);
+      break;
+    }
+    case OBJ_GC_CLOSURE: {
+      ObjClosure* closure = (ObjClosure*)object;
+      FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalue_count);
+      FREE(ObjClosure, object);
+      break;
+    }
+    case OBJ_GC_FUNCTION: {
+      ObjFunction* function = (ObjFunction*)object;
+      free_chunk(&function->chunk);
+      FREE(ObjFunction, object);
+      break;
+    }
+    case OBJ_GC_OBJECT: {
+      ObjObject* object_ = (ObjObject*)object;
+      free_hashtable(&object_->fields);
+      FREE(ObjObject, object);
+      break;
+    }
+    case OBJ_GC_NATIVE: FREE(ObjNative, object); break;
+    case OBJ_GC_STRING: {
+      ObjString* string = (ObjString*)object;
+      FREE_ARRAY(char, string->chars, string->length + 1);
+      FREE(ObjString, object);
+      break;
+    }
+    case OBJ_GC_SEQ: {
+      ObjSeq* seq = (ObjSeq*)object;
+      free_value_array(&seq->items);
+      FREE(ObjSeq, object);
+      break;
+    }
+    case OBJ_GC_TUPLE: {
+      ObjTuple* tuple = (ObjTuple*)object;
+      free_value_array(&tuple->items);
+      FREE(ObjTuple, object);
+      break;
+    }
+    case OBJ_GC_UPVALUE: FREE(ObjUpvalue, object); break;
+    default: INTERNAL_ERROR("Don't know how to free unknown object type: %d at %p", object->type, object);
+  }
+}
+
 void mark_obj(Obj* object) {
   // Unnecessary NULL check if we're called from mark_value, but if called from
   // elsewhere, the object arg could be NULL.
@@ -48,28 +127,11 @@ void mark_obj(Obj* object) {
     return;
   }
 
-  if (object->is_marked) {
-    return;
+  // Atomically check and set the is_marked flag
+  if (!atomic_exchange(&object->is_marked, true)) {
+    GC_WORKER_STATS_INC_MARKED();
+    blacken_object(object);
   }
-
-#ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_YELLOW_STR("[MARK] ") "at %p, ", (void*)object);
-  printf("%s\n", typeof_(OBJ_GC_VAL(object))->name->chars);
-#endif
-
-  object->is_marked = true;
-
-  if (vm.gray_capacity < vm.gray_count + 1) {
-    vm.gray_capacity = GROW_CAPACITY(vm.gray_capacity);
-    vm.gray_stack    = (Obj**)realloc(vm.gray_stack, sizeof(Obj*) * vm.gray_capacity);
-
-    if (vm.gray_stack == NULL) {
-      INTERNAL_ERROR("Not enough memory to reallocate gray stack");
-      exit(EMEM_ERROR);
-    }
-  }
-
-  vm.gray_stack[vm.gray_count++] = object;
 }
 
 void mark_value(Value value) {
@@ -79,21 +141,33 @@ void mark_value(Value value) {
 }
 
 // Marks all entries in a value array gray.
-void mark_array(ValueArray* array) {
-  for (int i = 0; i < array->count; i++) {
-    mark_value(array->values[i]);
+static void mark_array(ValueArray* array) {
+  if (array->count < GC_PARALLEL_MARK_ARRAY_THRESHOLD) {
+    for (int i = 0; i < array->count; i++) {
+      mark_value(array->values[i]);
+    }
+  } else {
+    gc_parallel_mark_array(array);
   }
 }
 
-// Blackens an object by marking all objects it references.
-// A black object is one that has been marked and all objects it references have
-// been marked as well.
-static void blacken_object(Obj* object) {
-#ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") ANSI_BLUE_STR("[BLACKEN] ") "at %p, ", (void*)object);
-  printf("%s\n", typeof_(OBJ_GC_VAL(object))->name->chars);
-#endif
+static void mark_hashtable(HashTable* table) {
+  if (table->count < GC_PARALLEL_MARK_HASHTABLE_THRESHOLD) {
+    for (int i = 0; i < table->capacity; i++) {
+      Entry* entry = &table->entries[i];
+      if (!is_empty_internal(entry->key)) {
+        mark_value(entry->key);
+        mark_value(entry->value);
+      }
+    }
+  } else {
+    gc_parallel_mark_hashtable(table);
+  }
+}
 
+// Blackens an object by marking all objects it references. A black object is one that has been marked and all objects it
+// references have been marked as well.
+static void blacken_object(Obj* object) {
   switch (object->type) {
     case OBJ_GC_BOUND_METHOD: {
       ObjBoundMethod* bound = (ObjBoundMethod*)object;
@@ -153,76 +227,20 @@ static void blacken_object(Obj* object) {
   }
 }
 
-// Frees an object from our heap.
-// How we free an object depends on its type.
-static void free_object(Obj* object) {
-#ifdef DEBUG_LOG_GC_FREE
-  printf(ANSI_RED_STR("[GC] ") ANSI_GREEN_STR("[FREE] ") "at %p, type: %d\n", (void*)object, object->type);
-#endif
-
-  switch (object->type) {
-    case OBJ_GC_BOUND_METHOD: FREE(ObjBoundMethod, object); break;
-    case OBJ_GC_CLASS: {
-      ObjClass* klass = (ObjClass*)object;
-      free_hashtable(&klass->methods);
-      free_hashtable(&klass->static_methods);
-      FREE(ObjClass, object);
-      break;
-    }
-    case OBJ_GC_CLOSURE: {
-      ObjClosure* closure = (ObjClosure*)object;
-      FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalue_count);
-      FREE(ObjClosure, object);
-      break;
-    }
-    case OBJ_GC_FUNCTION: {
-      ObjFunction* function = (ObjFunction*)object;
-      free_chunk(&function->chunk);
-      FREE(ObjFunction, object);
-      break;
-    }
-    case OBJ_GC_OBJECT: {
-      ObjObject* object_ = (ObjObject*)object;
-      free_hashtable(&object_->fields);
-      FREE(ObjObject, object);
-      break;
-    }
-    case OBJ_GC_NATIVE: FREE(ObjNative, object); break;
-    case OBJ_GC_STRING: {
-      ObjString* string = (ObjString*)object;
-      FREE_ARRAY(char, string->chars, string->length + 1);
-      FREE(ObjString, object);
-      break;
-    }
-    case OBJ_GC_SEQ: {
-      ObjSeq* seq = (ObjSeq*)object;
-      free_value_array(&seq->items);
-      FREE(ObjSeq, object);
-      break;
-    }
-    case OBJ_GC_TUPLE: {
-      ObjTuple* tuple = (ObjTuple*)object;
-      free_value_array(&tuple->items);
-      FREE(ObjTuple, object);
-      break;
-    }
-    case OBJ_GC_UPVALUE: FREE(ObjUpvalue, object); break;
-    default: INTERNAL_ERROR("Don't know how to free unknown object type: %d", object->type);
-  }
-}
-
-void free_objects() {
+void free_heap() {
+  gc_assign_current_worker(0);  // Assign the main thread as the worker
   Obj* object = vm.objects;
   while (object != NULL) {
     Obj* next = object->next;
     free_object(object);
     object = next;
   }
-
-  free(vm.gray_stack);
+  gc_assign_current_worker(-1);  // Unassign
 }
 
-// Starts at the roots of the objects in the heap and marks all reachable objects.
+// Starts at the roots of the objects in the heap and marks all reachable objects. It's important that all root objects get marked
+// in this phase - if you e.g. had a root which is a long array which gets split into different mark tasks and distributed between
+// the workers, that'd be a problem because the workers are idle until after mark_roots, leaving us with not all roots marked.
 static void mark_roots() {
   // Most roots are local variables, which are on the stack.
   for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
@@ -239,8 +257,16 @@ static void mark_roots() {
     mark_obj((Obj*)upvalue);
   }
 
-  // Also mark the active module, if there is one and the table of loaded modules.
-  mark_hashtable(&vm.modules);
+  // Mark the cache of loaded modules
+  for (int i = 0; i < vm.modules.capacity; i++) {
+    Entry* entry = &vm.modules.entries[i];
+    if (!is_empty_internal(entry->key)) {
+      mark_value(entry->key);
+      mark_value(entry->value);
+    }
+  }
+
+  // As well as the active module
   if (vm.module != NULL) {
     mark_obj((Obj*)vm.module);
   }
@@ -284,30 +310,24 @@ static void mark_roots() {
   mark_compiler_roots();
 }
 
-// Traces all references from the gray stack and marks them black e.g. marking
-// all objects referenced by the gray object. Since the gray object is no black,
-// it's popped from the gray stack.
-static void trace_references() {
-  while (vm.gray_count > 0) {
-    Obj* object = vm.gray_stack[--vm.gray_count];
-    blacken_object(object);
-  }
+static void mark() {
+  mark_roots();
+  gc_wait_for_workers();
 }
 
-// Sweeps the heap and frees all unmarked objects.
-// This is done by iterating over the linked list of objects and freeing all
-// white objects. White objects are objects that have not been marked during the
-// mark phase and are therefore unreachable.
-static void sweep() {
+static void sweep_sequential() {
+  GC_SWEEP_LOG(ANSI_RED_STR("[GC]") " " ANSI_CYAN_STR("[SWEEP]") " Sweeping heap sequential\n");
+  GC_SWEEP_LOG("  Sweeping %zu objects\n", atomic_load(&vm.object_count));
+
   Obj* previous = NULL;
   Obj* object   = vm.objects;
 
   while (object != NULL) {
-    if (object->is_marked) {
-      object->is_marked = false;  // Unmark for next gc cycle
-      previous          = object;
-      object            = object->next;
-    } else {
+    // Atomically check and reset the is_marked flag
+    if (atomic_exchange(&object->is_marked, false)) {  // Object is marked (black), keep it
+      previous = object;
+      object   = object->next;
+    } else {  // Object is unmarked (white), remove it
       Obj* unreached = object;
 
       object = object->next;
@@ -317,43 +337,119 @@ static void sweep() {
         vm.objects = object;
       }
 
-      free_object(unreached);  // 🎉
+      free_object(unreached);
     }
+  }
+
+  GC_SWEEP_LOG("  Done sweeping\n\n");
+}
+
+// Sweeps the heap and frees all unmarked objects. This is done by iterating over the linked list of objects and freeing all
+// white objects. White objects are objects that have not been marked during the mark phase and are therefore unreachable.
+static void sweep() {
+  size_t total_object_count = atomic_load(&vm.object_count);
+
+  if (total_object_count <= GC_PARALLEL_SWEEP_THRESHOLD) {
+    sweep_sequential();
+    return;
+  }
+
+  if (!gc_parallel_sweep()) {
+    sweep_sequential();
   }
 }
 
+#ifdef DEBUG_GC_PHASE_TIMES
+static GcPhaseTimes gc_times = {(size_t)0, 0, 0, 0, 0, -1 /* prev_mutator_time*/, 0};
+
+#define DEBUG_GC_PHASE_TIMESTAMP(varname) gc_times.varname = get_time();
+
+static void print_phase_times() {
+  printf(ANSI_RED_STR(
+      "[GC]") " " ANSI_MAGENTA_STR("[Cycle %zu]")" Phase Times"
+              ":\n", gc_times.cycle_count++);
+  printf("  Mutator execution time:        %fms\n", (gc_times.runtime) * 1000);
+  printf("  1) Mark time:                  %fms\n", (gc_times.mark_time - gc_times.cycle_start) * 1000);
+  printf("  2) Remove white strings time:  %fms\n", (gc_times.remove_white_time - gc_times.mark_time) * 1000);
+  printf("  3) Sweep time:                 %fms\n", (gc_times.sweep_time - gc_times.remove_white_time) * 1000);
+  printf("  Total GC pause time:           " ANSI_CYAN_STR("%fms") "\n", (gc_times.sweep_time - gc_times.cycle_start) * 1000);
+  printf("\n");
+}
+#else
+#define DEBUG_GC_PHASE_TIMESTAMP(varname)
+#endif
+
+#ifdef DEBUG_GC_HEAP_STATS
+#define KIB(bytes) (bytes / 1024.0)
+#define MIB(bytes) (bytes / (1024.0 * 1024.0))
+#define GIB(bytes) (bytes / (1024.0 * 1024.0 * 1024.0))
+#define STATS(bytes) "%zuB / %.2fKiB / %.2fMiB / %.2fGiB\n", bytes, KIB(bytes), MIB(bytes), GIB(bytes)
+static void print_heap_stats() {
+  printf(ANSI_RED_STR("[GC]") " " ANSI_GREEN_STR("[Heap Stats]") ":\n");
+  printf("  Total objects on the heap:    %zu\n", atomic_load(&vm.object_count));
+  printf("  Current heap size:            " STATS(vm.bytes_allocated));
+  printf("  Bytes collected (This cycle): " STATS(vm.prev_gc_freed));
+  printf("  Next GC at:                   " STATS(vm.next_gc));
+  printf("\n");
+}
+#undef KIB
+#undef MIB
+#undef GIB
+#undef STATS
+#endif
+
 void collect_garbage() {
-#ifdef DEBUG_LOG_GC
-  printf("== Gc begin collect ==\n");
+  DEBUG_GC_PHASE_TIMESTAMP(cycle_start);
+#ifdef DEBUG_GC_PHASE_TIMES
+  gc_times.runtime = gc_times.cycle_start - gc_times.prev_mutator_time;
+  if (gc_times.prev_mutator_time == -1) {
+    gc_times.runtime = 0;
+  }
+  gc_times.prev_mutator_time = gc_times.cycle_start;
 #endif
 
   size_t before = vm.bytes_allocated;
 
-  mark_roots();
-  trace_references();
-  // Remove all white entries from the vm's interned strings hashtable. This has
-  // to be done after the mark phase, but before the sweep phase. This allows us
-  // to just remove all white string objects from the table, because they are
-  // not referenced by any other object. Doing this before the sweep phase is
-  // important, because white string objects would be freed during the sweep and
-  // leave us with dangling pointers in the hashtable.
-  hashtable_remove_white(&vm.strings);
-  sweep();
+  // Main thread acts as worker 0 for a GC cycle.
+  gc_assign_current_worker(0);
+  gc_wake_workers();
 
-  // If we reach the threshold, we grow the heap by adding a fixed amount of
-  // bytes. This ties next_gc down to earth, so it
-  // doesn't grow into the abyss of the space-time continuum.
-  if (vm.bytes_allocated < GC_HEAP_GROW_THRESHOLD) {
-    vm.next_gc = vm.bytes_allocated * GC_HEAP_GROW_FACTOR;
+  // Step 1: Mark roots - this is single-threaded. Generates work for workers, essentially each mark-task can be viewed as a as a
+  // gray object that needs to be blackened. It's important that all root objects get marked in this phase - if you e.g. had a
+  // root which is a long array which gets split into different mark tasks and distributed between the workers, that'd be a
+  // problem because the workers are idle until after mark_roots, leaving us with not all roots marked.
+  mark();
+  DEBUG_GC_PHASE_TIMESTAMP(mark_time);
+
+  // Step 2: Handle interned strings.
+  hashtable_remove_white(&vm.strings);
+  DEBUG_GC_PHASE_TIMESTAMP(remove_white_time);
+
+  // Step 3: Sweep the heap
+  sweep();
+  DEBUG_GC_PHASE_TIMESTAMP(sweep_time);
+
+  gc_workers_put_to_sleep();
+  gc_assign_current_worker(-1);
+
+  // Update GC thresholds
+  if (vm.bytes_allocated < HEAP_GROW_THRESHOLD) {
+    vm.next_gc = vm.bytes_allocated * HEAP_GROW_FACTOR;
   } else {
-    vm.next_gc = vm.bytes_allocated + GC_HEAP_GROW_THRESHOLD;
+    vm.next_gc = vm.bytes_allocated + HEAP_GROW_THRESHOLD;
   }
 
   vm.prev_gc_freed = before - vm.bytes_allocated;
 
-#ifdef DEBUG_LOG_GC
-  printf(ANSI_RED_STR("[GC] ") "Done. collected %zu bytes (from %zu to %zu) next at %zu\n", vm.prev_gc_freed, before,
-         vm.bytes_allocated, vm.next_gc);
-  printf("== Gc end collect ==\n");
+#ifdef DEBUG_GC_PHASE_TIMES
+  print_phase_times();
+#endif
+
+#ifdef DEBUG_GC_WORKER_STATS
+  gc_print_worker_stats();
+#endif
+
+#ifdef DEBUG_GC_HEAP_STATS
+  print_heap_stats();
 #endif
 }

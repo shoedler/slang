@@ -77,7 +77,7 @@ typedef struct {
   } as;
 } Value;
 
-// Dynamic array of values. This represents the constant pool of a chunk.
+// Dynamic array of values.
 // See https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4
 typedef struct {
   int capacity;
@@ -86,7 +86,6 @@ typedef struct {
 } ValueArray;
 
 // Determines whether two values are equal.
-// Values are not eqal if their types differ.
 bool values_equal(Value a, Value b);
 
 // Initialize a value array.
