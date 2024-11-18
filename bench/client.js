@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   Chart.defaults.color = getComputedStyle(document.body).color;
   Chart.defaults.borderColor = "#303030";
 
-  fetch("http://localhost:8080/results")
+  fetch("http://localhost:5252/results")
     .then((response) => response.json())
     .then((data) => {
       const benchmarkData = mapBenchmarkData(data);

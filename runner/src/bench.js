@@ -304,6 +304,6 @@ export const serveResults = async () => {
     }
   });
 
-  server.listen(8080);
-  info('Server running at http://localhost:8080/');
+  server.listen(5252);
+  info('Server running at http://localhost:5252/');
 };
