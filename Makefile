@@ -35,9 +35,20 @@ LDFLAGS += -L$(MIMALLOC_LIBDIR) -Wl,-rpath,$(MIMALLOC_LIBDIR)
 DEBUG_CFLAGS=$(CFLAGS) -g -O0 -D_DEBUG
 DEBUG_LDFLAGS=$(LDFLAGS) -g 
 
-# Release specific flags
-RELEASE_CFLAGS=$(CFLAGS) -O3 -march=native -DNDEBUG -flto=20 # Arbirary, could be retrieved with $(shell nproc) on linux or $(NUMBER_OF_PROCESSORS) on windows
-RELEASE_LDFLAGS=$(LDFLAGS) -fprofile-use -flto=20 # Arbirary, could be retrieved with $(shell nproc) on linux or $(NUMBER_OF_PROCESSORS) on windows
+# Number of parallel LTO threads
+LTO_THREADS=20
+
+# Release specific flags (always include LTO for release builds)
+RELEASE_CFLAGS=$(CFLAGS) -O3 -march=native -DNDEBUG -flto=$(LTO_THREADS)
+RELEASE_LDFLAGS=$(LDFLAGS) -flto=$(LTO_THREADS)
+
+# Profile generation flags
+PROFILING_CFLAGS=$(RELEASE_CFLAGS) -fprofile-generate
+PROFILING_LDFLAGS=$(RELEASE_LDFLAGS) -fprofile-generate
+
+# Final profiled build flags
+FINAL_CFLAGS=$(RELEASE_CFLAGS) -fprofile-use -fprofile-correction
+FINAL_LDFLAGS=$(RELEASE_LDFLAGS) -fprofile-use -fprofile-correction
 
 .PHONY: all clean clean-profile debug release release-profiled setup
 
@@ -58,15 +69,15 @@ release-profiled:
 	@$(MAKE) clean
 	@$(MAKE) clean-profile
 	@echo "Building with profile generation..."
-	@$(MAKE) release CFLAGS="$(RELEASE_CFLAGS) -fprofile-generate" LDFLAGS="$(RELEASE_LDFLAGS) -fprofile-generate"
+	@$(MAKE) release CFLAGS="$(PROFILING_CFLAGS)" LDFLAGS="$(PROFILING_LDFLAGS)"
 	@echo "Gathering profile data..."
 	$(RELEASE_EXEC) run profile/profile.sl
-	@echo "Building with profile usage..."
+	@echo "Building final version with profile data..."
 	@$(MAKE) clean
-	@$(MAKE) release CFLAGS="$(RELEASE_CFLAGS) -fprofile-use" LDFLAGS="$(RELEASE_LDFLAGS) -fprofile-use"
+	@$(MAKE) release CFLAGS="$(FINAL_CFLAGS)" LDFLAGS="$(FINAL_LDFLAGS)"
 
 $(DEBUG_EXEC): $(DEBUG_OBJECTS)
-	@$(LD) $^ -o $@ $(DEBUG_LDFLAGS)  $(LIBS)
+	@$(LD) $^ -o $@ $(DEBUG_LDFLAGS) $(LIBS)
 
 $(RELEASE_EXEC): $(RELEASE_OBJECTS)
 	@$(LD) $^ -o $@ $(RELEASE_LDFLAGS) $(LIBS)

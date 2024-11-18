@@ -34,6 +34,9 @@ typedef struct WorkStealingDeque {
 // Create a new work-stealing deque
 WorkStealingDeque* ws_deque_init(int64_t initial_capacity);
 
+// Cleanup and destroy the deque
+void ws_deque_free(WorkStealingDeque* deque);
+
 // Pop a task (only owner thread)
 bool ws_deque_pop(WorkStealingDeque* deque, GCTask* task);
 
@@ -51,8 +54,5 @@ size_t ws_deque_capacity(WorkStealingDeque* deque);
 
 // Check if empty
 bool ws_deque_empty(WorkStealingDeque* deque);
-
-// Cleanup and destroy the deque
-void ws_deque_free(WorkStealingDeque* deque);
 
 #endif  // GC_DEQUE_H
