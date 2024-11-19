@@ -47,13 +47,19 @@ document.addEventListener("DOMContentLoaded", () => {
               label: `${lang}: ${name}`,
               data: raw,
               borderColor: color,
-              borderWidth: 5,
-              pointRadius: 5,
-              tension: 0,
+              borderWidth: 3,
+              pointRadius: 3,
+              pointBackgroundColor: color,
+              tension: 0.5,
             };
             datasets.push(dataset);
-
-            const labels = raw.map((point) => point.x);
+            const labels = raw.map((point) =>
+              new Date(point.x).toLocaleDateString("de-CH", {
+                year: "2-digit",
+                month: "short",
+                day: "numeric",
+              })
+            );
 
             // Merge the datasets
             chart.data = {
@@ -176,9 +182,9 @@ const mapBenchmarkData = (data) => {
 
     // Make a label for the tooltip
     let label = "";
+    label += "Average: " + avg + "\n";
     label += "Score: " + score + "\n";
     label += "Best: " + best + "\n";
-    label += "Average: " + avg + "\n";
     label += "Worst: " + worst + "\n";
     label += "Standard Deviation: " + sd + "\n";
     label += (lang == "slang" ? "Commit-Hash: " : "Version: ") + v;
@@ -240,7 +246,7 @@ const createChartOptions = () => {
         display: true,
         text: "Date",
       },
-      type: "time",
+      type: "category",
       ticks: {
         font: {
           size: FONT_SIZE_SCALES,
@@ -248,14 +254,6 @@ const createChartOptions = () => {
       },
       grid: {
         lineWidth: GRID_LINE_WIDTH,
-      },
-      time: {
-        unit: "day",
-        adapters: {
-          date: {
-            locale: "deCH",
-          },
-        },
       },
     },
   };

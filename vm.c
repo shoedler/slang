@@ -564,8 +564,7 @@ static Value run_frame() {
 }
 
 Value exec_callable(Value callable, int arg_count) {
-  CallResult result =
-      is_str(callable) ? invoke(peek(arg_count).type, AS_STR(callable), arg_count) : call_value(callable, arg_count);
+  CallResult result = is_str(callable) ? invoke(NULL, AS_STR(callable), arg_count) : call_value(callable, arg_count);
 
   if (result == CALL_RETURNED) {
     return pop();
