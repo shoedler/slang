@@ -15,10 +15,7 @@ export const watch = (path, watchOptions, trigger, action) => {
   let timeout = undefined;
   let isFirstRun = true;
 
-  info(
-    'Watching for changes',
-    `Path: ${path}, Trigger: ${trigger.toString().replace(/\=\>\s+/, '=> ')}`,
-  );
+  info('Watching for changes', `Path: ${path}, Trigger: ${trigger.toString().replace(/\=\>\s+/, '=> ')}`);
   info('Stdout and stderr might not be in order');
   info('Exit with SIGINT', 'Ctrl+C');
 
@@ -46,11 +43,7 @@ export const watch = (path, watchOptions, trigger, action) => {
           info('Change detected', filename);
           await action(controller.signal, filename, isFirstRun);
           isFirstRun = false;
-          debug(
-            `Last run was on ${
-              now.toLocaleDateString(LOCALE) + ' at ' + now.toLocaleTimeString(LOCALE)
-            }`,
-          );
+          debug(`Last run was on ${now.toLocaleDateString(LOCALE) + ' at ' + now.toLocaleTimeString(LOCALE)}`);
           info('Waiting for changes...');
         } catch (err) {
           if (err.name === 'AbortError') {

@@ -153,9 +153,7 @@ export const runBenchmarks = async langPattern => {
       const isSlang = lang === 'slang';
       const times = [];
 
-      let interpreterVersion = isSlang
-        ? (await gitStatus()).hash
-        : await runProcess(language.version.join(' '));
+      let interpreterVersion = isSlang ? (await gitStatus()).hash : await runProcess(language.version.join(' '));
 
       interpreterVersion = normalizeLineEndings(interpreterVersion).replace(/\n/g, '');
 

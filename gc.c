@@ -465,6 +465,7 @@ void gc_init_thread_pool(int num_threads) {
     gc_thread_pool.workers[i].stats.work_steal_attempts = 0;
     gc_thread_pool.workers[i].stats.successful_steals   = 0;
 #endif
+
     gc_thread_pool.workers[i].deque = ws_deque_init(GC_DEQUE_INITIAL_CAPACITY);
     if (!gc_thread_pool.workers[i].deque) {
       INTERNAL_ERROR("Failed to initialize work-stealing deque for worker %d", i);

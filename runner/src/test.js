@@ -1,6 +1,8 @@
 import chalk from 'chalk';
 import path from 'node:path';
-import { SLANG_TEST_DIR, SLANG_TEST_SUFFIX } from './config.js';
+import os from 'node:os';
+import { Worker } from 'node:worker_threads';
+import { SLANG_RUNNER_SRC_DIR, SLANG_TEST_DIR, SLANG_TEST_SUFFIX } from './config.js';
 import {
   LOG_CONFIG,
   abort,
@@ -11,6 +13,7 @@ import {
   pass,
   runSlangFile,
   skip,
+  ok,
   updateCommentMetadata,
 } from './utils.js';
 
@@ -19,19 +22,108 @@ const EXIT = 'Exit';
 const EXPECT = 'Expect';
 const EXPECT_ERROR = 'ExpectError';
 
+export const WORK_TYPE_RUN_TEST = 'runTest';
+export const WORKER_MESSAGE_TYPE_RESULT = 'result';
+
+/**
+ * Represents a test result
+ * @typedef {{
+ *   testFilepath: string,
+ *   passed: boolean,
+ *   skipped: boolean,
+ *   skipReason?: string,
+ *   errorMessages: string[],
+ *   assertions: number
+ * }} TestResult
+ */
+
+const DEFAULT_TEST_NAME_PATTERN = '.*';
 /**
  * Finds all tests in the slang bench directory
- * @returns {string[]} - Array of test file paths
+ * @param {string} testNamePattern - A pattern to filter tests by name. Supports regex, defaults to all tests '.*'
+ * @returns {Promise<string[]>} - Array of test file paths
  */
-const findTests = async () => {
-  const tests = await findFiles(SLANG_TEST_DIR, SLANG_TEST_SUFFIX);
+export const findTests = async (testNamePattern = DEFAULT_TEST_NAME_PATTERN) => {
+  const findAllTests = testNamePattern === DEFAULT_TEST_NAME_PATTERN;
+  const regex = new RegExp(testNamePattern);
+  const tests = (await findFiles(SLANG_TEST_DIR, SLANG_TEST_SUFFIX)).filter(path => regex.test(path));
 
-  if (tests.length === 0)
-    abort(`No tests found in ${SLANG_TEST_DIR} with suffix ${SLANG_TEST_SUFFIX}`);
+  if (tests.length === 0) {
+    abort(`No tests found in ${SLANG_TEST_DIR} with suffix ${SLANG_TEST_SUFFIX} matching pattern ${testNamePattern}`);
+  }
 
-  info(`Found ${tests.length} slang tests`);
+  if (findAllTests) {
+    info(`All Tests. Found ${tests.length} slang tests`);
+  } else {
+    const allTestsString = tests.join('\n');
+    info(
+      `Found ${tests.length} slang tests matching pattern /${testNamePattern}/ in ${SLANG_TEST_DIR}`,
+      '\n' + allTestsString,
+    );
+  }
 
   return tests;
+};
+
+/**
+ * Creates a CLI progress display for parallel test execution
+ * @returns {{
+ *   prepareDisplay: () => void,
+ *   updateWorker: (workerId: number, status: string) => void,
+ *   closeDisplay: () => void
+ * }}
+ */
+const createProgressDisplay = numWorkers => {
+  const workerLines = new Map();
+  const [infoHeaderPrefix, infoStyleFn] = LOG_CONFIG['info'];
+  const infoHeader = infoStyleFn(infoHeaderPrefix);
+
+  let startLine = 0;
+
+  const prepareDisplay = () => {
+    // Save current cursor position
+    process.stdout.write('\x1b7');
+
+    // Add numWorkers empty lines
+    for (let i = 0; i < numWorkers; i++) {
+      process.stdout.write('\n');
+    }
+
+    // Save the starting line number for our display
+    startLine = process.stdout.rows - numWorkers;
+
+    process.stdout.write('\x1b8'); // Restore cursor to previous position
+    process.stdout.write('\x1b[?25l'); // Hide cursor
+  };
+
+  const updateWorker = (workerId, status) => {
+    if (!workerLines.has(workerId)) {
+      workerLines.set(workerId, startLine + workerLines.size);
+    }
+
+    const line = workerLines.get(workerId);
+
+    // Save cursor position
+    process.stdout.write('\x1b7');
+
+    // Move cursor to worker's line and clear it
+    process.stdout.write(`\x1b[${line};1H\x1b[2K`);
+    process.stdout.write(infoHeader);
+    process.stdout.write(` Runner ${workerId.toString().padEnd(2, ' ')} - ${status}`);
+
+    // Restore cursor position
+    process.stdout.write('\x1b8');
+  };
+
+  const closeDisplay = () => {
+    process.stdout.write('\x1b[?25h'); // Show cursor
+  };
+
+  process.on('exit', () => {
+    process.stdout.write('\x1b[?25h'); // Show cursor
+  });
+
+  return { prepareDisplay, updateWorker, closeDisplay };
 };
 
 /**
@@ -40,11 +132,11 @@ const findTests = async () => {
  * @param {Object[]} metadata - The expectations to compare the output to.
  * @param {string} expectationType - The type of the expectations (Expect or ExpectError). Just used as a sanity check for the metadata. (All metadata should be of the same type)
  * @returns {{
- *   failedAssertions: { actual: string, expected: string, line: number }[],
- *   unhandledAssertions: { type: string, value: string, line: number }[],
+ *   failedAssertions: Array<{actual: string, expected: string, line: number}>,
+ *   unhandledAssertions: Array<{type: string, value: string, line: number}>,
  *   unhandledOutput: string[],
- *   updatedMetadata: { type: string, value: string, line: number }[],
- *   assertions: number,
+ *   updatedMetadata: Array<{type: string, value: string, line: number}>,
+ *   assertions: number
  * }} - The comparison results.
  */
 const makeComparison = (rawTestOutput, metadata, expectationType) => {
@@ -65,9 +157,7 @@ const makeComparison = (rawTestOutput, metadata, expectationType) => {
     const { type, value: expected, line } = metadata[i];
 
     if (type !== expectationType) {
-      abort(
-        `Sanity check failed. Invalid expectation type ${type} for comparison. Expected ${expectationType}`,
-      );
+      abort(`Sanity check failed. Invalid expectation type ${type} for comparison. Expected ${expectationType}`);
     }
 
     const actual = lines[i];
@@ -97,6 +187,35 @@ const makeComparison = (rawTestOutput, metadata, expectationType) => {
 };
 
 /**
+ * Formats and prints the test results summary
+ * @param {TestResult[]} results
+ */
+const printSummary = results => {
+  const totalTests = results.length;
+  const passedTests = results.filter(r => r.passed).length;
+  const skippedTests = results.filter(r => r.skipped).length;
+  const totalAssertions = results.reduce((sum, r) => sum + r.assertions, 0);
+
+  ok('Done running tests. ');
+  const summaryMessage = `Summary: ${passedTests}/${totalTests} passed, ${skippedTests} skipped, ${totalAssertions} assertions`;
+
+  if (passedTests === totalTests - skippedTests) {
+    info(chalk.green(summaryMessage));
+    return;
+  }
+
+  info(chalk.red(summaryMessage));
+  info(chalk.red('Failed tests:'));
+
+  results
+    .filter(r => !r.passed && !r.skipped)
+    .forEach(({ testFilepath, errorMessages }) => {
+      console.log(chalk.bgWhite.black(` ${testFilepath} `));
+      console.log(errorMessages.join('\n') + '\n');
+    });
+};
+
+/**
  * Helper function to evaluate a comparison.
  * @param {{
  *   failedAssertions: { actual: string, expected: string, line: number }[],
@@ -106,7 +225,7 @@ const makeComparison = (rawTestOutput, metadata, expectationType) => {
  *   assertions: number,
  * }} comparison - The comparison results.
  * @param {string} expectationType - The type of the expectations (Expect or ExpectError).
- * @param {string} expectedStream - The expected stream type. (stdout or stderr)
+ * @param {'stdout'|'stderr'} expectedStream - The expected stream type. (stdout or stderr)
  * @returns {string[]} - An array of error messages.
  */
 const createErrorMessages = (comparison, expectationType, expectedStream) => {
@@ -123,9 +242,7 @@ const createErrorMessages = (comparison, expectationType, expectedStream) => {
   }
 
   if (comparison.unhandledAssertions.length > 0) {
-    errorMessages.push(
-      chalk.bold(`▬ Test specifies more [${expectationType}]-expectations than output:`),
-    );
+    errorMessages.push(chalk.bold(`▬ Test specifies more [${expectationType}]-expectations than output:`));
     for (const { value: expected, line } of comparison.unhandledAssertions) {
       errorMessages.push(
         `${chalk.red(` × Unsatisfied assertion. ${expectationType}: `)} ${expected} ${chalk.blue(
@@ -136,9 +253,7 @@ const createErrorMessages = (comparison, expectationType, expectedStream) => {
   }
 
   if (comparison.unhandledOutput.length > 0) {
-    errorMessages.push(
-      chalk.bold(`▬ Execution generated more ${expectedStream}-output than expected:`),
-    );
+    errorMessages.push(chalk.bold(`▬ Execution generated more ${expectedStream}-output than expected:`));
     for (const actual of comparison.unhandledOutput) {
       errorMessages.push(`${chalk.red(` × Unhandled output. (in ${expectedStream}): `)} ${actual}`);
     }
@@ -148,121 +263,188 @@ const createErrorMessages = (comparison, expectationType, expectedStream) => {
 };
 
 /**
- * Runs all test
- * @param {string} config - Build configuration to use
- * @param {AbortSignal} signal - Abort signal to use
- * @param {boolean} updateFiles - Whether to update test files with new expectations
- * @param {string} testNamePattern - A pattern to filter tests by name. Supports regex
+ * Runs a single test and returns the result
+ * @param {string} testFilepath - Test filepath
+ * @param {string} buildConfig - Build configuration
+ * @param {boolean} doUpdateFile - Whether to update test file with new expectations from current run - if possible
+ * @param {AbortSignal} signal - Abort signal
+ * @returns {Promise<TestResult>}
  */
-export const runTests = async (config, signal, updateFiles = false, testNamePattern = '.*') => {
-  const tests = (await findTests()).filter(test => new RegExp(testNamePattern).test(test));
-  const getTestName = filePath => path.parse(filePath).name;
-  const failedTests = [];
-  let totalAssertions = 0;
+export const runSingleTest = async (testFilepath, buildConfig, doUpdateFile, signal) => {
+  const commentMetadata = await extractCommentMetadata(testFilepath);
+  const skipMetadata = commentMetadata.find(m => m.type === SKIP);
 
-  info(`Running ${tests.length} slang tests`);
+  if (skipMetadata) {
+    return {
+      testFilepath,
+      passed: false,
+      skipped: true,
+      skipReason: skipMetadata.value,
+      errorMessages: [],
+      assertions: 0,
+    };
+  }
 
-  for (const test of tests) {
-    // Extract metadata from the test file and split into different types
-    const commentMetadata = await extractCommentMetadata(test);
-    const expectationsMetadata = commentMetadata.filter(m => m.type === EXPECT);
-    const errorExpectationsMetadata = commentMetadata.filter(m => m.type === EXPECT_ERROR);
-    const skipMetadata = commentMetadata.find(m => m.type === SKIP);
-    const exitMetadata = commentMetadata.find(m => m.type === EXIT);
+  // Setup
+  const expectationsMetadata = commentMetadata.filter(m => m.type === EXPECT);
+  const errorExpectationsMetadata = commentMetadata.filter(m => m.type === EXPECT_ERROR);
+  const exitMetadata = commentMetadata.find(m => m.type === EXIT);
 
-    // Exit early if the test is marked as skipped
-    if (skipMetadata) {
-      skip(getTestName(test) + chalk.gray(` Filepath: ${test}, Reason: ${skipMetadata.value}`));
-      continue;
+  // Execute the test
+  const { stdoutOutput, stderrOutput, exitCode } = await runSlangFile(testFilepath, buildConfig, signal);
+  const errorMessages = [];
+
+  // Check exit code
+  const expectedExitCode = parseInt(exitMetadata?.value ?? '0', 10);
+  if (exitCode !== 0 && exitCode !== expectedExitCode) {
+    errorMessages.push(chalk.bold(`▬ Test exited with unexpected non-zero exit code ${chalk.bgRed(exitCode)}.`));
+  } else if (exitCode === 0 && expectedExitCode !== 0) {
+    errorMessages.push(chalk.bold('▬ Test successfully exited, but was expected to fail.'));
+  }
+
+  // Compare outputs
+  const comparison = makeComparison(stdoutOutput, expectationsMetadata, EXPECT);
+  const errorComparison = makeComparison(stderrOutput, errorExpectationsMetadata, EXPECT_ERROR);
+
+  // Update stats and add error messages
+  const totalAssertions = comparison.assertions + errorComparison.assertions;
+  errorMessages.push(...createErrorMessages(comparison, EXPECT, 'stdout'));
+  errorMessages.push(...createErrorMessages(errorComparison, EXPECT_ERROR, 'stderr'));
+
+  // If specified, update the test file with new expectations if possible
+  if (doUpdateFile && errorMessages.length !== 0) {
+    // We can only update if the comparison has no unsatisfied expectations
+    if (comparison.unhandledAssertions.length === 0) {
+      await updateCommentMetadata(testFilepath, comparison.updatedMetadata, EXPECT, comparison.unhandledOutput);
     }
-
-    // Run the test
-    const [header, headerStyle] = LOG_CONFIG['info'];
-    process.stdout.write(headerStyle(header));
-    process.stdout.write(`  Running ${chalk.bold(getTestName(test))}`);
-    const { stdoutOutput, stderrOutput, exitCode } = await runSlangFile(test, config, signal);
-    process.stdout.write('\r' + ' '.repeat(header.length + 2) + '\r'); // Clear the line
-
-    // If the signal triggered and caused the test to exit early, we throw to stop the rest of the tests
-    if (signal?.aborted) {
-      throw signal.reason;
-    }
-
-    // Collect all error messages, so we can provide a summary at the end
-    const errorMessages = [];
-
-    // Before we start comparing, check if the exit code is as expected
-    const expectedExitCode = parseInt(exitMetadata?.value ?? '0', 10);
-    if (exitCode !== 0 && exitCode !== expectedExitCode) {
-      errorMessages.push(
-        chalk.bold(`▬ Test exited with unexpected non-zero exit code ${chalk.bgRed(exitCode)}.`),
+    if (errorComparison.unhandledAssertions.length === 0) {
+      await updateCommentMetadata(
+        testFilepath,
+        errorComparison.updatedMetadata,
+        EXPECT_ERROR,
+        errorComparison.unhandledOutput,
       );
-    } else if (exitCode === 0 && expectedExitCode !== 0) {
-      errorMessages.push(chalk.bold('▬ Test successfully exited, but was expected to fail.'));
-    }
-
-    // Compare stdout and stderr to expectations
-    const comparison = makeComparison(stdoutOutput, expectationsMetadata, EXPECT);
-    const errorComparison = makeComparison(stderrOutput, errorExpectationsMetadata, EXPECT_ERROR);
-
-    totalAssertions += comparison.assertions + errorComparison.assertions;
-
-    // Create error messages for stdout and stderr
-    errorMessages.push(...createErrorMessages(comparison, EXPECT, 'stdout'));
-    errorMessages.push(...createErrorMessages(errorComparison, EXPECT_ERROR, 'stderr'));
-
-    if (updateFiles && errorMessages.length !== 0) {
-      // We can only update if the comparison has no unsatisfied expectations
-      if (comparison.unhandledAssertions.length === 0) {
-        await updateCommentMetadata(
-          test,
-          comparison.updatedMetadata,
-          EXPECT,
-          comparison.unhandledOutput,
-        );
-      }
-      if (errorComparison.unhandledAssertions.length === 0) {
-        await updateCommentMetadata(
-          test,
-          errorComparison.updatedMetadata,
-          EXPECT_ERROR,
-          errorComparison.unhandledOutput,
-        );
-      }
-    }
-
-    // Print test results
-    if (errorMessages.length > 0) {
-      fail(getTestName(test) + chalk.gray(` Filepath: ${test}`) + `\n${errorMessages.join('\n')}`);
-      failedTests.push({ test, errorMessages });
-    } else {
-      pass(getTestName(test) + chalk.gray(` Filepath: ${test}`));
     }
   }
 
-  let passedAmount = tests.length - failedTests.length;
-  const allPassed = passedAmount === tests.length;
-  const finishMessage =
-    'Summary. ' + `${passedAmount}/${tests.length} passed, made ${totalAssertions} assertions.`;
+  return {
+    testFilepath,
+    passed: errorMessages.length === 0,
+    skipped: false,
+    errorMessages,
+    assertions: totalAssertions,
+  };
+};
 
-  if (allPassed) {
-    pass(chalk.green(finishMessage));
-  } else {
-    // Don't bother with the summary if there are not many tests
-    if (tests.length <= 20) {
-      fail(chalk.red(finishMessage));
-      return;
+/**
+ * Runs all test either sequentially or in parallel
+ * @param {string} buildConfig - Build configuration to use
+ * @param {AbortSignal} signal - Abort signal to use
+ * @param {boolean} doUpdateFiles - Whether to update test files with new expectations from current run - if possible
+ * @param {string} testFilepaths - An array of absolute file paths to test files to run
+ * @param {boolean} parallel - Whether to run tests in parallel
+ */
+export const runTests = async (buildConfig, signal, doUpdateFiles = false, testFilepaths, parallel = true) => {
+  if (!parallel) {
+    const results = [];
+    for (const testFilepath of testFilepaths) {
+      const [header, headerStyle] = LOG_CONFIG['info'];
+      process.stdout.write(headerStyle(header));
+      process.stdout.write(`  Running ${chalk.bold(path.basename(testFilepath))}`);
+      const result = await runSingleTest(testFilepath, buildConfig, doUpdateFiles, signal);
+      process.stdout.write('\r' + ' '.repeat(header.length + 2) + '\r'); // Clear the line
+
+      results.push(result);
+
+      if (result.skipped) {
+        skip(path.basename(testFilepath) + chalk.gray(` Filepath: ${testFilepath}, Reason: ${result.skipReason}`));
+      } else if (result.passed) {
+        pass(path.basename(testFilepath) + chalk.gray(` Filepath: ${testFilepath}`));
+      } else {
+        fail(
+          path.basename(testFilepath) +
+            chalk.gray(` Filepath: ${testFilepath}`) +
+            `\n${result.errorMessages.join('\n')}`,
+        );
+      }
+    }
+    printSummary(results);
+    return;
+  }
+
+  // Parallel execution
+  const cpus = os.cpus().length;
+  const numWorkers = cpus < testFilepaths.length ? cpus : testFilepaths.length;
+  const display = createProgressDisplay(numWorkers);
+  let currentTestIndex = 0;
+
+  info(`Initializing ${numWorkers} test runners for parallel test execution...`);
+
+  /** @type {TestResult[]} */
+  const results = [];
+  let displayPrepared = false;
+
+  display.prepareDisplay();
+
+  const [failHeaderPrefix, failStyleFn] = LOG_CONFIG['fail'];
+  const [skipHeaderPrefix, skipStyleFn] = LOG_CONFIG['skip'];
+  const [passHeaderPrefix, passStyleFn] = LOG_CONFIG['pass'];
+  const failHeader = failStyleFn(failHeaderPrefix);
+  const skipHeader = skipStyleFn(skipHeaderPrefix);
+  const passHeader = passStyleFn(passHeaderPrefix);
+
+  const workerPool = Array.from({ length: numWorkers }, (_, i) => {
+    const worker = new Worker(path.join(SLANG_RUNNER_SRC_DIR, 'test-worker.js'));
+
+    worker.on('online', () => {
+      if (!displayPrepared) {
+        displayPrepared = true;
+      }
+      display.updateWorker(i, 'Initializing...');
+    });
+
+    worker.on('message', ({ type, data }) => {
+      if (type === WORKER_MESSAGE_TYPE_RESULT) {
+        results.push(data);
+        const testName = path.basename(data.testFilepath);
+        if (data.skipped) {
+          display.updateWorker(i, `${skipHeader} ${testName} (${data.skipReason})`);
+        } else if (data.passed) {
+          display.updateWorker(i, `${passHeader} ${testName}`);
+        } else {
+          display.updateWorker(i, `${failHeader} ${testName}`);
+        }
+
+        // Assign next test if available
+        if (currentTestIndex < testFilepaths.length) {
+          worker.postMessage({
+            type: WORK_TYPE_RUN_TEST,
+            test: testFilepaths[currentTestIndex++],
+            config: buildConfig,
+          });
+        } else {
+          worker.terminate();
+          display.updateWorker(i, chalk.italic('done'));
+        }
+      }
+    });
+
+    // Assign initial test if available
+    if (currentTestIndex < testFilepaths.length) {
+      worker.postMessage({
+        type: WORK_TYPE_RUN_TEST,
+        test: testFilepaths[currentTestIndex++],
+        config: buildConfig,
+      });
     }
 
-    fail(
-      chalk.red(finishMessage) +
-        ' Failed tests:\n\n' +
-        failedTests
-          .map(
-            ({ test, errorMessages }) =>
-              `${chalk.bgWhite.black(' ' + test + ' ')}\n${errorMessages.join('\n')}\n`,
-          )
-          .join('\n'),
-    );
-  }
+    return worker;
+  });
+
+  // Wait for all workers to complete
+  await Promise.all(workerPool.map(worker => new Promise(resolve => worker.on('exit', resolve))));
+
+  display.closeDisplay();
+
+  printSummary(results);
 };

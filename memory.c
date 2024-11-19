@@ -357,6 +357,7 @@ static void sweep() {
   }
 
   if (!gc_parallel_sweep()) {
+    DEBUG_WARNING("Parallel sweep failed, falling back to sequential sweep");
     sweep_sequential();
   }
 }

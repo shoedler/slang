@@ -8,6 +8,7 @@ export const SLANG_BIN_DIR = SLANG_PROJ_DIR + '\\bin\\x64';
 export const SLANG_BENCH_DIR = SLANG_PROJ_DIR + '\\bench';
 export const SLANG_TEST_DIR = SLANG_PROJ_DIR + '\\test';
 export const SLANG_SAMPLE_FILE = SLANG_PROJ_DIR + '\\sample.sl';
+export const SLANG_RUNNER_SRC_DIR = SLANG_PROJ_DIR + '\\runner\\src';
 
 export const SLANG_SUFFIX = '.sl';
 export const SLANG_TEST_SUFFIX = '.spec' + SLANG_SUFFIX;

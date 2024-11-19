@@ -6,16 +6,8 @@ import {
   SLANG_SAMPLE_FILE,
   SLANG_TEST_SUFFIX,
 } from './config.js';
-import { runTests } from './test.js';
-import {
-  abort,
-  buildSlangConfig,
-  info,
-  runSlangFile,
-  separator,
-  testFeatureFlag,
-  warn,
-} from './utils.js';
+import { findTests, runTests } from './test.js';
+import { abort, buildSlangConfig, info, runSlangFile, separator, testFeatureFlag, warn } from './utils.js';
 import { watch } from './watch.js';
 
 // Process arguments. This is a simple command line interface for running benchmarks and tests
@@ -69,9 +61,12 @@ const hint = [
   '  - sample          Run sample file (sample.sl)',
   '  - test            Run tests (.spec.sl files)',
   '    - update-files  Update test files with new expectations',
+  '    - no-parallel   Run tests sequentially (default is parallel)',
+  '    - no-build      Skip building the project (default is to build)',
   '    - <pattern>     Run tests that match the regex pattern',
   '  - watch-sample    Watch sample file (sample.sl)',
   '  - watch-test      Watch test files',
+  '    - no-parallel   Run tests sequentially (default is parallel)',
   '    - <pattern>     Watch tests that match the regex pattern',
   '',
   'Note: If not specified, the default configuration is release',
@@ -86,9 +81,7 @@ switch (cmd) {
 
     const gcStressEnabled = await testFeatureFlag('DEBUG_STRESS_GC'); // Disable stress GC for benchmarks
     if (gcStressEnabled) {
-      abort(
-        'GC stress mode is enabled. Must be disabled for benchmarks to ensure consistent results.',
-      );
+      abort('GC stress mode is enabled. Must be disabled for benchmarks to ensure consistent results.');
     }
 
     if (doOnlyServe && doNoServe) {
@@ -113,12 +106,19 @@ switch (cmd) {
   case 'test': {
     const config = BUILD_CONFIG_RELEASE;
     const doUpdateFiles = Boolean(consumeOption('update-files', false));
+    const doNoParallel = Boolean(consumeOption('no-parallel', false));
+    const doNoBuild = Boolean(consumeOption('no-build', false));
     const testNamePattern = options.pop() || '.*';
     validateOptions();
 
     await checkFeatureFlagsForTests();
-    await buildSlangConfig(config);
-    await runTests(config, undefined, doUpdateFiles, testNamePattern);
+    const testFilepaths = await findTests(testNamePattern);
+    if (!doNoBuild) {
+      await buildSlangConfig(config);
+    } else {
+      warn('Skipping build');
+    }
+    await runTests(config, undefined, doUpdateFiles, testFilepaths, !doNoParallel);
     break;
   }
   case 'sample': {
@@ -146,8 +146,7 @@ switch (cmd) {
     watch(
       SLANG_PROJ_DIR,
       { recursive: true },
-      filename =>
-        filename.endsWith('.c') || filename.endsWith('.h') || sampleFilePath.endsWith(filename),
+      filename => filename.endsWith('.c') || filename.endsWith('.h') || sampleFilePath.endsWith(filename),
       async (signal, triggerFile, isFirstRun) => {
         // Only build if the trigger file is not the sample file, or if it is the first run
         if (isFirstRun || !sampleFilePath.endsWith(triggerFile)) {
@@ -158,12 +157,7 @@ switch (cmd) {
         }
 
         info('Running slang file', sampleFilePath);
-        const { stdoutOutput, stderrOutput } = await runSlangFile(
-          sampleFilePath,
-          config,
-          signal,
-          true,
-        );
+        const { stdoutOutput, stderrOutput } = await runSlangFile(sampleFilePath, config, signal, true);
         console.clear();
 
         separator();
@@ -178,6 +172,7 @@ switch (cmd) {
   }
   case 'watch-test': {
     const config = BUILD_CONFIG_RELEASE;
+    const doNoParallel = Boolean(consumeOption('no-parallel', false));
     const testNamePattern = options.pop() || '.*';
     validateOptions();
 
@@ -198,7 +193,8 @@ switch (cmd) {
           }
         }
 
-        await runTests(config, signal, false, testNamePattern);
+        const testFilepaths = await findTests(testNamePattern);
+        await runTests(config, signal, false, testFilepaths, !doNoParallel);
       },
     );
     break;

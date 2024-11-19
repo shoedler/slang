@@ -16,13 +16,7 @@ import { SLANG_BIN_DIR, SLANG_PROJ_DIR } from './config.js';
  * @param {boolean} ignoreStderr - Whether to ignore stderr and not abort on error
  * @returns {Promise<string | undefined>} - Promise that resolves to stdout or undefined if abortOnError is false and the process fails
  */
-export const runProcess = (
-  cmd,
-  errorMessage,
-  signal = null,
-  abortOnError = true,
-  ignoreStderr = false,
-) => {
+export const runProcess = (cmd, errorMessage, signal = null, abortOnError = true, ignoreStderr = false) => {
   const options = signal ? { signal } : {};
   const child = spawn(cmd, { shell: true, ...options });
 
@@ -81,10 +75,7 @@ export const runSlangFile = async (file, config, signal = null, colorStderr = fa
     let stderrOutput = '';
 
     child.stdout.on('data', data => (stdoutOutput += data.toString()));
-    child.stderr.on(
-      'data',
-      data => (stderrOutput += colorStderr ? chalk.red(data.toString()) : data.toString()),
-    );
+    child.stderr.on('data', data => (stderrOutput += colorStderr ? chalk.red(data.toString()) : data.toString()));
     child.on('error', err => {
       if (err.name === 'AbortError') {
         info('Aborting process...', cmd);
@@ -162,6 +153,7 @@ export const testFeatureFlag = async flagName => {
  * Finds files in a directory with a given suffix recursively
  * @param {string} dir - Directory to search
  * @param {string} suffix - File suffix to match
+ * @returns {Promise<string[]>} - Promise that resolves to an array of absolute paths to files or an empty array if no files are found
  */
 export const findFiles = async (dir, suffix) => {
   const files = [];
@@ -250,9 +242,7 @@ export const updateCommentMetadata = async (file, metadata, expectationType, add
 
   metadata.forEach(({ type, line, value }) => {
     if (type !== expectationType) {
-      abort(
-        `Sanity check failed. Invalid metadata type ${type} for updating. Expected ${expectationType}`,
-      );
+      abort(`Sanity check failed. Invalid metadata type ${type} for updating. Expected ${expectationType}`);
     }
 
     const match = lines[line - 1].match(/(.*)\/\/\s*\[(.+?)\] (.*)/);
@@ -261,9 +251,7 @@ export const updateCommentMetadata = async (file, metadata, expectationType, add
       lines[line - 1] = `${prefix}// [${type}] ${value}`;
     } else
       throw new Error(
-        `Failed to update metadata in ${file}. Line ${line} does not contain metadata: ${
-          lines[line - 1]
-        }`,
+        `Failed to update metadata in ${file}. Line ${line} does not contain metadata: ${lines[line - 1]}`,
       );
   });
 
@@ -279,9 +267,7 @@ export const updateCommentMetadata = async (file, metadata, expectationType, add
 export const gitStatus = async () => {
   const formats = ['%ci', '%H', '%s'];
   const cmd = `git log -1 --pretty=format:`;
-  const [date, hash, message] = await Promise.all(
-    formats.map(f => runProcess(cmd + f, `Getting git log faied`)),
-  );
+  const [date, hash, message] = await Promise.all(formats.map(f => runProcess(cmd + f, `Getting git log faied`)));
   return { date, hash, message };
 };
 
@@ -308,6 +294,18 @@ export const separator = () => console.log(chalk.gray('─'.repeat(80)));
  * [1] - chalk style for the header
  * [2] - Prefix for multiline header, e.g. '│      '
  * [3] - chalk style for multiline header
+ * @typedef {[string, import('chalk').ChalkInstance, string, import('chalk').ChalkInstance]} LogConfig
+ * @type {{
+ *   err: LogConfig,
+ *   abort: LogConfig,
+ *   info: LogConfig,
+ *   ok: LogConfig,
+ *   warn: LogConfig,
+ *   debug: LogConfig,
+ *   pass: LogConfig,
+ *   skip: LogConfig,
+ *   fail: LogConfig
+ * }}
  */
 // prettier-ignore
 export const LOG_CONFIG = {
@@ -324,7 +322,7 @@ export const LOG_CONFIG = {
 
 /**
  * Log a styled message to the console.
- * @param {'err' | 'warn' | 'debug' | 'info' | 'ok' | 'abort' | 'pass' | 'fail'} type - Type of message
+ * @param {keyof LOG_CONFIG} type - Type of message
  * @param {string} message - Message
  */
 const prettyPrint = (type, message) => {
