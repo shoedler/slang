@@ -10,8 +10,10 @@
 
 #define MAX_LOCALS (1024 * 3)    // Arbitrary, could to UINT32_MAX theoretically, but gl with an array of that size on the stack.
 #define MAX_UPVALUES (1024 * 3)  // Arbitrary, could to UINT32_MAX theoretically, but gl with an array of that size on the stack.
-#define MAX_CONSTANTS 65535      // UINT16_MAX
-#define MAX_JUMP 65535           // UINT16_MAX
+#define MAX_CONST_GLOBALS \
+  (1024 * 3)                 // Arbitrary, could to UINT32_MAX theoretically, but gl with an array of that size on the stack.
+#define MAX_CONSTANTS 65535  // UINT16_MAX
+#define MAX_JUMP 65535       // UINT16_MAX
 #define MAX_SEQ_LITERAL_ITEMS 65535     // UINT16_MAX
 #define MAX_TUPLE_LITERAL_ITEMS 65535   // UINT16_MAX
 #define MAX_OBJECT_LITERAL_ITEMS 65535  // UINT16_MAX

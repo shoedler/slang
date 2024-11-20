@@ -18,7 +18,7 @@
 // #define DEBUG_TRACE_EXECUTION  // Print the execution of the Vm, including stack traces.
 
 // Garbage Collection
-#define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
+// #define DEBUG_STRESS_GC  // Force-run the Gc after every allocation
 // #define DEBUG_GC_PHASE_TIMES   // Log the time it takes for each phase of the Gc
 // #define DEBUG_GC_WORKER_STATS  // Log the statistics of the Gc worker
 // #define DEBUG_GC_HEAP_STATS    // Log the heap statistics
@@ -94,13 +94,26 @@ typedef enum {
   } while (0)
 
 #ifdef _DEBUG
-#define DEBUG_WARNING(format_literal, ...)                         \
+#define INTERNAL_WARN(format_literal, ...)                         \
   do {                                                             \
     ___PRINT_INTERNAL_MSG_HEADER("DEBUG WARN", ANSI_COLOR_YELLOW); \
     fprintf(stderr, format_literal "\n", ##__VA_ARGS__);           \
   } while (0)
 #else
-#define DEBUG_WARNING(format_literal, ...)
+#define INTERNAL_WARN(format_literal, ...)
+#endif
+
+#ifdef _DEBUG
+#define INTERNAL_ASSERT(condition, format_literal, ...)                 \
+  do {                                                                  \
+    if (!(condition)) {                                                 \
+      ___PRINT_INTERNAL_MSG_HEADER("ASSERTION FAILED", ANSI_COLOR_RED); \
+      fprintf(stderr, format_literal "\n", ##__VA_ARGS__);              \
+      exit(SLANG_EXIT_SW_ERROR);                                        \
+    }                                                                   \
+  } while (0)
+#else
+#define INTERNAL_ASSERT(condition, format_literal, ...)
 #endif
 
 // Internal stringification Macro - don't use directly, use STR

@@ -80,6 +80,7 @@ typedef enum {
   TOKEN_FN,      // 'fn'
   TOKEN_RETURN,  // 'ret'
   TOKEN_LET,     // 'let'
+  TOKEN_CONST,   // 'const'
   TOKEN_CTOR,    // 'ctor'
   TOKEN_BASE,    // 'base'
   TOKEN_TRY,     // 'try'

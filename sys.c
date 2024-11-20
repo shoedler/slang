@@ -1,6 +1,6 @@
 #include "sys.h"
-#include <profileapi.h>
 #include <processthreadsapi.h>
+#include <profileapi.h>
 #include <stdio.h>
 #include <sysinfoapi.h>
 #include <windows.h>
@@ -19,10 +19,10 @@ double get_time() {
 
 static void configure_thread(HANDLE thread, int priority, size_t core) {
   if (!SetThreadAffinityMask(thread, (1ULL) << core)) {
-    DEBUG_WARNING("Failed to set thread affinity for thread %p to core %zu. Error: %ld", thread, core, GetLastError());
+    INTERNAL_WARN("Failed to set thread affinity for thread %p to core %zu. Error: %ld", thread, core, GetLastError());
   }
   if (!SetThreadPriority(thread, priority)) {
-    DEBUG_WARNING("Failed to set thread priority for thread %p to %d. Error: %ld", thread, priority, GetLastError());
+    INTERNAL_WARN("Failed to set thread priority for thread %p to %d. Error: %ld", thread, priority, GetLastError());
   }
 }
 

@@ -56,6 +56,7 @@ typedef struct {
   Token name;
   int depth;
   bool is_captured;  // True if the variable is captured by an upvalue.
+  bool is_const;     // True if the variable is a constant.
 } Local;
 
 typedef struct {
@@ -93,6 +94,19 @@ Parser parser;
 Compiler* current            = NULL;
 ClassCompiler* current_class = NULL;
 Chunk* compiling_chunk;
+
+#define CONSTNESS_FN_DECLARATION false
+#define CONSTNESS_FN_PARAMS false
+#define CONSTNESS_CLS_DECLARATION false
+#define CONSTNESS_IMPORT_VARS true
+#define CONSTNESS_IMPORT_BINDINGS true
+#define CONSTNESS_KW_ERROR false
+#define CONSTNESS_KW_BASE true
+
+// Keep track of globals that were declared as constants. This is completely uncoupled from the VMs globals,
+// as this is only required during compilation (of a module).
+ObjString* const_globals[MAX_CONST_GLOBALS];
+int const_globals_count;
 
 // Retrieves the current chunk from the current compiler.
 static Chunk* current_chunk() {
@@ -396,12 +410,12 @@ static void try_(bool can_assign);
 
 static ParseRule* get_rule(TokenKind type);
 static void parse_precedence(Precedence precedence);
-static uint16_t string_constant(Token* name);
-static int resolve_local(Compiler* compiler, Token* name);
-static int resolve_upvalue(Compiler* compiler, Token* name);
+static uint16_t identifier_constant(Token* name);
+static int resolve_local(Compiler* compiler, Token* name, bool* is_const);
+static int resolve_upvalue(Compiler* compiler, Token* name, bool* is_const);
 static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local);
-static uint16_t parse_variable(const char* error_message);
-static void define_variable(uint16_t global);
+static uint16_t parse_variable(const char* error_message, bool is_const);
+static void define_variable(uint16_t global, bool is_const);
 
 // Checks if the current token is a compound assigment token.
 static bool match_compound_assignment() {
@@ -463,7 +477,7 @@ static void dot(bool can_assign) {
   }
 
   Token error_start = parser.previous;
-  uint16_t name     = string_constant(&parser.previous);
+  uint16_t name     = identifier_constant(&parser.previous);
 
   if (can_assign && match(TOKEN_ASSIGN)) {
     expression();
@@ -830,37 +844,59 @@ static void binary(bool can_assign) {
   }
 }
 
-// Compiles a variable. Generates bytecode to load a variable with the given
-// name onto the stack.
-// 'name' can be a synthetic token, but 'error_start' must be the actual token from the source code.
+// Compiles a variable. Generates bytecode to load a variable with the given name onto the stack.
+// [name] can be a synthetic token, but [error_start] must be the actual token from the source code.
 static void named_variable(Token name, bool can_assign, Token error_start) {
   uint16_t get_op;
   uint16_t set_op;
-  int arg = resolve_local(current, &name);
+  bool is_var_const = false;
+  int arg           = resolve_local(current, &name, &is_var_const);
 
   if (arg != -1) {
     get_op = OP_GET_LOCAL;
     set_op = OP_SET_LOCAL;
-  } else if ((arg = resolve_upvalue(current, &name)) != -1) {
+  } else if ((arg = resolve_upvalue(current, &name, &is_var_const)) != -1) {
     get_op = OP_GET_UPVALUE;
     set_op = OP_SET_UPVALUE;
   } else {
-    arg    = string_constant(&name);
+    arg = identifier_constant(&name);
+    // Get the name we added back from the constant pool and check if it matches (pointer comparison) any of the const globals in
+    // this compilation.
+    ObjString* name = (ObjString*)current_chunk()->constants.values[arg].as.obj;
+    for (int i = 0; i < const_globals_count; i++) {
+      if (const_globals[i] == name) {
+        is_var_const = true;
+        break;
+      }
+    }
+
     get_op = OP_GET_GLOBAL;
     set_op = OP_SET_GLOBAL;
   }
 
   if (can_assign && match(TOKEN_ASSIGN)) {
-    expression();
-    emit_two(set_op, (uint16_t)arg, error_start);
+    if (is_var_const) {
+      error_at(&error_start, "Can't reassign a constant.");
+    } else {
+      expression();
+      emit_two(set_op, (uint16_t)arg, error_start);
+    }
   } else if (can_assign && match_inc_dec()) {
-    emit_two(get_op, (uint16_t)arg, error_start);
-    inc_dec();
-    emit_two(set_op, (uint16_t)arg, error_start);
+    if (is_var_const) {
+      error_at(&error_start, "Can't reassign a constant.");
+    } else {
+      emit_two(get_op, (uint16_t)arg, error_start);
+      inc_dec();
+      emit_two(set_op, (uint16_t)arg, error_start);
+    }
   } else if (can_assign && match_compound_assignment()) {
-    emit_two(get_op, (uint16_t)arg, error_start);
-    compound_assignment();
-    emit_two(set_op, (uint16_t)arg, error_start);
+    if (is_var_const) {
+      error_at(&error_start, "Can't reassign a constant.");
+    } else {
+      emit_two(get_op, (uint16_t)arg, error_start);
+      compound_assignment();
+      emit_two(set_op, (uint16_t)arg, error_start);
+    }
   } else {
     emit_two(get_op, (uint16_t)arg, error_start);
   }
@@ -909,7 +945,7 @@ static void base_(bool can_assign) {
     error_start = parser.previous;  // Use the method name as the error token instead.
   }
 
-  uint16_t name = string_constant(&method_name);
+  uint16_t name = identifier_constant(&method_name);
 
   named_variable(synthetic_token(KEYWORD_THIS), false, error_start);
   if (match(TOKEN_OPAR)) {
@@ -944,8 +980,9 @@ static void function(bool can_assign, FunctionType type) {
         if (current->function->arity > MAX_FN_ARGS) {
           error_at_current("Can't have more than " STR(MAX_FN_ARGS) " parameters.");
         }
-        uint16_t constant = parse_variable("Expecting parameter name.");
-        define_variable(constant);
+
+        uint16_t constant = parse_variable("Expecting parameter name.", CONSTNESS_FN_PARAMS);
+        define_variable(constant, CONSTNESS_FN_PARAMS);
       } while (match(TOKEN_COMMA));
     }
 
@@ -994,7 +1031,7 @@ static void method() {
   consume(TOKEN_ID, "Expecting method name.");
   Token error_start = parser.previous;
 
-  uint16_t constant = string_constant(&parser.previous);
+  uint16_t constant = identifier_constant(&parser.previous);
 
   function(false /* does not matter */, type);
   emit_two(OP_METHOD, constant, error_start);
@@ -1006,7 +1043,7 @@ static void constructor() {
   Token error_start = parser.previous;
 
   Token ctor        = synthetic_token(STR(SP_METHOD_CTOR));
-  uint16_t constant = string_constant(&ctor);
+  uint16_t constant = identifier_constant(&ctor);
 
   function(false /* does not matter */, TYPE_CONSTRUCTOR);
   emit_two(OP_METHOD, constant, error_start);
@@ -1146,6 +1183,7 @@ ParseRule rules[] = {
     [TOKEN_THIS]    = {this_, NULL, PREC_NONE},
     [TOKEN_TRUE]    = {literal, NULL, PREC_NONE},
     [TOKEN_LET]     = {NULL, NULL, PREC_NONE},
+    [TOKEN_CONST]   = {NULL, NULL, PREC_NONE},
     [TOKEN_WHILE]   = {NULL, NULL, PREC_NONE},
     [TOKEN_BREAK]   = {NULL, NULL, PREC_NONE},
     [TOKEN_SKIP]    = {NULL, NULL, PREC_NONE},
@@ -1178,7 +1216,7 @@ static void parse_precedence(Precedence precedence) {
   //   [4].map(fn (x) -> log(x))
   //  Which would've been impossible before. That would've been interpreted as let a = [1,2,3][4].map...
   if (parser.current.is_first_on_line) {
-    // Except if it's a dot, because chaining method calls is a common pattern and still allowed.
+    // Except if it's a dot, because chaining method calls on newlines is a common pattern and still allowed.
     if (parser.current.type != TOKEN_DOT) {
       return;
     }
@@ -1200,7 +1238,7 @@ static void parse_precedence(Precedence precedence) {
 }
 
 // Adds the token's lexeme to the constant pool and returns its index.
-static uint16_t string_constant(Token* name) {
+static uint16_t identifier_constant(Token* name) {
   return make_constant(str_value(copy_string(name->start, name->length)));
 }
 
@@ -1216,7 +1254,8 @@ static bool identifiers_equal(Token* id_a, Token* id_b) {
 // Resolves a local variable by looking it up in the current compilers
 // local variables. Returns the index of the local variable in the locals array,
 // or -1 if it is not found.
-static int resolve_local(Compiler* compiler, Token* name) {
+// [is_const] is set to true if the resolved local is a constant.
+static int resolve_local(Compiler* compiler, Token* name, bool* is_const) {
   // Walk backwards through the locals to shadow outer variables with the same
   // name.
   for (int i = compiler->local_count - 1; i >= 0; i--) {
@@ -1225,6 +1264,7 @@ static int resolve_local(Compiler* compiler, Token* name) {
       if (local->depth == -1) {
         error("Can't read local variable in its own initializer.");
       }
+      *is_const = local->is_const;
       return i;
     }
   }
@@ -1240,20 +1280,25 @@ static int resolve_local(Compiler* compiler, Token* name) {
 //
 // Returns the index of the upvalue in the current compiler's upvalues array, or
 // -1 if it is not found.
-static int resolve_upvalue(Compiler* compiler, Token* name) {
+// [is_const] is set to true if the resolved upvalue is a constant.
+static int resolve_upvalue(Compiler* compiler, Token* name, bool* is_const) {
   if (compiler->enclosing == NULL) {
     return -1;
   }
 
-  int local = resolve_local(compiler->enclosing, name);
+  bool is_local_const = false;
+  int local           = resolve_local(compiler->enclosing, name, &is_local_const);
   if (local != -1) {
     compiler->enclosing->locals[local].is_captured = true;
+    *is_const                                      = is_local_const;
     return add_upvalue(compiler, (uint16_t)local, true);
   }
 
   // Recurse on upper scopes (compilers) to maybe find the variable there
-  int upvalue = resolve_upvalue(compiler->enclosing, name);
+  bool is_upvalue_const = false;
+  int upvalue           = resolve_upvalue(compiler->enclosing, name, &is_upvalue_const);
   if (upvalue != -1) {
+    *is_const = is_upvalue_const;
     return add_upvalue(compiler, (uint16_t)upvalue, false);
   }
 
@@ -1261,17 +1306,33 @@ static int resolve_upvalue(Compiler* compiler, Token* name) {
 }
 
 // Adds a local variable to the current compiler's local variables array.
-static void add_local(Token name) {
+static void add_local(Token name, bool is_const) {
   if (current->local_count == MAX_LOCALS) {
     error("Can't have more than " STR(MAX_LOCALS) " local variables in one scope.");
     return;
   }
 
-  Local* local = &current->locals[current->local_count++];
-  local->name  = name;
-  local->depth = -1;  // Means it is not initialized, bc it's value (rvalue) is
-                      // not yet evaluated.
+  Local* local    = &current->locals[current->local_count++];
+  local->name     = name;
+  local->is_const = is_const;
+  local->depth    = -1;  // Means it is not initialized, bc it's value (rvalue) is
+                         // not yet evaluated.
   local->is_captured = false;
+}
+
+// Adds a global variable - which is just a constant in the constant pool of the outermost compiler. Returns the index of the
+// constant in the constant pool. This was mainly added to support constant globals and to easily track creation of globals
+static void add_const_global(uint16_t global) {
+  INTERNAL_ASSERT(current->scope_depth == 0, "Can't add a global in a local scope.");
+
+  if (const_globals_count == MAX_CONST_GLOBALS) {
+    error("Can't have more than " STR(MAX_CONST_GLOBALS) " global constants per compilation.");
+    return;
+  }
+
+  // Get the name of the global we added back from the constant pool
+  ObjString* global_name               = (ObjString*)current_chunk()->constants.values[global].as.obj;
+  const_globals[const_globals_count++] = global_name;  // ... and add its pointer to the const_globals array
 }
 
 // Adds an upvalue to the current compiler's upvalues array. Checks whether the upvalue is already in the array. If so, it returns
@@ -1300,7 +1361,7 @@ static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
 // Declares a local variable in the current scope from the provided token. If we're in the toplevel, nothing happens. This is
 // because global variables are late bound. This function is the only place where the compiler records the existence of a local
 // variable.
-static void declare_local(Token* name) {
+static void declare_local(Token* name, bool is_const) {
   if (current->scope_depth == 0) {
     return;
   }
@@ -1315,20 +1376,24 @@ static void declare_local(Token* name) {
       error("Already a variable with this name in this scope.");
     }
   }
-  add_local(*name);
+  add_local(*name, is_const);
 }
 
 // Consumes a variable name and returns its index in the constant pool. If it is a local variable, the function exits early with a
 // dummy index of 0, because there is no need to store it in the constant pool
-static uint16_t parse_variable(const char* error_message) {
+static uint16_t parse_variable(const char* error_message, bool is_const) {
   consume(TOKEN_ID, error_message);
 
-  declare_local(&parser.previous);
+  declare_local(&parser.previous, is_const);
   if (current->scope_depth > 0) {
     return 0;
   }
 
-  return string_constant(&parser.previous);
+  uint16_t global = identifier_constant(&parser.previous);
+  if (is_const) {
+    add_const_global(global);
+  }
+  return global;
 }
 
 // Marks a local variable as initialized by setting its depth to the current scope depth.
@@ -1344,10 +1409,14 @@ static void mark_initialized() {
 // Emits a define-global instruction (if we are not in a local scope) for the most recent local.
 // The variables' index in the constant pool represents the operand of the
 // instruction.
-static void define_variable(uint16_t global) {
+static void define_variable(uint16_t global, bool is_const) {
   if (current->scope_depth > 0) {
     mark_initialized();
     return;
+  }
+
+  if (is_const) {
+    add_const_global(global);
   }
 
   emit_two_here(OP_DEFINE_GLOBAL, global);
@@ -1406,9 +1475,9 @@ typedef enum {
   DESTRUCTURE_TUPLE,
 } DestructureType;
 
-// Compiles a destructuring assignment.
-// The opening token has already been consumed at this point.
-static void destructuring_assignment(DestructureType type, bool rhs_is_import) {
+// Compiles a destructuring statement.
+// The opening token has already been consumed at this point. Currently either let, const or import.
+static void destructuring(DestructureType type, bool rhs_is_import, bool is_const) {
   typedef struct {
     Token name;       // The variable name, used for object destructuring.
     uint16_t global;  // The global index of the variable - used if we're in global scope.
@@ -1447,10 +1516,14 @@ static void destructuring_assignment(DestructureType type, bool rhs_is_import) {
     // that doesn't matter yet (will be declared later with OP_DEFINE_GLOBAL) We don't want to mark the variables as
     // initialized yet, so we don't use define_variable(global) here. We just emit OP_NIL (if in local scope) to create a
     // placeholder value on the stack for the local.
+    uint16_t global;
+    if (has_rest) {
+      global = parse_variable("Expecting identifier after ellipsis in destructuring assignment.", is_const);
+    } else {
+      global = parse_variable("Expecting identifier in destructuring assignment.", is_const);
+    }
     variables[current_index].is_rest = has_rest;
-    variables[current_index].global  = has_rest
-                                           ? parse_variable("Expecting identifier after ellipsis in destructuring assignment.")
-                                           : parse_variable("Expecting identifier in destructuring assignment.");
+    variables[current_index].global  = global;
     variables[current_index].local   = (uint16_t)(current->local_count - 1);  // It's just the one on the top.
     variables[current_index].index   = current_index;
     variables[current_index].name    = parser.previous;  // Used for object destructuring.
@@ -1595,8 +1668,8 @@ static void statement_try(bool is_try_expression) {
 
   // Contextual variable: Inject the "error" variable into the local scope.
   Token error = synthetic_token(KEYWORD_ERROR);
-  add_local(error);
-  define_variable(0 /* ignore, we're not in global scope */);
+  add_local(error, CONSTNESS_KW_ERROR);
+  define_variable(0, CONSTNESS_KW_ERROR);  // We're never in global scope here, so we can pass 0 as the global index.
 
   Token error_start = parser.current;
 
@@ -1605,7 +1678,8 @@ static void statement_try(bool is_try_expression) {
     expression();  // Leaves the result on the stack.
 
     // Set the error variable to the expression result.
-    int arg = resolve_local(current, &error);
+    bool _is_const = false;  // Discard, we don't care if it's a constant.
+    int arg        = resolve_local(current, &error, &_is_const);
     emit_two(OP_SET_LOCAL, (uint16_t)arg, error_start);
   } else {
     statement();
@@ -1621,7 +1695,8 @@ static void statement_try(bool is_try_expression) {
     match(TOKEN_ELSE) ? expression() : emit_one_here(OP_NIL);
 
     // Set the error variable to the else expression result or the nil value.
-    int arg = resolve_local(current, &error);
+    bool _is_const = false;  // Discard, we don't care if it's a constant.
+    int arg        = resolve_local(current, &error, &_is_const);
     emit_two(OP_SET_LOCAL, (uint16_t)arg, error_start);
   } else {
     if (match(TOKEN_CATCH)) {
@@ -1804,8 +1879,8 @@ static void statement_import() {
     Token error_start = parser.previous;
     consume(TOKEN_ID, "Expecting module name.");
 
-    uint16_t name_constant = string_constant(&parser.previous);
-    declare_local(&parser.previous);
+    uint16_t name_constant = identifier_constant(&parser.previous);
+    declare_local(&parser.previous, CONSTNESS_IMPORT_VARS);  // Module names are always constants.
 
     if (match(TOKEN_FROM)) {
       consume(TOKEN_STRING, "Expecting file name.");
@@ -1818,9 +1893,9 @@ static void statement_import() {
       emit_two(OP_IMPORT, name_constant, error_start);
     }
 
-    define_variable(name_constant);
+    define_variable(name_constant, CONSTNESS_IMPORT_VARS);
   } else if (match(TOKEN_OBRACE)) {
-    destructuring_assignment(DESTRUCTURE_OBJ, true /* rhs_is_import */);
+    destructuring(DESTRUCTURE_OBJ, true /* rhs_is_import */, CONSTNESS_IMPORT_BINDINGS);  // Import bindings are always constants.
   } else {
     error_at(&parser.current, "Expecting module name or destructuring assignment after import.");
   }
@@ -1869,14 +1944,15 @@ static void statement() {
 // Compiles a let declaration.
 // The let keyword has already been consumed at this point.
 static void declaration_let() {
+  bool constness = false;
   if (match(TOKEN_OBRACK)) {
-    destructuring_assignment(DESTRUCTURE_SEQ, false /* rhs_is_import */);
+    destructuring(DESTRUCTURE_SEQ, false /* rhs_is_import */, constness);
   } else if (match(TOKEN_OBRACE)) {
-    destructuring_assignment(DESTRUCTURE_OBJ, false /* rhs_is_import */);
+    destructuring(DESTRUCTURE_OBJ, false /* rhs_is_import */, constness);
   } else if (match(TOKEN_OPAR)) {
-    destructuring_assignment(DESTRUCTURE_TUPLE, false /* rhs_is_import */);
+    destructuring(DESTRUCTURE_TUPLE, false /* rhs_is_import */, constness);
   } else {
-    uint16_t global = parse_variable("Expecting variable name.");
+    uint16_t global = parse_variable("Expecting variable name.", constness);
 
     if (match(TOKEN_ASSIGN)) {
       expression();
@@ -1884,7 +1960,28 @@ static void declaration_let() {
       emit_one_here(OP_NIL);
     }
 
-    define_variable(global);
+    define_variable(global, constness);
+  }
+}
+
+static void declaration_const() {
+  bool constness = true;
+  if (match(TOKEN_OBRACK)) {
+    destructuring(DESTRUCTURE_SEQ, false /* rhs_is_import */, constness);
+  } else if (match(TOKEN_OBRACE)) {
+    destructuring(DESTRUCTURE_OBJ, false /* rhs_is_import */, constness);
+  } else if (match(TOKEN_OPAR)) {
+    destructuring(DESTRUCTURE_TUPLE, false /* rhs_is_import */, constness);
+  } else {
+    uint16_t global = parse_variable("Expecting constant name.", constness);
+
+    if (match(TOKEN_ASSIGN)) {
+      expression();
+    } else {
+      error("Expecting '=' after constant name.");
+    }
+
+    define_variable(global, constness);
   }
 }
 
@@ -1892,11 +1989,11 @@ static void declaration_let() {
 // The fn keyword has already been consumed at this point.
 // Since functions are first-class, this is similar to a variable declaration.
 static void declaration_function() {
-  uint16_t global = parse_variable("Expecting function name.");
+  uint16_t global = parse_variable("Expecting function name.", CONSTNESS_FN_DECLARATION);  // Function name
 
   mark_initialized();
   function(false /* does not matter */, TYPE_FUNCTION);
-  define_variable(global);
+  define_variable(global, CONSTNESS_FN_DECLARATION);
 }
 
 // Compiles a class declaration.
@@ -1907,13 +2004,13 @@ static void declaration_class() {
 
   consume(TOKEN_ID, "Expecting class name.");
   Token class_name       = parser.previous;
-  uint16_t name_constant = string_constant(&parser.previous);
-  declare_local(&parser.previous);
+  uint16_t name_constant = identifier_constant(&parser.previous);
+  declare_local(&parser.previous, CONSTNESS_CLS_DECLARATION);
 
   emit_two(OP_CLASS, name_constant, error_start);
 
   // Define here, so it can be referenced in the class body.
-  define_variable(name_constant);
+  define_variable(name_constant, CONSTNESS_CLS_DECLARATION);
 
   ClassCompiler class_compiler;
   class_compiler.has_baseclass = false;
@@ -1932,8 +2029,9 @@ static void declaration_class() {
     begin_scope();
 
     // Contextual variable: Inject the "base" variable into the scope.
-    add_local(synthetic_token(KEYWORD_BASE));
-    define_variable(0 /* ignore, we're not in global scope */);
+    add_local(synthetic_token(KEYWORD_BASE), CONSTNESS_KW_BASE);
+    define_variable(0 /* ignore, we're not in global scope */,
+                    CONSTNESS_KW_BASE);  // We're never in global scope here, so we can pass 0 as the global index.
 
     named_variable(class_name, false, parser.previous);
     emit_one(OP_INHERIT, parser.previous);
@@ -1968,10 +2066,12 @@ static void declaration_class() {
 
 // Compiles a declaration.
 static void declaration() {
-  if (match(TOKEN_CLASS)) {
+  if (match(TOKEN_CLASS)) {  // TODO (optimization): Reorder these to match the frequency of use.
     declaration_class();
   } else if (match(TOKEN_FN)) {
     declaration_function();
+  } else if (match(TOKEN_CONST)) {
+    declaration_const();
   } else if (match(TOKEN_LET)) {
     declaration_let();
   } else {
@@ -1986,6 +2086,7 @@ static void declaration() {
 ObjFunction* compile_module(const char* source) {
   init_scanner(source);
   Compiler compiler;
+  const_globals_count = 0;
 
   init_compiler(&compiler, TYPE_MODULE);
 
@@ -2014,3 +2115,11 @@ void mark_compiler_roots() {
     compiler = compiler->enclosing;
   }
 }
+
+#undef CONSTNESS_FN_DECLARATION
+#undef CONSTNESS_FN_PARAMS
+#undef CONSTNESS_CLS_DECLARATION
+#undef CONSTNESS_IMPORT_VARS
+#undef CONSTNESS_IMPORT_BINDINGS
+#undef CONSTNESS_KW_ERROR
+#undef CONSTNESS_KW_BASE

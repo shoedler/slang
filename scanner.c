@@ -150,6 +150,7 @@ static TokenKind identifier_type() {
         switch (scanner.start[1]) {
           case 'a': return check_keyword(2, 3, "tch", TOKEN_CATCH);
           case 'l': return check_keyword(2, 1, "s", TOKEN_CLASS);
+          case 'o': return check_keyword(2, 3, "nst", TOKEN_CONST);
           case 't': return check_keyword(2, 2, "or", TOKEN_CTOR);
         }
       }
