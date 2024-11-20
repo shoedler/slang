@@ -38,7 +38,7 @@ You can, for example, easily cache stuff:
 - [ ] Implement `for ... in ...;` loops
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
-- [ ] Add `const` (**_See Challenge 22.3_**)
+- [x] ~~Add `const` (**_See Challenge 22.3_**)~~
 - [x] ~~Add destructuring to module imports.~~
 - [ ] Implement `Math` module.
   - [ ] Implement `Math.abs(Num) -> Num`.
