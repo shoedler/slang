@@ -124,7 +124,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
     // Execute the to_str method on the key
     push(object->fields.entries[i].key);  // Push the receiver (key at i) for to_str
     ObjString* key_str = AS_STR(exec_callable(fn_value(object->fields.entries[i].key.type->__to_str), 0));
-    if (vm.flags & VM_FLAG_HAS_ERROR) {
+    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
       return nil_value();
     }
 
@@ -133,7 +133,7 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
     // Execute the to_str method on the value
     push(object->fields.entries[i].value);  // Push the receiver (value at i) for to_str
     ObjString* value_str = AS_STR(exec_callable(fn_value(object->fields.entries[i].value.type->__to_str), 0));
-    if (vm.flags & VM_FLAG_HAS_ERROR) {
+    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
       return nil_value();
     }
 
@@ -215,7 +215,7 @@ static Value obj_to_str(int argc, Value argv[]) {
   /* Execute the 'keys' method on the receiver */                  \
   push(argv[0]); /* Receiver */                                    \
   Value seq = exec_callable(str_value(copy_string("keys", 4)), 0); \
-  if (vm.flags & VM_FLAG_HAS_ERROR) {                              \
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                            \
     return nil_value();                                            \
   }                                                                \
   items = AS_SEQ(seq)->items;

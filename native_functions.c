@@ -3,8 +3,8 @@
 #include <time.h>
 #include "builtin.h"
 #include "common.h"
-#include "value.h"
 #include "hashtable.h"
+#include "value.h"
 #include "vm.h"
 
 void register_native_functions() {
@@ -43,7 +43,7 @@ Value native_log(int argc, Value argv[]) {
     // Execute the to_str method on the receiver
     push(argv[i]);  // Load the receiver onto the stack
     ObjString* str = AS_STR(exec_callable(fn_value(argv[i].type->__to_str), 0));
-    if (vm.flags & VM_FLAG_HAS_ERROR) {
+    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
       return nil_value();
     }
 

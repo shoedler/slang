@@ -20,7 +20,7 @@ static void blacken_object(Obj* object);
 void* reallocate(void* pointer, size_t old_size, size_t new_size) {
   vm.bytes_allocated += new_size - old_size;
 
-  if (new_size > old_size && !(vm.flags & VM_FLAG_PAUSE_GC)) {
+  if (new_size > old_size && !VM_HAS_FLAG(VM_FLAG_PAUSE_GC)) {
     // Only collect_garbage if we're not freeing memory
 #ifdef DEBUG_STRESS_GC
     collect_garbage();

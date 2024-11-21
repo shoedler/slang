@@ -40,7 +40,7 @@ static Value peek(int distance);
 
 void clear_error() {
   vm.current_error = nil_value();
-  vm.flags &= ~VM_FLAG_HAS_ERROR;  // Clear the error flag
+  VM_CLEAR_FLAG(VM_FLAG_HAS_ERROR);  // Clear the error flag
 }
 
 static void reset_stack() {
@@ -48,7 +48,7 @@ static void reset_stack() {
   vm.frame_count   = 0;
   vm.open_upvalues = NULL;
 
-  vm.flags &= ~VM_FLAG_PAUSE_GC;  // Clear the pause flag, just to be sure
+  VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);  // Clear the pause flag, just to be sure
   clear_error();
 }
 
@@ -142,7 +142,7 @@ void runtime_error(const char* format, ...) {
   size_t length = vsnprintf(buffer, 1024, format, args);
   va_end(args);
 
-  vm.flags |= VM_FLAG_HAS_ERROR;
+  VM_SET_FLAG(VM_FLAG_HAS_ERROR);
   vm.current_error = str_value(copy_string(buffer, (int)length));
 }
 
@@ -250,8 +250,8 @@ void init_vm() {
 
   gc_init_thread_pool(get_cpu_core_count());
 
-  // Pause while we initialize the vm.
-  vm.flags |= VM_FLAG_PAUSE_GC;
+  // Pause Gc while we initialize the vm.
+  VM_SET_FLAG(VM_FLAG_PAUSE_GC);
 
   init_hashtable(&vm.strings);
   init_hashtable(&vm.modules);
@@ -366,7 +366,7 @@ void init_vm() {
   register_native_debug_module();
   register_native_gc_module();
 
-  vm.flags &= ~VM_FLAG_PAUSE_GC;  // Unpause
+  VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);  // Unpause
 
   reset_stack();
 }
@@ -861,7 +861,8 @@ static bool handle_error() {
   close_upvalues(&vm.stack[stack_offset]);  // Close upvalues that are no longer needed
   vm.stack_top   = vm.stack + stack_offset + 1;
   vm.frame_count = frame_offset + 1;
-  vm.flags &= ~VM_FLAG_HAS_ERROR;
+
+  VM_CLEAR_FLAG(VM_FLAG_HAS_ERROR);
 
   return true;
 }
@@ -1223,7 +1224,7 @@ static Value run() {
       }
       case OP_PRINT: {
         ObjString* str = (ObjString*)exec_callable(fn_value(peek(0).type->__to_str), 0).as.obj;
-        if (vm.flags & VM_FLAG_HAS_ERROR) {
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
           goto finish_error;
         }
         printf("%s\n", str->chars);
@@ -1270,13 +1271,13 @@ static Value run() {
       }
       case OP_THROW: {
         vm.current_error = pop();
-        vm.flags |= VM_FLAG_HAS_ERROR;
+        VM_SET_FLAG(VM_FLAG_HAS_ERROR);
         goto finish_error;
       }
       case OP_CALL: {
         int arg_count = READ_ONE();
         if (call_value(peek(arg_count), arg_count) == CALL_FAILED) {
-          if (vm.flags & VM_FLAG_HAS_ERROR) {
+          if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
             goto finish_error;
           }
           return nil_value();
@@ -1288,7 +1289,7 @@ static Value run() {
         ObjString* method = READ_STRING();
         int arg_count     = READ_ONE();
         if (invoke(NULL, method, arg_count) == CALL_FAILED) {
-          if (vm.flags & VM_FLAG_HAS_ERROR) {
+          if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
             goto finish_error;
           }
           return nil_value();
@@ -1301,7 +1302,7 @@ static Value run() {
         int arg_count       = READ_ONE();
         ObjClass* baseclass = AS_CLASS(pop());  // Leaves 'this' on the stack, followed by the arguments (if any)
         if (invoke(baseclass, method, arg_count) == CALL_FAILED) {
-          if (vm.flags & VM_FLAG_HAS_ERROR) {
+          if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
             goto finish_error;
           }
           return nil_value();
@@ -1402,7 +1403,7 @@ static Value run() {
           goto finish_error;
         }
         Value result = exec_callable(fn_value(target_type->__has), 1);
-        if (vm.flags & VM_FLAG_HAS_ERROR) {
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
           goto finish_error;
         }
 
@@ -1428,7 +1429,7 @@ static Value run() {
         }
 
         Value result = exec_callable(fn_value(type->__slice), 2);
-        if (vm.flags & VM_FLAG_HAS_ERROR) {
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
           goto finish_error;
         }
 
@@ -1444,7 +1445,7 @@ static Value run() {
       }
     }
 
-    if (!(vm.flags & VM_FLAG_HAS_ERROR)) {
+    if (!(VM_HAS_FLAG(VM_FLAG_HAS_ERROR))) {
       continue;
     }
 

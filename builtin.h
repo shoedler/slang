@@ -215,7 +215,7 @@ extern Value native_typeof(int argc, Value argv[]);
       push(argv[1]);         /* Push the function */                                 \
       push(items.values[i]); /* Push the item */                                     \
       Value result = exec_callable(argv[1], 1);                                      \
-      if (vm.flags & VM_FLAG_HAS_ERROR) {                                            \
+      if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                          \
         return nil_value(); /* Propagate the error */                                \
       }                                                                              \
       /* We don't use is_falsey here, because we want a boolean value. */            \
@@ -251,7 +251,7 @@ extern Value native_typeof(int argc, Value argv[]);
     /* Execute the to_str method on the item */                                                                       \
     push(items.values[i]); /* Push the receiver (item at i) for to_str */                                             \
     ObjString* item_str = AS_STR(exec_callable(fn_value(items.values[i].type->__to_str), 0));                         \
-    if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                               \
+    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                             \
       return nil_value();                                                                                             \
     }                                                                                                                 \
                                                                                                                       \
@@ -364,7 +364,7 @@ extern Value native_typeof(int argc, Value argv[]);
       push(argv[1]);         /* Push the function */                                                      \
       push(items.values[i]); /* Push the item */                                                          \
       Value result = exec_callable(argv[1], 1);                                                           \
-      if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                 \
+      if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                               \
         return nil_value(); /* Propagate the error */                                                     \
       }                                                                                                   \
                                                                                                           \
@@ -407,7 +407,7 @@ extern Value native_typeof(int argc, Value argv[]);
     push(argv[1]);         /* Push the function */                                                        \
     push(items.values[i]); /* Push the item */                                                            \
     Value result = exec_callable(argv[1], 1);                                                             \
-    if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                   \
+    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                 \
       return nil_value(); /* Propagate the error */                                                       \
     }                                                                                                     \
                                                                                                           \
@@ -442,7 +442,7 @@ extern Value native_typeof(int argc, Value argv[]);
     push(argv[1]);         /* Push the function */                                                        \
     push(items.values[i]); /* Push the item */                                                            \
     Value result = exec_callable(argv[1], 1);                                                             \
-    if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                   \
+    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                 \
       return nil_value(); /* Propagate the error */                                                       \
     }                                                                                                     \
                                                                                                           \
@@ -476,7 +476,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(argv[1]);         /* Push the function */                                                           \
         push(items.values[i]); /* arg0: Push the item */                                                         \
         exec_callable(argv[1], 1);                                                                               \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
       }                                                                                                          \
@@ -489,7 +489,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(items.values[i]); /* arg0 (1): Push the item */                                                     \
         push(int_value(i));    /* arg1 (2): Push the index */                                                    \
         exec_callable(argv[1], 2);                                                                               \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
       }                                                                                                          \
@@ -526,7 +526,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(argv[1]);         /* Push the function */                                                            \
         push(items.values[i]); /* arg0 (1): Push the item */                                                      \
         mapped.values[i] = exec_callable(argv[1], 1);                                                             \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                       \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
           return nil_value(); /* Propagate the error */                                                           \
         }                                                                                                         \
         push(mapped.values[i]); /* GC Protection */                                                               \
@@ -540,7 +540,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(items.values[i]); /* arg0 (1): Push the item */                                                      \
         push(int_value(i));    /* arg1 (2): Push the index */                                                     \
         mapped.values[i] = exec_callable(argv[1], 2);                                                             \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                       \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
           return nil_value(); /* Propagate the error */                                                           \
         }                                                                                                         \
         push(mapped.values[i]); /* GC Protection */                                                               \
@@ -587,7 +587,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(argv[1]);         /* Push the function */                                                                \
         push(items.values[i]); /* arg0 (1): Push the item */                                                          \
         Value result = exec_callable(argv[1], 1);                                                                     \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                           \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                         \
           return nil_value(); /* Propagate the error */                                                               \
         }                                                                                                             \
                                                                                                                       \
@@ -607,7 +607,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(items.values[i]); /* arg0 (1): Push the item */                                                          \
         push(int_value(i));    /* arg1 (2): Push the index */                                                         \
         Value result = exec_callable(argv[1], 2);                                                                     \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                           \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                         \
           return nil_value(); /* Propagate the error */                                                               \
         }                                                                                                             \
                                                                                                                       \
@@ -657,7 +657,7 @@ extern Value native_typeof(int argc, Value argv[]);
       /* Execute the to_str method on the item */                                                      \
       push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                        \
       item_str = AS_STR(exec_callable(fn_value(items.values[i].type->__to_str), 0));                   \
-      if (vm.flags & VM_FLAG_HAS_ERROR) {                                                              \
+      if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                            \
         return nil_value();                                                                            \
       }                                                                                                \
     } else {                                                                                           \
@@ -729,7 +729,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(argv[1]);         /* Push the function */                                                           \
         push(items.values[i]); /* arg0 (1): Push the item */                                                     \
         Value result = exec_callable(argv[1], 1);                                                                \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
                                                                                                                  \
@@ -747,7 +747,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(items.values[i]); /* arg0 (1): Push the item */                                                     \
         push(int_value(i));    /* arg1 (2): Push the index */                                                    \
         Value result = exec_callable(argv[1], 2);                                                                \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
                                                                                                                  \
@@ -792,7 +792,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(argv[1]);         /* Push the function */                                                           \
         push(items.values[i]); /* arg0 (1): Push the item */                                                     \
         Value result = exec_callable(argv[1], 1);                                                                \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
                                                                                                                  \
@@ -810,7 +810,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(items.values[i]); /* arg0 (1): Push the item */                                                     \
         push(int_value(i));    /* arg1 (2): Push the index */                                                    \
         Value result = exec_callable(argv[1], 2);                                                                \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                      \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
                                                                                                                  \
@@ -853,7 +853,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(accumulator);     /* arg0 (1): Push the accumulator */                                               \
         push(items.values[i]); /* arg1 (2): Push the item */                                                      \
         accumulator = exec_callable(argv[2], 2);                                                                  \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                       \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
           return nil_value(); /* Propagate the error */                                                           \
         }                                                                                                         \
       }                                                                                                           \
@@ -867,7 +867,7 @@ extern Value native_typeof(int argc, Value argv[]);
         push(items.values[i]); /* arg1 (2): Push the item */                                                      \
         push(int_value(i));    /* arg2 (3): Push the index */                                                     \
         accumulator = exec_callable(argv[2], 3);                                                                  \
-        if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                       \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
           return nil_value(); /* Propagate the error */                                                           \
         }                                                                                                         \
       }                                                                                                           \
@@ -913,7 +913,7 @@ extern Value native_typeof(int argc, Value argv[]);
       push(argv[1]);         /* Push the function */                                                            \
       push(items.values[i]); /* Push the item */                                                                \
       Value result = exec_callable(argv[1], 1);                                                                 \
-      if (vm.flags & VM_FLAG_HAS_ERROR) {                                                                       \
+      if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
         return nil_value(); /* Propagate the error */                                                           \
       }                                                                                                         \
                                                                                                                 \

@@ -78,7 +78,7 @@ static Value str_ctor(int argc, Value argv[]) {
   // Execute the to_str method on the argument
   push(argv[1]);  // Push the receiver for to_str, which is the ctors' argument
   Value result = exec_callable(fn_value(argv[1].type->__to_str), 0);  // Convert to string
-  if (vm.flags & VM_FLAG_HAS_ERROR) {
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
     return nil_value();
   }
 

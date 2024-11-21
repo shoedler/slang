@@ -194,9 +194,9 @@ ValueArray prealloc_value_array(int count) {
 ObjSeq* take_seq(ValueArray* items) {
   // Pause while we allocate an object for seq, because this might trigger a GC. This allows us to prepare a value array with it's
   // values being out of reach of the GC.
-  vm.flags |= VM_FLAG_PAUSE_GC;
+  VM_SET_FLAG(VM_FLAG_PAUSE_GC);
   ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_GC_SEQ);
-  vm.flags &= ~VM_FLAG_PAUSE_GC;
+  VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
   seq->items = *items;
   return seq;
 }
@@ -204,9 +204,9 @@ ObjSeq* take_seq(ValueArray* items) {
 ObjTuple* take_tuple(ValueArray* items) {
   // Pause while we allocate an object for tuple, because this might trigger a GC. This allows us to prepare a value array with
   // it's values being out of reach of the GC.
-  vm.flags |= VM_FLAG_PAUSE_GC;
+  VM_SET_FLAG(VM_FLAG_PAUSE_GC);
   ObjTuple* tuple = ALLOCATE_OBJ(ObjTuple, OBJ_GC_TUPLE);
-  vm.flags &= ~VM_FLAG_PAUSE_GC;
+  VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
   tuple->items    = *items;
   tuple->obj.hash = hash_tuple(items);
   return tuple;
