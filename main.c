@@ -7,7 +7,7 @@
 
 #define CMD_REPL "repl"
 #define CMD_RUN "run"
-#define CMD_VERSION "--version"
+#define CMD___VERSION "--version"
 typedef struct {
   char** argv;
   int argc;
@@ -50,17 +50,17 @@ static void usage(const char* error) {
   printf("Usage: slang <args>\n");
   printf("  " CMD_RUN "  <options> <path> Run script at <path>\n");
   printf("  " CMD_REPL " <options>        Run REPL\n");
-  printf("  " CMD_VERSION "             Print version\n");
+  printf("  " CMD___VERSION "             Print version\n");
   printf("\n");
   printf("  <options>:\n");
-  printf("    --gc-stress         Enable GC stress testing\n");
+  printf("    --stress-gc               Enable GC stress testing\n");
 }
 
 static void configure_vm() {
-  bool gc_stress = consume_option("--gc-stress");
+  bool gc_stress = consume_option("--stress-gc");
   if (gc_stress) {
     INTERNAL_WARN("GC stress testing enabled, can be disabled during runtime using the Gc module.");
-    VM_SET_FLAG(VM_FLAG_PAUSE_GC);
+    VM_SET_FLAG(VM_FLAG_STRESS_GC);
   }
 }
 

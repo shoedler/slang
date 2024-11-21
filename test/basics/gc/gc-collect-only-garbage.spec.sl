@@ -2,7 +2,7 @@
 import Gc
 import Perf
 
-Gc.toggle_force(true)
+Gc.stress(true) // This is set to true by default in the test runner - just to be explicit
 
 fn test_keep_alive {  
   // Create a class that will hold circular references

@@ -10,7 +10,7 @@
 
 static Value native_gc_collect(int argc, Value argv[]);
 static Value native_gc_stats(int argc, Value argv[]);
-static Value native_gc_toggle_force(int argc, Value argv[]);
+static Value native_gc_stress(int argc, Value argv[]);
 
 #define MODULE_NAME Gc
 
@@ -20,7 +20,7 @@ void register_native_gc_module() {
 
   define_native(&gc_module->fields, "collect", native_gc_collect, 0);
   define_native(&gc_module->fields, "stats", native_gc_stats, 0);
-  define_native(&gc_module->fields, "toggle_force", native_gc_toggle_force, 1);
+  define_native(&gc_module->fields, "stress", native_gc_stress, 1);
 }
 
 /**
@@ -62,20 +62,20 @@ static Value native_gc_stats(int argc, Value argv[]) {
 }
 
 /**
- * MODULE_NAME.toggle_force(force: TYPENAME_BOOL) -> TYPENAME_BOOL
- * @brief Toggles the force garbage collection flag. If [force] is true, the garbage collector will be forced to run on every
- * allocation. If [force] is false, the garbage collector will run as usual. Returns the old value of the flag.
+ * MODULE_NAME.stress(force: TYPENAME_BOOL) -> TYPENAME_BOOL
+ * @brief Toggles the stress-garbage-collector flag. If [force] is true, the garbage collector will be forced to run on every
+ * allocation. If [force] is false, the garbage collector will run as usual. Returns the value of the flag before the change.
  */
-static Value native_gc_toggle_force(int argc, Value argv[]) {
+static Value native_gc_stress(int argc, Value argv[]) {
   UNUSED(argc);
 
   NATIVE_CHECK_ARG_AT(1, vm.bool_class)
 
-  bool old_value = VM_HAS_FLAG(VM_FLAG_FORCE_GC);
+  bool old_value = VM_HAS_FLAG(VM_FLAG_STRESS_GC);
   if (argv[0].as.boolean) {
-    VM_SET_FLAG(VM_FLAG_FORCE_GC);
+    VM_SET_FLAG(VM_FLAG_STRESS_GC);
   } else {
-    VM_CLEAR_FLAG(VM_FLAG_FORCE_GC);
+    VM_CLEAR_FLAG(VM_FLAG_STRESS_GC);
   }
 
   return bool_value(old_value);

@@ -1,8 +1,10 @@
 import Gc
 import Perf
 
+Gc.stress(true) // This is set to true by default in the test runner - just to be explicit
+
 fn test_garbage_generation {
-  const initial_allocd = Gc.stats().bytes_allocated
+  const prev_freed = Gc.collect()
   
   // Generate garbage by creating lots of temporary objects
   for let i = 0; i < 10000; i++; {
@@ -15,17 +17,19 @@ fn test_garbage_generation {
       }
     }
   }
-  
-  const before_forced_allocd = Gc.stats().bytes_allocated
-  const freed = Gc.collect()
-  const after_forced_allocd = Gc.stats().bytes_allocated
 
-  print initial_allocd       // [Expect] 25519
-  print before_forced_allocd // [Expect] 30239
-  print freed                // [Expect] 5126
-  print after_forced_allocd  // [Expect] 25519
+  const freed = Gc.collect()
+  print freed - prev_freed        
+  print Gc.stats().bytes_allocated
+  Gc.collect()
 }
 
-test_garbage_generation()
+Gc.collect()
+test_garbage_generation()// [Expect] 944
+                         // [Expect] 26362
+test_garbage_generation()// [Expect] 944
+                         // [Expect] 26362
+test_garbage_generation()// [Expect] 944
+                         // [Expect] 26362
 
-print Gc.collect() // [Expect] 543
+print Gc.collect() // [Expect] 0

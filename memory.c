@@ -21,7 +21,7 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size) {
   vm.bytes_allocated += new_size - old_size;
 
   if (new_size > old_size && !VM_HAS_FLAG(VM_FLAG_PAUSE_GC)) {  // Allocating
-    if (vm.bytes_allocated > vm.next_gc || VM_HAS_FLAG(VM_FLAG_FORCE_GC)) {
+    if (vm.bytes_allocated > vm.next_gc || VM_HAS_FLAG(VM_FLAG_STRESS_GC)) {
       collect_garbage();
     }
   }

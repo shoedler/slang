@@ -40,7 +40,8 @@ print a.map(fn(x) {
 print b // [Expect] [4, 5, 6]
 
 import Gc
-Gc.toggle_force(true)
+Gc.stress(true) // This is set to true by default in the test runner - just to be explicit
+
 // Fuzzy test to try to trigger the GC
 let c = [1,2,3]
 print c.map(fn (x) {
