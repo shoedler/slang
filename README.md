@@ -37,9 +37,6 @@ You can, for example, easily cache stuff:
 
 - [ ] Implement `for ... in ...;` loops
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
-- [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
-- [x] ~~Add `const` (**_See Challenge 22.3_**)~~
-- [x] ~~Add destructuring to module imports.~~
 - [ ] Implement `Math` module.
   - [ ] Implement `Math.abs(Num) -> Num`.
   - [ ] Implement `Math.int_div(Num, Num) -> Int`.
@@ -51,24 +48,20 @@ You can, for example, easily cache stuff:
   - [ ] Implement `Json.stringify(Value) -> Str`.
   - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
 - [ ] Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`
+- [ ] Implement `Seq.sort(sort_fn) -> Seq`.
+- [x] ~~Add destructuring to module imports.~~
+- [x] ~~Add `const` (**_See Challenge 22.3_**)~~
 - [x] ~~Implement `Set` class~~ (Part of the `std` module - not a native type)
 - [x] ~~Implement `Set.add(Obj) -> Nil`.~~
 - [x] ~~Implement `Set.del(Obj) -> Nil`.~~
 - [x] ~~Implement ~~`Seq(Set)` constructor~~ `Set.to_seq() -> Seq`~~
-- [ ] Implement `Seq.sort(sort_fn) -> Seq`.
 - [x] ~~Implement `Gc` module~~
 - [x] ~~Implement `Gc collect() -> Nil`.~~
 - [x] ~~Implement `Gc stats() -> Obj`.~~
 
 ## Improvements
 
-- [x] ~~Module Caching refactor: When trying to load a module from cache, we need to check for the absolute file path of the module instead of only the name. When importing a module with destructuring, we use the absolute path as the module name - when you load the same module with a relative path and a module name, it will currently be cached with the key "module name" and therefore not be found in the cache.~~
 - [ ] Overriding internal methods: Currently, if ypu define a method such as `has` and `to_str`, these methods will (or will they? Have to check that) override the internal methods. That is okay, but it feels a bit "by chance"ish. Maybe we should either prefix these methods with `__` or have some sort of `internal` or `override` keyword.
-- [ ] Add Tests with tabs in source code. Especially to test uncaught runtime error reporting.
-- [ ] Add tests for `OP_MODULO`
-- [ ] Add tests for `Fn.bind(Obj)`
-- [ ] Restructure test: compiler, vm (types, modules)
-- [ ] (When `Gc` is implemented) Add some test cases where we call `Gc.collect()` to ensure that relevant objects are not collected.
 - [ ] Improve destructuring assignment:
   - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
@@ -85,6 +78,12 @@ You can, for example, easily cache stuff:
   - [ ] Move `hash_value` to types (`uint64_t ObjClass.__hash(value: Value)`)
   - [ ] Move `to_str` to types (`Obj ObjClass.__to_str(value: Value)`)
   - [ ] Move `values_equal` to types (`bool ObjClass.__eq(a: Value, b: Value)`) **DUPE**, see "Optimizations".
+- [x] ~~Restructure test: compiler, vm (types, modules)~~
+- [x] ~~(When `Gc` is implemented) Add some test cases where we call `Gc.collect()` to ensure that relevant objects are not collected.~~
+- [x] ~~Add tests for `Fn.bind(Obj)`~~
+- [x] ~~Add Tests with tabs in source code. Especially to test uncaught runtime error reporting.~~
+- [x] ~~Add tests for `OP_MODULO`~~
+- [x] ~~Module Caching refactor: When trying to load a module from cache, we need to check for the absolute file path of the module instead of only the name. When importing a module with destructuring, we use the absolute path as the module name - when you load the same module with a relative path and a module name, it will currently be cached with the key "module name" and therefore not be found in the cache.~~
 
 ## Optimizations
 
@@ -107,6 +106,7 @@ You can, for example, easily cache stuff:
 
 ## Features
 
+- [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
 - [ ] Implement `@memoize` decorator. Would put args into a `Tuple` and use that as a key in a `Obj`.
 - [ ] Implement `Float.nan` and `Float.inf` constants (Would require static fields).
