@@ -39,6 +39,8 @@ print a.map(fn(x) {
 }) // [Expect] [false, false, false]
 print b // [Expect] [4, 5, 6]
 
+import Gc
+Gc.toggle_force(true)
 // Fuzzy test to try to trigger the GC
 let c = [1,2,3]
 print c.map(fn (x) {

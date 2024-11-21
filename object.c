@@ -181,13 +181,6 @@ ValueArray prealloc_value_array(int count) {
   items.capacity = capacity;
   items.count    = count;
 
-  // We have to initialize all values to nil, because if you set an item with something that triggers the gc, you'd mark
-  // uninitialized values in the gc. That's because the ValueArray of the preallocated listlike is only resized and not
-  // initialized, therefore the actual entries are garbage memory.
-  for (int i = 0; i < count; i++) {
-    items.values[i] = nil_value();
-  }
-
   return items;
 }
 
