@@ -2,6 +2,8 @@
 import Gc
 import Perf
 
+Gc.toggle_force(true)
+
 fn test_keep_alive {  
   // Create a class that will hold circular references
   cls CircularRef {
