@@ -57,6 +57,7 @@ const hint = [
   '  - bench           Run benchmarks (debug & release) and serve results',
   '    - serve         Only serve benchmark results',
   '    - no-serve      Run benchmarks without serving results',
+  '    - no-build      Skip building the project (default is to build)',
   '    - <pattern>     Run language that matches the regex pattern',
   '  - sample          Run sample file (sample.sl)',
   '  - test            Run tests (.spec.sl files)',
@@ -76,6 +77,8 @@ switch (cmd) {
   case 'bench': {
     const doOnlyServe = Boolean(consumeOption('serve', false));
     const doNoServe = Boolean(consumeOption('no-server', false));
+    const doNoBuild = Boolean(consumeOption('no-build', false));
+
     const langPattern = options.pop();
     validateOptions();
 
@@ -94,7 +97,12 @@ switch (cmd) {
       break;
     }
 
-    await buildSlangConfig(BUILD_CONFIG_RELEASE_PROFILED);
+    if (!doNoBuild) {
+      await buildSlangConfig(BUILD_CONFIG_RELEASE_PROFILED);
+    } else {
+      warn('Skipping build');
+    }
+
     await runBenchmarks(langPattern);
 
     if (!doNoServe) {

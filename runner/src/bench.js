@@ -39,6 +39,8 @@ import path from 'node:path';
  * }} BenchmarkResult
  */
 
+const NUM_RUNS = 20; // Number of runs for each benchmark
+
 const LANGUAGES = [
   {
     lang: 'slang',
@@ -65,7 +67,7 @@ const BENCHMARKS = [];
 /**
  * Define a benchmark
  * @param {string} name - The name of the benchmark (file name, without extension and .bench suffix)
- * @param {string[]} expectedOutput - The expected output of the benchmark
+ * @param {string[]} expectedOutput - The expected output of the benchmark, each output line as an array element
  */
 const defineBenchmark = (name, expectedOutput) => {
   const expectedOutStr = expectedOutput.length > 0 ? expectedOutput.join('\n') + '\n' : '';
@@ -86,8 +88,7 @@ defineBenchmark('list', ['499999500000']);
 const getScore = time => 1000 / time;
 
 /**
- * Replace Carriage Return + Line Feed (\r\n) with Line Feed (\n)
- * Then replace any remaining Carriage Returns (\r) with Line Feed (\n)
+ * Replaces all `\r\n` with `\n`, then replace any remaining `\r` with `\n`.
  * @param {string} stdout - Output to normalize
  * @returns {string} - Normalized output
  */
@@ -170,29 +171,63 @@ export const runBenchmarks = async langPattern => {
         continue;
       }
 
+      // Create a progress spinner
+      const SPINNER = '▰▱';
+      const [PENDING, COMPLETED] = '▰▰';
+      const cursor = show => process.stdout.write(show ? '\x1b[?25h' : '\x1b[?25l');
+      let i = 0;
+
+      const spinner = setInterval(() => {
+        cursor(false); // Hide cursor
+        const char = SPINNER.charAt(Math.floor(Date.now() / 80) % SPINNER.length);
+
+        process.stdout.write('\x1b[s'); // Save cursor position
+
+        const progCurrent = char;
+        const progDone = COMPLETED.repeat(i, COMPLETED);
+        const progRemain = PENDING.repeat(NUM_RUNS - i, PENDING);
+
+        const progress = chalk.green(progDone) + progCurrent + chalk.red(progRemain);
+
+        const current = i.toString().padStart(NUM_RUNS.toString().length, ' ');
+        process.stdout.write(` ${progress} ${current}/${NUM_RUNS}`);
+
+        process.stdout.write('\x1b[u'); // Restore cursor position
+      }, 100);
+
+      const stopSpinner = () => {
+        clearInterval(spinner);
+        cursor(true); // Show cursor
+      };
+
       // Do one warmup run
       await runProcess(runCommand, '', undefined, false, true);
 
-      // Run benchmark 10 times
-      for (let i = 0; i < 10; i++) {
-        process.stdout.write(`.`);
-
+      // Run benchmark
+      for (; i < NUM_RUNS; i++) {
         const output = await runProcess(runCommand, '', undefined, false, true);
 
         if (!output) {
+          stopSpinner();
           process.stdout.write('\n');
-          warn(`${lang} benchmark failed`, `Output: ${output}`);
-          continue;
+          warn(`${lang} running ${benchmark.name} benchmark failed`, `Received no output`);
+          times.push(Infinity);
+          break;
         }
 
         const match = normalizeLineEndings(output).trim().match(benchmark.regex);
-        if (!match) {
+        if (!match || !match[1] /* elapsed time */) {
+          stopSpinner();
           process.stdout.write('\n');
-          warn(`${lang} benchmark output does not match expected output`, output);
-          continue;
+          warn(`${lang} output for ${benchmark.name} does not match expected output`, output);
+          times.push(Infinity);
+          break;
         }
+
         times.push(parseFloat(match[1]));
       }
+
+      stopSpinner();
 
       // Calculate some stats
       const best = Math.min(...times);
@@ -248,7 +283,7 @@ export const runBenchmarks = async langPattern => {
         standardDev = standardDev.toFixed(4);
       }
 
-      process.stdout.write(` ${best.toFixed(2)}s sd(${standardDev}) ${comparison}\n`);
+      process.stdout.write(` ${best.toFixed(3)}s sd(${standardDev}) ${comparison}\n`);
 
       // Push benchmark result to results array
       const result = {
@@ -305,3 +340,20 @@ export const serveResults = async () => {
   server.listen(5252);
   info('Server running at http://localhost:5252/');
 };
+
+// const SPINNER = '⠁⠂⠄⡀⢀⠠⠐⠈';
+// const SPINNER = '▊▋▌▍▎▏▎▍▌▋';
+// const SPINNER = '⣾⣽⣻⢿⡿⣟⣯⣷';
+// const SPINNER = '⊙⊚⊛⊜⊝';
+// const SPINNER = '◰◱◲◳';
+// const SPINNER = '◴◵◶◷';
+// const SPINNER = '▖▘▝▗';
+// const SPINNER = '✶✸✹✺✹✸';
+// const SPINNER = '⎺⎻⎼⎽⎯';
+// const SPINNER = '━┛┗━┏┓';
+// const SPINNER = '◇◈◆◈';
+// const SPINNER = '⯌⯐';
+// const [PENDING, COMPLETED] = '▬▮';
+// const [PENDING, COMPLETED] = '⬡⬢';
+// const [PENDING, COMPLETED] = '▢▣';
+// const [PENDING, COMPLETED] = '▢▣';
