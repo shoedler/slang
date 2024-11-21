@@ -35,14 +35,14 @@ fn to_calibration_value_2(line) {
 
 // Part 1
 print File
-  .read(cwd() + "aoc-2023-day-1.txt")
+  .read(cwd() + "fuzzy-aoc-2023-day-1.txt")
   .split("\r\n")
   .map(to_calibration_value)
   .reduce(0, fn(acc, x) -> acc + x) // [Expect] 54951
 
 // Part 2
 print File
-  .read(cwd() + "aoc-2023-day-1.txt")
+  .read(cwd() + "fuzzy-aoc-2023-day-1.txt")
   .split("\r\n")
   .map(to_calibration_value_2)
   .reduce(0, fn(acc, x) -> acc + x) // [Expect] 55218 
