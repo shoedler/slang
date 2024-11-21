@@ -1,6 +1,7 @@
 #include "sys.h"
 #include <processthreadsapi.h>
 #include <profileapi.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <sysinfoapi.h>
 #include <windows.h>
@@ -26,8 +27,9 @@ static void configure_thread(HANDLE thread, int priority, size_t core) {
   }
 }
 
-void prioritize_thread(HANDLE thread, int core) {
-  configure_thread(thread, THREAD_PRIORITY_ABOVE_NORMAL, core);
+void prioritize_thread(pthread_t thread, int core) {
+  HANDLE handle = (HANDLE)pthread_gethandle(thread);
+  configure_thread(handle, THREAD_PRIORITY_ABOVE_NORMAL, core);
 }
 
 void prioritize_main_thread() {

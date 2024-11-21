@@ -482,7 +482,7 @@ void gc_init_thread_pool(int num_threads) {
       gc_shutdown_thread_pool();
       exit(SLANG_EXIT_SW_ERROR);
     }
-    prioritize_thread((HANDLE)gc_thread_pool.workers[i].thread, i);
+    prioritize_thread(gc_thread_pool.workers[i].thread, i);
   }
 }
 

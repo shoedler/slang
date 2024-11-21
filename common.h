@@ -94,10 +94,10 @@ typedef enum {
   } while (0)
 
 #ifdef _DEBUG
-#define INTERNAL_WARN(format_literal, ...)                         \
-  do {                                                             \
-    ___PRINT_INTERNAL_MSG_HEADER("DEBUG WARN", ANSI_COLOR_YELLOW); \
-    fprintf(stderr, format_literal "\n", ##__VA_ARGS__);           \
+#define INTERNAL_WARN(format_literal, ...)                            \
+  do {                                                                \
+    ___PRINT_INTERNAL_MSG_HEADER("INTERNAL WARN", ANSI_COLOR_YELLOW); \
+    fprintf(stderr, format_literal "\n", ##__VA_ARGS__);              \
   } while (0)
 #else
 #define INTERNAL_WARN(format_literal, ...)
