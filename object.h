@@ -176,14 +176,6 @@ ObjUpvalue* new_upvalue(Value* slot);
 // trigger garbage collection.
 ObjString* copy_string(const char* chars, int length);
 
-// Creates, initializes and allocates a new value array. Initializes the value array and capacity to add [count] values without
-// resizing. It's intended to add items directly to .values[idx], no need to use write_value_array. You *MUST* fill the array up
-// to [count] with some sort of value. Might trigger garbage collection. The returned value array will be initialized with .count
-// = 0. This is because the preallocated .values array contains garbage memory. IF you trigger the Gc during filling the array and
-// count would already be at [count], the Gc would try to free the garbage memory - doing so requires you to increment .count
-// during filling the array.
-ValueArray prealloc_value_array(int count);
-
 // Creates a string object from a C string.
 // This takes ownership of the string. This means that the string will be freed
 // when the object is freed. Might trigger garbage collection.

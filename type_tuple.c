@@ -71,7 +71,7 @@ static Value tuple_ctor(int argc, Value argv[]) {
   NATIVE_CHECK_ARG_AT(1, vm.seq_class)
 
   ObjSeq* seq      = AS_SEQ(argv[1]);
-  ValueArray items = prealloc_value_array(seq->items.count);
+  ValueArray items = init_value_array_of_size(seq->items.count);
 
   // We can use memcpy here because the items array is already preallocated
   memcpy(items.values, seq->items.values, seq->items.count * sizeof(Value));

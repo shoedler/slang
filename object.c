@@ -172,18 +172,6 @@ static uint64_t hash_tuple(ValueArray* items) {
   return result;
 }
 
-ValueArray prealloc_value_array(int count) {
-  ValueArray items;
-  init_value_array(&items);
-
-  int capacity   = GROW_CAPACITY(count);
-  items.values   = RESIZE_ARRAY(Value, items.values, 0, capacity);
-  items.capacity = capacity;
-  items.count    = 0;
-
-  return items;
-}
-
 ObjSeq* take_seq(ValueArray* items) {
   // Pause while we allocate an object for seq, because this might trigger a GC. This allows us to prepare a value array with it's
   // values being out of reach of the GC.

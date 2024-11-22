@@ -92,6 +92,16 @@ bool values_equal(Value left, Value right);
 // Initialize a value array.
 void init_value_array(ValueArray* array);
 
+// Creates, initializes and allocates a new value array. Initializes the value array and capacity to add [count] values without
+// needing to resize. It's intended to add items directly to .values[idx], no need to use write_value_array. You MUST fill the
+// array up to [count] with some sort of value after calling this function (Or reduce the count manually, maybe?). Might trigger
+// garbage collection.
+//
+// Note: The returned value array will be initialized with .count = 0. This is because the preallocated .values
+// array contains garbage memory. IF you trigger the Gc during filling the array and count would already be at [count], the Gc
+// would try to free the garbage memory - doing so requires you to increment .count during filling the array.
+ValueArray init_value_array_of_size(int count);
+
 // Write a value to a value array.
 void write_value_array(ValueArray* array, Value value);
 

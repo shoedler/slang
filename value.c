@@ -15,6 +15,18 @@ void init_value_array(ValueArray* array) {
   array->count    = 0;
 }
 
+ValueArray init_value_array_of_size(int count) {  // TODO (refactor): Make this reentrant.
+  ValueArray items;
+  init_value_array(&items);
+
+  int capacity   = GROW_CAPACITY(count);
+  items.values   = RESIZE_ARRAY(Value, items.values, 0, capacity);
+  items.capacity = capacity;
+  items.count    = 0;
+
+  return items;
+}
+
 // Updates the capacity of the value array based on the provided count offset. It grows or shrinks the array's
 // capacity only if the new count surpasses growth thresholds or falls below shrinkage criteria.
 static void ensure_value_array_capacity(ValueArray* array, int count_offset) {

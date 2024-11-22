@@ -330,7 +330,7 @@ extern Value native_typeof(int argc, Value argv[]);
   if (start >= end) {                                                                       \
     return NATIVE_LISTLIKE_NEW_EMPTY();                                                     \
   }                                                                                         \
-  ValueArray sliced = prealloc_value_array(end - start);                                    \
+  ValueArray sliced = init_value_array_of_size(end - start);                                \
   for (int i = start; i < end; i++) {                                                       \
     sliced.values[sliced.count++] = items.values[i];                                        \
   }                                                                                         \
@@ -516,7 +516,7 @@ extern Value native_typeof(int argc, Value argv[]);
   ValueArray items  = AS_VALUE_ARRAY(argv[0]);                                                                    \
   int fn_arity      = callable_get_arity(argv[1]);                                                                \
   int count         = items.count; /* We need to store this, because the listlike might change during the loop */ \
-  ValueArray mapped = prealloc_value_array(count);                                                                \
+  ValueArray mapped = init_value_array_of_size(count);                                                            \
                                                                                                                   \
   /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                        \
   switch (fn_arity) {                                                                                             \
@@ -699,7 +699,7 @@ extern Value native_typeof(int argc, Value argv[]);
   NATIVE_CHECK_RECEIVER(class)                                             \
                                                                            \
   ValueArray items    = AS_VALUE_ARRAY(argv[0]);                           \
-  ValueArray reversed = prealloc_value_array(items.count);                 \
+  ValueArray reversed = init_value_array_of_size(items.count);             \
                                                                            \
   /* No GC protection needed */                                            \
   for (int i = items.count - 1; i >= 0; i--) {                             \
@@ -940,25 +940,25 @@ extern Value native_typeof(int argc, Value argv[]);
  * TYPENAME_T.concat(other: TYPENAME_T) -> TYPENAME_T
  * @brief Concatenates two TYPENAME_Ts. Returns a new TYPENAME_T with the items of the receiver followed by the items of 'other'.
  */
-#define NATIVE_LISTLIKE_CONCAT_BODY(class)                                     \
-  UNUSED(argc);                                                                \
-  NATIVE_CHECK_RECEIVER(class)                                                 \
-  NATIVE_CHECK_ARG_AT(1, class)                                                \
-                                                                               \
-  ValueArray items1 = AS_VALUE_ARRAY(argv[0]);                                 \
-  ValueArray items2 = AS_VALUE_ARRAY(argv[1]);                                 \
-                                                                               \
-  ValueArray concatenated = prealloc_value_array(items1.count + items2.count); \
-  for (int i = 0; i < items1.count; i++) {                                     \
-    concatenated.values[i] = items1.values[i];                                 \
-  }                                                                            \
-                                                                               \
-  for (int i = 0; i < items2.count; i++) {                                     \
-    concatenated.values[items1.count + i] = items2.values[i];                  \
-  }                                                                            \
-  concatenated.count = items1.count + items2.count;                            \
-                                                                               \
-  /* No need for GC protection - taking an array will not trigger a GC. */     \
+#define NATIVE_LISTLIKE_CONCAT_BODY(class)                                         \
+  UNUSED(argc);                                                                    \
+  NATIVE_CHECK_RECEIVER(class)                                                     \
+  NATIVE_CHECK_ARG_AT(1, class)                                                    \
+                                                                                   \
+  ValueArray items1 = AS_VALUE_ARRAY(argv[0]);                                     \
+  ValueArray items2 = AS_VALUE_ARRAY(argv[1]);                                     \
+                                                                                   \
+  ValueArray concatenated = init_value_array_of_size(items1.count + items2.count); \
+  for (int i = 0; i < items1.count; i++) {                                         \
+    concatenated.values[i] = items1.values[i];                                     \
+  }                                                                                \
+                                                                                   \
+  for (int i = 0; i < items2.count; i++) {                                         \
+    concatenated.values[items1.count + i] = items2.values[i];                      \
+  }                                                                                \
+  concatenated.count = items1.count + items2.count;                                \
+                                                                                   \
+  /* No need for GC protection - taking an array will not trigger a GC. */         \
   return NATIVE_LISTLIKE_TAKE_ARRAY(concatenated);
 
 #endif

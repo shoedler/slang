@@ -189,7 +189,7 @@ void make_seq(int count) {
   // and free items in the middle of the loop. Also, it lets us pop the list items on the
   // stack, instead of peeking and then having to pop them later (Requiring us to loop over
   // the array twice)
-  ValueArray items = prealloc_value_array(count);
+  ValueArray items = init_value_array_of_size(count);
   for (int i = count - 1; i >= 0; i--) {
     items.values[i] = pop();
   }
@@ -203,7 +203,7 @@ void make_tuple(int count) {
   // and free items in the middle of the loop. Also, it lets us pop the tuple items on the
   // stack, instead of peeking and then having to pop them later (Requiring us to loop over
   // the array twice)
-  ValueArray items = prealloc_value_array(count);
+  ValueArray items = init_value_array_of_size(count);
   for (int i = count - 1; i >= 0; i--) {
     items.values[i] = pop();
   }

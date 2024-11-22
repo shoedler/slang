@@ -245,7 +245,7 @@ static Value obj_entries(int argc, Value argv[]) {
   NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ValueArray items  = prealloc_value_array(object->fields.count);
+  ValueArray items  = init_value_array_of_size(object->fields.count);
   ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
   push(seq_value(seq));                  // GC Protection
 
@@ -273,7 +273,7 @@ static Value obj_keys(int argc, Value argv[]) {
   NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ValueArray items  = prealloc_value_array(object->fields.count);
+  ValueArray items  = init_value_array_of_size(object->fields.count);
 
   // We can direclty manipulate items.count, since we haven't taken the seq yet.
   for (int i = 0; i < object->fields.capacity; i++) {
@@ -296,7 +296,7 @@ static Value obj_values(int argc, Value argv[]) {
   NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ValueArray items  = prealloc_value_array(object->fields.count);
+  ValueArray items  = init_value_array_of_size(object->fields.count);
 
   // We can direclty manipulate items.count, since we haven't taken the seq yet.
   for (int i = 0; i < object->fields.capacity; i++) {
