@@ -118,6 +118,7 @@ static Value seq_ctor(int argc, Value argv[]) {
 
     // We can use memcpy here because the items array is already preallocated
     memcpy(items.values, tuple->items.values, tuple->items.count * sizeof(Value));
+    items.count = tuple->items.count;
 
     ObjSeq* seq = take_seq(&items);
     return seq_value(seq);

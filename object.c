@@ -179,7 +179,7 @@ ValueArray prealloc_value_array(int count) {
   int capacity   = GROW_CAPACITY(count);
   items.values   = RESIZE_ARRAY(Value, items.values, 0, capacity);
   items.capacity = capacity;
-  items.count    = count;
+  items.count    = 0;
 
   return items;
 }

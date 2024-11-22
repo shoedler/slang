@@ -332,7 +332,7 @@ extern Value native_typeof(int argc, Value argv[]);
   }                                                                                         \
   ValueArray sliced = prealloc_value_array(end - start);                                    \
   for (int i = start; i < end; i++) {                                                       \
-    sliced.values[i - start] = items.values[i];                                             \
+    sliced.values[sliced.count++] = items.values[i];                                        \
   }                                                                                         \
                                                                                             \
   /* No need for GC protection - taking an array will not trigger a GC. */                  \
@@ -521,29 +521,31 @@ extern Value native_typeof(int argc, Value argv[]);
   /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                        \
   switch (fn_arity) {                                                                                             \
     case 1: {                                                                                                     \
-      for (int i = 0; i < count; i++) {                                                                           \
+      while (mapped.count < count) {                                                                              \
         /* Execute the provided function on the item */                                                           \
-        push(argv[1]);         /* Push the function */                                                            \
-        push(items.values[i]); /* arg0 (1): Push the item */                                                      \
-        mapped.values[i] = exec_callable(argv[1], 1);                                                             \
+        push(argv[1]);                    /* Push the function */                                                 \
+        push(items.values[mapped.count]); /* arg0 (1): Push the item */                                           \
+        mapped.values[mapped.count] = exec_callable(argv[1], 1);                                                  \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
           return nil_value(); /* Propagate the error */                                                           \
         }                                                                                                         \
-        push(mapped.values[i]); /* GC Protection */                                                               \
+        push(mapped.values[mapped.count]); /* GC Protection */                                                    \
+        mapped.count++;                                                                                           \
       }                                                                                                           \
       break;                                                                                                      \
     }                                                                                                             \
     case 2: {                                                                                                     \
-      for (int i = 0; i < count; i++) {                                                                           \
+      while (mapped.count < count) {                                                                              \
         /* Execute the provided function on the item */                                                           \
-        push(argv[1]);         /* Push the function */                                                            \
-        push(items.values[i]); /* arg0 (1): Push the item */                                                      \
-        push(int_value(i));    /* arg1 (2): Push the index */                                                     \
-        mapped.values[i] = exec_callable(argv[1], 2);                                                             \
+        push(argv[1]);                    /* Push the function */                                                 \
+        push(items.values[mapped.count]); /* arg0 (1): Push the item */                                           \
+        push(int_value(mapped.count));    /* arg1 (2): Push the index */                                          \
+        mapped.values[mapped.count] = exec_callable(argv[1], 2);                                                  \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
           return nil_value(); /* Propagate the error */                                                           \
         }                                                                                                         \
-        push(mapped.values[i]); /* GC Protection */                                                               \
+        push(mapped.values[mapped.count]); /* GC Protection */                                                    \
+        mapped.count++;                                                                                           \
       }                                                                                                           \
       break;                                                                                                      \
     }                                                                                                             \
@@ -703,6 +705,7 @@ extern Value native_typeof(int argc, Value argv[]);
   for (int i = items.count - 1; i >= 0; i--) {                             \
     reversed.values[items.count - 1 - i] = items.values[i];                \
   }                                                                        \
+  reversed.count = items.count;                                            \
                                                                            \
   /* No need for GC protection - taking an array will not trigger a GC. */ \
   return NATIVE_LISTLIKE_TAKE_ARRAY(reversed);
@@ -946,7 +949,6 @@ extern Value native_typeof(int argc, Value argv[]);
   ValueArray items2 = AS_VALUE_ARRAY(argv[1]);                                 \
                                                                                \
   ValueArray concatenated = prealloc_value_array(items1.count + items2.count); \
-                                                                               \
   for (int i = 0; i < items1.count; i++) {                                     \
     concatenated.values[i] = items1.values[i];                                 \
   }                                                                            \
@@ -954,6 +956,7 @@ extern Value native_typeof(int argc, Value argv[]);
   for (int i = 0; i < items2.count; i++) {                                     \
     concatenated.values[items1.count + i] = items2.values[i];                  \
   }                                                                            \
+  concatenated.count = items1.count + items2.count;                            \
                                                                                \
   /* No need for GC protection - taking an array will not trigger a GC. */     \
   return NATIVE_LISTLIKE_TAKE_ARRAY(concatenated);

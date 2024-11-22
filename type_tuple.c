@@ -1,8 +1,8 @@
 #include <string.h>
 #include "builtin.h"
 #include "common.h"
-#include "value.h"
 #include "object.h"
+#include "value.h"
 #include "vm.h"
 
 static bool tuple_get_prop(Value receiver, ObjString* name, Value* result);
@@ -75,6 +75,7 @@ static Value tuple_ctor(int argc, Value argv[]) {
 
   // We can use memcpy here because the items array is already preallocated
   memcpy(items.values, seq->items.values, seq->items.count * sizeof(Value));
+  items.count = seq->items.count;
 
   ObjTuple* tuple = take_tuple(&items);
   return tuple_value(tuple);

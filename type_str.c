@@ -115,6 +115,7 @@ static Value str_split(int argc, Value argv[]) {
     push(seq_value(seq));                 // GC Protection
     for (int i = 0; i < str->length; i++) {
       seq->items.values[i] = str_value(copy_string(str->chars + i, 1));
+      seq->items.count++;
     }
 
     return pop();  // The seq
