@@ -1,13 +1,13 @@
-fn returnArg(arg) {
+fn return_arg(arg) {
   ret arg
 }
 
-fn returnFunCallWithArg(func, arg) {
-  ret returnArg(func)(arg)
+fn return_fn_call_with_arg(func, arg) {
+  ret return_arg(func)(arg)
 }
 
 fn printArg(arg) {
   print arg
 }
 
-returnFunCallWithArg(printArg, "hello world") // [Expect] hello world
+return_fn_call_with_arg(printArg, "hello world") // [expect] hello world

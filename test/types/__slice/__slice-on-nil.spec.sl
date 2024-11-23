@@ -1,4 +1,4 @@
-print nil.slice(0, 0) // [ExpectError] Uncaught error: Undefined callable 'slice' in type Nil.
-                      // [ExpectError]      1 | print nil.slice(0, 0)
-                      // [ExpectError]                    ~~~~~~~~~~~
-                      // [ExpectError]   at line 1 at the toplevel of module "main"
+print nil.slice(0, 0) // [expect-error] Uncaught error: Undefined callable 'slice' in type Nil.
+                      // [expect-error]      1 | print nil.slice(0, 0)
+                      // [expect-error]                    ~~~~~~~~~~~
+                      // [expect-error]   at line 1 at the toplevel of module "main"

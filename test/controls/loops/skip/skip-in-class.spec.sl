@@ -14,9 +14,9 @@ for let i = 0; i < 3; i++; {
   Skip().test(i)
 }
 
-// [Expect] Running Skip.test with i = 0...
-// [Expect] 1
-// [Expect] 3
-// [Expect] Running Skip.test with i = 2...
-// [Expect] 3
-// [Expect] 5
+// [expect] Running Skip.test with i = 0...
+// [expect] 1
+// [expect] 3
+// [expect] Running Skip.test with i = 2...
+// [expect] 3
+// [expect] 5

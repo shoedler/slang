@@ -20,4 +20,4 @@ cls C : B {
   }
 }
 
-C().test() // [Expect] A
+C().test() // [expect] A

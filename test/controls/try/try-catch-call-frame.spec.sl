@@ -9,4 +9,4 @@ fn lol() {
   ret a
 }
 
-print lol() // [Expect] 1
+print lol() // [expect] 1

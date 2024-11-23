@@ -1,14 +1,14 @@
 try {
-  print "Level one" // [Expect] Level one
+  print "Level one" // [expect] Level one
   try {
-    print "Level two"  // [Expect] Level two
+    print "Level two"  // [expect] Level two
     throw "Thrown exception"
   }
   catch {
-    print "Caught in level two" // [Expect] Caught in level two
+    print "Caught in level two" // [expect] Caught in level two
     throw error
   }
 } 
 catch {
-  print "Caught in level one!" // [Expect] Caught in level one!
+  print "Caught in level one!" // [expect] Caught in level one!
 }

@@ -1,7 +1,7 @@
-print "foo"[0] = "a" // [ExpectError] Uncaught error: Type Str does not support set-subscripting.
-                     // [ExpectError]      1 | print "foo"[0] = "a"
-                     // [ExpectError]                     ~~~~~~~~~
-                     // [ExpectError]   at line 1 at the toplevel of module "main"
+print "foo"[0] = "a" // [expect-error] Uncaught error: Type Str does not support set-subscripting.
+                     // [expect-error]      1 | print "foo"[0] = "a"
+                     // [expect-error]                     ~~~~~~~~~
+                     // [expect-error]   at line 1 at the toplevel of module "main"
 
 // Stack check. Only the toplevel fn should be in the stack at this point.
 // Added this bc there were some bugs in __get_prop, __set_prop, __get_subs and __set_subs.

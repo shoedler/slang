@@ -1,6 +1,6 @@
 let a = "global"
 {
   let a = "shadow"
-  print a // [Expect] shadow
+  print a // [expect] shadow
 }
-print a // [Expect] global
+print a // [expect] global

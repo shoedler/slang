@@ -1,2 +1,2 @@
 let a
-print a // [Expect] nil
+print a // [expect] nil

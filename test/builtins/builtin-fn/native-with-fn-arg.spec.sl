@@ -9,11 +9,11 @@ cls A {
 
 print ({"a": A(), "b": A() }).to_str()
 
-// [ExpectError] Uncaught error: true
-// [ExpectError]      4 |   fn to_str -> this.check(fn (x) { throw x })
-// [ExpectError]                                             ~~~~~~~
-// [ExpectError]   at line 4 in "(anon)" in module "main"
-// [ExpectError]   at line 6 in "(anon)" in module "main"
-// [ExpectError]   at line 6 in "check" in module "main"
-// [ExpectError]   at line 4 in "to_str" in module "main"
-// [ExpectError]   at line 10 at the toplevel of module "main"
+// [expect-error] Uncaught error: true
+// [expect-error]      4 |   fn to_str -> this.check(fn (x) { throw x })
+// [expect-error]                                             ~~~~~~~
+// [expect-error]   at line 4 in "(anon)" in module "main"
+// [expect-error]   at line 6 in "(anon)" in module "main"
+// [expect-error]   at line 6 in "check" in module "main"
+// [expect-error]   at line 4 in "to_str" in module "main"
+// [expect-error]   at line 10 at the toplevel of module "main"

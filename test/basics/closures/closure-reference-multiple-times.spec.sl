@@ -10,5 +10,5 @@ let f
 }
 
 f()
-// [Expect] a
-// [Expect] a
+// [expect] a
+// [expect] a

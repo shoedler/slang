@@ -5,5 +5,5 @@ cls Foo {
 }
 
 let bar = Foo().bar
-print "got method" // [Expect] got method
-bar("arg")         // [Expect] arg
+print "got method" // [expect] got method
+bar("arg")         // [expect] arg

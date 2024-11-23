@@ -5,8 +5,8 @@ while i++ < 10 {
   print i.to_str() + " is odd"
 }
 
-// [Expect] 1 is odd
-// [Expect] 3 is odd
-// [Expect] 5 is odd
-// [Expect] 7 is odd
-// [Expect] 9 is odd
+// [expect] 1 is odd
+// [expect] 3 is odd
+// [expect] 5 is odd
+// [expect] 7 is odd
+// [expect] 9 is odd

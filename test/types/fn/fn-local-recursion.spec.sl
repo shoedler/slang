@@ -4,5 +4,5 @@
     ret fib(n - 1) + fib(n - 2)
   }
 
-  print fib(8) // [Expect] 21
+  print fib(8) // [expect] 21
 }

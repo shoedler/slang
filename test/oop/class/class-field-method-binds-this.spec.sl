@@ -1,5 +1,5 @@
 cls Foo {
-  fn sayName(a) {
+  fn say_name(a) {
     print this.name
     print a
   }
@@ -12,8 +12,8 @@ let foo2 = Foo()
 foo2.name = "foo2"
 
 // Store the method reference on another object.
-foo2.fun = foo1.sayName
+foo2.fun = foo1.say_name
 // Still retains original receiver.
 foo2.fun(1)
-// [Expect] foo1
-// [Expect] 1
+// [expect] foo1
+// [expect] 1

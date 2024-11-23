@@ -4,7 +4,7 @@ let a = {
     "c": 3
 }
 
-print a["a"] // [Expect] 1
+print a["a"] // [expect] 1
 
 // Stack check. Only the toplevel fn should be in the stack at this point.
 // Added this bc there were some bugs in __get_prop, __set_prop, __get_subs and __set_subs.

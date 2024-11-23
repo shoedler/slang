@@ -3,4 +3,4 @@ cls Foo {
   fn baz -> "baz"
 }
 
-print Foo().bar().baz() // [Expect] baz
+print Foo().bar().baz() // [expect] baz

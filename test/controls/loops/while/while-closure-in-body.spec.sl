@@ -14,6 +14,6 @@ while (i < 4) {
   i = i + 1
 }
 
-f1() // [Expect] 1
-f2() // [Expect] 2
-f3() // [Expect] 3
+f1() // [expect] 1
+f2() // [expect] 2
+f3() // [expect] 3

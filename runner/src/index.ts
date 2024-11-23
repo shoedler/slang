@@ -1,14 +1,9 @@
-import { runBenchmarks, serveResults } from './bench.js';
-import {
-  BUILD_CONFIG_RELEASE,
-  BUILD_CONFIG_RELEASE_PROFILED,
-  SLANG_PROJ_DIR,
-  SLANG_SAMPLE_FILE,
-  SLANG_TEST_SUFFIX,
-} from './config.js';
-import { findTests, runTests } from './test.js';
-import { abort, buildSlangConfig, info, runSlangFile, separator, testFeatureFlag, warn } from './utils.js';
-import { watch } from './watch.js';
+import process from 'node:process';
+import { runBenchmarks, serveResults } from './bench.ts';
+import { SLANG_PROJ_DIR, SlangBuildConfigs, SlangFileSuffixes, SlangPaths, SlangRunFlags } from './config.ts';
+import { findTests, runTests } from './test.ts';
+import { abort, buildSlangConfig, info, runSlangFile, separator, testFeatureFlag, warn } from './utils.ts';
+import { watch } from './watch.ts';
 
 // Process arguments. This is a simple command line interface for running benchmarks and tests
 // process.argv contains
@@ -19,10 +14,10 @@ import { watch } from './watch.js';
 // - 4: options
 // - ...
 const cmd = process.argv[2];
-let options = process.argv.slice(3);
+const options = process.argv.slice(3);
 
 // Consume (remove) an option from the options array an return it's value. If the option is not found, return the default value
-const consumeOption = (opt, defaultValue) => {
+const consumeOption = (opt: string, defaultValue: boolean) => {
   const index = options.indexOf(opt);
   if (index < 0) {
     return defaultValue;
@@ -37,26 +32,12 @@ const validateOptions = () => {
   }
 };
 
-// Check if the GC stress flag is set to the expected value. If not, print a warning
-const checkFeatureFlagsForTests = async () => {
-  const gcStressEnabled = await testFeatureFlag('DEBUG_STRESS_GC'); // Enable stress GC for tests
-  if (!gcStressEnabled) {
-    warn(
-      "GC stress mode is disabled. Should be enabled to ensure that the GC only collects what it's supposed to collect.",
-    );
-  }
-
-  const ansiColorsEnabled = await testFeatureFlag('ENABLE_COLOR_OUTPUT');
-  if (ansiColorsEnabled) {
-    abort('ANSI colors are enabled. Must be disabled for tests to ensure consistent results.');
-  }
-};
-
 const hint = [
   'Available commands & options:',
   '  - bench           Run benchmarks (debug & release) and serve results',
   '    - serve         Only serve benchmark results',
   '    - no-serve      Run benchmarks without serving results',
+  '    - no-build      Skip building the project (default is to build)',
   '    - <pattern>     Run language that matches the regex pattern',
   '  - sample          Run sample file (sample.sl)',
   '  - test            Run tests (.spec.sl files)',
@@ -76,13 +57,10 @@ switch (cmd) {
   case 'bench': {
     const doOnlyServe = Boolean(consumeOption('serve', false));
     const doNoServe = Boolean(consumeOption('no-server', false));
+    const doNoBuild = Boolean(consumeOption('no-build', false));
+
     const langPattern = options.pop();
     validateOptions();
-
-    const gcStressEnabled = await testFeatureFlag('DEBUG_STRESS_GC'); // Disable stress GC for benchmarks
-    if (gcStressEnabled) {
-      abort('GC stress mode is enabled. Must be disabled for benchmarks to ensure consistent results.');
-    }
 
     if (doOnlyServe && doNoServe) {
       abort('Cannot specify both serve and no-serve options');
@@ -94,7 +72,12 @@ switch (cmd) {
       break;
     }
 
-    await buildSlangConfig(BUILD_CONFIG_RELEASE_PROFILED);
+    if (!doNoBuild) {
+      await buildSlangConfig(SlangBuildConfigs.ReleaseProfiled);
+    } else {
+      warn('Skipping build');
+    }
+
     await runBenchmarks(langPattern);
 
     if (!doNoServe) {
@@ -104,31 +87,36 @@ switch (cmd) {
     break;
   }
   case 'test': {
-    const config = BUILD_CONFIG_RELEASE;
+    const config = SlangBuildConfigs.Release;
     const doUpdateFiles = Boolean(consumeOption('update-files', false));
     const doNoParallel = Boolean(consumeOption('no-parallel', false));
     const doNoBuild = Boolean(consumeOption('no-build', false));
     const testNamePattern = options.pop() || '.*';
     validateOptions();
 
-    await checkFeatureFlagsForTests();
+    const ansiColorsEnabled = await testFeatureFlag('ENABLE_COLOR_OUTPUT');
+    if (ansiColorsEnabled) {
+      abort('ANSI colors are enabled. Must be disabled for tests to ensure consistent results.');
+    }
+
     const testFilepaths = await findTests(testNamePattern);
     if (!doNoBuild) {
       await buildSlangConfig(config);
     } else {
       warn('Skipping build');
     }
-    await runTests(config, undefined, doUpdateFiles, testFilepaths, !doNoParallel);
+
+    await runTests(config, testFilepaths, [SlangRunFlags.StressGc], null, doUpdateFiles, !doNoParallel);
     break;
   }
   case 'sample': {
-    const config = BUILD_CONFIG_RELEASE;
+    const config = SlangBuildConfigs.Release;
     validateOptions();
 
     await buildSlangConfig(config);
     console.clear();
-    info('Running slang file', SLANG_SAMPLE_FILE);
-    const { stdoutOutput, stderrOutput } = await runSlangFile(SLANG_SAMPLE_FILE, config);
+    info('Running slang file', SlangPaths.SampleFile);
+    const { stdoutOutput, stderrOutput } = await runSlangFile(SlangPaths.SampleFile, config);
 
     separator();
     console.log(stdoutOutput);
@@ -139,15 +127,15 @@ switch (cmd) {
     break;
   }
   case 'watch-sample': {
-    const config = BUILD_CONFIG_RELEASE;
-    const sampleFilePath = SLANG_SAMPLE_FILE;
+    const config = SlangBuildConfigs.Release;
+    const sampleFilePath = SlangPaths.SampleFile;
     validateOptions();
 
     watch(
       SLANG_PROJ_DIR,
       { recursive: true },
-      filename => filename.endsWith('.c') || filename.endsWith('.h') || sampleFilePath.endsWith(filename),
-      async (signal, triggerFile, isFirstRun) => {
+      (filename: string) => filename.endsWith('.c') || filename.endsWith('.h') || sampleFilePath.endsWith(filename),
+      async (signal: AbortSignal, triggerFile: string, isFirstRun: boolean) => {
         // Only build if the trigger file is not the sample file, or if it is the first run
         if (isFirstRun || !sampleFilePath.endsWith(triggerFile)) {
           const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
@@ -157,7 +145,7 @@ switch (cmd) {
         }
 
         info('Running slang file', sampleFilePath);
-        const { stdoutOutput, stderrOutput } = await runSlangFile(sampleFilePath, config, signal, true);
+        const { stdoutOutput, stderrOutput } = await runSlangFile(sampleFilePath, config, [], signal, true);
         console.clear();
 
         separator();
@@ -171,7 +159,7 @@ switch (cmd) {
     break;
   }
   case 'watch-test': {
-    const config = BUILD_CONFIG_RELEASE;
+    const config = SlangBuildConfigs.Release;
     const doNoParallel = Boolean(consumeOption('no-parallel', false));
     const testNamePattern = options.pop() || '.*';
     validateOptions();
@@ -182,11 +170,14 @@ switch (cmd) {
       filename =>
         filename.endsWith('.c') ||
         filename.endsWith('.h') ||
-        (filename.endsWith(SLANG_TEST_SUFFIX) && new RegExp(testNamePattern).test(filename)),
+        (filename.endsWith(SlangFileSuffixes.Test) && new RegExp(testNamePattern).test(filename)),
       async (signal, triggerFile, isFirstRun) => {
         // Only build if the trigger file is not a test file, or if it is the first run
-        if (isFirstRun || !triggerFile.endsWith(SLANG_TEST_SUFFIX)) {
-          await checkFeatureFlagsForTests();
+        if (isFirstRun || !triggerFile.endsWith(SlangFileSuffixes.Test)) {
+          const ansiColorsEnabled = await testFeatureFlag('ENABLE_COLOR_OUTPUT');
+          if (ansiColorsEnabled) {
+            abort('ANSI colors are enabled. Must be disabled for tests to ensure consistent results.');
+          }
           const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
           if (!didBuild) {
             return;
@@ -194,7 +185,7 @@ switch (cmd) {
         }
 
         const testFilepaths = await findTests(testNamePattern);
-        await runTests(config, signal, false, testFilepaths, !doNoParallel);
+        await runTests(config, testFilepaths, [], signal, false, !doNoParallel);
       },
     );
     break;

@@ -175,6 +175,7 @@ void define_value(HashTable* table, const char* name, Value value) {
   // found this out because in the stack trace we now see the modules name and for nested modules it always printed __name. The
   // current remedy is to just use variables for "key" and "value" and just use these instead of pushing and peeking.
   Value key = str_value(copy_string(name, (int)strlen(name)));
+  // TODO (optimize): Just pause Gc here, remove the push/pop stuff
   push(key);
   push(value);
   hashtable_set(table, key, value);
@@ -188,10 +189,11 @@ void make_seq(int count) {
   // and free items in the middle of the loop. Also, it lets us pop the list items on the
   // stack, instead of peeking and then having to pop them later (Requiring us to loop over
   // the array twice)
-  ValueArray items = prealloc_value_array(count);
+  ValueArray items = init_value_array_of_size(count);
   for (int i = count - 1; i >= 0; i--) {
     items.values[i] = pop();
   }
+  items.count = count;
   push(seq_value(take_seq(&items)));
 }
 
@@ -201,11 +203,11 @@ void make_tuple(int count) {
   // and free items in the middle of the loop. Also, it lets us pop the tuple items on the
   // stack, instead of peeking and then having to pop them later (Requiring us to loop over
   // the array twice)
-  ValueArray items = prealloc_value_array(count);
-
+  ValueArray items = init_value_array_of_size(count);
   for (int i = count - 1; i >= 0; i--) {
     items.values[i] = pop();
   }
+  items.count = count;
   push(tuple_value(take_tuple(&items)));
 }
 

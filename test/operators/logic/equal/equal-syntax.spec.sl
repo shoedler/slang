@@ -1,16 +1,16 @@
-print nil == nil // [Expect] true
+print nil == nil // [expect] true
 
-print true == true // [Expect] true
-print true == false // [Expect] false
+print true == true // [expect] true
+print true == false // [expect] false
 
-print 1 == 1 // [Expect] true
-print 1 == 2 // [Expect] false
+print 1 == 1 // [expect] true
+print 1 == 2 // [expect] false
 
-print "str" == "str" // [Expect] true
-print "str" == "ing" // [Expect] false
+print "str" == "str" // [expect] true
+print "str" == "ing" // [expect] false
 
-print nil == false // [Expect] false
-print false == 0 // [Expect] false
-print 0 == "0" // [Expect] false
+print nil == false // [expect] false
+print false == 0 // [expect] false
+print 0 == "0" // [expect] false
 
-print [] == [] // [Expect] false
+print [] == [] // [expect] false

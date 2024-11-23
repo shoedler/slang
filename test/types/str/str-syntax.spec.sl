@@ -1,5 +1,5 @@
-print "(" + "" + ")"   // [Expect] ()
-print "a string" // [Expect] a string
+print "(" + "" + ")"   // [expect] ()
+print "a string" // [expect] a string
 
 // Non-ASCII.
-print "A~¶Þॐஃ" // [Expect] A~¶Þॐஃ
+print "A~¶Þॐஃ" // [expect] A~¶Þॐஃ

@@ -1,17 +1,17 @@
 cls Base {
-  fn toString() { ret "Base" }
+  fn get_name() { ret Base.__name }
 }
 
 cls Derived : Base {
   fn getClosure() {
     fn closure() {
-      ret base.toString()
+      ret base.get_name()
     }
     ret closure
   }
 
-  fn toString -> "Derived"
+  fn get_name -> "Derived"
 }
 
 let closure = Derived().getClosure()
-print closure() // [Expect] Base
+print closure() // [expect] Base

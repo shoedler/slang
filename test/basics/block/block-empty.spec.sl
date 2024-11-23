@@ -4,4 +4,4 @@
 if (true) {}
 if (false) {} else {}
 
-print "ok" // [Expect] ok
+print "ok" // [expect] ok

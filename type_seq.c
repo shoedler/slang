@@ -100,7 +100,7 @@ static Value seq_ctor(int argc, Value argv[]) {
   if (is_int(argv[1])) {
     ValueArray items;
     init_value_array(&items);
-    ObjSeq* seq = take_seq(&items);  // TODO (optimize): Use prealloc_value_array
+    ObjSeq* seq = take_seq(&items);  // TODO (optimize): Use init_value_array_of_size
     push(seq_value(seq));            // GC Protection
 
     int count = (int)argv[1].as.integer;
@@ -114,10 +114,11 @@ static Value seq_ctor(int argc, Value argv[]) {
 
   if (is_tuple(argv[1])) {
     ObjTuple* tuple  = AS_TUPLE(argv[1]);
-    ValueArray items = prealloc_value_array(tuple->items.count);
+    ValueArray items = init_value_array_of_size(tuple->items.count);
 
     // We can use memcpy here because the items array is already preallocated
     memcpy(items.values, tuple->items.values, tuple->items.count * sizeof(Value));
+    items.count = tuple->items.count;
 
     ObjSeq* seq = take_seq(&items);
     return seq_value(seq);

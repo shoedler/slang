@@ -14,5 +14,5 @@ cls C : B {
 }
 
 C().foo()
-// [Expect] C.foo()
-// [Expect] A.foo()
+// [expect] C.foo()
+// [expect] A.foo()

@@ -1,8 +1,8 @@
 cls Foo {
-  fn getClosure {
+  fn get_closure {
     fn f() {
       fn g() {
-        fn h() -> this.toString()
+        fn h() -> this.get_foo()
         ret h
       }
       ret g
@@ -10,8 +10,8 @@ cls Foo {
     ret f
   }
 
-  fn toString() { ret "Foo" }
+  fn get_foo() { ret "Foo" }
 }
 
-let closure = Foo().getClosure()
-print closure()()() // [Expect] Foo
+let closure = Foo().get_closure()
+print closure()()() // [expect] Foo

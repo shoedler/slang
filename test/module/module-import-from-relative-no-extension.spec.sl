@@ -1,1 +1,1 @@
-import DifferentName from "/modules/b" // [Expect] Running module b
+import DifferentName from "/modules/b" // [expect] Running module b

@@ -1,0 +1,25 @@
+{
+  "version": "0.1.0",
+  "tasks": {
+    "test": {
+      "command": "deno run -A src/index.ts test"
+    },
+    "bench": {
+      "command": "deno run -A src/index.ts bench"
+    },
+    "sample": {
+      "command": "deno run -A src/index.ts sample"
+    },
+    "watch-test": {
+      "command": "deno run -A src/index.ts watch-test"
+    },
+    "watch-sample": {
+      "command": "deno run -A src/index.ts watch-sample"
+    }
+  },
+  "imports": {
+    "@types/node": "npm:@types/node@^22.9.1",
+    "chalk": "npm:chalk@^5.3.0",
+    "wrap-ansi": "npm:wrap-ansi@^9.0.0"
+  }
+}

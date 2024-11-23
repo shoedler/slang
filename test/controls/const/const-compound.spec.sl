@@ -1,5 +1,5 @@
-// [Exit] 2
+// [exit] 2
 const a = 1
-let b = a++ // [ExpectError] Compile error at line 3 at 'a': Can't reassign a constant.
+let b = a++ // [expect-error] Compile error at line 3 at 'a': Can't reassign a constant.
 
 

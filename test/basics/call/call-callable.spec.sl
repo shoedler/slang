@@ -6,18 +6,18 @@ let bound = Bar().a
 let unbound = Bar.b // Just a function
 
 // Callables are Functions, Closures, Classes and Bound Methods.
-print Bar() // [Expect] <Instance of Bar>
-print foo() // [Expect] 1
-print lol() // [Expect] 1
-print bound() // [Expect] 1
-print unbound() // [Expect] 2
+print Bar() // [expect] <Instance of Bar>
+print foo() // [expect] 1
+print lol() // [expect] 1
+print bound() // [expect] 1
+print unbound() // [expect] 2
 
 // But not every callable is a function.
-print Bar is Fn // [Expect] false
-print foo is Fn // [Expect] true
-print lol is Fn // [Expect] true
-print bound is Fn // [Expect] true
-print unbound is Fn // [Expect] true
+print Bar is Fn // [expect] false
+print foo is Fn // [expect] true
+print lol is Fn // [expect] true
+print bound is Fn // [expect] true
+print unbound is Fn // [expect] true
 
 // Since a class is callable, it can be passed as a method group.
-print "12345".split("").map(Int) // [Expect] [1, 2, 3, 4, 5]
+print "12345".split("").map(Int) // [expect] [1, 2, 3, 4, 5]

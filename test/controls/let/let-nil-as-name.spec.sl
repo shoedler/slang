@@ -1,2 +1,2 @@
-// [Exit] 2
-let nil = "value" // [ExpectError] Compile error at line 2 at 'nil': Expecting variable name.
+// [exit] 2
+let nil = "value" // [expect-error] Compile error at line 2 at 'nil': Expecting variable name.

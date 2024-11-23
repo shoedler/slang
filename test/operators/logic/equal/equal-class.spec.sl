@@ -2,24 +2,24 @@
 cls Foo {}
 cls Bar {}
 
-print Foo == Foo // [Expect] true
-print Foo == Bar // [Expect] false
-print Bar == Foo // [Expect] false
-print Bar == Bar // [Expect] true
+print Foo == Foo // [expect] true
+print Foo == Bar // [expect] false
+print Bar == Foo // [expect] false
+print Bar == Bar // [expect] true
 
-print Foo == "Foo" // [Expect] false
-print Foo == nil   // [Expect] false
-print Foo == 123   // [Expect] false
-print Foo == true  // [Expect] false
+print Foo == "Foo" // [expect] false
+print Foo == nil   // [expect] false
+print Foo == 123   // [expect] false
+print Foo == true  // [expect] false
   
 // Different instances of the same class have identity equality. 
-print Foo() == Foo() // [Expect] false
+print Foo() == Foo() // [expect] false
 
 let a = Foo()
 let b = a
-print a == a // [Expect] true
-print a == b // [Expect] true
+print a == a // [expect] true
+print a == b // [expect] true
 
 a = []
-print a == b // [Expect] false
-print b      // [Expect] <Instance of Foo>
+print a == b // [expect] false
+print b      // [expect] <Instance of Foo>

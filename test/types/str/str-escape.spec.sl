@@ -1,10 +1,10 @@
 print "1\n2" 
-// [Expect] 1
-// [Expect] 2
+// [expect] 1
+// [expect] 2
 
 // Escape sequences adjacent to the string literal quoation marks.
-print "\"hello\"" // [Expect] "hello"
+print "\"hello\"" // [expect] "hello"
 
-print "\'\"" // [Expect] '"
+print "\'\"" // [expect] '"
 
 // TODO: Add \b, \f, \t

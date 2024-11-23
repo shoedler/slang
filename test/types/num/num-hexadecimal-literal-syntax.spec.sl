@@ -1,1 +1,1 @@
-print 0xBAADF00D // [Expect] 3131961357
+print 0xBAADF00D // [expect] 3131961357

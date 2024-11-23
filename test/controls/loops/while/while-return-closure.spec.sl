@@ -7,4 +7,4 @@ fn f() {
 }
 
 let h = f()
-h() // [Expect] i
+h() // [expect] i

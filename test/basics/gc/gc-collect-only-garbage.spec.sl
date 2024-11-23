@@ -2,6 +2,8 @@
 import Gc
 import Perf
 
+Gc.stress(true) // This is set to true by default in the test runner - just to be explicit
+
 fn test_keep_alive {  
   // Create a class that will hold circular references
   cls CircularRef {
@@ -113,5 +115,5 @@ fn test_keep_alive {
   // print "Memory after test:  " + after_stats.bytes_allocated.to_str()
 }
 
-test_keep_alive() // [Expect] All references and closures survived collection properly
+test_keep_alive() // [expect] All references and closures survived collection properly
 

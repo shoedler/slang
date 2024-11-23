@@ -1,5 +1,5 @@
-import { nothing } from "modules/b" // [Expect] Running module b
-print nothing // [Expect] nil
+import { nothing } from "modules/b" // [expect] Running module b
+print nothing // [expect] nil
 
 import { x } from "modules/b" // Should not run module b again
-print x // [Expect] 42
+print x // [expect] 42

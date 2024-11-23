@@ -211,6 +211,8 @@ static Value obj_to_str(int argc, Value argv[]) {
   // return str_value(str_obj);
 }
 
+// TODO (optimize): This is nice and all, but it's also kinda retarded. We can easily check if a hasmap has a key. We shouldn't
+// call 'keys' and then use the listlike body just to reuse some code...
 #define NATIVE_ENUMERABLE_GET_VALUE_ARRAY(value)                   \
   /* Execute the 'keys' method on the receiver */                  \
   push(argv[0]); /* Receiver */                                    \
@@ -243,18 +245,19 @@ static Value obj_entries(int argc, Value argv[]) {
   NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ValueArray items  = prealloc_value_array(object->fields.count);
+  ValueArray items  = init_value_array_of_size(object->fields.count);
   ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
   push(seq_value(seq));                  // GC Protection
 
-  int processed = 0;
+  // Since we took the seq, we shouldn't manipule the items array directly, because only its [values] field lives on the heap.
+  // Modifying items.count for example, would not be reflected in the seq.
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
     if (!is_empty_internal(entry->key)) {
       push(entry->key);
       push(entry->value);
-      make_seq(2);                        // Leaves a seq with the key-value on the stack
-      items.values[processed++] = pop();  // The seq
+      make_seq(2);                                    // Leaves a seq with the key-value on the stack
+      seq->items.values[seq->items.count++] = pop();  // The seq
     }
   }
 
@@ -270,19 +273,18 @@ static Value obj_keys(int argc, Value argv[]) {
   NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ValueArray items  = prealloc_value_array(object->fields.count);
-  ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
-  push(seq_value(seq));                  // GC Protection
+  ValueArray items  = init_value_array_of_size(object->fields.count);
 
-  int processed = 0;
+  // We can direclty manipulate items.count, since we haven't taken the seq yet.
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
     if (!is_empty_internal(entry->key)) {
-      items.values[processed++] = entry->key;
+      items.values[items.count++] = entry->key;
     }
   }
 
-  return pop();  // The seq
+  ObjSeq* seq = take_seq(&items);
+  return seq_value(seq);
 }
 
 /**
@@ -294,17 +296,16 @@ static Value obj_values(int argc, Value argv[]) {
   NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ValueArray items  = prealloc_value_array(object->fields.count);
-  ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
-  push(seq_value(seq));                  // GC Protection
+  ValueArray items  = init_value_array_of_size(object->fields.count);
 
-  int processed = 0;
+  // We can direclty manipulate items.count, since we haven't taken the seq yet.
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
     if (!is_empty_internal(entry->key)) {
-      items.values[processed++] = entry->value;
+      items.values[items.count++] = entry->value;
     }
   }
 
-  return pop();  // The seq
+  ObjSeq* seq = take_seq(&items);
+  return seq_value(seq);
 }

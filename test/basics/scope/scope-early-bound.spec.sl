@@ -4,7 +4,7 @@ let a = "outer"
     print a
   }
 
-  foo() // [Expect] outer
+  foo() // [expect] outer
   let a = "inner"
-  foo() // [Expect] outer
+  foo() // [expect] outer
 }

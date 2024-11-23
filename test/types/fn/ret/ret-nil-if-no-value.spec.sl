@@ -3,4 +3,4 @@ fn f() {
   print "bad"
 }
 
-print f() // [Expect] nil
+print f() // [expect] nil

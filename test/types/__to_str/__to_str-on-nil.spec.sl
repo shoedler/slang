@@ -1,2 +1,2 @@
-print nil.to_str() // [Expect] nil
-print nil // [Expect] nil
+print nil.to_str() // [expect] nil
+print nil // [expect] nil

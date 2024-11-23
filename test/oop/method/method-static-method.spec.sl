@@ -5,6 +5,6 @@ cls Test {
 }
 
 let t = Test.assert()
-print t is Test // [Expect] true
+print t is Test // [expect] true
 
-print Test.assert // [Expect] <Fn assert>
+print Test.assert // [expect] <Fn assert>

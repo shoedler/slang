@@ -4,7 +4,7 @@ let a = "1
 3
 "
 
-err // [ExpectError] Uncaught error: Undefined variable 'err'.
-    // [ExpectError]      7 | err
-    // [ExpectError]          ~~~
-    // [ExpectError]   at line 7 at the toplevel of module "main"
+err // [expect-error] Uncaught error: Undefined variable 'err'.
+    // [expect-error]      7 | err
+    // [expect-error]          ~~~
+    // [expect-error]   at line 7 at the toplevel of module "main"

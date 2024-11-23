@@ -1,7 +1,7 @@
 let s = []
-print s.push(1) // [Expect] nil
-print s // [Expect] [1]
+print s.push(1) // [expect] nil
+print s // [expect] [1]
 
 s.push("hello", nil, fn -> 1, true)
 
-print s // [Expect] [1, hello, nil, <Fn (anon)>, true]
+print s // [expect] [1, hello, nil, <Fn (anon)>, true]

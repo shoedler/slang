@@ -12,5 +12,5 @@ cls Derived : Base {
 }
 
 let derived = Derived("a", "b")
-print derived.a // [Expect] a
-print derived.b // [Expect] b
+print derived.a // [expect] a
+print derived.b // [expect] b

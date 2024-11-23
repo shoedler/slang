@@ -5,11 +5,11 @@ cls Foo {
   }
 }
 
-let foo = Foo("one") // [Expect] Foo.ctor(one)
+let foo = Foo("one") // [expect] Foo.ctor(one)
 foo.field = "field"
 
-let foo2 = foo.ctor("two") // [Expect] Foo.ctor(two)
-print foo2                 // [Expect] <Instance of Foo>
+let foo2 = foo.ctor("two") // [expect] Foo.ctor(two)
+print foo2                 // [expect] <Instance of Foo>
 
 // Make sure ctor() doesn't create a fresh instance.
-print foo.field // [Expect] ctor
+print foo.field // [expect] ctor

@@ -10,6 +10,6 @@ let foo = Foo()
 foo.bar = bar
 
 foo.bar(1, 2)
-// [Expect] bar
-// [Expect] 1
-// [Expect] 2
+// [expect] bar
+// [expect] 1
+// [expect] 2

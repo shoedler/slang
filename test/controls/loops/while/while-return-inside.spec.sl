@@ -6,4 +6,4 @@ fn f() {
 }
 
 print f()
-// [Expect] i
+// [expect] i

@@ -6,6 +6,6 @@ cls Scone {
 }
 
 let scone = Scone()
-let res = scone.topping("berries", "cream") // [Expect] scone with berries and cream
-print res // [Expect] 1
-print scone.topping // [Expect] <Fn topping>
+let res = scone.topping("berries", "cream") // [expect] scone with berries and cream
+print res // [expect] 1
+print scone.topping // [expect] <Fn topping>

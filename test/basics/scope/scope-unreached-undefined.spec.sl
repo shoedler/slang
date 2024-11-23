@@ -1,5 +1,5 @@
 if (false) {
-  print notDefined
+  print not_defined
 }
 
-print "ok" // [Expect] ok
+print "ok" // [expect] ok

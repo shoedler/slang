@@ -1,7 +1,7 @@
 fn caller(g) {
   g()
   // g should be a function, not nil.
-  print g == nil // [Expect] false
+  print g == nil // [expect] false
 }
 
 fn call_caller() {

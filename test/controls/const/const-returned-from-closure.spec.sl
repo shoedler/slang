@@ -7,11 +7,11 @@ let f
   let r = fun()
   r++
 
-  print r // [Expect] 2
+  print r // [expect] 2
 
   f = fun
 }
 
 let r = f()
 r++
-print r // [Expect] 2
+print r // [expect] 2

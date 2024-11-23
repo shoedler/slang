@@ -110,11 +110,12 @@ static Value str_split(int argc, Value argv[]) {
 
   // If the separator is empty, split by character
   if (sep->length == 0) {
-    ValueArray items = prealloc_value_array(str->length);
+    ValueArray items = init_value_array_of_size(str->length);
     ObjSeq* seq      = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
     push(seq_value(seq));                 // GC Protection
     for (int i = 0; i < str->length; i++) {
       seq->items.values[i] = str_value(copy_string(str->chars + i, 1));
+      seq->items.count++;
     }
 
     return pop();  // The seq

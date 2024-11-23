@@ -105,4 +105,4 @@ fn f() {
 }
 
 // Since we now use 16-bit opcodes, this is fine
-print "ok" // [Expect] ok
+print "ok" // [expect] ok

@@ -1,5 +1,5 @@
 cls Foo {}
 
 let foo = Foo()
-print foo // [Expect] <Instance of Foo>
+print foo // [expect] <Instance of Foo>
 

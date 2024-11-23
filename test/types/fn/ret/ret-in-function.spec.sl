@@ -3,4 +3,4 @@ fn f() {
   print "bad"
 }
 
-print f() // [Expect] ok
+print f() // [expect] ok

@@ -5,7 +5,7 @@ cls A {
 }
 
 cls B : A {
-  fn getClosure() {
+  fn get_closure() {
     fn closure() {
       base.say()
     }
@@ -23,4 +23,4 @@ cls C : B {
   }
 }
 
-C().getClosure()() // [Expect] A
+C().get_closure()() // [expect] A

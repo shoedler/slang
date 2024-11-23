@@ -1,1 +1,1 @@
-print 0b1010 // [Expect] 10
+print 0b1010 // [expect] 10

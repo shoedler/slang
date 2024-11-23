@@ -1,13 +1,13 @@
-print !true     // [Expect] false
-print !false    // [Expect] true
-print !!true    // [Expect] true
+print !true     // [expect] false
+print !false    // [expect] true
+print !!true    // [expect] true
 
-print !123      // [Expect] false
-print !0        // [Expect] false
+print !123      // [expect] false
+print !0        // [expect] false
 
-print !nil     // [Expect] true
+print !nil     // [expect] true
 
-print !""       // [Expect] false
+print !""       // [expect] false
 
 fn foo() {}
-print !foo      // [Expect] false
+print !foo      // [expect] false

@@ -1,11 +1,9 @@
-import {
-  BENCH_LOG_FILE,
-  BENCH_SUFFIX,
-  BUILD_CONFIG_RELEASE,
-  SLANG_BENCH_DIR,
-  SLANG_BIN_DIR,
-  SLANG_SUFFIX,
-} from './config.js';
+import chalk from 'chalk';
+import { existsSync } from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
+import process from 'node:process';
+import { BENCH_LOG_FILE, BENCH_PRE_SUFFIX, SlangBuildConfigs, SlangFileSuffixes, SlangPaths } from './config.ts';
 import {
   LOG_CONFIG,
   createOrAppendJsonFile,
@@ -16,35 +14,34 @@ import {
   readFile,
   runProcess,
   warn,
-} from './utils.js';
+} from './utils.ts';
 
-import chalk from 'chalk';
-import { existsSync } from 'node:fs';
-import http from 'node:http';
-import path from 'node:path';
+type BenchmarkResult = {
+  name: string;
+  cpu: string;
+  lang: string;
+  v: string;
+  date: Date;
+  score: number;
+  best: number;
+  avg: number;
+  worst: number;
+  sd: number;
+};
 
-/**
- * @typedef {{
- *   name: string;
- *   cpu: string;
- *   lang: string;
- *   v: string;
- *   date: Date;
- *   score: number;
- *   score: number;
- *   best: number;
- *   avg: number;
- *   worst: number;
- *   sd: number;
- * }} BenchmarkResult
- */
+type Benchmark = {
+  name: string;
+  regex: RegExp;
+};
+
+const NUM_RUNS = 20; // Number of runs for each benchmark
 
 const LANGUAGES = [
   {
     lang: 'slang',
-    ext: SLANG_SUFFIX,
-    cmd: [`${path.join(SLANG_BIN_DIR, BUILD_CONFIG_RELEASE, 'slang')}`, 'run'],
-    version: undefined,
+    ext: SlangFileSuffixes.Slang,
+    cmd: [`${path.join(SlangPaths.BinDir, SlangBuildConfigs.Release, 'slang')}`, 'run'],
+    version: [`${path.join(SlangPaths.BinDir, SlangBuildConfigs.Release, 'slang')}`, '--version'],
   },
   {
     lang: 'javascript',
@@ -60,14 +57,14 @@ const LANGUAGES = [
   },
 ];
 
-const BENCHMARKS = [];
+const BENCHMARKS: Benchmark[] = [];
 
 /**
  * Define a benchmark
- * @param {string} name - The name of the benchmark (file name, without extension and .bench suffix)
- * @param {string[]} expectedOutput - The expected output of the benchmark
+ * @param name - The name of the benchmark (file name, without extension and .bench suffix)
+ * @param expectedOutput - The expected output of the benchmark, each output line as an array element
  */
-const defineBenchmark = (name, expectedOutput) => {
+const defineBenchmark = (name: string, expectedOutput: string[]) => {
   const expectedOutStr = expectedOutput.length > 0 ? expectedOutput.join('\n') + '\n' : '';
   const regex = new RegExp(expectedOutStr + 'elapsed: (\\d+.\\d+)', 'm');
   BENCHMARKS.push({ name, regex });
@@ -80,27 +77,26 @@ defineBenchmark('list', ['499999500000']);
 
 /**
  * Calculate score based on time
- * @param {number} time - Time to calculate score for
- * @returns {number} - Score
+ * @param time - Time to calculate score for
+ * @returns Score
  */
-const getScore = time => 1000 / time;
+const getScore = (time: number) => 1000 / time;
 
 /**
- * Replace Carriage Return + Line Feed (\r\n) with Line Feed (\n)
- * Then replace any remaining Carriage Returns (\r) with Line Feed (\n)
- * @param {string} stdout - Output to normalize
- * @returns {string} - Normalized output
+ * Replaces all `\r\n` with `\n`, then replace any remaining `\r` with `\n`.
+ * @param str - String to normalize
+ * @returns Normalized output
  */
-const normalizeLineEndings = stdout => {
-  return stdout.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+const normalizeLineEndings = (str: string) => {
+  return str.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 };
 
 /**
  * Calculate standard deviation of an array of numbers
- * @param {number[]} values - Array of numbers
- * @returns {number} - Standard deviation
+ * @param values - Array of numbers
+ * @returns Standard deviation
  */
-const standardDeviation = values => {
+const standardDeviation = (values: number[]) => {
   const avg = values.reduce((a, b) => a + b) / values.length;
   const variance = values.reduce((a, b) => a + (b - avg) ** 2, 0) / values.length;
   return Math.sqrt(variance);
@@ -108,39 +104,48 @@ const standardDeviation = values => {
 
 /**
  * Find a result in an array of results
- * @param {BenchmarkResult[]} results - Array of results
- * @param {string} name - Name of the benchmark
- * @param {string} lang - Language of the benchmark
- * @param {string} cpu - CPU name running the benchmark
- * @param {boolean} [first=true] - Find the first result or the last result
- * @returns {BenchmarkResult | undefined} - Result or undefined if not found
+ * @param results - Array of results
+ * @param name - Name of the benchmark
+ * @param lang - Language of the benchmark
+ * @param cpu - CPU name running the benchmark
+ * @param first - Find the first result or the last result
+ * @returns Result or undefined if not found
  */
-const findResult = (results, name, lang, cpu, first = true) => {
-  const isTheOne = r => r.name === name && r.lang === lang && r.cpu === cpu;
+const findResult = (
+  results: BenchmarkResult[],
+  name: string,
+  lang: string,
+  cpu: string,
+  first = true,
+): BenchmarkResult | undefined => {
+  const isTheOne = (r: BenchmarkResult) => r.name === name && r.lang === lang && r.cpu === cpu;
+
   if (first) {
     return results.find(isTheOne);
   }
+
   for (let i = results.length - 1; i >= 0; i--) {
     if (isTheOne(results[i])) {
       return results[i];
     }
   }
+
   return undefined;
 };
 
 /**
  * Runs all benchmarks and writes results to a log file
- * @param {string} langPattern - Pattern to match languages (regex)
+ * @param langPattern - Pattern to match languages (regex)
  */
-export const runBenchmarks = async langPattern => {
-  const benchLogFile = path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE);
+export const runBenchmarks = async (langPattern?: string) => {
+  const benchLogFile = path.join(SlangPaths.BenchDir, BENCH_LOG_FILE);
   const prevResults = JSON.parse(await readFile(benchLogFile));
-  const results = [];
+  const results: BenchmarkResult[] = [];
 
   const date = new Date();
   const processorName = await getProcessorName();
 
-  const actualLanguages = LANGUAGES.filter(l => l.lang.match(langPattern));
+  const actualLanguages = langPattern ? LANGUAGES.filter(l => l.lang.match(langPattern)) : LANGUAGES;
 
   const longestBenchmarkName = Math.max(...BENCHMARKS.map(b => b.name.length));
   const longestLanguageName = Math.max(...actualLanguages.map(l => l.lang.length));
@@ -148,12 +153,20 @@ export const runBenchmarks = async langPattern => {
   for (const benchmark of BENCHMARKS) {
     for (const language of actualLanguages) {
       const { lang, ext, cmd } = language;
-      const filePath = path.join(SLANG_BENCH_DIR, benchmark.name + BENCH_SUFFIX + ext);
+      const filePath = path.join(SlangPaths.BenchDir, benchmark.name + BENCH_PRE_SUFFIX + ext);
       const runCommand = cmd.join(' ') + ' ' + filePath;
       const isSlang = lang === 'slang';
-      const times = [];
+      const times: number[] = [];
 
-      let interpreterVersion = isSlang ? (await gitStatus()).hash : await runProcess(language.version.join(' '));
+      let interpreterVersion = await runProcess(language.version.join(' '));
+      if (!interpreterVersion) {
+        warn(`${lang} version command failed`, `Received no output`);
+        interpreterVersion = 'unknown version';
+      }
+
+      if (isSlang) {
+        interpreterVersion += ' @ ' + (await gitStatus()).hash;
+      }
 
       interpreterVersion = normalizeLineEndings(interpreterVersion).replace(/\n/g, '');
 
@@ -170,36 +183,70 @@ export const runBenchmarks = async langPattern => {
         continue;
       }
 
+      // Create a progress spinner
+      const SPINNER = '⣾⣽⣻⢿⡿⣟⣯⣷';
+      const [PENDING, COMPLETED] = '▰▰';
+      const cursor = (show: boolean) => process.stdout.write(show ? '\x1b[?25h' : '\x1b[?25l');
+      let i = 0;
+
+      const spinner = setInterval(() => {
+        cursor(false); // Hide cursor
+        const char = SPINNER.charAt(Math.floor(Date.now() / 80) % SPINNER.length);
+
+        process.stdout.write('\x1b[s'); // Save cursor position
+
+        const progCurrent = char;
+        const progDone = COMPLETED.repeat(i);
+        const progRemain = PENDING.repeat(NUM_RUNS - i);
+
+        const progress = chalk.green(progDone) + progCurrent + chalk.red(progRemain);
+
+        const current = i.toString().padStart(NUM_RUNS.toString().length, ' ');
+        process.stdout.write(` ${progress} ${current}/${NUM_RUNS}`);
+
+        process.stdout.write('\x1b[u'); // Restore cursor position
+      }, 100);
+
+      const stopSpinner = () => {
+        clearInterval(spinner);
+        cursor(true); // Show cursor
+      };
+
       // Do one warmup run
       await runProcess(runCommand, '', undefined, false, true);
 
-      // Run benchmark 10 times
-      for (let i = 0; i < 10; i++) {
-        process.stdout.write(`.`);
-
+      // Run benchmark
+      for (; i < NUM_RUNS; i++) {
         const output = await runProcess(runCommand, '', undefined, false, true);
 
         if (!output) {
+          stopSpinner();
           process.stdout.write('\n');
-          warn(`${lang} benchmark failed`, `Output: ${output}`);
-          continue;
+          warn(`${lang} running ${benchmark.name} benchmark failed`, `Received no output`);
+          times.push(Infinity);
+          break;
         }
 
         const match = normalizeLineEndings(output).trim().match(benchmark.regex);
-        if (!match) {
+        if (!match || !match[1] /* elapsed time */) {
+          stopSpinner();
           process.stdout.write('\n');
-          warn(`${lang} benchmark output does not match expected output`, output);
-          continue;
+          warn(`${lang} output for ${benchmark.name} does not match expected output`, output);
+          times.push(Infinity);
+          break;
         }
+
         times.push(parseFloat(match[1]));
       }
+
+      stopSpinner();
 
       // Calculate some stats
       const best = Math.min(...times);
       const avg = times.reduce((a, b) => a + b) / times.length;
       const worst = Math.max(...times);
       const score = getScore(avg);
-      let standardDev = standardDeviation(times);
+      const standardDev = standardDeviation(times);
 
       // Print benchmark results
       let comparison;
@@ -242,16 +289,15 @@ export const runBenchmarks = async langPattern => {
       }
 
       // Emphasize standard deviation if it's high
-      if (standardDev > 0.05) {
-        standardDev = chalk.yellow(standardDev.toFixed(4));
-      } else {
-        standardDev = standardDev.toFixed(4);
-      }
+      const avgStr = chalk.black.bgWhite('avg=' + avg.toFixed(3) + 's');
+      const bestStr = 'best=' + best.toFixed(3) + 's';
+      const worstStr = 'worst=' + worst.toFixed(3) + 's';
+      const sdStr = 'sd=' + (standardDev > 0.05 ? chalk.yellow(standardDev.toFixed(4)) : standardDev.toFixed(4));
 
-      process.stdout.write(` ${best.toFixed(2)}s sd(${standardDev}) ${comparison}\n`);
+      process.stdout.write(` ${avgStr} ${bestStr} ${worstStr} ${sdStr} ${comparison}\n`);
 
       // Push benchmark result to results array
-      const result = {
+      const result: BenchmarkResult = {
         name: benchmark.name,
         cpu: processorName,
         date,
@@ -275,10 +321,13 @@ export const runBenchmarks = async langPattern => {
   ok(`All benchmarks done.`);
 };
 
-export const serveResults = async () => {
-  const clientCodeFile = path.join(SLANG_BENCH_DIR, 'client.js');
-  const indexHtmlFile = path.join(SLANG_BENCH_DIR, 'index.html');
-  const benchLogFile = path.join(SLANG_BENCH_DIR, BENCH_LOG_FILE);
+/**
+ * Serve benchmark results
+ */
+export const serveResults = () => {
+  const clientCodeFile = path.join(SlangPaths.BenchDir, 'client.js');
+  const indexHtmlFile = path.join(SlangPaths.BenchDir, 'index.html');
+  const benchLogFile = path.join(SlangPaths.BenchDir, BENCH_LOG_FILE);
 
   const server = http.createServer((req, res) => {
     if (req.url === '/') {
@@ -305,3 +354,20 @@ export const serveResults = async () => {
   server.listen(5252);
   info('Server running at http://localhost:5252/');
 };
+
+// const SPINNER = '⠁⠂⠄⡀⢀⠠⠐⠈';
+// const SPINNER = '▊▋▌▍▎▏▎▍▌▋';
+// const SPINNER = '⣾⣽⣻⢿⡿⣟⣯⣷';
+// const SPINNER = '⊙⊚⊛⊜⊝';
+// const SPINNER = '◰◱◲◳';
+// const SPINNER = '◴◵◶◷';
+// const SPINNER = '▖▘▝▗';
+// const SPINNER = '✶✸✹✺✹✸';
+// const SPINNER = '⎺⎻⎼⎽⎯';
+// const SPINNER = '━┛┗━┏┓';
+// const SPINNER = '◇◈◆◈';
+// const SPINNER = '⯌⯐';
+// const [PENDING, COMPLETED] = '▬▮';
+// const [PENDING, COMPLETED] = '⬡⬢';
+// const [PENDING, COMPLETED] = '▢▣';
+// const [PENDING, COMPLETED] = '▢▣';

@@ -1,3 +1,3 @@
 let a = fn -> nil
 
-print a // [Expect] <Fn (anon)>
+print a // [expect] <Fn (anon)>

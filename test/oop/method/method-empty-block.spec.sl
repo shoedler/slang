@@ -2,4 +2,4 @@ cls Foo {
   fn bar() {}
 }
 
-print Foo().bar() // [Expect] nil
+print Foo().bar() // [expect] nil

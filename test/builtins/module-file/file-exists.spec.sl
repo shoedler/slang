@@ -1,9 +1,9 @@
 import File
-print File // [Expect] <Instance of Module>
+print File // [expect] <Instance of Module>
 
 // Valid path
-print File.exists(cwd() + "file-exists.spec.sl") // [Expect] true
+print File.exists(cwd() + "file-exists.spec.sl") // [expect] true
 
 // Invalid path
-print File.exists(cwd() + "this-file-does-not-exist.spec.sl") // [Expect] false
+print File.exists(cwd() + "this-file-does-not-exist.spec.sl") // [expect] false
 

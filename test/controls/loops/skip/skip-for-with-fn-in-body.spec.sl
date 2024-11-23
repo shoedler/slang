@@ -13,5 +13,5 @@ for let i = 0; i < 3; i++; {
   do_something()
 }
 
-// [Expect]   do_something: i = 1, j = 0
-// [Expect]   do_something: i = 1, j = 2
+// [expect]   do_something: i = 1, j = 0
+// [expect]   do_something: i = 1, j = 2

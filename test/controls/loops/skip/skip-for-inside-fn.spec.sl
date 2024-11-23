@@ -11,12 +11,12 @@ for let i = 0; i < 3; i++; {
   inner_loop(i)
 }
 
-// [Expect] Outer loop: 0
-// [Expect]   Inner loop: 1
-// [Expect]   Inner loop: 2
-// [Expect] Outer loop: 1
-// [Expect]   Inner loop: 0
-// [Expect]   Inner loop: 2
-// [Expect] Outer loop: 2
-// [Expect]   Inner loop: 0
-// [Expect]   Inner loop: 1
+// [expect] Outer loop: 0
+// [expect]   Inner loop: 1
+// [expect]   Inner loop: 2
+// [expect] Outer loop: 1
+// [expect]   Inner loop: 0
+// [expect]   Inner loop: 2
+// [expect] Outer loop: 2
+// [expect]   Inner loop: 0
+// [expect]   Inner loop: 1

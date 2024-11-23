@@ -16,4 +16,4 @@ cls B : A {
 
 
 let closure = B().getClosure()
-closure("arg") // [Expect] A.method(arg)
+closure("arg") // [expect] A.method(arg)

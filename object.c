@@ -172,25 +172,6 @@ static uint64_t hash_tuple(ValueArray* items) {
   return result;
 }
 
-ValueArray prealloc_value_array(int count) {
-  ValueArray items;
-  init_value_array(&items);
-
-  int capacity   = GROW_CAPACITY(count);
-  items.values   = RESIZE_ARRAY(Value, items.values, 0, capacity);
-  items.capacity = capacity;
-  items.count    = count;
-
-  // We have to initialize all values to nil, because if you set an item with something that triggers the gc, you'd mark
-  // uninitialized values in the gc. That's because the ValueArray of the preallocated listlike is only resized and not
-  // initialized, therefore the actual entries are garbage memory.
-  for (int i = 0; i < count; i++) {
-    items.values[i] = nil_value();
-  }
-
-  return items;
-}
-
 ObjSeq* take_seq(ValueArray* items) {
   // Pause while we allocate an object for seq, because this might trigger a GC. This allows us to prepare a value array with it's
   // values being out of reach of the GC.

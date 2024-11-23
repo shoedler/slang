@@ -1,15 +1,15 @@
-print {}.to_str()                   // [Expect] {}
-print {1:2}.to_str()                // [Expect] {1: 2}
-print {"a":"b"}.to_str()            // [Expect] {a: b}
-print {true: false}.to_str()        // [Expect] {true: false}
-print {nil: nil}.to_str()           // [Expect] {nil: nil}
-print {"a": {1: fn -> 1 }}.to_str() // [Expect] {a: {1: <Fn (anon)>}}
-print {[]: [fn -> 1]}.to_str()      // [Expect] {[]: [<Fn (anon)>]}
+print {}.to_str()                   // [expect] {}
+print {1:2}.to_str()                // [expect] {1: 2}
+print {"a":"b"}.to_str()            // [expect] {a: b}
+print {true: false}.to_str()        // [expect] {true: false}
+print {nil: nil}.to_str()           // [expect] {nil: nil}
+print {"a": {1: fn -> 1 }}.to_str() // [expect] {a: {1: <Fn (anon)>}}
+print {[]: [fn -> 1]}.to_str()      // [expect] {[]: [<Fn (anon)>]}
 
-print {}                   // [Expect] {}
-print {1:2}                // [Expect] {1: 2}
-print {"a":"b"}            // [Expect] {a: b}
-print {true: false}        // [Expect] {true: false}
-print {nil: nil}           // [Expect] {nil: nil}
-print {"a": {1: fn -> 1 }} // [Expect] {a: {1: <Fn (anon)>}}
-print {[]: [fn -> 1]}      // [Expect] {[]: [<Fn (anon)>]}
+print {}                   // [expect] {}
+print {1:2}                // [expect] {1: 2}
+print {"a":"b"}            // [expect] {a: b}
+print {true: false}        // [expect] {true: false}
+print {nil: nil}           // [expect] {nil: nil}
+print {"a": {1: fn -> 1 }} // [expect] {a: {1: <Fn (anon)>}}
+print {[]: [fn -> 1]}      // [expect] {[]: [<Fn (anon)>]}

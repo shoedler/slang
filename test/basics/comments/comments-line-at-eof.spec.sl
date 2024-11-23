@@ -1,2 +1,2 @@
-print "ok" // [Expect] ok
+print "ok" // [expect] ok
 // comment
