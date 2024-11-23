@@ -4,10 +4,10 @@ cls Foo {
 }
 
 let foo = Foo()
-let fooMethod = foo.method
+let foo_method = foo.method
 
 // Same bound method.
-print fooMethod == fooMethod // [expect] true
+print foo_method == foo_method // [expect] true
 
 // Different closurizations.
 print foo.method == foo.method // [expect] false

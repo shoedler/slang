@@ -11,12 +11,12 @@ let closure
 
   {
     let b = "b"
-    fn returnA -> a
+    fn return_a -> a
 
-    closure = returnA
+    closure = return_a
 
     if false {
-      fn returnB -> b
+      fn return_b -> b
     }
   }
 

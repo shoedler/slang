@@ -4,7 +4,7 @@ cls Foo {
     this.field2 = b
   }
 
-  fn fooPrint() {
+  fn foo_print() {
     print this.field1
     print this.field2
   }
@@ -24,7 +24,7 @@ cls Bar : Foo {
 
 let bar = Bar()
 bar.foo("foo 1", "foo 2")
-bar.fooPrint()
+bar.foo_print()
 // [expect] foo 1
 // [expect] foo 2
 
@@ -33,6 +33,6 @@ bar.barPrint()
 // [expect] bar 1
 // [expect] bar 2
 
-bar.fooPrint()
+bar.foo_print()
 // [expect] bar 1
 // [expect] bar 2

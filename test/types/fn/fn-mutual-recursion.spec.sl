@@ -1,12 +1,12 @@
-fn isEven(n) {
+fn is_even(n) {
   if (n == 0) ret true
-  ret isOdd(n - 1)
+  ret is_odd(n - 1)
 }
 
-fn isOdd(n) {
+fn is_odd(n) {
   if (n == 0) ret false
-  ret isEven(n - 1)
+  ret is_even(n - 1)
 }
 
-print isEven(4) // [expect] true
-print isOdd(3) // [expect] true
+print is_even(4) // [expect] true
+print is_odd(3) // [expect] true

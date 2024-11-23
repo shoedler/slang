@@ -1,6 +1,6 @@
 cls Base {
-  fn foo() {             // [exit] 2
-    base.doesNotExist(1) // [expect-error] Compile error at line 3 at 'base': Can't use 'base' in a class with no base class.
+  fn foo() {               // [exit] 2
+    base.does_not_exist(1) // [expect-error] Compile error at line 3 at 'base': Can't use 'base' in a class with no base class.
   }
 }
 

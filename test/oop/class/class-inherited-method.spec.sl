@@ -1,22 +1,22 @@
 cls Foo {
-  fn inFoo() {
+  fn in_foo() {
     print "in foo"
   }
 }
 
 cls Bar : Foo {
-  fn inBar() {
+  fn in_bar() {
     print "in bar"
   }
 }
 
 cls Baz : Bar {
-  fn inBaz() {
+  fn in_baz() {
     print "in baz"
   }
 }
 
 let baz = Baz()
-baz.inFoo() // [expect] in foo
-baz.inBar() // [expect] in bar
-baz.inBaz() // [expect] in baz
+baz.in_foo() // [expect] in foo
+baz.in_bar() // [expect] in bar
+baz.in_baz() // [expect] in baz
