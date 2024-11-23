@@ -341,23 +341,6 @@
 // // import std from "/modules/std"  // Relative path. Looks for "{cwd}/modules/std.sl"
 // // import std from "C:/Projects/slang/modules/std.sl" // Absolute path
 // // import std from "modules/std"
-// import { Range, Monad } from "modules/std" // Destructuring is allowed when specifying the module path
-
-// // let rng = Range.ctor(0, 10) // Does not work, because ctor is not bound to Range if you call it like this
-// let rng = Range(0, 5)
-
-// let iter = rng.__iter() // Create a new iterator
-// let res
-// while res = iter() {
-//   print res
-// }
-
-// let mnd = Monad(10)
-// print mnd
-//   .bind(fn(x) -> x + 1)
-//   .bind(fn(x) -> x * 2)
-//   .bind(fn(x) -> x - 1)
-//   .value
 
 // // Bound native functions
 // print "Bound native function test: "
@@ -564,112 +547,17 @@
 // print construct()
 // print get_x()
 
-// `Assert.that(expected, Is.equal_to(actual))`
+import { Assert, Is, Does } from "/modules/test"
 
-// cls Is {
-//   static fn true_ -> Is(
-//     fn (a) {
-//       if a == true ret nil
-//       else ret "Expected actual to be true, but got " + a.to_str() + " instead."
-//     }
-//   )
+Assert.that(true, Is.true_())
+Assert.that(false, Is.false_())
+Assert.that(nil, Is.nil_())
+Assert.that(1, Is.equal_to(1))
+Assert.that(1, Is.not_equal_to(2))
 
-//   static fn false_ -> Is(
-//     fn (a) {
-//       if a == false ret nil
-//       else ret "Expected actual to be false, but got " + a.to_str() + " instead."
-//     }
-//   )
-
-//   static fn nil_ -> Is(
-//     fn (a) {
-//       if a == nil ret nil
-//       else ret "Expected actual to be nil, but got " + a.to_str() + " instead."
-//     }
-//   )
-
-//   static fn equal_to(e) -> Is(
-//     fn (a) {
-//       if e == a ret nil
-//       else ret "Expected actual to be " + e.to_str() + ", but got " + a.to_str() + " instead."
-//     }
-//   )
-
-//   static fn not_equal_to(e) -> Is(
-//     fn (a) {
-//       if e != a ret nil
-//       else ret "Expected actual to not be " + e.to_str() + ", but it was. (actual: " + a.to_str() + ")"
-//     }
-//   )
-
-//   ctor (test_fn) {
-//     this.test_fn = test_fn
-//   }
-// }
-
-// cls Does {
-//   static fn throw_(e) -> Does(
-//     fn (threw, a) {
-//       if !threw ret "Expected an error to be thrown with value '" + e.to_str() + "', but no error was thrown."
-//       else if e == a ret nil
-//       else ret "Expected an error to be thrown with value '" + e.to_str() + "', but threw '" + a.to_str() + "' instead."
-//     }
-//   )
-//   static fn not_throw -> Does(
-//     fn (threw, a) {
-//       if threw ret "Expected no error to be thrown, but an error was thrown with value '" + a.to_str() + "'."
-//       else ret nil
-//     }
-//   )
-
-//   ctor (test_fn) {
-//     this.test_fn = test_fn
-//   }
-// }
-
-
-// cls Assert {
-//   static fn that(expected, comparer) {
-//     if comparer is Is {
-//       let { test_fn } = comparer
-//       let res = test_fn(expected)
-//       if res throw res
-//     }
-//     else if comparer is Does {
-//       if !(expected is Fn) {
-//         throw "First argument must be a callable"
-//       }
-
-//       // Use an obj (pointer) to check if the error is the same later on
-//       let ref = {}
-//       let err = ref
-
-//       try {
-//         expected()
-//       }
-//       catch {
-//         err = error      
-//       }
-
-//       let did_throw = err != ref
-//       let { test_fn } = comparer
-//       let res = test_fn(did_throw, err)
-//       if res throw res
-//     }
-//     else
-//       throw "Second argument must be an instance of Is or Does"
-//   }
-// }
-
-// Assert.that(true, Is.true_())
-// Assert.that(false, Is.false_())
-// Assert.that(nil, Is.nil_())
-// Assert.that(1, Is.equal_to(1))
-// Assert.that(1, Is.not_equal_to(2))
-
-// Assert.that(fn {throw "Error"}, Does.throw_("Error"))
-// Assert.that(fn {}, Does.not_throw())
-// // Assert.that(fn {throw "Error"}, Does.not_throw())
+Assert.that(fn {throw "Error"}, Does.throw_("Error"))
+Assert.that(fn {}, Does.not_throw())
+// Assert.that(fn {throw "Error"}, Does.not_throw())
 
 // // cls A {
 // //   ctor {
@@ -682,9 +570,7 @@
 // // print A()["a"]      // [expect] 1
 // // print A()["b"]      // [expect] 2  b
 
-// import { Set, Range } from "/modules/std"
-
-// print Range
+// import { Set } from "/modules/std"
 
 // let set = Set()
 // set.add(1)
@@ -710,12 +596,49 @@
 // print symmetric_difference
 
 
-// No arguments
-print try {}.has() else error // [expect] Expected 1 argument but got 0.
+cls Iterator {
+  ctor (listlike) {
+    if typeof(listlike) in [Seq, Tuple] { 
+      this.ref = listlike
+      this.index = 0
+    } else if listlike is Obj {
+      this.ref = listlike.entries()
+      this.index = 0
+    } else {
+      throw "Expected a Seq, Tuple or Obj but got " + typeof(listlike).to_str() + " instead."
+    }
+  }
 
-// No items
-print {}.has(1) // [expect] false
+  fn next {
+    if this.index >= this.ref.len ret this // Return self to indicate that the iterator is exhausted
+    let res = this.ref[this.index]
+    this.index = this.index + 1
+    ret res
+  }
+}
 
-// Passing a non-callable value
-print {"a": 1}.has("b") // [expect] false
-print {"a": 1}.has("a") // [expect] true
+let seq_iter = Iterator([1,2,3])
+
+print seq_iter.next() // [expect] 1
+print seq_iter.next() // [expect] 2
+print seq_iter.next() // [expect] 3
+print seq_iter.next() // [expect] <Instance of Iterator>
+
+const obj = {"a": 1, "b": 2, "c": 3}
+const obj_iter = Iterator(obj)
+
+print obj_iter.next() // [expect] [a, 1]
+print obj_iter.next() // [expect] [b, 2]
+print obj_iter.next() // [expect] [c, 3]
+print obj_iter.next() // [expect] <Instance of Iterator>
+
+const tuple = (1, 2, 3)
+const tuple_iter = Iterator(tuple)
+
+print tuple_iter.next() // [expect] 1
+print tuple_iter.next() // [expect] 2
+print tuple_iter.next() // [expect] 3
+print tuple_iter.next() // [expect] <Instance of Iterator>
+
+// Passing a non-iterable value
+print try Iterator(1) else error // [expect] Expected a Seq, Tuple or Obj but got Int instead.

@@ -222,7 +222,7 @@ static Value obj_has(int argc, Value argv[]) {
   UNUSED(argc);
   NATIVE_CHECK_RECEIVER(vm.obj_class)
 
-  if (is_callable(argv[1])) {
+  if (is_fn(argv[1])) {
     Value seq = obj_keys(0, argv);
     if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {  // Currently, obj_keys doesn't error, but it might in the future.
       return nil_value();

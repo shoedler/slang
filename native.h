@@ -207,7 +207,7 @@ extern Value native_typeof(int argc, Value argv[]);
                                                                                      \
   int count = items.count; /* We need to store this. Might change during the loop */ \
                                                                                      \
-  if (is_callable(argv[1])) {                                                        \
+  if (is_fn(argv[1])) {                                                              \
     /* Function predicate */                                                         \
     for (int i = 0; i < count; i++) {                                                \
       /* Execute the provided function on the item */                                \
@@ -356,7 +356,7 @@ extern Value native_typeof(int argc, Value argv[]);
                                                                                                           \
   int count = items.count; /* We need to store this, because the listlike might change during the loop */ \
                                                                                                           \
-  if (is_callable(argv[1])) {                                                                             \
+  if (is_fn(argv[1])) {                                                                                   \
     /* Function predicate */                                                                              \
     for (int i = 0; i < count; i++) {                                                                     \
       /* Execute the provided function on the item */                                                     \
@@ -902,7 +902,7 @@ extern Value native_typeof(int argc, Value argv[]);
   int count       = items.count; /* We need to store this, because the listlike might change during the loop */ \
   int occurrences = 0;                                                                                          \
                                                                                                                 \
-  if (is_callable(argv[1])) {                                                                                   \
+  if (is_fn(argv[1])) {                                                                                         \
     int fn_arity = callable_get_arity(argv[1]);                                                                 \
     if (fn_arity != 1) {                                                                                        \
       runtime_error("Function passed to \"" STR(count) "\" must take 1 argument, but got %d.", fn_arity);       \

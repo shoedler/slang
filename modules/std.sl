@@ -1,73 +1,11 @@
-cls Range {
-  ctor(min, max) {
-    this.min = min
-    this.max = max
-  }
-
-  fn __iter() {
-    let me = this
-    fn make_iter(index) {
-      let self = me
-      let i = index
-      fn next()  {
-        if i >= self.max {
-          ret nil
-        }
-        let out = i
-        i = i + 1
-        ret out
-      }
-      ret next
-    }
-    ret make_iter(this.min)
-  }
-}
-
-cls List {
-  ctor(count) {
-    this.count = count
-    this.data = Seq(count)
-  }
-
-  fn map(f) {
-    if typeof(f).__name != typeof(fn -> nil).__name {
-      print "Error: map requires a function as an argument"
-      ret nil
-    }
-
-    let out = List(this.data.len)
-    for let i = 0 ; i < this.data.len ; i = i + 1 ; {
-      out.data[i] = f(this.data[i], i)
-    }
-    ret out
-  }
-
-  fn to_str() {
-    ret "List of " + this.data.len.to_str() + " elements. Items: " + this.data.to_str()
-  }
-}
-
-cls Monad {
-  ctor(value) {
-    this.value = value
-  }
-
-  fn bind(f) {
-    if this.value == nil {
-      ret this
-    }
-    ret Monad(f(this.value))
-  }
-}
-
 cls Set {
   ctor() {
     this.data = {}
   }
 
-  fn values() {
-    ret this.data.keys()
-  }
+  fn values -> this.data.keys()
+
+  fn to_str -> "<Set " + this.values().to_str() + ">"
 
   fn add(value) {
     this.data[value] = true
@@ -86,13 +24,13 @@ cls Set {
   }
 
   fn union(other) {
-    let out = Set()
+    const out = Set()
 
-    let these_vals = this.values()
-    let other_vals = other.values()
+    const these_vals = this.values()
+    const other_vals = other.values()
 
-    let min = these_vals.len < other_vals.len ? these_vals.len : other_vals.len
-    let longer = these_vals.len < other_vals.len ? other_vals : these_vals
+    const min = these_vals.len < other_vals.len ? these_vals.len : other_vals.len
+    const longer = these_vals.len < other_vals.len ? other_vals : these_vals
 
     for let i = 0; i < min; i++; {
       out.add(these_vals[i])
@@ -107,10 +45,10 @@ cls Set {
   }
 
   fn intersection(other) {
-    let out = Set()
+    const out = Set()
 
-    let these_vals = this.values()
-    let other_vals = other.values()
+    const these_vals = this.values()
+    const other_vals = other.values()
 
     for let i = 0; i < these_vals.len; i++; {
       if other.has(these_vals[i]) {
@@ -122,10 +60,10 @@ cls Set {
   }
 
   fn difference(other) {
-    let out = Set()
+    const out = Set()
 
-    let these_vals = this.values()
-    let other_vals = other.values()
+    const these_vals = this.values()
+    const other_vals = other.values()
 
     for let i = 0; i < these_vals.len; i++; {
       if !other.has(these_vals[i]) {
@@ -158,16 +96,16 @@ cls Set {
   // }
 
   fn symmetric_difference(other) {
-    let out = Set()
+    const out = Set()
 
-    let these_vals = this.values()
-    let other_vals = other.values()
+    const these_vals = this.values()
+    const other_vals = other.values()
 
-    let shorter = these_vals.len < other_vals.len ? this : other
-    let longer = these_vals.len < other_vals.len ? other : this
+    const shorter = these_vals.len < other_vals.len ? this : other
+    const longer = these_vals.len < other_vals.len ? other : this
 
-    let longer_vals = longer.values()
-    let shorter_vals = shorter.values()
+    const longer_vals = longer.values()
+    const shorter_vals = shorter.values()
 
     for let i = 0; i < shorter_vals.len; i++; {
       if !longer.has(shorter_vals[i]) {
@@ -185,9 +123,5 @@ cls Set {
     }
 
     ret out
-  }
-
-  fn to_str() {
-    ret "<Set " + this.values().to_str() + ">"
   }
 }

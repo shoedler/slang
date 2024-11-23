@@ -39,7 +39,7 @@ print {} is Obj      // [expect] true
 print {1: 2} is Obj  // [expect] true
 print [] is Obj      // [expect] false
 print "" is Obj      // [expect] false
-// Maybe nil, num, bool do not inherit from Obj:
+// nil, num, bool do not inherit from Obj:
 print nil is Obj     // [expect] false
 print 0 is Obj       // [expect] false
 print true is Obj    // [expect] false
