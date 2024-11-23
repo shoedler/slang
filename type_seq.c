@@ -62,11 +62,15 @@ void finalize_native_seq_class() {
 }
 
 static bool seq_get_prop(Value receiver, ObjString* name, Value* result) {
+#define NATIVE_LISTLIKE_GET_ARRAY(value) AS_SEQ(value)->items
   NATIVE_LISTLIKE_GET_PROP_BODY()
+#undef NATIVE_LISTLIKE_GET_ARRAY
 }
 
 static bool seq_get_subs(Value receiver, Value index, Value* result) {
+#define NATIVE_LISTLIKE_GET_ARRAY(value) AS_SEQ(value)->items
   NATIVE_LISTLIKE_GET_SUBS_BODY()
+#undef NATIVE_LISTLIKE_GET_ARRAY
 }
 
 static bool seq_set_subs(Value receiver, Value index, Value value) {
@@ -130,11 +134,11 @@ static Value seq_ctor(int argc, Value argv[]) {
   return nil_value();
 }
 
-#define NATIVE_ENUMERABLE_GET_VALUE_ARRAY(value) items = AS_SEQ(value)->items
+#define NATIVE_LISTLIKE_GET_ARRAY(value) AS_SEQ(value)->items
 #define NATIVE_LISTLIKE_NEW_EMPTY() seq_value(new_seq())
 #define NATIVE_LISTLIKE_TAKE_ARRAY(value_array) seq_value(take_seq(&value_array))
 static Value seq_has(int argc, Value argv[]) {
-  NATIVE_ENUMERABLE_HAS_BODY(vm.seq_class);
+  NATIVE_LISTLIKE_HAS_BODY(vm.seq_class);
 }
 static Value seq_slice(int argc, Value argv[]) {
   NATIVE_LISTLIKE_SLICE_BODY(vm.seq_class);
@@ -181,7 +185,7 @@ static Value seq_count(int argc, Value argv[]) {
 static Value seq_concat(int argc, Value argv[]) {
   NATIVE_LISTLIKE_CONCAT_BODY(vm.seq_class);
 }
-#undef NATIVE_ENUMERABLE_GET_VALUE_ARRAY
+#undef NATIVE_LISTLIKE_GET_ARRAY
 #undef NATIVE_LISTLIKE_NEW_EMPTY
 #undef NATIVE_LISTLIKE_TAKE_ARRAY
 

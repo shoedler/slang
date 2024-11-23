@@ -154,18 +154,15 @@ Value pop();
 // Sets the current error value and puts the Vm into error state.
 void runtime_error(const char* format, ...);
 
-// Internal function to execute a call to a managed-code or native callable. Also accepts strings - in that case
-// there must be a receiver on the stack, from which the method is resolved.
-// This function will execute the callable, pop the it and the arguments off the stack and return the result of the function call,
-// leaving the stack "untouched":
+// Internal function to execute a call to a managed-code or native callable.
+// This function will execute the [callable] with the arguments on the stack. [arg_count] of zero means only a receiver (or
+// [callable]) is on the stack. The stack should be in the following state:
 //
-// `Stack before: ...[receiver|function][arg0][arg1]...[argN]`
+// `Stack before: ...[callable|receiver][arg0][arg1]...[argN]`
 // `Stack after:  ...`
 //
+// Note that [callable] does not have to be on the stack - there can be a receiver instead. This is useful for calling methods.
 // **Calls should be followed by a check for errors!**
-//
-// For native functions, the result will be available "immediately", but for managed code we have to execute the new call frame
-// (which was provided by call_managed) to get to the result.
 Value exec_callable(Value callable, int arg_count);
 
 // Defines a native [function] in the given [table] with the provided [name] and [arity].
@@ -377,10 +374,6 @@ static inline bool is_empty_internal(Value value) {
 
 // Converts a value into a C string. Value must be of type string.
 #define AS_CSTRING(value) (((ObjString*)(value.as.obj))->chars)
-
-// Gets the value array of a listlike object (Seq, Tuple).
-// Hack: Just cast to ObjSeq* and access the items field, because the layout is the same.
-#define AS_VALUE_ARRAY(value) ((ObjSeq*)(value.as.obj))->items
 
 //
 // Utility functions for values

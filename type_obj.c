@@ -211,20 +211,49 @@ static Value obj_to_str(int argc, Value argv[]) {
   // return str_value(str_obj);
 }
 
-// TODO (optimize): This is nice and all, but it's also kinda retarded. We can easily check if a hasmap has a key. We shouldn't
-// call 'keys' and then use the listlike body just to reuse some code...
-#define NATIVE_ENUMERABLE_GET_VALUE_ARRAY(value)                   \
-  /* Execute the 'keys' method on the receiver */                  \
-  push(argv[0]); /* Receiver */                                    \
-  Value seq = exec_callable(str_value(copy_string("keys", 4)), 0); \
-  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                            \
-    return nil_value();                                            \
-  }                                                                \
-  items = AS_SEQ(seq)->items;
+/**
+ * TYPENAME_OBJ.SP_METHOD_HAS(value: TYPENAME_VALUE) -> TYPENAME_BOOL
+ * @brief Returns VALUE_STR_TRUE if the TYPENAME_OBJ contains a value which equals 'value'.
+ *
+ * TYPENAME_OBJ.SP_METHOD_HAS(pred: TYPENAME_FUNCTION -> TYPENAME_BOOL) -> TYPENAME_BOOL
+ * @brief Returns VALUE_STR_TRUE if the TYPENAME_OBJ contains a value for which 'pred' evaluates to VALUE_STR_TRUE.
+ */
 static Value obj_has(int argc, Value argv[]) {
-  NATIVE_ENUMERABLE_HAS_BODY(vm.obj_class)
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.obj_class)
+
+  if (is_callable(argv[1])) {
+    Value seq = obj_keys(0, argv);
+    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {  // Currently, obj_keys doesn't error, but it might in the future.
+      return nil_value();
+    }
+
+    ValueArray items = AS_SEQ(seq)->items;
+    int count        = items.count;  // We need to store this. Might change during the loop
+
+    // Function predicate
+    for (int i = 0; i < count; i++) {
+      // Execute the provided function on the item
+      push(argv[1]);          // Push the function
+      push(items.values[i]);  // Push the item
+      Value result = exec_callable(argv[1], 1);
+      if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+        return nil_value();  // Propagate the error
+      }
+      // We don't use is_falsey here, because we want a boolean value.
+      if (is_bool(result) && result.as.boolean) {
+        return bool_value(true);
+      }
+    }
+
+    return bool_value(false);
+  }
+
+  // Value equality, which is easy given that an obj is a hash table.
+  Value discard;
+  bool has = hashtable_get(&AS_OBJECT(argv[0])->fields, argv[1], &discard);
+  return bool_value(has);
 }
-#undef NATIVE_ENUMERABLE_GET_VALUE_ARRAY
 
 /**
  * TYPENAME_OBJ.SP_METHOD_HASH() -> TYPENAME_INT

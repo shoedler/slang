@@ -533,8 +533,14 @@ static CallResult invoke(ObjClass* source_klass, ObjString* name, int arg_count)
   if (is_class(receiver)) {
     ObjClass* klass_ = AS_CLASS(receiver);
     if (hashtable_get_by_string(&klass_->static_methods, name, &method)) {
-      vm.stack_top[-arg_count - 1] = method;
-      return call_value(method, arg_count);
+      switch (method.as.obj->type) {
+        case OBJ_GC_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
+        case OBJ_GC_NATIVE: return call_native(AS_NATIVE(method), arg_count);
+        default: {
+          runtime_error("Cannot invoke method of type %s on class", method.type->name->chars);
+          return CALL_FAILED;
+        }
+      }
     }
   }
 
@@ -565,7 +571,7 @@ static Value run_frame() {
 }
 
 Value exec_callable(Value callable, int arg_count) {
-  CallResult result = is_str(callable) ? invoke(NULL, AS_STR(callable), arg_count) : call_value(callable, arg_count);
+  CallResult result = call_value(callable, arg_count);
 
   if (result == CALL_RETURNED) {
     return pop();

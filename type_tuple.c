@@ -55,11 +55,15 @@ void finalize_native_tuple_class() {
 }
 
 static bool tuple_get_prop(Value receiver, ObjString* name, Value* result) {
+#define NATIVE_LISTLIKE_GET_ARRAY(value) AS_TUPLE(value)->items
   NATIVE_LISTLIKE_GET_PROP_BODY()
+#undef NATIVE_LISTLIKE_GET_ARRAY
 }
 
 static bool tuple_get_subs(Value receiver, Value index, Value* result) {
+#define NATIVE_LISTLIKE_GET_ARRAY(value) AS_TUPLE(value)->items
   NATIVE_LISTLIKE_GET_SUBS_BODY()
+#undef NATIVE_LISTLIKE_GET_ARRAY
 }
 
 /**
@@ -81,11 +85,11 @@ static Value tuple_ctor(int argc, Value argv[]) {
   return tuple_value(tuple);
 }
 
-#define NATIVE_ENUMERABLE_GET_VALUE_ARRAY(value) items = AS_TUPLE(value)->items
+#define NATIVE_LISTLIKE_GET_ARRAY(value) AS_TUPLE(value)->items
 #define NATIVE_LISTLIKE_NEW_EMPTY() tuple_value(new_tuple())
 #define NATIVE_LISTLIKE_TAKE_ARRAY(value_array) tuple_value(take_tuple(&value_array))
 static Value tuple_has(int argc, Value argv[]) {
-  NATIVE_ENUMERABLE_HAS_BODY(vm.tuple_class);
+  NATIVE_LISTLIKE_HAS_BODY(vm.tuple_class);
 }
 static Value tuple_slice(int argc, Value argv[]) {
   NATIVE_LISTLIKE_SLICE_BODY(vm.tuple_class);
@@ -132,6 +136,6 @@ static Value tuple_count(int argc, Value argv[]) {
 static Value tuple_concat(int argc, Value argv[]) {
   NATIVE_LISTLIKE_CONCAT_BODY(vm.tuple_class);
 }
-#undef NATIVE_ENUMERABLE_GET_VALUE_ARRAY
+#undef NATIVE_LISTLIKE_GET_ARRAY
 #undef NATIVE_LISTLIKE_NEW_EMPTY
 #undef NATIVE_LISTLIKE_TAKE_ARRAY

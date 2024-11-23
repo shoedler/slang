@@ -235,18 +235,19 @@ int print_value_safe(FILE* file, Value value) {
     const char* start;
     const char* delim;
     const char* end;
+    ValueArray items;
 
     if (is_seq(value)) {
       start = VALUE_STR_SEQ_START;
       delim = VALUE_STR_SEQ_DELIM;
       end   = VALUE_STR_SEQ_END;
+      items = AS_SEQ(value)->items;
     } else {
       start = VALUE_STR_TUPLE_START;
       delim = VALUE_STR_TUPLE_DELIM;
       end   = VALUE_STR_TUPLE_END;
+      items = AS_TUPLE(value)->items;
     }
-
-    ValueArray items = AS_VALUE_ARRAY(value);
 
     int written = fprintf(file, start);
     for (int i = 0; i < items.count; i++) {
