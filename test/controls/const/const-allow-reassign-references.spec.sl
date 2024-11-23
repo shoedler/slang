@@ -2,7 +2,7 @@
 cls P {}
 fn foo -> 1
 
-print P // [expect] <Class P>
+print P // [expect] <P>
 print foo // [expect] <Fn foo>
 
 P = 1

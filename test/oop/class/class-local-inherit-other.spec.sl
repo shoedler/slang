@@ -5,4 +5,4 @@ fn f {
   ret B
 }
 
-print f() // [expect] <Class B>
+print f() // [expect] <B>

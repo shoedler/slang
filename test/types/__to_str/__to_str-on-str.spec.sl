@@ -12,4 +12,4 @@ print quotify("abc")  // [expect] "abc"
 print quotify("a\"b") // [expect] "a"b"
 print quotify("a\\b") // [expect] "a\b"
 
-print typeof("").to_str().to_str() // [expect] <Class Str>
+print typeof("").to_str().to_str() // [expect] <Str>

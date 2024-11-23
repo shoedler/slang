@@ -43,7 +43,7 @@ typedef struct ObjClass ObjClass;
 #define VALUE_STRFMT_FUNCTION_LEN (sizeof(VALUE_STRFMT_FUNCTION) - 2)
 #define VALUE_STRFMT_NATIVE "<NativeFn %s>"
 #define VALUE_STRFMT_NATIVE_LEN (sizeof(VALUE_STRFMT_NATIVE) - 2)
-#define VALUE_STRFMT_CLASS "<Class %s>"
+#define VALUE_STRFMT_CLASS "<%s>"
 #define VALUE_STRFMT_CLASS_LEN (sizeof(VALUE_STRFMT_CLASS) - 2)
 #define VALUE_STRFTM_INSTANCE "<Instance of %s>"
 #define VALUE_STRFTM_INSTANCE_LEN (sizeof(VALUE_STRFTM_INSTANCE) - 2)

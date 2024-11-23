@@ -263,8 +263,8 @@ const createErrorMessages = (
     errorMessages.push(chalk.bold(`▬ Test has failed [${expectationType}]-assertions:`));
     for (const { actual, expected, line } of comparison.failedAssertions) {
       errorMessages.push(
-        `${chalk.red(` × ${expectationType}:`)} ${expected}\n` +
-          `${chalk.red('   Actual:')} ${actual} ${chalk.blue('Tagged on line:')} ${line}`,
+        `${chalk.red(` × ${expectationType}:`)} ${expected} (${chalk.blue('tagged on line:')} ${line})\n` +
+          `${chalk.red('   actual:')} ${actual}`,
       );
     }
   }

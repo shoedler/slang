@@ -15,6 +15,6 @@ print try Str(nil)                        else error // [expect] nil
 print try Str([1, 2, 3])                  else error // [expect] [1, 2, 3]
 print try Str((4, 5, 6))                  else error // [expect] (4, 5, 6)
 print try Str({"key": "value"})           else error // [expect] {key: value}
-print try Str(Foo)                        else error // [expect] <Class Foo>
+print try Str(Foo)                        else error // [expect] <Foo>
 print try Str(Foo())                      else error // [expect] <Instance of Foo>
 print try Str(bar)                        else error // [expect] <Fn bar>
