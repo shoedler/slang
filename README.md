@@ -88,7 +88,6 @@ You can, for example, easily cache stuff:
 ## Optimizations
 
 - [ ] Move `values_equal` to types (`bool ObjClass.__eq(a: Value, b: Value)`) - this would make `values_equal` obsolete.
-- [ ] Make a `immortal` flag on `Obj` to prevent it from being collected. This could be a big perf gain - though we still have to make sure that nested objects "inherit" this flag.
 - [ ] Use `memcpy` for concat and such (See `Seq(Tuple)` ctor for an example). Check for for-loops in the native methods. Need to test if this copies values by reference or by value. Needs a decision on on how we want to handle that.
 - [ ] Implement a string builder and use it everywhere. This is a must-have.
 - [ ] Inline `push()`, `peek()` and `pop()` in the Vm.
@@ -96,9 +95,10 @@ You can, for example, easily cache stuff:
 - [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
-- [ ] Constant time global variable lookup. (**_See Challenge 21.2_**)
+- [ ] Split globals into a `Hastable global_names` and a `ValueArray global_values`. This would allow for constant time global variable lookup. (**_See Challenge 21.2_**) https://github.com/munificent/craftinginterpreters/blob/master/note/answers/chapter21_global.md   
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
 - [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
+- [ ] Make a `immortal` flag on `Obj` to prevent it from being collected. This could be a big perf gain - though we still have to make sure that nested objects "inherit" this flag.
 
 ---
 

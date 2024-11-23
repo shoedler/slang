@@ -1123,12 +1123,12 @@ static void in_(bool can_assign) {
 static void this_(bool can_assign) {
   UNUSED(can_assign);
   if (current_class == NULL) {
-    error("Can't use 'this' outside of a class.");
+    error("Can't use '" KEYWORD_THIS "' outside of a class.");
     return;
   }
 
   if (current->type == TYPE_METHOD_STATIC) {
-    error("Can't use 'this' in a static method.");
+    error("Can't use '" KEYWORD_THIS "' in a static method.");
     return;
   }
 
