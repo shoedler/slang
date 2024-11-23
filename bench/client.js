@@ -5,6 +5,9 @@ const colors = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  const { horizontalHoverLinePlugin } = createChartPlugins();
+  Chart.register(horizontalHoverLinePlugin);
+
   // Use the default font family from the document body
   Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
   Chart.defaults.color = getComputedStyle(document.body).color;
@@ -15,13 +18,14 @@ document.addEventListener("DOMContentLoaded", () => {
     .then((data) => {
       const benchmarkData = mapBenchmarkData(data);
       const chartsContainer = document.getElementById("charts");
+      console.log(benchmarkData);
 
       for (const cpu in benchmarkData) {
         // Section for each CPU
         appendHeading(chartsContainer, "h4", "CPU: " + cpu);
 
-        for (const name in benchmarkData[cpu]) {
-          const chartId = `chart-${cpu}-${name}`;
+        for (const benchmarkName in benchmarkData[cpu]) {
+          const chartId = `chart-${cpu}-${benchmarkName}`;
 
           // Chart for each benchmark name
           const container = appendContainer(chartsContainer);
@@ -30,22 +34,23 @@ document.addEventListener("DOMContentLoaded", () => {
             "heading-container"
           );
           appendHideShowButton(headingContainer, chartId + "-container");
-          appendHeading(headingContainer, "h2", name);
+          appendHeading(headingContainer, "h2", benchmarkName);
 
           // Create the chart
           const chart = appendChart(container, chartId);
 
           const datasets = [];
-          for (const lang in benchmarkData[cpu][name]) {
-            const raw = benchmarkData[cpu][name][lang];
+          const labels = new Set();
+          for (const lang in benchmarkData[cpu][benchmarkName]) {
+            const runs = benchmarkData[cpu][benchmarkName][lang];
             const color = colors[lang];
             if (!color) {
-              new Error("Unknown language: " + lang);
+              alert("Unknown language in mapped benchmark data: " + lang);
             }
 
             const dataset = {
-              label: `${lang}: ${name}`,
-              data: raw,
+              label: `${lang}: ${benchmarkName}`,
+              data: runs,
               borderColor: color,
               borderWidth: 3,
               pointRadius: 3,
@@ -53,21 +58,26 @@ document.addEventListener("DOMContentLoaded", () => {
               tension: 0.5,
             };
             datasets.push(dataset);
-            const labels = raw.map((point) =>
-              new Date(point.x).toLocaleDateString("de-CH", {
-                year: "2-digit",
-                month: "short",
-                day: "numeric",
-              })
-            );
 
-            // Merge the datasets
-            chart.data = {
-              labels,
-              datasets,
-            };
-            chart.update();
+            for (const point of runs) {
+              labels.add(
+                new Date(point.x).toLocaleDateString("de-CH", {
+                  year: "2-digit",
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })
+              );
+            }
           }
+          // Merge the datasets
+          chart.data = {
+            labels: Array.from(labels),
+            datasets,
+          };
+          chart.update();
         }
       }
     });
@@ -200,6 +210,38 @@ const mapBenchmarkData = (data) => {
   return benchmarkData;
 };
 
+/**
+ * Create a plugins for Chart.js
+ * @returns {Object} plugins
+ */
+const createChartPlugins = () => {
+  const horizontalHoverLinePlugin = {
+    id: "horizontalHoverLine",
+    beforeDraw: (chart) => {
+      if (chart.tooltip?._active?.length) {
+        const activePoint = chart.tooltip._active[0];
+        const { ctx } = chart;
+        const { y, options } = activePoint.element;
+        const leftX = chart.scales.x.left;
+        const rightX = chart.scales.x.right;
+
+        // Draw vertical line
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(leftX, y);
+        ctx.lineTo(rightX, y);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = options?.borderColor
+          ? options.borderColor
+          : "rgba(128, 128, 128, 0.5)";
+        ctx.stroke();
+        ctx.restore();
+      }
+    },
+  };
+
+  return { horizontalHoverLinePlugin };
+};
 /**
  * Create options for the chart
  * @returns {Object} options

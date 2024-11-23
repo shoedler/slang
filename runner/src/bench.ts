@@ -156,9 +156,14 @@ export const runBenchmarks = async (langPattern?: string) => {
       const filePath = path.join(SlangPaths.BenchDir, benchmark.name + BENCH_PRE_SUFFIX + ext);
       const runCommand = cmd.join(' ') + ' ' + filePath;
       const isSlang = lang === 'slang';
-      const times = [];
+      const times: number[] = [];
 
-      let interpreterVersion = language.version.join(' ');
+      let interpreterVersion = await runProcess(language.version.join(' '));
+      if (!interpreterVersion) {
+        warn(`${lang} version command failed`, `Received no output`);
+        interpreterVersion = 'unknown version';
+      }
+
       if (isSlang) {
         interpreterVersion += ' @ ' + (await gitStatus()).hash;
       }
@@ -179,7 +184,7 @@ export const runBenchmarks = async (langPattern?: string) => {
       }
 
       // Create a progress spinner
-      const SPINNER = '▰▱';
+      const SPINNER = '⣾⣽⣻⢿⡿⣟⣯⣷';
       const [PENDING, COMPLETED] = '▰▰';
       const cursor = (show: boolean) => process.stdout.write(show ? '\x1b[?25h' : '\x1b[?25l');
       let i = 0;
@@ -284,9 +289,12 @@ export const runBenchmarks = async (langPattern?: string) => {
       }
 
       // Emphasize standard deviation if it's high
-      const sdStr = standardDev > 0.05 ? chalk.yellow(standardDev.toFixed(4)) : standardDev.toFixed(4);
+      const avgStr = chalk.black.bgWhite('avg=' + avg.toFixed(3) + 's');
+      const bestStr = 'best=' + best.toFixed(3) + 's';
+      const worstStr = 'worst=' + worst.toFixed(3) + 's';
+      const sdStr = 'sd=' + (standardDev > 0.05 ? chalk.yellow(standardDev.toFixed(4)) : standardDev.toFixed(4));
 
-      process.stdout.write(` ${best.toFixed(3)}s sd(${sdStr}) ${comparison}\n`);
+      process.stdout.write(` ${avgStr} ${bestStr} ${worstStr} ${sdStr} ${comparison}\n`);
 
       // Push benchmark result to results array
       const result: BenchmarkResult = {
