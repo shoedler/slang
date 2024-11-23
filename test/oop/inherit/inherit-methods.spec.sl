@@ -9,6 +9,6 @@ cls Bar : Foo {
 }
 
 let bar = Bar()
-bar.methodOnFoo() // [Expect] foo
-bar.methodOnBar() // [Expect] bar
-bar.override() // [Expect] bar
+bar.methodOnFoo() // [expect] foo
+bar.methodOnBar() // [expect] bar
+bar.override() // [expect] bar

@@ -2,11 +2,11 @@
   let foo = "closure"
   fn f {
     {
-      print foo // [Expect] closure
+      print foo // [expect] closure
       let foo = "shadow"
-      print foo // [Expect] shadow
+      print foo // [expect] shadow
     }
-    print foo // [Expect] closure
+    print foo // [expect] closure
   }
   f()
 }

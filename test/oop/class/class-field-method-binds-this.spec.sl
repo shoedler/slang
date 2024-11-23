@@ -15,5 +15,5 @@ foo2.name = "foo2"
 foo2.fun = foo1.sayName
 // Still retains original receiver.
 foo2.fun(1)
-// [Expect] foo1
-// [Expect] 1
+// [expect] foo1
+// [expect] 1

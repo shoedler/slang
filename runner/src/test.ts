@@ -43,10 +43,10 @@ type Metadata = {
 };
 
 enum MetadataType {
-  Expect = 'Expect',
-  ExpectError = 'ExpectError',
-  Exit = 'Exit',
-  Skip = 'Skip',
+  Expect = 'expect',
+  ExpectError = 'expect-error',
+  Exit = 'exit',
+  Skip = 'skip',
 }
 
 const metadataTypes = Object.keys(MetadataType).map(k => MetadataType[k as keyof typeof MetadataType]);
@@ -162,7 +162,7 @@ const createProgressDisplay = (
  * Helper function to compare the output of a test to a set of expectations. Also provides a set of updated metadata for expectations that failed.
  * @param rawTestOutput - The raw output of the test (stdout or stderr)
  * @param metadata - The expectations to compare the output to.
- * @param expectationType - The type of the expectations (Expect or ExpectError). Just used as a sanity check for the metadata. (All metadata should be of the same type)
+ * @param expectationType - The type of the expectations (expect or expect-error). Just used as a sanity check for the metadata. (All metadata should be of the same type)
  * @returns The comparison results
  */
 const makeComparison = (
@@ -248,7 +248,7 @@ const printSummary = (results: TestResult[]) => {
 /**
  * Helper function to evaluate a comparison.
  * @param comparison - The comparison to evaluate.
- * @param expectationType - The type of the expectations (Expect or ExpectError).
+ * @param expectationType - The type of the expectations (expect or expect-error).
  * @param expectedStream - The expected stream type. (stdout or stderr)
  * @returns An array of error messages.
  */
@@ -533,7 +533,7 @@ const extractCommentMetadata = async (file: PathLike): Promise<Metadata[]> => {
  * Update comment-based metadata in a slang file.
  * @param file - Absolute path to a slang file
  * @param metadata - Array containing the new metadata
- * @param expectationType - Type of metadata to update (e.g. 'Expect', 'ExpectError')
+ * @param expectationType - Type of metadata to update (e.g. 'expect', 'expect-error')
  * @param additional - Additional metadata to add to the end of the file
  * @returns Promise that resolves when metadata is updated
  */

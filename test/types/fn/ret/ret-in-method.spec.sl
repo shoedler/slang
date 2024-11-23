@@ -5,4 +5,4 @@ cls Foo {
   }
 }
 
-print Foo().method() // [Expect] ok
+print Foo().method() // [expect] ok

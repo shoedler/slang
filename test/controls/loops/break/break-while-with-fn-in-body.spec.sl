@@ -15,4 +15,4 @@ while i++ < 4 {
   do_something()
 }
 
-// [Expect]  do_something: i = 2, j = 1
+// [expect]  do_something: i = 2, j = 1

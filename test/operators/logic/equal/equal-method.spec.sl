@@ -7,7 +7,7 @@ let foo = Foo()
 let fooMethod = foo.method
 
 // Same bound method.
-print fooMethod == fooMethod // [Expect] true
+print fooMethod == fooMethod // [expect] true
 
 // Different closurizations.
-print foo.method == foo.method // [Expect] false
+print foo.method == foo.method // [expect] false

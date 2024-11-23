@@ -1,4 +1,4 @@
-// [Skip] Too slow
+// [skip] Too slow
 
 // Note: This program was used to implement the parallel Gc.
 

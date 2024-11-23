@@ -4,6 +4,6 @@ let c = "c"
 
 // Assignment is right-associative.
 a = b = c
-print a // [Expect] c
-print b // [Expect] c
-print c // [Expect] c
+print a // [expect] c
+print b // [expect] c
+print c // [expect] c

@@ -10,4 +10,4 @@ cls Foo {
 }
 
 let closure = Foo().getClosure()
-print closure() // [Expect] Foo
+print closure() // [expect] Foo

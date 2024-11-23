@@ -19,9 +19,9 @@ let g
 }
 
 f()
-// [Expect] local
-// [Expect] after f
+// [expect] local
+// [expect] after f
 
 g()
-// [Expect] after f
-// [Expect] after g
+// [expect] after f
+// [expect] after g

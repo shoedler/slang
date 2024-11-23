@@ -1,2 +1,2 @@
 fn f() {}
-print f() // [Expect] nil
+print f() // [expect] nil

@@ -4,4 +4,4 @@ cls X {
   }
 }
 
-print X().list // [Expect] [Foo]
+print X().list // [expect] [Foo]

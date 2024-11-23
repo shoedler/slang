@@ -8,4 +8,4 @@ cls Foo {
 }
 
 Foo().method("param")
-f() // [Expect] param
+f() // [expect] param

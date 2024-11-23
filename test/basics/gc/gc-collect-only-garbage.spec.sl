@@ -115,5 +115,5 @@ fn test_keep_alive {
   // print "Memory after test:  " + after_stats.bytes_allocated.to_str()
 }
 
-test_keep_alive() // [Expect] All references and closures survived collection properly
+test_keep_alive() // [expect] All references and closures survived collection properly
 

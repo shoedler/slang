@@ -68,7 +68,7 @@
 //   print i
 // }
 
-// // Skip (Continue) 
+// // skip (Continue) 
 // for let i = 0; i < 10; i++; {
 //   if i % 2 == 0
 //     skip
@@ -678,9 +678,9 @@
 // //   }
 // // }
 
-// // print A().entries() // [Expect] [[a, 1], [b, 2]]
-// // print A()["a"]      // [Expect] 1
-// // print A()["b"]      // [Expect] 2  b
+// // print A().entries() // [expect] [[a, 1], [b, 2]]
+// // print A()["a"]      // [expect] 1
+// // print A()["b"]      // [expect] 2  b
 
 // import { Set, Range } from "/modules/std"
 
@@ -711,11 +711,11 @@
 
 
 // No arguments
-print try {}.has() else error // [Expect] Expected 1 argument but got 0.
+print try {}.has() else error // [expect] Expected 1 argument but got 0.
 
 // No items
-print {}.has(1) // [Expect] false
+print {}.has(1) // [expect] false
 
 // Passing a non-callable value
-print {"a": 1}.has("b") // [Expect] false
-print {"a": 1}.has("a") // [Expect] true
+print {"a": 1}.has("b") // [expect] false
+print {"a": 1}.has("a") // [expect] true

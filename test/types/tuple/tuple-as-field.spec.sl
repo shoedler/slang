@@ -4,4 +4,4 @@ cls X {
   }
 }
 
-print X().tuple // [Expect] (Foo)
+print X().tuple // [expect] (Foo)

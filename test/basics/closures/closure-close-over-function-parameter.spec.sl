@@ -6,4 +6,4 @@ fn foo(param) {
 }
 
 foo("param")
-f() // [Expect] param
+f() // [expect] param

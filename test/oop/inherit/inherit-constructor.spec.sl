@@ -11,4 +11,4 @@ cls A {
 cls B : A {}
 
 let b = B("value")
-b.test() // [Expect] value
+b.test() // [expect] value

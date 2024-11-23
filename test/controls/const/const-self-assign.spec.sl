@@ -1,4 +1,4 @@
-const r = r // [ExpectError] Uncaught error: Undefined variable 'r'.
-            // [ExpectError]      1 | const r = r
-            // [ExpectError]                    ~
-            // [ExpectError]   at line 1 at the toplevel of module "main"
+const r = r // [expect-error] Uncaught error: Undefined variable 'r'.
+            // [expect-error]      1 | const r = r
+            // [expect-error]                    ~
+            // [expect-error]   at line 1 at the toplevel of module "main"

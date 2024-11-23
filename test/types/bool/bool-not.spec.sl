@@ -1,3 +1,3 @@
-print !true    // [Expect] false
-print !false   // [Expect] true
-print !!true   // [Expect] true
+print !true    // [expect] false
+print !false   // [expect] true
+print !!true   // [expect] true

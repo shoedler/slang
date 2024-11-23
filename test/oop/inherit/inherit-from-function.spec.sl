@@ -1,6 +1,6 @@
 fn foo() {}
 
-cls Subclass : foo {} // [ExpectError] Uncaught error: Base class must be a class. Was Fn.
-                      // [ExpectError]      3 | cls Subclass : foo {}
-                      // [ExpectError]                         ~~~
-                      // [ExpectError]   at line 3 at the toplevel of module "main"
+cls Subclass : foo {} // [expect-error] Uncaught error: Base class must be a class. Was Fn.
+                      // [expect-error]      3 | cls Subclass : foo {}
+                      // [expect-error]                         ~~~
+                      // [expect-error]   at line 3 at the toplevel of module "main"

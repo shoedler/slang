@@ -10,4 +10,4 @@ fn printArg(arg) {
   print arg
 }
 
-returnFunCallWithArg(printArg, "hello world") // [Expect] hello world
+returnFunCallWithArg(printArg, "hello world") // [expect] hello world

@@ -40,7 +40,7 @@
                     "patterns": [
                         {
                             "name": "storage.type.SlangScript",
-                            "match": "\\[(Expect|Skip|ExpectError|Exit)\\]"
+                            "match": "\\[(expect|skip|expect-error|exit)\\]"
                         }
                     ]
                 }

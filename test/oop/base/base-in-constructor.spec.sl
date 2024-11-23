@@ -12,5 +12,5 @@ cls Derived : Base {
 }
 
 Derived("a", "b")
-// [Expect] Derived.ctor(a, b)
-// [Expect] Base.ctor(a, b)
+// [expect] Derived.ctor(a, b)
+// [expect] Base.ctor(a, b)

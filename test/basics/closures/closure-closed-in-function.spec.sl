@@ -6,4 +6,4 @@ let f
   f = f_
 }
 
-f() // [Expect] local
+f() // [expect] local

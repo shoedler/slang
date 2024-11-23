@@ -20,5 +20,5 @@ let closure
     }
   }
 
-  print closure() // [Expect] a
+  print closure() // [expect] a
 }

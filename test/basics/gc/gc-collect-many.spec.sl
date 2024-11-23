@@ -7,7 +7,7 @@ fn test_garbage_generation {
   const prev_freed = Gc.collect()
   
   // Generate garbage by creating lots of temporary objects
-  for let i = 0; i < 10000; i++; {
+  for let i = 0; i < 100000; i++; {
     const temp = {
       "array": [1, 2, 3, 4, 5],
       "string": "This is a long string that will be garbage",
@@ -25,11 +25,11 @@ fn test_garbage_generation {
 }
 
 Gc.collect()
-test_garbage_generation()// [Expect] 944
-                         // [Expect] 26362
-test_garbage_generation()// [Expect] 944
-                         // [Expect] 26362
-test_garbage_generation()// [Expect] 944
-                         // [Expect] 26362
+test_garbage_generation()// [expect] 944
+                         // [expect] 26362
+test_garbage_generation()// [expect] 944
+                         // [expect] 26362
+test_garbage_generation()// [expect] 944
+                         // [expect] 26362
 
-print Gc.collect() // [Expect] 0
+print Gc.collect() // [expect] 0

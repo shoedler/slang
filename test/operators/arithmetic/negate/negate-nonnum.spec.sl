@@ -1,4 +1,4 @@
--"s" // [ExpectError] Uncaught error: Type for unary - must be a Num. Was Str.
-     // [ExpectError]      1 | -"s"
-     // [ExpectError]          ~~~~
-     // [ExpectError]   at line 1 at the toplevel of module "main"
+-"s" // [expect-error] Uncaught error: Type for unary - must be a Num. Was Str.
+     // [expect-error]      1 | -"s"
+     // [expect-error]          ~~~~
+     // [expect-error]   at line 1 at the toplevel of module "main"

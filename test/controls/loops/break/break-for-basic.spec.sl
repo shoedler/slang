@@ -3,7 +3,7 @@ for let i = 0; i < 10; i++; {
   print i
 }
 
-// [Expect] 0
-// [Expect] 1
-// [Expect] 2
-// [Expect] 3
+// [expect] 0
+// [expect] 1
+// [expect] 2
+// [expect] 3

@@ -1,2 +1,2 @@
-// [Exit] 2
-[][0.. // [ExpectError] Compile error at line 2 at end: Expecting expression.
+// [exit] 2
+[][0.. // [expect-error] Compile error at line 2 at end: Expecting expression.

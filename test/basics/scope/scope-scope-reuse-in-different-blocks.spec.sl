@@ -1,9 +1,9 @@
 {
   let a = "first"
-  print a // [Expect] first
+  print a // [expect] first
 }
 
 {
   let a = "second"
-  print a // [Expect] second
+  print a // [expect] second
 }

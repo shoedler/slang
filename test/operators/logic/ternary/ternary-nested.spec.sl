@@ -1,4 +1,4 @@
-print {} ? "truthy" : "(skip)" // [Expect] truthy
+print {} ? "truthy" : "(skip)" // [expect] truthy
 
 print nil ? 
         "(skip)" : 
@@ -6,8 +6,8 @@ print nil ?
           "(skip)" : 
           true ? 
             "truthy" : 
-            "(skip)"           // [Expect] truthy
+            "(skip)"           // [expect] truthy
 
 let is_nice = true
 let a = (is_nice ? fn -> "nice" : fn -> "not nice")()
-print a // [Expect] nice
+print a // [expect] nice

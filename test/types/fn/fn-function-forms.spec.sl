@@ -6,8 +6,8 @@ let a_args = fn(x,y,z) -> x + y + z
 fn b -> "b" 
 fn b_args(x,y,z) -> x + y + z
 
-print a      // [Expect] <Fn (anon)>
-print a_args // [Expect] <Fn (anon)>
-print b      // [Expect] <Fn b>
-print b_args // [Expect] <Fn b_args>
-print clock  // [Expect] <NativeFn clock>
+print a      // [expect] <Fn (anon)>
+print a_args // [expect] <Fn (anon)>
+print b      // [expect] <Fn b>
+print b_args // [expect] <Fn b_args>
+print clock  // [expect] <NativeFn clock>

@@ -3,4 +3,4 @@ cls Foo {
 }
 
 let foo = Foo()
-print foo.method // [Expect] <Fn method>
+print foo.method // [expect] <Fn method>

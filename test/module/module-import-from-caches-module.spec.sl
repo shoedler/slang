@@ -1,9 +1,9 @@
 import b from "modules/b"
-// [Expect] Running module b
+// [expect] Running module b
 
 import { x } from "modules/b"
-print "Nothing, since this modules is already imported" // [Expect] Nothing, since this modules is already imported
-print x // [Expect] 42
+print "Nothing, since this modules is already imported" // [expect] Nothing, since this modules is already imported
+print x // [expect] 42
 
 import Debug
 import File
@@ -13,5 +13,5 @@ let module_cache = Debug.modules()
 let modules_dir = File.join_path(cwd(), "modules")
 let b_absolute_path = File.join_path(modules_dir, "b.sl")
 
-print b_absolute_path in module_cache // [Expect] true
-print "b" in module_cache // [Expect] false
+print b_absolute_path in module_cache // [expect] true
+print "b" in module_cache // [expect] false

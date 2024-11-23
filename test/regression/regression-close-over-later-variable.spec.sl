@@ -7,8 +7,8 @@ fn f() {
   let a = "a"
   let b = "b"
   fn g() {
-    print b // [Expect] b
-    print a // [Expect] a
+    print b // [expect] b
+    print a // [expect] a
   }
   g()
 }

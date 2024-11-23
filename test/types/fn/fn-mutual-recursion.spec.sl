@@ -8,5 +8,5 @@ fn isOdd(n) {
   ret isEven(n - 1)
 }
 
-print isEven(4) // [Expect] true
-print isOdd(3) // [Expect] true
+print isEven(4) // [expect] true
+print isOdd(3) // [expect] true

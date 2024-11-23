@@ -23,4 +23,4 @@ cls C : B {
   }
 }
 
-C().getClosure()() // [Expect] A
+C().getClosure()() // [expect] A

@@ -1,4 +1,4 @@
 cls X { ctor {} }
 
-print X.__name // [Expect] X
-print X.ctor   // [Expect] <Fn ctor>
+print X.__name // [expect] X
+print X.ctor   // [expect] <Fn ctor>

@@ -1,6 +1,6 @@
 cls Foo {
-  ctor {              // [Exit] 2
-    fn ctor { "bar" } // [ExpectError] Compile error at line 3 at 'ctor': Expecting function name.
-    print ctor() // [ExpectError] Compile error at line 4 at 'ctor': Expecting expression.
+  ctor {              // [exit] 2
+    fn ctor { "bar" } // [expect-error] Compile error at line 3 at 'ctor': Expecting function name.
+    print ctor() // [expect-error] Compile error at line 4 at 'ctor': Expecting expression.
   }
-} // [ExpectError] Compile error at line 7 at end: Expecting '}' after block.
+} // [expect-error] Compile error at line 7 at end: Expecting '}' after block.

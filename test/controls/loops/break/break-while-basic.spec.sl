@@ -5,4 +5,4 @@ while i++ < 10 {
   print i.to_str() + " is odd"
 }
 
-// [Expect] 1 is odd
+// [expect] 1 is odd

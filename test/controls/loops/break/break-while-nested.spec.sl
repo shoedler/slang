@@ -9,6 +9,6 @@ while i++ < 3 {
   }
 }
 
-// [Expect] Outer loop: 1
-// [Expect] Outer loop: 2
-// [Expect]   Inner loop: 1
+// [expect] Outer loop: 1
+// [expect] Outer loop: 2
+// [expect]   Inner loop: 1

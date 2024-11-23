@@ -55,12 +55,12 @@ export const runProcess = (
         if (abortOnError) {
           abort(
             errorMessage ?? 'Process had non-zero exit or output on stderr',
-            `Command: ${cmd}, Exit code: ${code}, stderr: ${errorOutput}, stdout: ${output}`,
+            `Command: ${cmd}, exit code: ${code}, stderr: ${errorOutput}, stdout: ${output}`,
           );
         } else {
           error(
             errorMessage ?? 'Process had non-zero exit or output on stderr',
-            `Command: ${cmd}, Exit code: ${code}, stderr: ${errorOutput}, stdout: ${output}`,
+            `Command: ${cmd}, exit code: ${code}, stderr: ${errorOutput}, stdout: ${output}`,
           );
           resolve(undefined);
         }
@@ -273,7 +273,7 @@ export const LOG_CONFIG: Record<LogType, [string, ChalkInstance, string, ChalkIn
   warn:  [ '█ Warn ', chalk.yellowBright.bold,  '│      ', chalk.yellowBright.bold  ],
   debug: [ '█ Debug', chalk.magentaBright.bold, '│      ', chalk.magentaBright.bold ],
   pass:  [ ' Pass ',  chalk.bgGreen.black,      '│     ',  chalk.green              ],
-  skip:  [ ' Skip ',  chalk.bgBlue.white,       '│     ',  chalk.blue               ],
+  skip:  [ ' skip ',  chalk.bgBlue.white,       '│     ',  chalk.blue               ],
   fail:  [ ' Fail ',  chalk.bgRed.white,        '│     ',  chalk.red                ],
 }
 

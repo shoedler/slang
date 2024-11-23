@@ -7,9 +7,9 @@ cls Lol {
 let new = {}
 let construct = Lol.ctor.bind(new)
 
-print construct() // [Expect] {y: 1}
-print typeof(new) // [Expect] <Class Obj>
-print try new.x() else error // [Expect] Undefined callable 'x' in type Obj.
+print construct() // [expect] {y: 1}
+print typeof(new) // [expect] <Class Obj>
+print try new.x() else error // [expect] Undefined callable 'x' in type Obj.
 
 // You can bind anything, but:
-print try Lol.ctor.bind([])() else error // [Expect] Type Seq does not support property-set access.
+print try Lol.ctor.bind([])() else error // [expect] Type Seq does not support property-set access.

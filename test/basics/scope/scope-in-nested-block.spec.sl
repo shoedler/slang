@@ -1,6 +1,6 @@
 {
   let a = "outer"
   {
-    print a // [Expect] outer
+    print a // [expect] outer
   }
 }

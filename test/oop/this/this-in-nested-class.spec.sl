@@ -1,13 +1,13 @@
 cls Outer {
   fn method {
-    print this // [Expect] <Instance of Outer>
+    print this // [expect] <Instance of Outer>
 
     fn f() {
-      print this // [Expect] <Instance of Outer>
+      print this // [expect] <Instance of Outer>
 
       cls Inner {
         fn method {
-          print this // [Expect] <Instance of Inner>
+          print this // [expect] <Instance of Inner>
         }
       }
 

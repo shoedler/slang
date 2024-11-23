@@ -6,4 +6,4 @@ cls Foo {
   }
 }
 
-Foo().method() // [Expect] variable
+Foo().method() // [expect] variable

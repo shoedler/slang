@@ -3,14 +3,14 @@ try {
   a / 0
 }
 catch {
-  print error // [Expect] Undefined variable 'a'.
+  print error // [expect] Undefined variable 'a'.
 }
-print "still running" // [Expect] still running
+print "still running" // [expect] still running
 
 // Catch is optional
 try { a / 0 }
-print "still running" // [Expect] still running
+print "still running" // [expect] still running
 
 // Doesn't need to be a block
-try a / 0 catch print error // [Expect] Undefined variable 'a'.
-print "still running" // [Expect] still running
+try a / 0 catch print error // [expect] Undefined variable 'a'.
+print "still running" // [expect] still running

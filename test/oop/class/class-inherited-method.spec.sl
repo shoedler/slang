@@ -17,6 +17,6 @@ cls Baz : Bar {
 }
 
 let baz = Baz()
-baz.inFoo() // [Expect] in foo
-baz.inBar() // [Expect] in bar
-baz.inBaz() // [Expect] in baz
+baz.inFoo() // [expect] in foo
+baz.inBar() // [expect] in bar
+baz.inBaz() // [expect] in baz

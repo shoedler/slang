@@ -3,6 +3,6 @@ cls Lol {
   static fn y -> "y"
 }
 
-print Lol.to_str() // [Expect] <Class Lol>
+print Lol.to_str() // [expect] <Class Lol>
 
-print Lol // [Expect] <Class Lol>
+print Lol // [expect] <Class Lol>

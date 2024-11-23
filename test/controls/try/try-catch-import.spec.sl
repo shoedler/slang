@@ -1,7 +1,7 @@
 try import a
-catch print error // [Expect] Whoops!
+catch print error // [expect] Whoops!
 
 try import b from "some/path/thats/not/real"
-catch print error // [Expect] Could not import module 'b'. File 'some/path/thats/not/real' does not exist.
+catch print error // [expect] Could not import module 'b'. File 'some/path/thats/not/real' does not exist.
 
-print "still running" // [Expect] still running
+print "still running" // [expect] still running

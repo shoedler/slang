@@ -1,5 +1,5 @@
-print true.to_str() // [Expect] true
-print false.to_str() // [Expect] false
+print true.to_str() // [expect] true
+print false.to_str() // [expect] false
 
-print true // [Expect] true
-print false // [Expect] false
+print true // [expect] true
+print false // [expect] false

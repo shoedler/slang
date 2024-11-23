@@ -17,6 +17,6 @@ cls OtherBase {
 }
 
 let derived = Derived()
-derived.method() // [Expect] Base.method()
+derived.method() // [expect] Base.method()
 Base = OtherBase
-derived.method() // [Expect] Base.method()
+derived.method() // [expect] Base.method()

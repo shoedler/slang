@@ -6,6 +6,6 @@ cls Foo {
   }
 }
 
-let foo = Foo()  // [Expect] ctor
-print foo.ctor() // [Expect] ctor
-                 // [Expect] <Instance of Foo>
+let foo = Foo()  // [expect] ctor
+print foo.ctor() // [expect] ctor
+                 // [expect] <Instance of Foo>

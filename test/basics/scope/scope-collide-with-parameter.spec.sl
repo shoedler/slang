@@ -1,4 +1,4 @@
-fn foo(a) { // [Exit] 2
-  let a // [ExpectError] Compile error at line 2 at 'a': Already a variable with this name in this scope.
+fn foo(a) { // [exit] 2
+  let a // [expect-error] Compile error at line 2 at 'a': Already a variable with this name in this scope.
 }
-// [ExpectError] Compile error at line 4 at end: Expecting '}' after block.
+// [expect-error] Compile error at line 4 at end: Expecting '}' after block.

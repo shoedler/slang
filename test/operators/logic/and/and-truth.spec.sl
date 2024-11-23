@@ -1,8 +1,8 @@
 // False and nil are false.
-print false and "bad" // [Expect] false
-print nil and "bad" // [Expect] nil
+print false and "bad" // [expect] false
+print nil and "bad" // [expect] nil
 
 // Everything else is true.
-print true and "ok" // [Expect] ok
-print 0 and "ok" // [Expect] ok
-print "" and "ok" // [Expect] ok
+print true and "ok" // [expect] ok
+print 0 and "ok" // [expect] ok
+print "" and "ok" // [expect] ok

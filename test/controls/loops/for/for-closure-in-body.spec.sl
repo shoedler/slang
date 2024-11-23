@@ -14,9 +14,9 @@ for let i = 1 ; i < 4 ; i++; {
   else f3 = f
 }
 
-f1() // [Expect] 4
-     // [Expect] 1
-f2() // [Expect] 4
-     // [Expect] 2
-f3() // [Expect] 4
-     // [Expect] 3
+f1() // [expect] 4
+     // [expect] 1
+f2() // [expect] 4
+     // [expect] 2
+f3() // [expect] 4
+     // [expect] 3

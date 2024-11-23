@@ -7,7 +7,7 @@ let a = "global"
 
   let a = "inner"
   assign()
-  print a // [Expect] inner
+  print a // [expect] inner
 }
 
-print a // [Expect] assigned
+print a // [expect] assigned

@@ -12,5 +12,5 @@ cls Derived : Base {
 }
 
 Derived().foo()
-// [Expect] Derived.foo()
-// [Expect] Base.foo()
+// [expect] Derived.foo()
+// [expect] Base.foo()

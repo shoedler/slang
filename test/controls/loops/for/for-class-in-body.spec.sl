@@ -1,2 +1,2 @@
-// [Exit] 2
-for ;;; cls Foo {} // [ExpectError] Compile error at line 2 at 'cls': Expecting expression.
+// [exit] 2
+for ;;; cls Foo {} // [expect-error] Compile error at line 2 at 'cls': Expecting expression.

@@ -1,7 +1,7 @@
 cls Foo {}
 
 let foo = Foo()
-foo() // [ExpectError] Uncaught error: Attempted to call non-callable value of type Foo.
-      // [ExpectError]      4 | foo()
-      // [ExpectError]             ~~
-      // [ExpectError]   at line 4 at the toplevel of module "main"
+foo() // [expect-error] Uncaught error: Attempted to call non-callable value of type Foo.
+      // [expect-error]      4 | foo()
+      // [expect-error]             ~~
+      // [expect-error]   at line 4 at the toplevel of module "main"

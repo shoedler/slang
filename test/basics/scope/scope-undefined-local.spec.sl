@@ -1,5 +1,5 @@
 {
-  print notDefined  // [ExpectError] Uncaught error: Undefined variable 'notDefined'.
-}                   // [ExpectError]      2 |   print notDefined
-                    // [ExpectError]                  ~~~~~~~~~~
-                    // [ExpectError]   at line 2 at the toplevel of module "main"
+  print notDefined  // [expect-error] Uncaught error: Undefined variable 'notDefined'.
+}                   // [expect-error]      2 |   print notDefined
+                    // [expect-error]                  ~~~~~~~~~~
+                    // [expect-error]   at line 2 at the toplevel of module "main"

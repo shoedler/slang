@@ -6,14 +6,14 @@ fn lol {
 		.split("")
 		.some(fn (c) -> c == "\t")
 
-	print this_file_has_tabs // [Expect] true
+	print this_file_has_tabs // [expect] true
 }
 
 fn main {
-	throw lol()	// [ExpectError] Uncaught error: nil
-}							// [ExpectError]     13 | 	throw lol()
-							// [ExpectError]           ~~~~~~~~~~~
-main()				// [ExpectError]   at line 13 at the toplevel of module "main"
-							// [ExpectError]   at line 16 at the toplevel of module "main"
+	throw lol()	// [expect-error] Uncaught error: nil
+}							// [expect-error]     13 | 	throw lol()
+							// [expect-error]           ~~~~~~~~~~~
+main()				// [expect-error]   at line 13 at the toplevel of module "main"
+							// [expect-error]   at line 16 at the toplevel of module "main"
 
 // What did we learn here? You should use spaces instead of tabs in your code.

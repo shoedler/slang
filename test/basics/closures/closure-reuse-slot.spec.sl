@@ -11,6 +11,6 @@
     // Since a is out of scope, the local slot will be reused by b. Make sure
     // that f still closes over a.
     let b = "b"
-    f() // [Expect] a
+    f() // [expect] a
   }
 }

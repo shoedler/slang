@@ -1,8 +1,8 @@
 {
   let a = "outer"
   {
-    print a // [Expect] outer
+    print a // [expect] outer
     let a = "inner"
-    print a // [Expect] inner
+    print a // [expect] inner
   }
 }

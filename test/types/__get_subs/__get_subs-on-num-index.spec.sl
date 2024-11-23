@@ -1,4 +1,4 @@
-123[1] // [ExpectError] Uncaught error: Type Int does not support get-subscripting.
-       // [ExpectError]      1 | 123[1]
-       // [ExpectError]             ~~~
-       // [ExpectError]   at line 1 at the toplevel of module "main"
+123[1] // [expect-error] Uncaught error: Type Int does not support get-subscripting.
+       // [expect-error]      1 | 123[1]
+       // [expect-error]             ~~~
+       // [expect-error]   at line 1 at the toplevel of module "main"

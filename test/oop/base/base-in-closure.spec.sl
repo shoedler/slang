@@ -14,4 +14,4 @@ cls Derived : Base {
 }
 
 let closure = Derived().getClosure()
-print closure() // [Expect] Base
+print closure() // [expect] Base

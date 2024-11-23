@@ -1,10 +1,10 @@
 {
   let a = "a"
-  print a // [Expect] a
+  print a // [expect] a
   let b = a + " b"
-  print b // [Expect] a b
+  print b // [expect] a b
   let c = a + " c"
-  print c // [Expect] a c
+  print c // [expect] a c
   let d = b + " d"
-  print d // [Expect] a b d
+  print d // [expect] a b d
 }

@@ -20,6 +20,6 @@ fn f1() {
 f1()
 
 f()
-// [Expect] a
-// [Expect] b
-// [Expect] c
+// [expect] a
+// [expect] b
+// [expect] c

@@ -1,10 +1,10 @@
 {
   let a = "before"
-  print a // [Expect] before
+  print a // [expect] before
 
   a = "after"
-  print a // [Expect] after
+  print a // [expect] after
 
-  print a = "arg" // [Expect] arg
-  print a // [Expect] arg
+  print a = "arg" // [expect] arg
+  print a // [expect] arg
 }
