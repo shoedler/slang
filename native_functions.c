@@ -8,10 +8,10 @@
 #include "vm.h"
 
 void register_native_functions() {
-  define_native(&vm.builtin->fields, "clock", native_clock, 0);
-  define_native(&vm.builtin->fields, "log", native_log, -1);
-  define_native(&vm.builtin->fields, "typeof", native_typeof, 1);
-  define_native(&vm.builtin->fields, "cwd", native_cwd, 0);
+  define_native(&vm.natives, "clock", native_clock, 0);
+  define_native(&vm.natives, "log", native_log, -1);
+  define_native(&vm.natives, "typeof", native_typeof, 1);
+  define_native(&vm.natives, "cwd", native_cwd, 0);
 }
 
 Value native_clock(int argc, Value argv[]) {

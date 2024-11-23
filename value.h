@@ -64,8 +64,6 @@ typedef struct ObjClass ObjClass;
 #define VALUE_STR_OBJECT_DELIM ", "
 #define VALUE_STR_UPVALUE "<Upvalue>"
 
-#define INSTANCENAME_BUILTIN "__builtin"
-
 // The single value construct used to represent all values in the language.
 typedef struct {
   ObjClass* type;

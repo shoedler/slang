@@ -70,6 +70,7 @@ typedef struct {
   Value stack[STACK_MAX];
   Value* stack_top;   // Stack pointer
   HashTable strings;  // Interned strings
+  HashTable natives;  // The table of native functions and types
   ObjUpvalue* open_upvalues;
 
   Obj* objects;  // Linked list of all objects in the VM (heap)
@@ -96,7 +97,6 @@ typedef struct {
 
   ObjClass* module_class;  // Obj-class: The module class
 
-  ObjObject* builtin;                                   // The builtin (builtin things) object instance
   ObjString* special_method_names[SPECIAL_METHOD_MAX];  // Special method names for quick access
   ObjString* special_prop_names[SPECIAL_PROP_MAX];      // Special prop names for quick access
 

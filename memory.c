@@ -271,8 +271,8 @@ static void mark_roots() {
   // Mark the current error
   mark_value(vm.current_error);
 
-  // And the builtin object.
-  mark_obj((Obj*)vm.builtin);
+  // And the native functions and types
+  mark_hashtable(&vm.natives);
 
   // And the reserved field names
   for (int i = 0; i < SPECIAL_METHOD_MAX; i++) {

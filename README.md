@@ -35,7 +35,7 @@ You can, for example, easily cache stuff:
 
 ## Features
 
-- [ ] Implement `for ... in ...;` loops
+- [ ] Implement `for ... in ...;` loops (Implement Iterators)
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] Implement `Math` module.
   - [ ] Implement `Math.abs(Num) -> Num`.
@@ -66,7 +66,6 @@ You can, for example, easily cache stuff:
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
 - [ ] Make managed-code callables accept less arguments than it has parameters. There is an inconsistency, since native-callables allow this. Should be easy, just pass `nil` to the missing arguments.
 - [ ] Call `to_str` implicitly when adding a string to a non-string. Only if the left side is a string.
-- [ ] Remove the "Class" prefix in `VALUE_STR_CLASS` to just return the class name. This is a bit more consistent with the rest of the code.
 - [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
@@ -78,6 +77,7 @@ You can, for example, easily cache stuff:
   - [ ] Move `hash_value` to types (`uint64_t ObjClass.__hash(value: Value)`)
   - [ ] Move `values_equal` to types (`bool ObjClass.__eq(a: Value, b: Value)`) **DUPE**, see "Optimizations".
   - [x] ~~Move `to_str` to types (`Obj ObjClass.__to_str(value: Value)`)~~
+- [x] ~~Remove the "Class" prefix in `VALUE_STR_CLASS` to just return the class name. This is a bit more consistent with the rest of the code.~~
 - [x] ~~Restructure test: compiler, vm (types, modules)~~
 - [x] ~~(When `Gc` is implemented) Add some test cases where we call `Gc.collect()` to ensure that relevant objects are not collected.~~
 - [x] ~~Add tests for `Fn.bind(Obj)`~~

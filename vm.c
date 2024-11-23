@@ -170,7 +170,7 @@ void define_native(HashTable* table, const char* name, NativeFn function, int ar
 
 void define_value(HashTable* table, const char* name, Value value) {
   // TODO (fix):🐛 Seemingly out of nowhere the pushed key and value get swapped on the stack...?! I don't know why. Funnily
-  // enough, it only happens when we start a nested module. E.g. we're in "main" and import "std", when the builtins get attached
+  // enough, it only happens when we start a nested module. E.g. we're in "main" and import "std", when the natives get attached
   // to the module instances field within the start_module function key and value are swapped! Same goes for the name (WTF). I've
   // found this out because in the stack trace we now see the modules name and for nested modules it always printed __name. The
   // current remedy is to just use variables for "key" and "value" and just use these instead of pushing and peeking.
@@ -305,24 +305,23 @@ void init_vm() {
   vm.seq_class->name     = seq_name;
   vm.tuple_class->name   = tuple_name;
 
-  // Create the builtin obj instance. Used to access all the builtin stuff.
-  vm.builtin = new_instance(vm.obj_class);
+  // Create the natives lookup table.
+  init_hashtable(&vm.natives);
 
   // Register the builtin classes in the builtin object
-  define_value(&vm.builtin->fields, INSTANCENAME_BUILTIN, instance_value(vm.builtin));
-  hashtable_set(&vm.builtin->fields, str_value(obj_name), class_value(vm.obj_class));
-  hashtable_set(&vm.builtin->fields, str_value(nil_name), class_value(vm.nil_class));
-  hashtable_set(&vm.builtin->fields, str_value(str_name), class_value(vm.str_class));
-  hashtable_set(&vm.builtin->fields, str_value(class_name), class_value(vm.class_class));
-  hashtable_set(&vm.builtin->fields, str_value(fn_name), class_value(vm.fn_class));
-  hashtable_set(&vm.builtin->fields, str_value(bool_name), class_value(vm.bool_class));
-  hashtable_set(&vm.builtin->fields, str_value(num_name), class_value(vm.num_class));
-  hashtable_set(&vm.builtin->fields, str_value(int_name), class_value(vm.int_class));
-  hashtable_set(&vm.builtin->fields, str_value(float_name), class_value(vm.float_class));
-  hashtable_set(&vm.builtin->fields, str_value(upvalue_name), class_value(vm.upvalue_class));
-  hashtable_set(&vm.builtin->fields, str_value(handler_name), class_value(vm.handler_class));
-  hashtable_set(&vm.builtin->fields, str_value(seq_name), class_value(vm.seq_class));
-  hashtable_set(&vm.builtin->fields, str_value(tuple_name), class_value(vm.tuple_class));
+  hashtable_set(&vm.natives, str_value(obj_name), class_value(vm.obj_class));
+  hashtable_set(&vm.natives, str_value(nil_name), class_value(vm.nil_class));
+  hashtable_set(&vm.natives, str_value(str_name), class_value(vm.str_class));
+  hashtable_set(&vm.natives, str_value(class_name), class_value(vm.class_class));
+  hashtable_set(&vm.natives, str_value(fn_name), class_value(vm.fn_class));
+  hashtable_set(&vm.natives, str_value(bool_name), class_value(vm.bool_class));
+  hashtable_set(&vm.natives, str_value(num_name), class_value(vm.num_class));
+  hashtable_set(&vm.natives, str_value(int_name), class_value(vm.int_class));
+  hashtable_set(&vm.natives, str_value(float_name), class_value(vm.float_class));
+  hashtable_set(&vm.natives, str_value(upvalue_name), class_value(vm.upvalue_class));
+  hashtable_set(&vm.natives, str_value(handler_name), class_value(vm.handler_class));
+  hashtable_set(&vm.natives, str_value(seq_name), class_value(vm.seq_class));
+  hashtable_set(&vm.natives, str_value(tuple_name), class_value(vm.tuple_class));
 
   // Build the reserved words lookup table
   memset(vm.special_method_names, 0, sizeof(vm.special_method_names));
@@ -343,7 +342,7 @@ void init_vm() {
   // Create the module class
   ObjString* module_name = copy_string(STR(TYPENAME_MODULE), STR_LEN(STR(TYPENAME_MODULE)));
   vm.module_class        = new_class(module_name, vm.obj_class);
-  hashtable_set(&vm.builtin->fields, str_value(module_name), class_value(vm.module_class));
+  hashtable_set(&vm.natives, str_value(module_name), class_value(vm.module_class));
   finalize_new_class(vm.module_class);
   hashtable_add_all(&vm.obj_class->methods, &vm.module_class->methods);  // TODO: Unsure why this is required for it to work -
                                                                          // module.entries() is not found otherwise. Investigate
@@ -1000,7 +999,7 @@ static Value run() {
         ObjString* name = READ_STRING();
         Value value;
         if (!hashtable_get_by_string(frame->globals, name, &value)) {
-          if (!hashtable_get_by_string(&vm.builtin->fields, name, &value)) {
+          if (!hashtable_get_by_string(&vm.natives, name, &value)) {
             runtime_error("Undefined variable '%s'.", name->chars);
             goto finish_error;
           }
@@ -1492,10 +1491,6 @@ ObjObject* make_module(const char* source_path, const char* module_name) {
   // We'll restore it afterwards.
   vm.module = module;
 
-  // Add a reference to the builtin instance, providing access to the builtin stuff.
-  // TODO (refactor): Remove this (including the INSTANCENAME_BUILTIN Macro) - I think it's not needed,
-  // because vm.builtin is used everywhere.
-  define_value(&module->fields, INSTANCENAME_BUILTIN, instance_value(vm.builtin));
   // Add a reference to the module name, mostly used for stack traces
   define_value(&module->fields, STR(SP_PROP_MODULE_NAME), str_value(copy_string(module_name, (int)strlen(module_name))));
 

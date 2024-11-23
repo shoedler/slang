@@ -1,9 +1,9 @@
 #ifndef chunk_h
 #define chunk_h
 
+#include <stdint.h>
 #include "scanner.h"
 #include "value.h"
-#include <stdint.h>
 
 typedef enum {
   /**
@@ -56,7 +56,7 @@ typedef enum {
    * @note stack: `[...] -> [...][value]`
    * @note synopsis: `OP_GET_GLOBAL, str_index`
    * @param str_index index into constant pool to get the name, which is then used to get [value] from the globals hashtable (or
-   * builtin fields - subject to change though)
+   * the natives lookup table - subject to change though)
    */
   OP_GET_GLOBAL,
   /**
