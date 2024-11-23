@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "builtin.h"
 #include "common.h"
-#include "value.h"
-#include "object.h"
 #include "hashtable.h"
+#include "native.h"
+#include "object.h"
+#include "value.h"
 #include "vm.h"
 
 static bool class_get_prop(Value receiver, ObjString* name, Value* result);

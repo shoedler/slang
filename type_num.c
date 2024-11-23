@@ -1,9 +1,9 @@
-#include "builtin.h"
+#include <stdio.h>
 #include "common.h"
+#include "native.h"
 #include "object.h"
 #include "value.h"
 #include "vm.h"
-#include <stdio.h>
 
 static bool num_get_prop(Value receiver, ObjString* name, Value* result);
 static bool int_get_prop(Value receiver, ObjString* name, Value* result);

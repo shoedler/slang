@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "builtin.h"
 #include "common.h"
+#include "native.h"
 #include "object.h"
 #include "value.h"
 #include "vm.h"

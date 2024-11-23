@@ -1,6 +1,6 @@
 #include <stddef.h>
-#include "builtin.h"
 #include "common.h"
+#include "native.h"
 #include "object.h"
 #include "sys.h"
 #include "value.h"

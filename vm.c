@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "builtin.h"
 #include "chunk.h"
 #include "common.h"
 #include "compiler.h"
@@ -13,6 +12,7 @@
 #include "gc.h"
 #include "hashtable.h"
 #include "memory.h"
+#include "native.h"
 #include "object.h"
 #include "sys.h"
 #include "value.h"

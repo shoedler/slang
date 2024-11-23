@@ -1,5 +1,5 @@
-#ifndef builtin_h
-#define builtin_h
+#ifndef NATIVE_H
+#define NATIVE_H
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -961,4 +961,4 @@ extern Value native_typeof(int argc, Value argv[]);
   /* No need for GC protection - taking an array will not trigger a GC. */         \
   return NATIVE_LISTLIKE_TAKE_ARRAY(concatenated);
 
-#endif
+#endif  // NATIVE_H

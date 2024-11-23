@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include "builtin.h"
 #include "common.h"
 #include "hashtable.h"
+#include "native.h"
 #include "value.h"
 #include "vm.h"
 
