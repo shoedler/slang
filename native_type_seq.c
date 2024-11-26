@@ -9,7 +9,6 @@
 static bool seq_get_prop(Value receiver, ObjString* name, Value* result);
 static bool seq_get_subs(Value receiver, Value index, Value* result);
 static bool seq_set_subs(Value receiver, Value index, Value value);
-NATIVE_SET_PROP_NOT_SUPPORTED()
 
 static Value seq_ctor(int argc, Value argv[]);
 static Value seq_to_str(int argc, Value argv[]);
@@ -32,12 +31,20 @@ static Value seq_reduce(int argc, Value argv[]);
 static Value seq_count(int argc, Value argv[]);
 static Value seq_concat(int argc, Value argv[]);
 
-void finalize_native_seq_class() {
-  vm.seq_class->__get_prop = seq_get_prop;
-  vm.seq_class->__set_prop = set_prop_not_supported;  // Not supported
-  vm.seq_class->__get_subs = seq_get_subs;
-  vm.seq_class->__set_subs = seq_set_subs;
+ObjClass* partial_init_native_seq_class() {
+  ObjClass* seq_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
+  seq_class->__get_prop = seq_get_prop;
+  seq_class->__set_prop = native_set_prop_not_supported;  // Not supported
+  seq_class->__get_subs = seq_get_subs;
+  seq_class->__set_subs = seq_set_subs;
+  seq_class->__equals   = native_default_obj_equals;
+  seq_class->__hash     = native_default_obj_hash;
+
+  return seq_class;
+}
+
+void finalize_native_seq_class() {
   define_native(&vm.seq_class->methods, STR(SP_METHOD_CTOR), seq_ctor, 1);
   define_native(&vm.seq_class->methods, STR(SP_METHOD_TO_STR), seq_to_str, 0);
   define_native(&vm.seq_class->methods, STR(SP_METHOD_HAS), seq_has, 1);

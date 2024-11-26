@@ -11,36 +11,47 @@
 extern void register_native_functions();
 
 // Registers the native object class and its methods.
+extern ObjClass* partial_init_native_obj_class();
 extern void finalize_native_obj_class();
 
 // Registers the native nil class and its methods.
+extern ObjClass* partial_init_native_nil_class();
 extern void finalize_native_nil_class();
 
 // Registers the native bool class and its methods.
+extern ObjClass* partial_init_native_bool_class();
 extern void finalize_native_bool_class();
 
 // Registers the native number class and its methods.
+extern ObjClass* partial_init_native_num_class();
 extern void finalize_native_num_class();
 
 // Registers the native int class and its methods.
+extern ObjClass* partial_init_native_int_class(ObjClass* num_base_class);
 extern void finalize_native_int_class();
 
-// Registers the native float class and its methods.
+// Registers the native float class and its methoods.
+extern ObjClass* partial_init_native_float_class(ObjClass* num_base_class);
 extern void finalize_native_float_class();
 
 // Registers the native string class and its methods.
+extern ObjClass* partial_init_native_str_class();
 extern void finalize_native_str_class();
 
 // Registers the native seq class and its methods.
+extern ObjClass* partial_init_native_seq_class();
 extern void finalize_native_seq_class();
 
 // Registers the native tuple class and its methods.
+extern ObjClass* partial_init_native_tuple_class();
 extern void finalize_native_tuple_class();
 
 // Registers the native fn class and its methods.
+extern ObjClass* partial_init_native_fn_class();
 extern void finalize_native_fn_class();
 
 // Registers the native class class and its methods.
+extern ObjClass* partial_init_native_class_class();
 extern void finalize_native_class_class();
 
 // Registers the native file module
@@ -56,10 +67,8 @@ extern void register_native_debug_module();
 extern void register_native_gc_module();
 
 //
-// Native function-, method- and class-declarations
-//
-
 // Native functions
+//
 
 /**
  * clock() -> TYPENAME_FLOAT
@@ -84,6 +93,40 @@ extern Value native_log(int argc, Value argv[]);
  * @brief Returns the class of the value.
  */
 extern Value native_typeof(int argc, Value argv[]);
+
+//
+// Default accessors for native classes.
+//
+
+// Default prop setter for types that don't support it.
+bool native_set_prop_not_supported(Value receiver, ObjString* name, Value value);
+
+// Default subs getter for types that don't support it.
+bool native_get_subs_not_supported(Value receiver, Value index, Value* result);
+
+// Default subs setter for types that don't support it.
+bool native_set_subs_not_supported(Value receiver, Value index, Value value);
+
+// Default equals for types that don't support it.
+bool native_equals_not_supported(Value self, Value other);
+
+// Default hash for types that don't support it.
+uint64_t native_hash_not_supported(Value self);
+
+// Default equals for object-based types.
+bool native_default_obj_equals(Value self, Value other);
+
+// Default hash for object-based types.
+uint64_t native_default_obj_hash(Value self);
+
+// Default prop getter for any type.
+// TODO (refactor): Maybe also bind static methods, no?
+#define NATIVE_DEFAULT_GET_PROP_BODY(class)                                                            \
+  if (bind_method(class, name, result)) {                                                              \
+    return true;                                                                                       \
+  }                                                                                                    \
+  runtime_error("Property '%s' does not exist on value of type %s.", name->chars, class->name->chars); \
+  return false;
 
 //
 // Macros for argument checking in native functions.
@@ -112,41 +155,6 @@ extern Value native_typeof(int argc, Value argv[]);
   if (!is_callable(argv[index])) {                                                                              \
     runtime_error("Expected argument %d to be callable but got %s.", index - 1, argv[index].type->name->chars); \
     return nil_value();                                                                                         \
-  }
-
-//
-// Macros for default accessor implementations.
-//
-
-#define NATIVE_DEFAULT_GET_PROP_BODY(class)                                                            \
-  if (bind_method(class, name, result)) {                                                              \
-    return true;                                                                                       \
-  }                                                                                                    \
-  runtime_error("Property '%s' does not exist on value of type %s.", name->chars, class->name->chars); \
-  return false;
-
-#define NATIVE_SET_PROP_NOT_SUPPORTED()                                                         \
-  static bool set_prop_not_supported(Value receiver, ObjString* name, Value value) {            \
-    UNUSED(name);                                                                               \
-    UNUSED(value);                                                                              \
-    runtime_error("Type %s does not support property-set access.", receiver.type->name->chars); \
-    return false;                                                                               \
-  }
-
-#define NATIVE_GET_SUBS_NOT_SUPPORTED()                                                      \
-  static bool get_subs_not_supported(Value receiver, Value index, Value* result) {           \
-    UNUSED(index);                                                                           \
-    UNUSED(result);                                                                          \
-    runtime_error("Type %s does not support get-subscripting.", receiver.type->name->chars); \
-    return false;                                                                            \
-  }
-
-#define NATIVE_SET_SUBS_NOT_SUPPORTED()                                                      \
-  static bool set_subs_not_supported(Value receiver, Value index, Value value) {             \
-    UNUSED(index);                                                                           \
-    UNUSED(value);                                                                           \
-    runtime_error("Type %s does not support set-subscripting.", receiver.type->name->chars); \
-    return false;                                                                            \
   }
 
 //
@@ -225,7 +233,7 @@ extern Value native_typeof(int argc, Value argv[]);
   } else {                                                                           \
     /* Value equality */                                                             \
     for (int i = 0; i < count; i++) {                                                \
-      if (values_equal(argv[1], items.values[i])) {                                  \
+      if (argv[1].type->__equals(argv[1], items.values[i])) {                        \
         return bool_value(true);                                                     \
       }                                                                              \
     }                                                                                \
@@ -345,9 +353,9 @@ extern Value native_typeof(int argc, Value argv[]);
  * @brief Returns the index of the first item in a TYPENAME_T for which 'pred' evaluates to VALUE_STR_TRUE. Returns VALUE_STR_NIL
  * if no item satisfies the predicate.
  */
-#define NATIVE_LISTLIKE_INDEX_OF_BODY(type)                                                               \
+#define NATIVE_LISTLIKE_INDEX_OF_BODY(listlike_type)                                                      \
   UNUSED(argc);                                                                                           \
-  NATIVE_CHECK_RECEIVER(type)                                                                             \
+  NATIVE_CHECK_RECEIVER(listlike_type)                                                                    \
                                                                                                           \
   ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                                  \
   if (items.count == 0) {                                                                                 \
@@ -375,7 +383,7 @@ extern Value native_typeof(int argc, Value argv[]);
   } else {                                                                                                \
     /* Value equality */                                                                                  \
     for (int i = 0; i < count; i++) {                                                                     \
-      if (values_equal(argv[1], items.values[i])) {                                                       \
+      if (argv[1].type->__equals(argv[1], items.values[i])) {                                             \
         return int_value(i);                                                                              \
       }                                                                                                   \
     }                                                                                                     \
@@ -927,7 +935,7 @@ extern Value native_typeof(int argc, Value argv[]);
   } else {                                                                                                      \
     /* Value equality */                                                                                        \
     for (int i = 0; i < count; i++) {                                                                           \
-      if (values_equal(argv[1], items.values[i])) {                                                             \
+      if (argv[1].type->__equals(argv[1], items.values[i])) {                                                   \
         occurrences++;                                                                                          \
       }                                                                                                         \
     }                                                                                                           \

@@ -37,18 +37,18 @@ You can, for example, easily cache stuff:
 
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
-- [ ] Implement `Math` module.
+- [ ] Implement native `Math` module.
   - [ ] Implement `Math.abs(Num) -> Num`.
   - [ ] Implement `Math.int_div(Num, Num) -> Int`.
   - [ ] Implement `Math.ceil(Num) -> Int`.
   - [ ] Implement `Math.floor(Num) -> Int`.
   - [ ] Implement `Math.round(Num) -> Int`. (Nearest integer)
-- [ ] Implement `Json` module.
+- [ ] Implement native `Json` module.
   - [ ] Implement `Json.parse(Str) -> Obj`.
   - [ ] Implement `Json.stringify(Value) -> Str`.
   - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
-- [ ] Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`
 - [ ] Implement `Seq.sort(sort_fn) -> Seq`.
+- [x] ~~Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`~~
 - [x] ~~Add destructuring to module imports.~~
 - [x] ~~Add `const` (**_See Challenge 22.3_**)~~
 - [x] ~~Implement `Set` class~~ (Part of the `std` module - not a native type)
@@ -73,9 +73,9 @@ You can, for example, easily cache stuff:
 - [ ] Make sure managed code classes do not override internal classes.
 - [ ] Add `error` to the reserved words
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
-- [ ] Generalized calls. This is optional, but could enhance the language.
-  - [ ] Move `hash_value` to types (`uint64_t ObjClass.__hash(value: Value)`)
-  - [ ] Move `values_equal` to types (`bool ObjClass.__eq(a: Value, b: Value)`) **DUPE**, see "Optimizations".
+- [x] ~~Generalized calls. This is optional, but could enhance the language.~~
+  - [x] ~~Move `hash_value` to types (`uint64_t ObjClass.__hash(value: Value)`)~~
+  - [x] ~~Move `values_equal` to types (`bool ObjClass.__equals(a: Value, b: Value)`) **DUPE**, see "Optimizations".~~
   - [x] ~~Move `to_str` to types (`Obj ObjClass.__to_str(value: Value)`)~~
 - [x] ~~Remove the "Class" prefix in `VALUE_STR_CLASS` to just return the class name. This is a bit more consistent with the rest of the code.~~
 - [x] ~~Restructure test: compiler, vm (types, modules)~~
@@ -87,7 +87,6 @@ You can, for example, easily cache stuff:
 
 ## Optimizations
 
-- [ ] Move `values_equal` to types (`bool ObjClass.__eq(a: Value, b: Value)`) - this would make `values_equal` obsolete.
 - [ ] Use `memcpy` for concat and such (See `Seq(Tuple)` ctor for an example). Check for for-loops in the native methods. Need to test if this copies values by reference or by value. Needs a decision on on how we want to handle that.
 - [ ] Implement a string builder and use it everywhere. This is a must-have.
 - [ ] Inline `push()`, `peek()` and `pop()` in the Vm.
@@ -95,10 +94,11 @@ You can, for example, easily cache stuff:
 - [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
-- [ ] Split globals into a `Hastable global_names` and a `ValueArray global_values`. This would allow for constant time global variable lookup. (**_See Challenge 21.2_**) https://github.com/munificent/craftinginterpreters/blob/master/note/answers/chapter21_global.md   
+- [ ] Split globals into a `Hastable global_names` and a `ValueArray global_values`. This would allow for constant time global variable lookup. (**_See Challenge 21.2_**) https://github.com/munificent/craftinginterpreters/blob/master/note/answers/chapter21_global.md
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
 - [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
 - [ ] Make a `immortal` flag on `Obj` to prevent it from being collected. This could be a big perf gain - though we still have to make sure that nested objects "inherit" this flag.
+- [x] ~~Move `values_equal` to types (`bool ObjClass.__equals(a: Value, b: Value)`) - this would make `values_equal` obsolete.~~
 
 ---
 

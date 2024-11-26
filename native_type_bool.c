@@ -5,22 +5,37 @@
 #include "vm.h"
 
 static bool bool_get_prop(Value receiver, ObjString* name, Value* result);
-NATIVE_SET_PROP_NOT_SUPPORTED()
-NATIVE_GET_SUBS_NOT_SUPPORTED()
-NATIVE_SET_SUBS_NOT_SUPPORTED()
+static bool bool_eq(Value self, Value other);
+static uint64_t bool_hash(Value self);
 
 static Value bool_ctor(int argc, Value argv[]);
 static Value bool_to_str(int argc, Value argv[]);
 
-void finalize_native_bool_class() {
-  vm.bool_class->__get_prop = bool_get_prop;
-  vm.bool_class->__set_prop = set_prop_not_supported;  // Not supported
-  vm.bool_class->__get_subs = get_subs_not_supported;  // Not supported
-  vm.bool_class->__set_subs = set_subs_not_supported;  // Not supported
+ObjClass* partial_init_native_bool_class() {
+  ObjClass* bool_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
+  bool_class->__get_prop = bool_get_prop;
+  bool_class->__set_prop = native_set_prop_not_supported;  // Not supported
+  bool_class->__get_subs = native_get_subs_not_supported;  // Not supported
+  bool_class->__set_subs = native_set_subs_not_supported;  // Not supported
+  bool_class->__equals   = bool_eq;
+  bool_class->__hash     = bool_hash;
+
+  return bool_class;
+}
+
+void finalize_native_bool_class() {
   define_native(&vm.bool_class->methods, STR(SP_METHOD_CTOR), bool_ctor, 1);
   define_native(&vm.bool_class->methods, STR(SP_METHOD_TO_STR), bool_to_str, 0);
   finalize_new_class(vm.bool_class);
+}
+
+static bool bool_eq(Value self, Value other) {
+  return self.type == other.type && self.as.boolean == other.as.boolean;
+}
+
+static uint64_t bool_hash(Value self) {
+  return self.as.boolean ? 977 : 479;  // Prime numbers. Selected based on trial and error.
 }
 
 static bool bool_get_prop(Value receiver, ObjString* name, Value* result) {

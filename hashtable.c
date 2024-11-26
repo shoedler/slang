@@ -19,7 +19,7 @@ void free_hashtable(HashTable* table) {
 
 // Find the entry for key. Returns NULL if no entry is found.
 static Entry* find_entry(Entry* entries, int capacity, Value key) {
-  uint64_t index = hash_value(key) & (capacity - 1);
+  uint64_t index = key.type->__hash(key) & (capacity - 1);
 
   // If we pass a tombstone and don't end up finding the key, its entry will be re-used for the insert.
   Entry* tombstone = NULL;
@@ -37,7 +37,7 @@ static Entry* find_entry(Entry* entries, int capacity, Value key) {
       if (tombstone == NULL) {
         tombstone = entry;
       }
-    } else if (values_equal(entry->key, key)) {
+    } else if (entry->key.type->__equals(entry->key, key)) {
       // We found the key.
       return entry;
     }

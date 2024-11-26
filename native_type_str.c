@@ -7,9 +7,8 @@
 #include "vm.h"
 
 static bool str_get_prop(Value receiver, ObjString* name, Value* result);
-NATIVE_SET_PROP_NOT_SUPPORTED()
 static bool str_get_subs(Value receiver, Value index, Value* result);
-NATIVE_SET_SUBS_NOT_SUPPORTED()
+static bool str_eq(Value self, Value other);
 
 static Value str_ctor(int argc, Value argv[]);
 static Value str_to_str(int argc, Value argv[]);
@@ -18,12 +17,20 @@ static Value str_slice(int argc, Value argv[]);
 static Value str_split(int argc, Value argv[]);
 static Value str_trim(int argc, Value argv[]);
 
-void finalize_native_str_class() {
-  vm.str_class->__get_prop = str_get_prop;
-  vm.str_class->__set_prop = set_prop_not_supported;  // Not supported
-  vm.str_class->__get_subs = str_get_subs;
-  vm.str_class->__set_subs = set_subs_not_supported;  // Not supported
+ObjClass* partial_init_native_str_class() {
+  ObjClass* str_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
+  str_class->__get_prop = str_get_prop;
+  str_class->__set_prop = native_set_prop_not_supported;  // Not supported
+  str_class->__get_subs = str_get_subs;
+  str_class->__set_subs = native_set_subs_not_supported;  // Not supported
+  str_class->__equals   = str_eq;
+  str_class->__hash     = native_default_obj_hash;
+
+  return str_class;
+}
+
+void finalize_native_str_class() {
   define_native(&vm.str_class->methods, STR(SP_METHOD_CTOR), str_ctor, 1);
   define_native(&vm.str_class->methods, STR(SP_METHOD_TO_STR), str_to_str, 0);
   define_native(&vm.str_class->methods, STR(SP_METHOD_HAS), str_has, 1);
@@ -31,6 +38,10 @@ void finalize_native_str_class() {
   define_native(&vm.str_class->methods, "split", str_split, 1);
   define_native(&vm.str_class->methods, "trim", str_trim, 0);
   finalize_new_class(vm.str_class);
+}
+
+static bool str_eq(Value self, Value other) {
+  return self.type == other.type && AS_STR(self) == AS_STR(other);  // Works because strings are interned
 }
 
 static bool str_get_prop(Value receiver, ObjString* name, Value* result) {

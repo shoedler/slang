@@ -8,20 +8,25 @@
 #include "vm.h"
 
 static bool class_get_prop(Value receiver, ObjString* name, Value* result);
-NATIVE_SET_PROP_NOT_SUPPORTED()
-NATIVE_GET_SUBS_NOT_SUPPORTED()
-NATIVE_SET_SUBS_NOT_SUPPORTED()
 
 static Value class_ctor(int argc, Value argv[]);
 static Value class_to_str(int argc, Value argv[]);
 static Value class_has(int argc, Value argv[]);
 
-void finalize_native_class_class() {
-  vm.class_class->__get_prop = class_get_prop;
-  vm.class_class->__set_prop = set_prop_not_supported;  // Not supported
-  vm.class_class->__get_subs = get_subs_not_supported;  // Not supported
-  vm.class_class->__set_subs = set_subs_not_supported;  // Not supported
+ObjClass* partial_init_native_class_class() {
+  ObjClass* class_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
+  class_class->__get_prop = class_get_prop;
+  class_class->__set_prop = native_set_prop_not_supported;  // Not supported
+  class_class->__get_subs = native_get_subs_not_supported;  // Not supported
+  class_class->__set_subs = native_set_subs_not_supported;  // Not supported
+  class_class->__equals   = native_default_obj_equals;
+  class_class->__hash     = native_default_obj_hash;
+
+  return class_class;
+}
+
+void finalize_native_class_class() {
   define_native(&vm.class_class->methods, STR(SP_METHOD_CTOR), class_ctor, 1);
   define_native(&vm.class_class->methods, STR(SP_METHOD_TO_STR), class_to_str, 0);
   define_native(&vm.class_class->methods, STR(SP_METHOD_HAS), class_has, 1);

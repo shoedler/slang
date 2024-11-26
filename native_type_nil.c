@@ -5,22 +5,38 @@
 #include "vm.h"
 
 static bool nil_get_prop(Value receiver, ObjString* name, Value* result);
-NATIVE_SET_PROP_NOT_SUPPORTED()
-NATIVE_GET_SUBS_NOT_SUPPORTED()
-NATIVE_SET_SUBS_NOT_SUPPORTED()
+static bool nil_eq(Value self, Value other);
+static uint64_t nil_hash(Value self);
 
 static Value nil_ctor(int argc, Value argv[]);
 static Value nil_to_str(int argc, Value argv[]);
 
-void finalize_native_nil_class() {
-  vm.nil_class->__get_prop = nil_get_prop;
-  vm.nil_class->__set_prop = set_prop_not_supported;  // Not supported
-  vm.nil_class->__get_subs = get_subs_not_supported;  // Not supported
-  vm.nil_class->__set_subs = set_subs_not_supported;  // Not supported
+ObjClass* partial_init_native_nil_class() {
+  ObjClass* nil_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
+  nil_class->__get_prop = nil_get_prop;
+  nil_class->__set_prop = native_set_prop_not_supported;  // Not supported
+  nil_class->__get_subs = native_get_subs_not_supported;  // Not supported
+  nil_class->__set_subs = native_set_subs_not_supported;  // Not supported
+  nil_class->__equals   = nil_eq;
+  nil_class->__hash     = nil_hash;
+
+  return nil_class;
+}
+
+void finalize_native_nil_class() {
   define_native(&vm.nil_class->methods, STR(SP_METHOD_CTOR), nil_ctor, 1);
   define_native(&vm.nil_class->methods, STR(SP_METHOD_TO_STR), nil_to_str, 0);
   finalize_new_class(vm.nil_class);
+}
+
+static bool nil_eq(Value self, Value other) {
+  return self.type == other.type && true;  // Nil is always equal to nil
+}
+
+static uint64_t nil_hash(Value self) {
+  UNUSED(self);
+  return 2;  // A prime number. Selected based on trial and error.
 }
 
 static bool nil_get_prop(Value receiver, ObjString* name, Value* result) {

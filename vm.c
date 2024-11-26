@@ -261,19 +261,19 @@ void init_vm() {
   // Register the built-in classes
   // Names are null, because we cannot intern them yet. At this point hashtables won't work, bc without the base classes the the
   // hashtable cannot compare the keys.
-  vm.obj_class     = new_class(NULL, NULL);
-  vm.nil_class     = new_class(NULL, NULL);
-  vm.str_class     = new_class(NULL, NULL);
-  vm.class_class   = new_class(NULL, NULL);
-  vm.fn_class      = new_class(NULL, NULL);
-  vm.bool_class    = new_class(NULL, NULL);
-  vm.num_class     = new_class(NULL, NULL);
-  vm.int_class     = new_class(NULL, vm.num_class);
-  vm.float_class   = new_class(NULL, vm.num_class);
+  vm.obj_class     = partial_init_native_obj_class();
+  vm.nil_class     = partial_init_native_nil_class();
+  vm.str_class     = partial_init_native_str_class();
+  vm.class_class   = partial_init_native_class_class();
+  vm.fn_class      = partial_init_native_fn_class();
+  vm.bool_class    = partial_init_native_bool_class();
+  vm.num_class     = partial_init_native_num_class();
+  vm.int_class     = partial_init_native_int_class(vm.num_class);
+  vm.float_class   = partial_init_native_float_class(vm.num_class);
   vm.upvalue_class = new_class(NULL, NULL);
   vm.handler_class = new_class(NULL, NULL);
-  vm.seq_class     = new_class(NULL, NULL);
-  vm.tuple_class   = new_class(NULL, NULL);
+  vm.seq_class     = partial_init_native_seq_class();
+  vm.tuple_class   = partial_init_native_tuple_class();
 
   // Now, we can intern the names. Hashtables are now usable.
   ObjString* obj_name     = copy_string(STR(TYPENAME_OBJ), STR_LEN(STR(TYPENAME_OBJ)));
@@ -1147,13 +1147,13 @@ static Value run() {
       case OP_EQ: {
         Value right = pop();
         Value left  = pop();
-        push(bool_value(values_equal(left, right)));
+        push(bool_value(left.type->__equals(left, right)));
         break;
       }
       case OP_NEQ: {
         Value right = pop();
         Value left  = pop();
-        push(bool_value(!values_equal(left, right)));
+        push(bool_value(!left.type->__equals(left, right)));
         break;
       }
       case OP_GT: BIN_GT

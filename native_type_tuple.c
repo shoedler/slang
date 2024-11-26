@@ -6,9 +6,7 @@
 #include "vm.h"
 
 static bool tuple_get_prop(Value receiver, ObjString* name, Value* result);
-NATIVE_SET_PROP_NOT_SUPPORTED()
 static bool tuple_get_subs(Value receiver, Value index, Value* result);
-NATIVE_SET_SUBS_NOT_SUPPORTED()
 
 static Value tuple_ctor(int argc, Value argv[]);
 static Value tuple_to_str(int argc, Value argv[]);
@@ -28,12 +26,20 @@ static Value tuple_reduce(int argc, Value argv[]);
 static Value tuple_count(int argc, Value argv[]);
 static Value tuple_concat(int argc, Value argv[]);
 
-void finalize_native_tuple_class() {
-  vm.tuple_class->__get_prop = tuple_get_prop;
-  vm.tuple_class->__set_prop = set_prop_not_supported;  // Not supported
-  vm.tuple_class->__get_subs = tuple_get_subs;
-  vm.tuple_class->__set_subs = set_subs_not_supported;  // Not supported
+ObjClass* partial_init_native_tuple_class() {
+  ObjClass* tuple_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
+  tuple_class->__get_prop = tuple_get_prop;
+  tuple_class->__set_prop = native_set_prop_not_supported;  // Not supported
+  tuple_class->__get_subs = tuple_get_subs;
+  tuple_class->__set_subs = native_set_subs_not_supported;  // Not supported
+  tuple_class->__equals   = native_default_obj_equals;
+  tuple_class->__hash     = native_default_obj_hash;
+
+  return tuple_class;
+}
+
+void finalize_native_tuple_class() {
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_CTOR), tuple_ctor, 1);
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_TO_STR), tuple_to_str, 0);
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_HAS), tuple_has, 1);

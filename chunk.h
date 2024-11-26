@@ -128,13 +128,13 @@ typedef enum {
    */
   OP_GET_BASE_METHOD,
   /**
-   * Compares the top two values on the stack for equality and pushes the result.
+   * Compares the top two values on the stack for equality and pushes the result. (Invokes `__equals` on the values)
    * @note stack: `[...][a][b] -> [...][result]`
    * @note synopsis: `OP_EQ`
    */
   OP_EQ,
   /**
-   * Compares the top two values on the stack for inequality and pushes the result.
+   * Compares the top two values on the stack for inequality and pushes the result. (Invokes `__equals` on the values)
    * @note stack: `[...][a][b] -> [...][result]`
    * @note synopsis: `OP_NEQ`
    */

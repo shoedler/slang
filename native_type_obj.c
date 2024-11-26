@@ -16,21 +16,27 @@ static bool obj_set_subs(Value receiver, Value index, Value value);
 static Value obj_ctor(int argc, Value argv[]);
 static Value obj_to_str(int argc, Value argv[]);
 static Value obj_has(int argc, Value argv[]);
-static Value obj_hash(int argc, Value argv[]);
 static Value obj_entries(int argc, Value argv[]);
 static Value obj_values(int argc, Value argv[]);
 static Value obj_keys(int argc, Value argv[]);
 
-void finalize_native_obj_class() {
-  vm.obj_class->__get_prop = obj_get_prop;
-  vm.obj_class->__set_prop = obj_set_prop;
-  vm.obj_class->__get_subs = obj_get_subs;
-  vm.obj_class->__set_subs = obj_set_subs;
+ObjClass* partial_init_native_obj_class() {
+  ObjClass* obj_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
+  obj_class->__get_prop = obj_get_prop;
+  obj_class->__set_prop = obj_set_prop;
+  obj_class->__get_subs = obj_get_subs;
+  obj_class->__set_subs = obj_set_subs;
+  obj_class->__equals   = native_default_obj_equals;
+  obj_class->__hash     = native_default_obj_hash;
+
+  return obj_class;
+}
+
+void finalize_native_obj_class() {
   define_native(&vm.obj_class->methods, STR(SP_METHOD_CTOR), obj_ctor, 0);
   define_native(&vm.obj_class->methods, STR(SP_METHOD_TO_STR), obj_to_str, 0);
   define_native(&vm.obj_class->methods, STR(SP_METHOD_HAS), obj_has, 1);
-  define_native(&vm.obj_class->methods, "hash", obj_hash, 0);
   define_native(&vm.obj_class->methods, "entries", obj_entries, 0);
   define_native(&vm.obj_class->methods, "values", obj_values, 0);
   define_native(&vm.obj_class->methods, "keys", obj_keys, 0);
@@ -253,15 +259,6 @@ static Value obj_has(int argc, Value argv[]) {
   Value discard;
   bool has = hashtable_get(&AS_OBJECT(argv[0])->fields, argv[1], &discard);
   return bool_value(has);
-}
-
-/**
- * TYPENAME_OBJ.SP_METHOD_HASH() -> TYPENAME_INT
- * @brief Returns the hash of the TYPENAME_OBJ.
- */
-static Value obj_hash(int argc, Value argv[]) {
-  UNUSED(argc);
-  return int_value(hash_value(argv[0]));
 }
 
 /**

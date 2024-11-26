@@ -41,6 +41,8 @@ ObjClass* new_class(ObjString* name, ObjClass* base) {
   klass->__set_prop = NULL;
   klass->__get_subs = NULL;
   klass->__set_subs = NULL;
+  klass->__equals   = NULL;
+  klass->__hash     = NULL;
 
   klass->__ctor   = NULL;
   klass->__to_str = NULL;
@@ -90,6 +92,8 @@ void finalize_new_class(ObjClass* klass) {
     klass->__set_prop = klass->__set_prop != NULL ? klass->__set_prop : klass->base->__set_prop;
     klass->__get_subs = klass->__get_subs != NULL ? klass->__get_subs : klass->base->__get_subs;
     klass->__set_subs = klass->__set_subs != NULL ? klass->__set_subs : klass->base->__set_subs;
+    klass->__equals   = klass->__equals != NULL ? klass->__equals : klass->base->__equals;
+    klass->__hash     = klass->__hash != NULL ? klass->__hash : klass->base->__hash;
   }
 }
 
@@ -161,12 +165,12 @@ static uint64_t hash_string(const char* key, int length) {
   return hash;
 }
 
-// // Hashes a tuple. Borrowed from Python.
+// Hashes a tuple. Borrowed from Python.
 static uint64_t hash_tuple(ValueArray* items) {
   uint64_t length = items->count;
   uint64_t result = TUPLE_HASH_INITIAL;
   for (uint64_t i = 0; i < length; i++) {
-    result = (result * TUPLE_HASH_MULTIPLIER) ^ hash_value(items->values[i]);
+    result = (result * TUPLE_HASH_MULTIPLIER) ^ items->values[i].type->__hash(items->values[i]);
   }
   result += TUPLE_HASH_OFFSET;
   return result;

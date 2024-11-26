@@ -15,21 +15,26 @@
   }
 
 static bool fn_get_prop(Value receiver, ObjString* name, Value* result);
-NATIVE_SET_PROP_NOT_SUPPORTED()
-NATIVE_GET_SUBS_NOT_SUPPORTED()
-NATIVE_SET_SUBS_NOT_SUPPORTED()
 
 static Value fn_ctor(int argc, Value argv[]);
 static Value fn_to_str(int argc, Value argv[]);
 static Value fn_has(int argc, Value argv[]);
 static Value fn_bind(int argc, Value argv[]);
 
-void finalize_native_fn_class() {
-  vm.fn_class->__get_prop = fn_get_prop;
-  vm.fn_class->__set_prop = set_prop_not_supported;  // Not supported
-  vm.fn_class->__get_subs = get_subs_not_supported;  // Not supported
-  vm.fn_class->__set_subs = set_subs_not_supported;  // Not supported
+ObjClass* partial_init_native_fn_class() {
+  ObjClass* fn_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
+  fn_class->__get_prop = fn_get_prop;
+  fn_class->__set_prop = native_set_prop_not_supported;  // Not supported
+  fn_class->__get_subs = native_get_subs_not_supported;  // Not supported
+  fn_class->__set_subs = native_set_subs_not_supported;  // Not supported
+  fn_class->__equals   = native_default_obj_equals;
+  fn_class->__hash     = native_default_obj_hash;
+
+  return fn_class;
+}
+
+void finalize_native_fn_class() {
   define_native(&vm.fn_class->methods, STR(SP_METHOD_CTOR), fn_ctor, 1);
   define_native(&vm.fn_class->methods, STR(SP_METHOD_TO_STR), fn_to_str, 0);
   define_native(&vm.fn_class->methods, STR(SP_METHOD_HAS), fn_has, 1);

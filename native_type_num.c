@@ -6,45 +6,74 @@
 #include "vm.h"
 
 static bool num_get_prop(Value receiver, ObjString* name, Value* result);
+
 static bool int_get_prop(Value receiver, ObjString* name, Value* result);
+static bool int_eq(Value self, Value other);
+static uint64_t int_hash(Value self);
+
 static bool float_get_prop(Value receiver, ObjString* name, Value* result);
-NATIVE_SET_PROP_NOT_SUPPORTED()
-NATIVE_GET_SUBS_NOT_SUPPORTED()
-NATIVE_SET_SUBS_NOT_SUPPORTED()
+static bool float_eq(Value self, Value other);
+static uint64_t float_hash(Value self);
 
 static Value num_ctor(int argc, Value argv[]);
+
 static Value int_ctor(int argc, Value argv[]);
 static Value int_to_str(int argc, Value argv[]);
+
 static Value float_ctor(int argc, Value argv[]);
 static Value float_to_str(int argc, Value argv[]);
 
-void finalize_native_num_class() {
-  vm.num_class->__get_prop = num_get_prop;
-  vm.num_class->__set_prop = set_prop_not_supported;  // Not supported
-  vm.num_class->__get_subs = get_subs_not_supported;  // Not supported
-  vm.num_class->__set_subs = set_subs_not_supported;  // Not supported
+ObjClass* partial_init_native_num_class() {
+  ObjClass* num_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
+  num_class->__get_prop = num_get_prop;
+  num_class->__set_prop = native_set_prop_not_supported;  // Not supported
+  num_class->__get_subs = native_get_subs_not_supported;  // Not supported
+  num_class->__set_subs = native_set_subs_not_supported;  // Not supported
+  num_class->__equals   = native_equals_not_supported;    // Not supported
+  num_class->__hash     = native_hash_not_supported;      // Not supported
+
+  return num_class;
+}
+
+void finalize_native_num_class() {
   define_native(&vm.num_class->methods, STR(SP_METHOD_CTOR), num_ctor, 1);
   finalize_new_class(vm.num_class);
 }
 
-void finalize_native_int_class() {
-  vm.int_class->__get_prop = int_get_prop;
-  vm.int_class->__set_prop = set_prop_not_supported;  // Not supported
-  vm.int_class->__get_subs = get_subs_not_supported;  // Not supported
-  vm.int_class->__set_subs = set_subs_not_supported;  // Not supported
+ObjClass* partial_init_native_int_class(ObjClass* num_base_class) {
+  ObjClass* int_class = new_class(NULL, num_base_class);  // Names are null because hashtables are not yet initialized
 
+  int_class->__get_prop = int_get_prop;
+  int_class->__set_prop = native_set_prop_not_supported;  // Not supported
+  int_class->__get_subs = native_get_subs_not_supported;  // Not supported
+  int_class->__set_subs = native_set_subs_not_supported;  // Not supported
+  int_class->__equals   = int_eq;
+  int_class->__hash     = int_hash;
+
+  return int_class;
+}
+
+void finalize_native_int_class() {
   define_native(&vm.int_class->methods, STR(SP_METHOD_CTOR), int_ctor, 1);
   define_native(&vm.int_class->methods, STR(SP_METHOD_TO_STR), int_to_str, 0);
   finalize_new_class(vm.int_class);
 }
 
-void finalize_native_float_class() {
-  vm.float_class->__get_prop = float_get_prop;
-  vm.float_class->__set_prop = set_prop_not_supported;  // Not supported
-  vm.float_class->__get_subs = get_subs_not_supported;  // Not supported
-  vm.float_class->__set_subs = set_subs_not_supported;  // Not supported
+ObjClass* partial_init_native_float_class(ObjClass* num_base_class) {
+  ObjClass* float_class = new_class(NULL, num_base_class);  // Names are null because hashtables are not yet initialized
 
+  float_class->__get_prop = float_get_prop;
+  float_class->__set_prop = native_set_prop_not_supported;  // Not supported
+  float_class->__get_subs = native_get_subs_not_supported;  // Not supported
+  float_class->__set_subs = native_set_subs_not_supported;  // Not supported
+  float_class->__equals   = float_eq;
+  float_class->__hash     = float_hash;
+
+  return float_class;
+}
+
+void finalize_native_float_class() {
   define_native(&vm.float_class->methods, STR(SP_METHOD_CTOR), float_ctor, 1);
   define_native(&vm.float_class->methods, STR(SP_METHOD_TO_STR), float_to_str, 0);
   finalize_new_class(vm.float_class);
@@ -63,6 +92,30 @@ static bool int_get_prop(Value receiver, ObjString* name, Value* result) {
 static bool float_get_prop(Value receiver, ObjString* name, Value* result) {
   UNUSED(receiver);
   NATIVE_DEFAULT_GET_PROP_BODY(vm.float_class)
+}
+
+static bool int_eq(Value self, Value other) {
+  return self.type == other.type && self.as.integer == other.as.integer;
+}
+
+static bool float_eq(Value self, Value other) {
+  return self.type == other.type && self.as.float_ == other.as.float_;
+}
+
+static uint64_t int_hash(Value self) {
+  return (uint64_t)self.as.integer;  // Bc of 2's complement, directly casting to uint64_t should ensure unique hash values.
+}
+
+static uint64_t float_hash(Value self) {
+  // Hashes a double. Borrowed from Lua.
+  union BitCast {
+    double source;
+    uint64_t target;
+  };
+
+  union BitCast cast;
+  cast.source = (self.as.float_) + 1.0;
+  return cast.target;
 }
 
 /**

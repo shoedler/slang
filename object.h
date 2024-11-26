@@ -99,6 +99,10 @@ typedef bool (*SetPropFn)(Value receiver, ObjString* name, Value value);
 typedef bool (*GetSubscriptFn)(Value receiver, Value index, Value* result);
 // Subscript-setter. Returns false if an error occurred, true otherwise.
 typedef bool (*SetSubscriptFn)(Value receiver, Value index, Value value);
+// Equality-checker. Returns true if the two values are equal, false otherwise.
+typedef bool (*EqFn)(Value self, Value other);
+// Hasher. Returns the hash of the object.
+typedef uint64_t (*HashFn)(Value self);
 
 typedef struct ObjClass {
   Obj obj;
@@ -111,6 +115,8 @@ typedef struct ObjClass {
   SetPropFn __set_prop;
   GetSubscriptFn __get_subs;
   SetSubscriptFn __set_subs;
+  EqFn __equals;
+  HashFn __hash;
 
   // Special methods for quick access.
   Obj* __ctor;
