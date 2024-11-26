@@ -8,6 +8,9 @@
 #define CMD_REPL "repl"
 #define CMD_RUN "run"
 #define CMD___VERSION "--version"
+
+#define OPT_STRESS_GC "--stress-gc"
+
 typedef struct {
   char** argv;
   int argc;
@@ -53,11 +56,11 @@ static void usage(const char* error) {
   printf("  " CMD___VERSION "             Print version\n");
   printf("\n");
   printf("  <options>:\n");
-  printf("    --stress-gc               Enable GC stress testing\n");
+  printf("    " OPT_STRESS_GC "               Enable GC stress testing\n");
 }
 
 static void configure_vm() {
-  bool gc_stress = consume_option("--stress-gc");
+  bool gc_stress = consume_option(OPT_STRESS_GC);
   if (gc_stress) {
     INTERNAL_WARN("GC stress testing enabled, can be disabled during runtime using the Gc module.");
     VM_SET_FLAG(VM_FLAG_STRESS_GC);

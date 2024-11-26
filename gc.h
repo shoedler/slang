@@ -10,9 +10,9 @@
 #endif
 
 // Parallelization config
-#define GC_PARALLEL_MARK_ARRAY_THRESHOLD 10000      // TODO (optimize): Can probably be reduced a bit after synch refactoring
-#define GC_PARALLEL_MARK_HASHTABLE_THRESHOLD 20000  // TODO (optimize): Can probably be reduced a bit after synch refactoring
-#define GC_PARALLEL_SWEEP_THRESHOLD 100000
+#define GC_PARALLEL_MARK_ARRAY_THRESHOLD 200000
+#define GC_PARALLEL_MARK_HASHTABLE_THRESHOLD 400000
+#define GC_PARALLEL_SWEEP_THRESHOLD 300000
 #define GC_DEQUE_INITIAL_CAPACITY 1024
 
 #ifdef DEBUG_GC_WORKER

@@ -150,25 +150,26 @@ export const runBenchmarks = async (langPattern?: string) => {
   const longestBenchmarkName = Math.max(...BENCHMARKS.map(b => b.name.length));
   const longestLanguageName = Math.max(...actualLanguages.map(l => l.lang.length));
 
-  for (const benchmark of BENCHMARKS) {
-    for (const language of actualLanguages) {
-      const { lang, ext, cmd } = language;
+  for (const language of actualLanguages) {
+    const { lang, ext, cmd } = language;
+    const isSlang = lang === 'slang';
+
+    let interpreterVersion = await runProcess(language.version.join(' '));
+    if (!interpreterVersion) {
+      warn(`${lang} version command failed`, `Received no output`);
+      interpreterVersion = 'unknown version';
+    }
+
+    if (isSlang) {
+      interpreterVersion += ' @ ' + (await gitStatus()).hash;
+    }
+
+    interpreterVersion = normalizeLineEndings(interpreterVersion).replace(/\n/g, '');
+
+    for (const benchmark of BENCHMARKS) {
       const filePath = path.join(SlangPaths.BenchDir, benchmark.name + BENCH_PRE_SUFFIX + ext);
       const runCommand = cmd.join(' ') + ' ' + filePath;
-      const isSlang = lang === 'slang';
       const times: number[] = [];
-
-      let interpreterVersion = await runProcess(language.version.join(' '));
-      if (!interpreterVersion) {
-        warn(`${lang} version command failed`, `Received no output`);
-        interpreterVersion = 'unknown version';
-      }
-
-      if (isSlang) {
-        interpreterVersion += ' @ ' + (await gitStatus()).hash;
-      }
-
-      interpreterVersion = normalizeLineEndings(interpreterVersion).replace(/\n/g, '');
 
       // Print benchmark header
       const [, , multilineHeader, multilineHeaderStyle] = LOG_CONFIG['info'];
@@ -213,7 +214,7 @@ export const runBenchmarks = async (langPattern?: string) => {
       };
 
       // Do one warmup run
-      await runProcess(runCommand, '', undefined, false, true);
+      for (let j = 0; j < NUM_RUNS; j++) await runProcess(runCommand, '', undefined, false, true);
 
       // Run benchmark
       for (; i < NUM_RUNS; i++) {
@@ -251,25 +252,25 @@ export const runBenchmarks = async (langPattern?: string) => {
       // Print benchmark results
       let comparison;
       let comparisonSuffix;
-      let dividend = score;
-      let divisor = score;
+      let dividend = avg;
+      let divisor = avg;
 
       if (isSlang) {
         // If we're running a slang benchmark, compare to a previous slang result
         const prevResult = findResult(prevResults, benchmark.name, 'slang', processorName, false);
         if (prevResult) {
           comparisonSuffix = '% relative to baseline';
-          divisor = prevResult.score;
+          divisor = prevResult.avg;
         } else {
           comparison = 'no baseline for this benchmark on this cpu found';
           comparisonSuffix = '';
         }
       } else {
-        // If we're running a non-slang benchmark, compare to the slang result. Slang always runs first.
+        // If we're running a non-slang benchmark, compare to the current slang result. Slang always runs first.
         const slangResult = findResult(results, benchmark.name, 'slang', processorName);
         if (slangResult) {
           comparisonSuffix = '%';
-          dividend = slangResult.score;
+          dividend = slangResult.avg;
         } else {
           comparison = 'no slang result for this benchmark on this cpu found';
           comparisonSuffix = '';
@@ -277,7 +278,7 @@ export const runBenchmarks = async (langPattern?: string) => {
       }
 
       // Calculate comparison
-      const ratio = (100 * dividend) / divisor;
+      const ratio = (100 / dividend) * divisor;
       if (!comparison) {
         comparison = ratio.toFixed(2) + comparisonSuffix;
       }
@@ -289,7 +290,7 @@ export const runBenchmarks = async (langPattern?: string) => {
       }
 
       // Emphasize standard deviation if it's high
-      const avgStr = chalk.black.bgWhite('avg=' + avg.toFixed(3) + 's');
+      const avgStr = 'avg=' + chalk.bold(avg.toFixed(3)) + 's';
       const bestStr = 'best=' + best.toFixed(3) + 's';
       const worstStr = 'worst=' + worst.toFixed(3) + 's';
       const sdStr = 'sd=' + (standardDev > 0.05 ? chalk.yellow(standardDev.toFixed(4)) : standardDev.toFixed(4));

@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
               borderWidth: 3,
               pointRadius: 3,
               pointBackgroundColor: color,
-              tension: 0.5,
+              tension: 0,
             };
             datasets.push(dataset);
 
