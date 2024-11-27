@@ -62,10 +62,10 @@ typedef struct {
 } MarkRangeTaskArg;
 
 // Initializes the thread pool for the garbage collector.
-void gc_init_thread_pool(int num_threads);
+void gc_thread_pool_init(int num_threads);
 
 // Shuts down the thread pool for the garbage collector and frees all resources.
-void gc_shutdown_thread_pool();
+void gc_thread_pool_shutdown();
 
 // Marks an array of values in parallel.
 void gc_parallel_mark_array(ValueArray* array);

@@ -151,7 +151,7 @@ static void advance() {
   parser.previous = parser.current;
 
   for (;;) {
-    parser.current = scan_token();
+    parser.current = scanner_next_token();
 
     if (parser.current.type != TOKEN_ERROR) {
       break;
@@ -200,7 +200,7 @@ static bool check_statement_return_end() {
 // [error_start] is the token where the error message should start if the Vm encounters a runtime error executing this data.
 // It'll span up to the previous token.
 static void emit_one(uint16_t data, Token error_start) {
-  write_chunk(current_chunk(), data, error_start, parser.previous /* error_end */);
+  chunk_write(current_chunk(), data, error_start, parser.previous /* error_end */);
 }
 // Writes an opcode or operand to the current chunk.
 // This is a shorthand for [emit_one], indicating that the offending token is [parser.previous].
@@ -270,7 +270,7 @@ static void patch_breaks(int jump_start_offset) {
 // Adds a value to the current constant pool and returns its index.
 // Logs a compile error if the constant pool is full.
 static uint16_t make_constant(Value value) {
-  int constant = add_constant(current_chunk(), value);
+  int constant = chunk_add_constant(current_chunk(), value);
   if (constant > MAX_CONSTANTS) {
     error("Too many constants in one chunk.");
     return 0;
@@ -365,7 +365,7 @@ static ObjFunction* end_compiler() {
 
 #ifdef DEBUG_PRINT_CODE
   if (!parser.had_error) {
-    disassemble_chunk(current_chunk(), function->name != NULL ? function->name->chars : "[Toplevel]");
+    debug_disassemble_chunk(current_chunk(), function->name != NULL ? function->name->chars : "[Toplevel]");
 
     if (current->enclosing == NULL) {
       printf("\n== End of compilation ==\n\n");
@@ -930,7 +930,7 @@ static void base_(bool can_assign) {
   if (current_class == NULL) {
     error("Can't use '" KEYWORD_BASE "' outside of a class.");
   } else if (!current_class->has_baseclass) {
-    error("Can't use '" KEYWORD_BASE "' in a class with no base class.");
+    error("Can't use '" KEYWORD_BASE "' in a class with no base-class.");
   } else if (current->type == TYPE_METHOD_STATIC) {
     error("Can't use '" KEYWORD_BASE "' in a static method.");
   }
@@ -940,7 +940,7 @@ static void base_(bool can_assign) {
     method_name = synthetic_token(STR(SP_METHOD_CTOR));
   } else {
     consume(TOKEN_DOT, "Expecting '.' after '" KEYWORD_BASE "'.");
-    consume(TOKEN_ID, "Expecting base class method name.");
+    consume(TOKEN_ID, "Expecting base-class method name.");
     method_name = parser.previous;
     error_start = parser.previous;  // Use the method name as the error token instead.
   }
@@ -2019,7 +2019,7 @@ static void declaration_class() {
 
   // Inherit from base class
   if (match(TOKEN_COLON)) {
-    consume(TOKEN_ID, "Expecting base class name.");
+    consume(TOKEN_ID, "Expecting base-class name.");
     variable(false);
 
     if (identifiers_equal(&class_name, &parser.previous)) {
@@ -2084,7 +2084,7 @@ static void declaration() {
 }
 
 ObjFunction* compile_module(const char* source) {
-  init_scanner(source);
+  scanner_init(source);
   Compiler compiler;
   const_globals_count = 0;
 

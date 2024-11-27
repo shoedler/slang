@@ -20,7 +20,7 @@ static Value obj_entries(int argc, Value argv[]);
 static Value obj_values(int argc, Value argv[]);
 static Value obj_keys(int argc, Value argv[]);
 
-ObjClass* partial_init_native_obj_class() {
+ObjClass* native_obj_class_partial_init() {
   ObjClass* obj_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
   obj_class->__get_prop = obj_get_prop;
@@ -33,7 +33,7 @@ ObjClass* partial_init_native_obj_class() {
   return obj_class;
 }
 
-void finalize_native_obj_class() {
+void native_obj_class_finalize() {
   define_native(&vm.obj_class->methods, STR(SP_METHOD_CTOR), obj_ctor, 0);
   define_native(&vm.obj_class->methods, STR(SP_METHOD_TO_STR), obj_to_str, 0);
   define_native(&vm.obj_class->methods, STR(SP_METHOD_HAS), obj_has, 1);
@@ -271,7 +271,7 @@ static Value obj_entries(int argc, Value argv[]) {
   NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ValueArray items  = init_value_array_of_size(object->fields.count);
+  ValueArray items  = value_array_init_of_size(object->fields.count);
   ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
   push(seq_value(seq));                  // GC Protection
 
@@ -299,7 +299,7 @@ static Value obj_keys(int argc, Value argv[]) {
   NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ValueArray items  = init_value_array_of_size(object->fields.count);
+  ValueArray items  = value_array_init_of_size(object->fields.count);
 
   // We can direclty manipulate items.count, since we haven't taken the seq yet.
   for (int i = 0; i < object->fields.capacity; i++) {
@@ -322,7 +322,7 @@ static Value obj_values(int argc, Value argv[]) {
   NATIVE_CHECK_RECEIVER_INHERITS(vm.obj_class)
 
   ObjObject* object = AS_OBJECT(argv[0]);
-  ValueArray items  = init_value_array_of_size(object->fields.count);
+  ValueArray items  = value_array_init_of_size(object->fields.count);
 
   // We can direclty manipulate items.count, since we haven't taken the seq yet.
   for (int i = 0; i < object->fields.capacity; i++) {

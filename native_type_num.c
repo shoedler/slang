@@ -23,7 +23,7 @@ static Value int_to_str(int argc, Value argv[]);
 static Value float_ctor(int argc, Value argv[]);
 static Value float_to_str(int argc, Value argv[]);
 
-ObjClass* partial_init_native_num_class() {
+ObjClass* native_num_class_partial_init() {
   ObjClass* num_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
   num_class->__get_prop = num_get_prop;
@@ -36,12 +36,12 @@ ObjClass* partial_init_native_num_class() {
   return num_class;
 }
 
-void finalize_native_num_class() {
+void native_num_class_finalize() {
   define_native(&vm.num_class->methods, STR(SP_METHOD_CTOR), num_ctor, 1);
   finalize_new_class(vm.num_class);
 }
 
-ObjClass* partial_init_native_int_class(ObjClass* num_base_class) {
+ObjClass* native_int_class_partial_init(ObjClass* num_base_class) {
   ObjClass* int_class = new_class(NULL, num_base_class);  // Names are null because hashtables are not yet initialized
 
   int_class->__get_prop = int_get_prop;
@@ -54,13 +54,13 @@ ObjClass* partial_init_native_int_class(ObjClass* num_base_class) {
   return int_class;
 }
 
-void finalize_native_int_class() {
+void native_int_class_finalize() {
   define_native(&vm.int_class->methods, STR(SP_METHOD_CTOR), int_ctor, 1);
   define_native(&vm.int_class->methods, STR(SP_METHOD_TO_STR), int_to_str, 0);
   finalize_new_class(vm.int_class);
 }
 
-ObjClass* partial_init_native_float_class(ObjClass* num_base_class) {
+ObjClass* native_float_class_partial_init(ObjClass* num_base_class) {
   ObjClass* float_class = new_class(NULL, num_base_class);  // Names are null because hashtables are not yet initialized
 
   float_class->__get_prop = float_get_prop;
@@ -73,7 +73,7 @@ ObjClass* partial_init_native_float_class(ObjClass* num_base_class) {
   return float_class;
 }
 
-void finalize_native_float_class() {
+void native_float_class_finalize() {
   define_native(&vm.float_class->methods, STR(SP_METHOD_CTOR), float_ctor, 1);
   define_native(&vm.float_class->methods, STR(SP_METHOD_TO_STR), float_to_str, 0);
   finalize_new_class(vm.float_class);

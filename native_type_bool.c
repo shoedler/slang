@@ -11,7 +11,7 @@ static uint64_t bool_hash(Value self);
 static Value bool_ctor(int argc, Value argv[]);
 static Value bool_to_str(int argc, Value argv[]);
 
-ObjClass* partial_init_native_bool_class() {
+ObjClass* native_bool_class_partial_init() {
   ObjClass* bool_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
   bool_class->__get_prop = bool_get_prop;
@@ -24,7 +24,7 @@ ObjClass* partial_init_native_bool_class() {
   return bool_class;
 }
 
-void finalize_native_bool_class() {
+void native_bool_class_finalize() {
   define_native(&vm.bool_class->methods, STR(SP_METHOD_CTOR), bool_ctor, 1);
   define_native(&vm.bool_class->methods, STR(SP_METHOD_TO_STR), bool_to_str, 0);
   finalize_new_class(vm.bool_class);

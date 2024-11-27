@@ -61,6 +61,7 @@ You can, for example, easily cache stuff:
 
 ## Improvements
 
+- [ ] Align doc-comment style to use `/**` everywhere.
 - [ ] Improve destructuring assignment:
   - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
@@ -71,7 +72,8 @@ You can, for example, easily cache stuff:
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
 - [ ] Make sure managed code classes do not override internal classes.
-- [ ] Add `error` to the reserved words
+- [ ] Add `error` and other contextual keywords to a list of reserved words. Check them when declaring a variable.
+- [ ] Remove `string_to_double` and use `number` from the compiler instead.
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
 - [x] ~~Generalized calls. This is optional, but could enhance the language.~~
   - [x] ~~Move `hash_value` to types (`uint64_t ObjClass.__hash(value: Value)`)~~
@@ -97,7 +99,6 @@ You can, for example, easily cache stuff:
 - [ ] Split globals into a `Hastable global_names` and a `ValueArray global_values`. This would allow for constant time global variable lookup. (**_See Challenge 21.2_**) https://github.com/munificent/craftinginterpreters/blob/master/note/answers/chapter21_global.md
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
 - [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
-- [ ] Make a `immortal` flag on `Obj` to prevent it from being collected. This could be a big perf gain - though we still have to make sure that nested objects "inherit" this flag.
 - [x] ~~Move `values_equal` to types (`bool ObjClass.__equals(a: Value, b: Value)`) - this would make `values_equal` obsolete.~~
 
 ---

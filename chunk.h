@@ -89,17 +89,17 @@ typedef struct {
 } Chunk;
 
 // Initialize a chunk.
-void init_chunk(Chunk* chunk);
+void chunk_init(Chunk* chunk);
 
 // Free a chunk.
-void free_chunk(Chunk* chunk);
+void chunk_free(Chunk* chunk);
 
 // Write data to the chunk.
 // This will grow the chunk if necessary.
-void write_chunk(Chunk* chunk, uint16_t data, Token error_start, Token error_end);
+void chunk_write(Chunk* chunk, uint16_t data, Token error_start, Token error_end);
 
 // Add a value to the chunk's constant pool.
 // Returns the index of the value in the constant pool.
-int add_constant(Chunk* chunk, Value value);
+int chunk_add_constant(Chunk* chunk, Value value);
 
 #endif

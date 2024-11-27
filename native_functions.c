@@ -7,7 +7,7 @@
 #include "value.h"
 #include "vm.h"
 
-void register_native_functions() {
+void native_register_functions() {
   define_native(&vm.natives, "clock", native_clock, 0);
   define_native(&vm.natives, "log", native_log, -1);
   define_native(&vm.natives, "typeof", native_typeof, 1);

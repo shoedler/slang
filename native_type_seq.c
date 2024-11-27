@@ -31,7 +31,7 @@ static Value seq_reduce(int argc, Value argv[]);
 static Value seq_count(int argc, Value argv[]);
 static Value seq_concat(int argc, Value argv[]);
 
-ObjClass* partial_init_native_seq_class() {
+ObjClass* native_seq_class_partial_init() {
   ObjClass* seq_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
   seq_class->__get_prop = seq_get_prop;
@@ -44,7 +44,7 @@ ObjClass* partial_init_native_seq_class() {
   return seq_class;
 }
 
-void finalize_native_seq_class() {
+void native_seq_class_finalize() {
   define_native(&vm.seq_class->methods, STR(SP_METHOD_CTOR), seq_ctor, 1);
   define_native(&vm.seq_class->methods, STR(SP_METHOD_TO_STR), seq_to_str, 0);
   define_native(&vm.seq_class->methods, STR(SP_METHOD_HAS), seq_has, 1);
@@ -110,13 +110,13 @@ static Value seq_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   if (is_int(argv[1])) {
     ValueArray items;
-    init_value_array(&items);
-    ObjSeq* seq = take_seq(&items);  // TODO (optimize): Use init_value_array_of_size
+    value_array_init(&items);
+    ObjSeq* seq = take_seq(&items);  // TODO (optimize): Use value_array_init_of_size
     push(seq_value(seq));            // GC Protection
 
     int count = (int)argv[1].as.integer;
     for (int i = 0; i < count; i++) {
-      write_value_array(&seq->items, nil_value());
+      value_array_write(&seq->items, nil_value());
     }
 
     pop();  // The seq
@@ -125,7 +125,7 @@ static Value seq_ctor(int argc, Value argv[]) {
 
   if (is_tuple(argv[1])) {
     ObjTuple* tuple  = AS_TUPLE(argv[1]);
-    ValueArray items = init_value_array_of_size(tuple->items.count);
+    ValueArray items = value_array_init_of_size(tuple->items.count);
 
     // We can use memcpy here because the items array is already preallocated
     memcpy(items.values, tuple->items.values, tuple->items.count * sizeof(Value));
@@ -205,7 +205,7 @@ static Value seq_push(int argc, Value argv[]) {
 
   ObjSeq* seq = AS_SEQ(argv[0]);
   for (int i = 1; i <= argc; i++) {
-    write_value_array(&seq->items, argv[i]);
+    value_array_write(&seq->items, argv[i]);
   }
   return nil_value();
 }
@@ -219,7 +219,7 @@ static Value seq_pop(int argc, Value argv[]) {
   NATIVE_CHECK_RECEIVER(vm.seq_class)
 
   ObjSeq* seq = AS_SEQ(argv[0]);
-  return pop_value_array(&seq->items);  // Does bounds checking
+  return value_array_pop(&seq->items);  // Does bounds checking
 }
 
 /**
@@ -240,5 +240,5 @@ static Value seq_remove_at(int argc, Value argv[]) {
     return nil_value();
   }
 
-  return remove_at_value_array(&seq->items, (int)index);  // Does bounds checking
+  return value_array_remove_at(&seq->items, (int)index);  // Does bounds checking
 }

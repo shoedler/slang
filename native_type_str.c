@@ -17,7 +17,7 @@ static Value str_slice(int argc, Value argv[]);
 static Value str_split(int argc, Value argv[]);
 static Value str_trim(int argc, Value argv[]);
 
-ObjClass* partial_init_native_str_class() {
+ObjClass* native_str_class_partial_init() {
   ObjClass* str_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
   str_class->__get_prop = str_get_prop;
@@ -30,7 +30,7 @@ ObjClass* partial_init_native_str_class() {
   return str_class;
 }
 
-void finalize_native_str_class() {
+void native_str_class_finalize() {
   define_native(&vm.str_class->methods, STR(SP_METHOD_CTOR), str_ctor, 1);
   define_native(&vm.str_class->methods, STR(SP_METHOD_TO_STR), str_to_str, 0);
   define_native(&vm.str_class->methods, STR(SP_METHOD_HAS), str_has, 1);
@@ -121,7 +121,7 @@ static Value str_split(int argc, Value argv[]) {
 
   // If the separator is empty, split by character
   if (sep->length == 0) {
-    ValueArray items = init_value_array_of_size(str->length);
+    ValueArray items = value_array_init_of_size(str->length);
     ObjSeq* seq      = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
     push(seq_value(seq));                 // GC Protection
     for (int i = 0; i < str->length; i++) {
@@ -141,7 +141,7 @@ static Value str_split(int argc, Value argv[]) {
     if (strncmp(str->chars + i, sep->chars, sep->length) == 0) {
       Value item = str_value(copy_string(str->chars + start, i - start));
       push(item);  // GC Protection
-      write_value_array(&seq->items, item);
+      value_array_write(&seq->items, item);
       pop();  // The item
       start = i + sep->length;
     }
@@ -151,7 +151,7 @@ static Value str_split(int argc, Value argv[]) {
   // TODO (optimize): Maybe remove this? "123".split("3") -> ["12", ""], but without this it would be ["12"]
   Value item = str_value(copy_string(str->chars + start, str->length - start));
   push(item);  // GC Protection
-  write_value_array(&seq->items, item);
+  value_array_write(&seq->items, item);
   pop();  // The item
 
   pop();  // The seq

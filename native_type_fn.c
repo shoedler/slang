@@ -21,7 +21,7 @@ static Value fn_to_str(int argc, Value argv[]);
 static Value fn_has(int argc, Value argv[]);
 static Value fn_bind(int argc, Value argv[]);
 
-ObjClass* partial_init_native_fn_class() {
+ObjClass* native_fn_class_partial_init() {
   ObjClass* fn_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
   fn_class->__get_prop = fn_get_prop;
@@ -34,7 +34,7 @@ ObjClass* partial_init_native_fn_class() {
   return fn_class;
 }
 
-void finalize_native_fn_class() {
+void native_fn_class_finalize() {
   define_native(&vm.fn_class->methods, STR(SP_METHOD_CTOR), fn_ctor, 1);
   define_native(&vm.fn_class->methods, STR(SP_METHOD_TO_STR), fn_to_str, 0);
   define_native(&vm.fn_class->methods, STR(SP_METHOD_HAS), fn_has, 1);

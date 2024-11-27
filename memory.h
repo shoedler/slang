@@ -15,21 +15,15 @@
 // Allocate memory for an array. Might trigger gc.
 #define ALLOCATE_ARRAY(type, count) (type*)reallocate(NULL, 0, sizeof(type) * (count))
 
-// Allocates a new object of the given type.
-#define ALLOCATE_OBJ(type, object_type) (type*)allocate_object(sizeof(type), object_type)
-
-// Free memory of an array by resizing it to 0. Might trigger gc.
-#define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
-
 // Factor 2 is used, which is common for dynamic arrays. First-timers:
 // https://en.wikipedia.org/wiki/Dynamic_array#Geometric_expansion_and_amortized_cost
 #define ARRAY_GROWTH_FACTOR 2
 
 // Initial capacity of a dynamic array, when first writing to it.
-#define INITIAL_ARRAY_CAPACITY 8
+#define ARRAY_INITIAL_CAPACITY 8
 
 // Grow the capacity of a dynamic array. We start by setting the capacity to 8, to avoid reallocating too often.
-#define GROW_CAPACITY(capacity) ((capacity) < INITIAL_ARRAY_CAPACITY ? INITIAL_ARRAY_CAPACITY : (capacity) * ARRAY_GROWTH_FACTOR)
+#define GROW_CAPACITY(capacity) ((capacity) < ARRAY_INITIAL_CAPACITY ? ARRAY_INITIAL_CAPACITY : (capacity) * ARRAY_GROWTH_FACTOR)
 
 // Shrink the capacity of a dynamic array.
 #define SHRINK_CAPACITY(capacity) ((capacity) / ARRAY_GROWTH_FACTOR)
@@ -39,7 +33,7 @@
 
 // Tests whether the dynamic array should be shrunk.
 #define SHOULD_SHRINK(target_count, current_capacity) \
-  (target_count < current_capacity / 4 && current_capacity > INITIAL_ARRAY_CAPACITY)
+  (target_count < current_capacity / 4 && current_capacity > ARRAY_INITIAL_CAPACITY)
 
 // Grow a dynamic array.
 #define RESIZE_ARRAY(type, pointer, old_count, new_count) \
@@ -87,10 +81,10 @@ void mark_value(Value value);
 void mark_obj(Obj* object);
 
 // Allocates a new object of the given type and size on the heap. It also initializes the object's fields.
-Obj* allocate_object(size_t size, ObjGcType type);
+Obj* allocate_obj(size_t size, ObjGcType type);
 
 // Frees an object from our heap. How we free an object depends on its type.
-void free_object(Obj* object);
+void free_obj(Obj* object);
 
 // Frees the vm's linked list of objects.
 void free_heap();

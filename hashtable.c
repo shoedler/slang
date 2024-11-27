@@ -6,15 +6,15 @@
 #include "value.h"
 #include "vm.h"
 
-void init_hashtable(HashTable* table) {
+void hashtable_init(HashTable* table) {
   table->count    = 0;
   table->capacity = 0;
   table->entries  = NULL;
 }
 
-void free_hashtable(HashTable* table) {
+void hashtable_free(HashTable* table) {
   FREE_ARRAY(Entry, table->entries, table->capacity);
-  init_hashtable(table);
+  hashtable_init(table);
 }
 
 // Find the entry for key. Returns NULL if no entry is found.
@@ -109,7 +109,7 @@ bool hashtable_get_by_string(HashTable* table, ObjString* key, Value* value) {
   }
 }
 
-void hashtable_preallocate(HashTable* table, int target_count) {
+void hashtable_init_of_size(HashTable* table, int target_count) {
   // Grow the capacity using the default growth formula, starting at 0 until we have enough capacity to hold
   // count considering the max load factor. This ensures that hashtable_set will not need to resize the table
   // - at least until count is reached.

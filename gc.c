@@ -278,7 +278,7 @@ static void gc_sweep_chunk_task(void* arg) {
         previous->next = current;
       }
 
-      free_object(unreached);
+      free_obj(unreached);
     }
   }
 
@@ -429,7 +429,7 @@ void gc_print_worker_stats() {
 }
 #endif
 
-void gc_init_thread_pool(int num_threads) {
+void gc_thread_pool_init(int num_threads) {
   GC_WORKER_LOG("Initializing thread pool with %d threads\n", num_threads);
 
   if (num_threads <= 0) {
@@ -469,7 +469,7 @@ void gc_init_thread_pool(int num_threads) {
     gc_thread_pool.workers[i].deque = ws_deque_init(GC_DEQUE_INITIAL_CAPACITY);
     if (!gc_thread_pool.workers[i].deque) {
       INTERNAL_ERROR("Failed to initialize work-stealing deque for worker %d", i);
-      gc_shutdown_thread_pool();
+      gc_thread_pool_shutdown();
       exit(SLANG_EXIT_MEMORY_ERROR);
     }
   }
@@ -479,14 +479,14 @@ void gc_init_thread_pool(int num_threads) {
     int result = pthread_create(&gc_thread_pool.workers[i].thread, NULL, gc_worker, &gc_thread_pool.workers[i]);
     if (result != 0) {
       INTERNAL_ERROR("Failed to create worker thread %d: %s", i, strerror(result));
-      gc_shutdown_thread_pool();
+      gc_thread_pool_shutdown();
       exit(SLANG_EXIT_SW_ERROR);
     }
     prioritize_thread(gc_thread_pool.workers[i].thread, i);
   }
 }
 
-void gc_shutdown_thread_pool() {
+void gc_thread_pool_shutdown() {
   if (!gc_thread_pool.workers) {
     return;
   }

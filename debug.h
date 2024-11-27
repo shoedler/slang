@@ -5,10 +5,10 @@
 
 // Disassembles the given chunk.
 // This lists the compiled bytecode instructions in a human-readable format.
-void disassemble_chunk(Chunk* chunk, const char* name);
+void debug_disassemble_chunk(Chunk* chunk, const char* name);
 
 // Disassembles the given instruction by
 // printing the instruction info.
-int disassemble_instruction(Chunk* chunk, int offset);
+int debug_disassemble_instruction(Chunk* chunk, int offset);
 
 #endif

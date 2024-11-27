@@ -13,7 +13,7 @@
 // The string object sort of acts like a wrapper for the c string.
 // Both the string object and the c string are heap-allocated.
 static ObjString* allocate_string(char* chars, int length, uint64_t hash) {
-  ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_GC_STRING);
+  ObjString* string = (ObjString*)allocate_obj(sizeof(ObjString), OBJ_GC_STRING);
   string->length    = length;
   string->chars     = chars;
   string->obj.hash  = hash;
@@ -26,14 +26,14 @@ static ObjString* allocate_string(char* chars, int length, uint64_t hash) {
 }
 
 ObjBoundMethod* new_bound_method(Value receiver, Obj* method) {
-  ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_GC_BOUND_METHOD);
+  ObjBoundMethod* bound = (ObjBoundMethod*)allocate_obj(sizeof(ObjBoundMethod), OBJ_GC_BOUND_METHOD);
   bound->receiver       = receiver;
   bound->method         = method;
   return bound;
 }
 
 ObjClass* new_class(ObjString* name, ObjClass* base) {
-  ObjClass* klass = ALLOCATE_OBJ(ObjClass, OBJ_GC_CLASS);
+  ObjClass* klass = (ObjClass*)allocate_obj(sizeof(ObjClass), OBJ_GC_CLASS);
   klass->name     = name;
   klass->base     = base;
 
@@ -49,8 +49,8 @@ ObjClass* new_class(ObjString* name, ObjClass* base) {
   klass->__has    = NULL;
   klass->__slice  = NULL;
 
-  init_hashtable(&klass->methods);
-  init_hashtable(&klass->static_methods);
+  hashtable_init(&klass->methods);
+  hashtable_init(&klass->static_methods);
   return klass;
 }
 
@@ -98,14 +98,14 @@ void finalize_new_class(ObjClass* klass) {
 }
 
 ObjObject* new_instance(ObjClass* klass) {
-  ObjObject* object      = ALLOCATE_OBJ(ObjObject, OBJ_GC_OBJECT);
+  ObjObject* object      = (ObjObject*)allocate_obj(sizeof(ObjObject), OBJ_GC_OBJECT);
   object->instance_class = klass;
-  init_hashtable(&object->fields);
+  hashtable_init(&object->fields);
   return object;
 }
 
 ObjUpvalue* new_upvalue(Value* slot) {
-  ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_GC_UPVALUE);
+  ObjUpvalue* upvalue = (ObjUpvalue*)allocate_obj(sizeof(ObjUpvalue), OBJ_GC_UPVALUE);
   upvalue->closed     = nil_value();
   upvalue->location   = slot;
   upvalue->next       = NULL;
@@ -118,7 +118,7 @@ ObjClosure* new_closure(ObjFunction* function) {
     upvalues[i] = NULL;
   }
 
-  ObjClosure* closure    = ALLOCATE_OBJ(ObjClosure, OBJ_GC_CLOSURE);
+  ObjClosure* closure    = (ObjClosure*)allocate_obj(sizeof(ObjClosure), OBJ_GC_CLOSURE);
   closure->function      = function;
   closure->upvalues      = upvalues;
   closure->upvalue_count = function->upvalue_count;
@@ -126,29 +126,29 @@ ObjClosure* new_closure(ObjFunction* function) {
 }
 
 ObjFunction* new_function() {
-  ObjFunction* function     = ALLOCATE_OBJ(ObjFunction, OBJ_GC_FUNCTION);
+  ObjFunction* function     = (ObjFunction*)allocate_obj(sizeof(ObjFunction), OBJ_GC_FUNCTION);
   function->arity           = 0;
   function->upvalue_count   = 0;
   function->name            = NULL;
   function->globals_context = NULL;
-  init_chunk(&function->chunk);
+  chunk_init(&function->chunk);
   return function;
 }
 
 ObjSeq* new_seq() {
   ValueArray items;
-  init_value_array(&items);
+  value_array_init(&items);
   return take_seq(&items);
 }
 
 ObjTuple* new_tuple() {
   ValueArray items;
-  init_value_array(&items);
+  value_array_init(&items);
   return take_tuple(&items);
 }
 
 ObjNative* new_native(NativeFn function, ObjString* name, int arity) {
-  ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_GC_NATIVE);
+  ObjNative* native = (ObjNative*)allocate_obj(sizeof(ObjNative), OBJ_GC_NATIVE);
   native->function  = function;
   native->name      = name;
   native->arity     = arity;
@@ -180,7 +180,7 @@ ObjSeq* take_seq(ValueArray* items) {
   // Pause while we allocate an object for seq, because this might trigger a GC. This allows us to prepare a value array with it's
   // values being out of reach of the GC.
   VM_SET_FLAG(VM_FLAG_PAUSE_GC);
-  ObjSeq* seq = ALLOCATE_OBJ(ObjSeq, OBJ_GC_SEQ);
+  ObjSeq* seq = (ObjSeq*)allocate_obj(sizeof(ObjSeq), OBJ_GC_SEQ);
   VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
   seq->items = *items;
   return seq;
@@ -190,7 +190,7 @@ ObjTuple* take_tuple(ValueArray* items) {
   // Pause while we allocate an object for tuple, because this might trigger a GC. This allows us to prepare a value array with
   // it's values being out of reach of the GC.
   VM_SET_FLAG(VM_FLAG_PAUSE_GC);
-  ObjTuple* tuple = ALLOCATE_OBJ(ObjTuple, OBJ_GC_TUPLE);
+  ObjTuple* tuple = (ObjTuple*)allocate_obj(sizeof(ObjTuple), OBJ_GC_TUPLE);
   VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
   tuple->items    = *items;
   tuple->obj.hash = hash_tuple(items);
@@ -198,7 +198,7 @@ ObjTuple* take_tuple(ValueArray* items) {
 }
 
 ObjObject* take_object(HashTable* fields) {
-  ObjObject* object      = ALLOCATE_OBJ(ObjObject, OBJ_GC_OBJECT);
+  ObjObject* object      = (ObjObject*)allocate_obj(sizeof(ObjObject), OBJ_GC_OBJECT);
   object->instance_class = vm.obj_class;
   object->fields         = *fields;
   return object;

@@ -40,7 +40,7 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size) {
   return result;
 }
 
-Obj* allocate_object(size_t size, ObjGcType type) {
+Obj* allocate_obj(size_t size, ObjGcType type) {
   Obj* object = (Obj*)reallocate(NULL, 0,
                                  size);  // Might trigger GC, but it's fine since our new object
                                          // isn't referenced by anything yet -> not reachable by GC
@@ -60,18 +60,23 @@ Obj* allocate_object(size_t size, ObjGcType type) {
   return object;
 }
 
-void free_object(Obj* object) {
+void free_obj(Obj* object) {
   // Atomically decrement the object count. Doesn't matter that this is at the top, since we only check the object count at the
   // end of the GC cycle.
   atomic_fetch_sub(&vm.object_count, 1);
   GC_WORKER_STATS_INC_FREED();
 
+#define FREE(type, pointer) reallocate(pointer, sizeof(type), 0)
+
   switch (object->type) {
-    case OBJ_GC_BOUND_METHOD: FREE(ObjBoundMethod, object); break;
+    case OBJ_GC_BOUND_METHOD: {
+      FREE(ObjBoundMethod, object);
+      break;
+    }
     case OBJ_GC_CLASS: {
       ObjClass* klass = (ObjClass*)object;
-      free_hashtable(&klass->methods);
-      free_hashtable(&klass->static_methods);
+      hashtable_free(&klass->methods);
+      hashtable_free(&klass->static_methods);
       FREE(ObjClass, object);
       break;
     }
@@ -83,17 +88,20 @@ void free_object(Obj* object) {
     }
     case OBJ_GC_FUNCTION: {
       ObjFunction* function = (ObjFunction*)object;
-      free_chunk(&function->chunk);
+      chunk_free(&function->chunk);
       FREE(ObjFunction, object);
       break;
     }
     case OBJ_GC_OBJECT: {
       ObjObject* object_ = (ObjObject*)object;
-      free_hashtable(&object_->fields);
+      hashtable_free(&object_->fields);
       FREE(ObjObject, object);
       break;
     }
-    case OBJ_GC_NATIVE: FREE(ObjNative, object); break;
+    case OBJ_GC_NATIVE: {
+      FREE(ObjNative, object);
+      break;
+    }
     case OBJ_GC_STRING: {
       ObjString* string = (ObjString*)object;
       FREE_ARRAY(char, string->chars, string->length + 1);
@@ -102,24 +110,28 @@ void free_object(Obj* object) {
     }
     case OBJ_GC_SEQ: {
       ObjSeq* seq = (ObjSeq*)object;
-      free_value_array(&seq->items);
+      value_array_free(&seq->items);
       FREE(ObjSeq, object);
       break;
     }
     case OBJ_GC_TUPLE: {
       ObjTuple* tuple = (ObjTuple*)object;
-      free_value_array(&tuple->items);
+      value_array_free(&tuple->items);
       FREE(ObjTuple, object);
       break;
     }
-    case OBJ_GC_UPVALUE: FREE(ObjUpvalue, object); break;
+    case OBJ_GC_UPVALUE: {
+      FREE(ObjUpvalue, object);
+      break;
+    }
     default: INTERNAL_ERROR("Don't know how to free unknown object type: %d at %p", object->type, object);
   }
+
+#undef FREE
 }
 
 void mark_obj(Obj* object) {
-  // Unnecessary NULL check if we're called from mark_value, but if called from
-  // elsewhere, the object arg could be NULL.
+  // Unnecessary NULL check if we're called from mark_value, but if called from elsewhere, the object arg could be NULL.
   if (object == NULL) {
     return;
   }
@@ -229,7 +241,7 @@ void free_heap() {
   Obj* object = vm.objects;
   while (object != NULL) {
     Obj* next = object->next;
-    free_object(object);
+    free_obj(object);
     object = next;
   }
   gc_assign_current_worker(-1);  // Unassign
@@ -334,7 +346,7 @@ static void sweep_sequential() {
         vm.objects = object;
       }
 
-      free_object(unreached);
+      free_obj(unreached);
     }
   }
 

@@ -11,7 +11,7 @@ static uint64_t nil_hash(Value self);
 static Value nil_ctor(int argc, Value argv[]);
 static Value nil_to_str(int argc, Value argv[]);
 
-ObjClass* partial_init_native_nil_class() {
+ObjClass* native_nil_class_partial_init() {
   ObjClass* nil_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
   nil_class->__get_prop = nil_get_prop;
@@ -24,7 +24,7 @@ ObjClass* partial_init_native_nil_class() {
   return nil_class;
 }
 
-void finalize_native_nil_class() {
+void native_nil_class_finalize() {
   define_native(&vm.nil_class->methods, STR(SP_METHOD_CTOR), nil_ctor, 1);
   define_native(&vm.nil_class->methods, STR(SP_METHOD_TO_STR), nil_to_str, 0);
   finalize_new_class(vm.nil_class);

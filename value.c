@@ -9,15 +9,15 @@
 #include "value.h"
 #include "vm.h"
 
-void init_value_array(ValueArray* array) {
+void value_array_init(ValueArray* array) {
   array->values   = NULL;
   array->capacity = 0;
   array->count    = 0;
 }
 
-ValueArray init_value_array_of_size(int count) {  // TODO (refactor): Make this reentrant.
+ValueArray value_array_init_of_size(int count) {  // TODO (refactor): Make this reentrant.
   ValueArray items;
-  init_value_array(&items);
+  value_array_init(&items);
 
   int capacity   = GROW_CAPACITY(count);
   items.values   = RESIZE_ARRAY(Value, items.values, 0, capacity);
@@ -27,7 +27,7 @@ ValueArray init_value_array_of_size(int count) {  // TODO (refactor): Make this 
   return items;
 }
 
-void write_value_array(ValueArray* array, Value value) {
+void value_array_write(ValueArray* array, Value value) {
   if (SHOULD_GROW(array->count + 1, array->capacity)) {
     int old_capacity = array->capacity;
     array->capacity  = GROW_CAPACITY(old_capacity);
@@ -38,7 +38,7 @@ void write_value_array(ValueArray* array, Value value) {
   array->count++;
 }
 
-Value pop_value_array(ValueArray* array) {
+Value value_array_pop(ValueArray* array) {
   if (array->count == 0) {
     return nil_value();
   }
@@ -55,7 +55,7 @@ Value pop_value_array(ValueArray* array) {
   return value;
 }
 
-Value remove_at_value_array(ValueArray* array, int index) {
+Value value_array_remove_at(ValueArray* array, int index) {
   if (index < 0 || index >= array->count) {
     return nil_value();
   }
@@ -75,15 +75,16 @@ Value remove_at_value_array(ValueArray* array, int index) {
   return value;
 }
 
-void free_value_array(ValueArray* array) {
+void value_array_free(ValueArray* array) {
   FREE_ARRAY(Value, array->values, array->capacity);
-  init_value_array(array);
+  value_array_init(array);
 }
 
 int is_digit(char chr) {
   return chr >= '0' && chr <= '9';
 }
 
+// TODO: Remove and use the compiler's number parsing. Lol, this is a actually quite funny.
 double string_to_double(char* str, int length) {
   double result              = 0.0;
   double decimal_place_value = 1.0;
@@ -108,7 +109,7 @@ double string_to_double(char* str, int length) {
   return result;
 }
 
-int print_value_safe(FILE* file, Value value) {
+int value_print_safe(FILE* file, Value value) {
   if (is_bool(value)) {
     return fprintf(file, value.as.boolean ? VALUE_STR_TRUE : VALUE_STR_FALSE);
   }
@@ -183,7 +184,7 @@ int print_value_safe(FILE* file, Value value) {
 
     int written = fprintf(file, start);
     for (int i = 0; i < items.count; i++) {
-      written += print_value_safe(file, items.values[i]);
+      written += value_print_safe(file, items.values[i]);
       if (i < items.count - 1) {
         written += fprintf(file, delim);
       }
@@ -203,9 +204,9 @@ int print_value_safe(FILE* file, Value value) {
       }
       Entry* entry = &object->fields.entries[i];
 
-      written += print_value_safe(file, entry->key);
+      written += value_print_safe(file, entry->key);
       written += fprintf(file, VALUE_STR_OBJECT_SEPARATOR);
-      written += print_value_safe(file, entry->value);
+      written += value_print_safe(file, entry->value);
 
       if (processed < object->fields.count - 1) {
         written += fprintf(file, VALUE_STR_OBJECT_DELIM);

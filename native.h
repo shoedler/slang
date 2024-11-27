@@ -8,63 +8,63 @@
 #include "vm.h"
 
 // Register native functions
-extern void register_native_functions();
+extern void native_register_functions();
 
 // Registers the native object class and its methods.
-extern ObjClass* partial_init_native_obj_class();
-extern void finalize_native_obj_class();
+extern ObjClass* native_obj_class_partial_init();
+extern void native_obj_class_finalize();
 
 // Registers the native nil class and its methods.
-extern ObjClass* partial_init_native_nil_class();
-extern void finalize_native_nil_class();
+extern ObjClass* native_nil_class_partial_init();
+extern void native_nil_class_finalize();
 
 // Registers the native bool class and its methods.
-extern ObjClass* partial_init_native_bool_class();
-extern void finalize_native_bool_class();
+extern ObjClass* native_bool_class_partial_init();
+extern void native_bool_class_finalize();
 
 // Registers the native number class and its methods.
-extern ObjClass* partial_init_native_num_class();
-extern void finalize_native_num_class();
+extern ObjClass* native_num_class_partial_init();
+extern void native_num_class_finalize();
 
 // Registers the native int class and its methods.
-extern ObjClass* partial_init_native_int_class(ObjClass* num_base_class);
-extern void finalize_native_int_class();
+extern ObjClass* native_int_class_partial_init(ObjClass* num_base_class);
+extern void native_int_class_finalize();
 
 // Registers the native float class and its methoods.
-extern ObjClass* partial_init_native_float_class(ObjClass* num_base_class);
-extern void finalize_native_float_class();
+extern ObjClass* native_float_class_partial_init(ObjClass* num_base_class);
+extern void native_float_class_finalize();
 
 // Registers the native string class and its methods.
-extern ObjClass* partial_init_native_str_class();
-extern void finalize_native_str_class();
+extern ObjClass* native_str_class_partial_init();
+extern void native_str_class_finalize();
 
 // Registers the native seq class and its methods.
-extern ObjClass* partial_init_native_seq_class();
-extern void finalize_native_seq_class();
+extern ObjClass* native_seq_class_partial_init();
+extern void native_seq_class_finalize();
 
 // Registers the native tuple class and its methods.
-extern ObjClass* partial_init_native_tuple_class();
-extern void finalize_native_tuple_class();
+extern ObjClass* native_tuple_class_partial_init();
+extern void native_tuple_class_finalize();
 
 // Registers the native fn class and its methods.
-extern ObjClass* partial_init_native_fn_class();
-extern void finalize_native_fn_class();
+extern ObjClass* native_fn_class_partial_init();
+extern void native_fn_class_finalize();
 
 // Registers the native class class and its methods.
-extern ObjClass* partial_init_native_class_class();
-extern void finalize_native_class_class();
+extern ObjClass* native_class_class_partial_init();
+extern void native_class_class_finalize();
 
 // Registers the native file module
-extern void register_native_file_module();
+extern void native_register_file_module();
 
 // Registers the native perf module
-extern void register_native_perf_module();
+extern void native_register_perf_module();
 
 // Registers the native debug module
-extern void register_native_debug_module();
+extern void native_register_debug_module();
 
 // Registers the native gc module
-extern void register_native_gc_module();
+extern void native_register_gc_module();
 
 //
 // Native functions
@@ -337,7 +337,7 @@ uint64_t native_default_obj_hash(Value self);
   if (start >= end) {                                                                       \
     return NATIVE_LISTLIKE_NEW_EMPTY();                                                     \
   }                                                                                         \
-  ValueArray sliced = init_value_array_of_size(end - start);                                \
+  ValueArray sliced = value_array_init_of_size(end - start);                                \
   for (int i = start; i < end; i++) {                                                       \
     sliced.values[sliced.count++] = items.values[i];                                        \
   }                                                                                         \
@@ -523,7 +523,7 @@ uint64_t native_default_obj_hash(Value self);
   ValueArray items  = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                                         \
   int fn_arity      = callable_get_arity(argv[1]);                                                                \
   int count         = items.count; /* We need to store this, because the listlike might change during the loop */ \
-  ValueArray mapped = init_value_array_of_size(count);                                                            \
+  ValueArray mapped = value_array_init_of_size(count);                                                            \
                                                                                                                   \
   /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                        \
   switch (fn_arity) {                                                                                             \
@@ -585,7 +585,7 @@ uint64_t native_default_obj_hash(Value self);
   int count        = items.count; /* We need to store this, because the listlike might change during the loop */      \
                                                                                                                       \
   ValueArray filtered_items;                                                                                          \
-  init_value_array(&filtered_items);                                                                                  \
+  value_array_init(&filtered_items);                                                                                  \
   int filtered_count = 0; /* Need to track this so we can clean the stack from the pushed values for GC protection */ \
                                                                                                                       \
   /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                            \
@@ -604,7 +604,7 @@ uint64_t native_default_obj_hash(Value self);
         if (is_bool(result) && result.as.boolean) {                                                                   \
           push(result); /* GC Protection */                                                                           \
           filtered_count++;                                                                                           \
-          write_value_array(&filtered_items, items.values[i]);                                                        \
+          value_array_write(&filtered_items, items.values[i]);                                                        \
         }                                                                                                             \
       }                                                                                                               \
       break;                                                                                                          \
@@ -624,7 +624,7 @@ uint64_t native_default_obj_hash(Value self);
         if (is_bool(result) && result.as.boolean) {                                                                   \
           push(result); /* GC Protection */                                                                           \
           filtered_count++;                                                                                           \
-          write_value_array(&filtered_items, items.values[i]);                                                        \
+          value_array_write(&filtered_items, items.values[i]);                                                        \
         }                                                                                                             \
       }                                                                                                               \
       break;                                                                                                          \
@@ -706,7 +706,7 @@ uint64_t native_default_obj_hash(Value self);
   NATIVE_CHECK_RECEIVER(class)                                             \
                                                                            \
   ValueArray items    = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                \
-  ValueArray reversed = init_value_array_of_size(items.count);             \
+  ValueArray reversed = value_array_init_of_size(items.count);             \
                                                                            \
   /* No GC protection needed */                                            \
   for (int i = items.count - 1; i >= 0; i--) {                             \
@@ -955,7 +955,7 @@ uint64_t native_default_obj_hash(Value self);
   ValueArray items1 = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                          \
   ValueArray items2 = NATIVE_LISTLIKE_GET_ARRAY(argv[1]);                          \
                                                                                    \
-  ValueArray concatenated = init_value_array_of_size(items1.count + items2.count); \
+  ValueArray concatenated = value_array_init_of_size(items1.count + items2.count); \
   for (int i = 0; i < items1.count; i++) {                                         \
     concatenated.values[i] = items1.values[i];                                     \
   }                                                                                \

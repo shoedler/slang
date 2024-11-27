@@ -14,7 +14,7 @@ static Value native_gc_stress(int argc, Value argv[]);
 
 #define MODULE_NAME Gc
 
-void register_native_gc_module() {
+void native_register_gc_module() {
   ObjObject* gc_module = make_module(NULL, STR(MODULE_NAME));
   define_value(&vm.modules, STR(MODULE_NAME), instance_value(gc_module));
 
@@ -49,7 +49,7 @@ static Value native_gc_stats(int argc, Value argv[]) {
   UNUSED(argv);
 
   HashTable fields;
-  init_hashtable(&fields);
+  hashtable_init(&fields);
 
   hashtable_set(&fields, str_value(copy_string("bytes_allocated", (int)strlen("bytes_allocated"))),
                 int_value(vm.bytes_allocated));

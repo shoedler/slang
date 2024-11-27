@@ -13,7 +13,7 @@ static Value class_ctor(int argc, Value argv[]);
 static Value class_to_str(int argc, Value argv[]);
 static Value class_has(int argc, Value argv[]);
 
-ObjClass* partial_init_native_class_class() {
+ObjClass* native_class_class_partial_init() {
   ObjClass* class_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
   class_class->__get_prop = class_get_prop;
@@ -26,7 +26,7 @@ ObjClass* partial_init_native_class_class() {
   return class_class;
 }
 
-void finalize_native_class_class() {
+void native_class_class_finalize() {
   define_native(&vm.class_class->methods, STR(SP_METHOD_CTOR), class_ctor, 1);
   define_native(&vm.class_class->methods, STR(SP_METHOD_TO_STR), class_to_str, 0);
   define_native(&vm.class_class->methods, STR(SP_METHOD_HAS), class_has, 1);

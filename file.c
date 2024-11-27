@@ -4,7 +4,7 @@
 #include <string.h>
 #include "common.h"
 
-char* ensure_slang_extension(const char* path) {
+char* file_ensure_slang_extension(const char* path) {
   if (path == NULL) {
     INTERNAL_ERROR("Cannot append extension to NULL path");
     exit(SLANG_EXIT_MEMORY_ERROR);
@@ -30,7 +30,7 @@ char* ensure_slang_extension(const char* path) {
   return new_path;
 }
 
-char* base(const char* path) {
+char* file_base(const char* path) {
   if (path == NULL) {
     INTERNAL_ERROR("Cannot get base of NULL path");
     exit(SLANG_EXIT_MEMORY_ERROR);
@@ -119,7 +119,7 @@ char* clean_path(const char* path, bool no_prefixed_separators) {
   return result;
 }
 
-char* join_path(const char* path_a, const char* path_b) {
+char* file_join_path(const char* path_a, const char* path_b) {
   char* clean_a    = clean_path(path_a, false);
   char* clean_b    = clean_path(path_b, true);
   size_t len_a     = strlen(clean_a);
@@ -203,18 +203,18 @@ static char* internal_read_file(const char* path, bool exit_on_error) {
   return buffer;
 }
 
-char* read_file(const char* path) {
+char* file_read(const char* path) {
   return internal_read_file(path, true);
 }
 
-char* read_file_safe(const char* path) {
+char* file_read_safe(const char* path) {
   return internal_read_file(path, false);
 }
 
 // Write a file. If the file already exists, it will be overwritten.
 // If it does not exist, it will be created.
 // Returns true on success, false on failure.
-bool write_file(const char* path, const char* content) {
+bool file_write(const char* path, const char* content) {
   if (path == NULL || content == NULL) {
     return false;
   }

@@ -85,31 +85,31 @@ typedef struct {
 } ValueArray;
 
 // Initialize a value array.
-void init_value_array(ValueArray* array);
+void value_array_init(ValueArray* array);
 
 // Creates, initializes and allocates a new value array. Initializes the value array and capacity to add [count] values without
-// needing to resize. It's intended to add items directly to .values[idx], no need to use write_value_array. You MUST fill the
+// needing to resize. It's intended to add items directly to .values[idx], no need to use value_array_write. You MUST fill the
 // array up to [count] with some sort of value after calling this function (Or reduce the count manually, maybe?). Might trigger
 // garbage collection.
 //
 // Note: The returned value array will be initialized with .count = 0. This is because the preallocated .values
 // array contains garbage memory. IF you trigger the Gc during filling the array and count would already be at [count], the Gc
 // would try to free the garbage memory - doing so requires you to increment .count during filling the array.
-ValueArray init_value_array_of_size(int count);
+ValueArray value_array_init_of_size(int count);
 
 // Write a value to a value array.
-void write_value_array(ValueArray* array, Value value);
+void value_array_write(ValueArray* array, Value value);
 
 // Pop a value from a value array.
 // Returns NIL_VAL if the array is empty.
-Value pop_value_array(ValueArray* array);
+Value value_array_pop(ValueArray* array);
 
 // Remove a value at a specific index from a value array.
 // Returns NIL_VAL if the index is out of bounds.
-Value remove_at_value_array(ValueArray* array, int index);
+Value value_array_remove_at(ValueArray* array, int index);
 
 // Free a value array.
-void free_value_array(ValueArray* array);
+void value_array_free(ValueArray* array);
 
 // Converts a string to a double.
 // Result for "[ 1, 2, 3, 4]": 1234.000000
@@ -120,6 +120,6 @@ double string_to_double(char* str, int length);
 // Prints a value to a file. Will look different from the values default print representation, but it will
 // guarantee that the gc will not be called.
 // Returns the number of characters printed.
-int print_value_safe(FILE* file, Value value);
+int value_print_safe(FILE* file, Value value);
 
 #endif

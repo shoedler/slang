@@ -26,7 +26,7 @@ static Value tuple_reduce(int argc, Value argv[]);
 static Value tuple_count(int argc, Value argv[]);
 static Value tuple_concat(int argc, Value argv[]);
 
-ObjClass* partial_init_native_tuple_class() {
+ObjClass* native_tuple_class_partial_init() {
   ObjClass* tuple_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
 
   tuple_class->__get_prop = tuple_get_prop;
@@ -39,7 +39,7 @@ ObjClass* partial_init_native_tuple_class() {
   return tuple_class;
 }
 
-void finalize_native_tuple_class() {
+void native_tuple_class_finalize() {
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_CTOR), tuple_ctor, 1);
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_TO_STR), tuple_to_str, 0);
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_HAS), tuple_has, 1);
@@ -81,7 +81,7 @@ static Value tuple_ctor(int argc, Value argv[]) {
   NATIVE_CHECK_ARG_AT(1, vm.seq_class)
 
   ObjSeq* seq      = AS_SEQ(argv[1]);
-  ValueArray items = init_value_array_of_size(seq->items.count);
+  ValueArray items = value_array_init_of_size(seq->items.count);
 
   // We can use memcpy here because the items array is already preallocated
   memcpy(items.values, seq->items.values, seq->items.count * sizeof(Value));

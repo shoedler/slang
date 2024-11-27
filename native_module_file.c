@@ -15,7 +15,7 @@ static Value native_file_join_path(int argc, Value argv[]);
 
 #define MODULE_NAME File
 
-void register_native_file_module() {
+void native_register_file_module() {
   ObjObject* file_module = make_module(NULL, STR(MODULE_NAME));
   define_value(&vm.modules, STR(MODULE_NAME), instance_value(file_module));
 
@@ -41,7 +41,7 @@ static Value native_file_read(int argc, Value argv[]) {
     return nil_value();
   }
 
-  char* content = read_file_safe(path);
+  char* content = file_read_safe(path);
   if (content == NULL) {
     return nil_value();
   }
@@ -62,7 +62,7 @@ static Value native_file_write(int argc, Value argv[]) {
   NATIVE_CHECK_ARG_AT(1, vm.str_class);
   NATIVE_CHECK_ARG_AT(2, vm.str_class);
 
-  bool success = write_file(AS_CSTRING(argv[1]), AS_CSTRING(argv[2]));
+  bool success = file_write(AS_CSTRING(argv[1]), AS_CSTRING(argv[2]));
   return bool_value(success);
 }
 
@@ -90,7 +90,7 @@ static Value native_file_join_path(int argc, Value argv[]) {
   NATIVE_CHECK_ARG_AT(1, vm.str_class);
   NATIVE_CHECK_ARG_AT(2, vm.str_class);
 
-  char* joined = join_path(AS_CSTRING(argv[1]), AS_CSTRING(argv[2]));
+  char* joined = file_join_path(AS_CSTRING(argv[1]), AS_CSTRING(argv[2]));
   if (joined == NULL) {
     return nil_value();
   }

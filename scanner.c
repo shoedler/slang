@@ -17,7 +17,7 @@ typedef struct {
 Scanner scanner;
 static const char* first_source_char;
 
-void init_scanner(const char* source) {
+void scanner_init(const char* source) {
   scanner.start   = source;
   scanner.current = source;
   scanner.line    = 1;
@@ -25,7 +25,7 @@ void init_scanner(const char* source) {
   first_source_char = source;
 }
 
-const char* get_line_start(Token token) {
+const char* scanner_get_line_start(Token token) {
   const char* line_start = token.start;
   while (line_start > first_source_char && line_start[-1] != '\n') {
     line_start--;
@@ -343,7 +343,7 @@ static Token string() {
   return make_token(TOKEN_STRING);
 }
 
-Token scan_token() {
+Token scanner_next_token() {
   scanner.is_first_on_line = false;
 
   skip_whitespace();

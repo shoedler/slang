@@ -12,7 +12,7 @@ static Value native_debug_modules(int argc, Value argv[]);
 
 #define MODULE_NAME Debug
 
-void register_native_debug_module() {
+void native_register_debug_module() {
   ObjObject* debug_module = make_module(NULL, STR(MODULE_NAME));
   define_value(&vm.modules, STR(MODULE_NAME), instance_value(debug_module));
 
@@ -61,7 +61,7 @@ static Value native_debug_modules(int argc, Value argv[]) {
   UNUSED(argv);
 
   HashTable copy;
-  init_hashtable(&copy);
+  hashtable_init(&copy);
 
   hashtable_add_all(&vm.modules, &copy);
   ObjObject* copy_obj = take_object(&copy);

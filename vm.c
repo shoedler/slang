@@ -190,11 +190,11 @@ void define_value(HashTable* table, const char* name, Value value) {
 
 void make_seq(int count) {
   // Since we know the count, we can preallocate the value array for the list. This avoids
-  // using write_value_array within the loop, which can trigger a GC due to growing the array
+  // using value_array_write within the loop, which can trigger a GC due to growing the array
   // and free items in the middle of the loop. Also, it lets us pop the list items on the
   // stack, instead of peeking and then having to pop them later (Requiring us to loop over
   // the array twice)
-  ValueArray items = init_value_array_of_size(count);
+  ValueArray items = value_array_init_of_size(count);
   for (int i = count - 1; i >= 0; i--) {
     items.values[i] = pop();
   }
@@ -204,11 +204,11 @@ void make_seq(int count) {
 
 void make_tuple(int count) {
   // Since we know the count, we can preallocate the value array for the tuple. This avoids
-  // using write_value_array within the loop, which can trigger a GC due to growing the array
+  // using value_array_write within the loop, which can trigger a GC due to growing the array
   // and free items in the middle of the loop. Also, it lets us pop the tuple items on the
   // stack, instead of peeking and then having to pop them later (Requiring us to loop over
   // the array twice)
-  ValueArray items = init_value_array_of_size(count);
+  ValueArray items = value_array_init_of_size(count);
   for (int i = count - 1; i >= 0; i--) {
     items.values[i] = pop();
   }
@@ -225,8 +225,8 @@ static void make_object(int count) {
   // Also, it lets us pop the object items on the stack, instead of peeking and then having to pop them later
   // (Requiring us to loop over the keys and values twice)
   HashTable entries;
-  init_hashtable(&entries);
-  hashtable_preallocate(&entries, count);
+  hashtable_init(&entries);
+  hashtable_init_of_size(&entries, count);
 
   // Take the hashtable while before we start popping the stack, so the entries are still seen by the GC as
   // we allocate the new object.
@@ -255,30 +255,30 @@ void init_vm() {
   vm.exit_on_frame   = 0;  // Default to exit on the first frame
   atomic_init(&vm.object_count, 0);
 
-  gc_init_thread_pool(get_cpu_core_count());
+  gc_thread_pool_init(get_cpu_core_count());
 
   // Pause Gc while we initialize the vm.
   VM_SET_FLAG(VM_FLAG_PAUSE_GC);
 
-  init_hashtable(&vm.strings);
-  init_hashtable(&vm.modules);
+  hashtable_init(&vm.strings);
+  hashtable_init(&vm.modules);
 
   // Register the built-in classes
-  // Names are null, because we cannot intern them yet. At this point hashtables won't work, bc without the base classes the the
-  // hashtable cannot compare the keys.
-  vm.obj_class     = partial_init_native_obj_class();
-  vm.nil_class     = partial_init_native_nil_class();
-  vm.str_class     = partial_init_native_str_class();
-  vm.class_class   = partial_init_native_class_class();
-  vm.fn_class      = partial_init_native_fn_class();
-  vm.bool_class    = partial_init_native_bool_class();
-  vm.num_class     = partial_init_native_num_class();
-  vm.int_class     = partial_init_native_int_class(vm.num_class);
-  vm.float_class   = partial_init_native_float_class(vm.num_class);
+  // Names are null, because we cannot intern them yet. At this point hashtables won't work, bc without the file_base classes the
+  // the hashtable cannot compare the keys.
+  vm.obj_class     = native_obj_class_partial_init();
+  vm.nil_class     = native_nil_class_partial_init();
+  vm.str_class     = native_str_class_partial_init();
+  vm.class_class   = native_class_class_partial_init();
+  vm.fn_class      = native_fn_class_partial_init();
+  vm.bool_class    = native_bool_class_partial_init();
+  vm.num_class     = native_num_class_partial_init();
+  vm.int_class     = native_int_class_partial_init(vm.num_class);
+  vm.float_class   = native_float_class_partial_init(vm.num_class);
+  vm.seq_class     = native_seq_class_partial_init();
+  vm.tuple_class   = native_tuple_class_partial_init();
   vm.upvalue_class = new_class(NULL, NULL);
   vm.handler_class = new_class(NULL, NULL);
-  vm.seq_class     = partial_init_native_seq_class();
-  vm.tuple_class   = partial_init_native_tuple_class();
 
   // Now, we can intern the names. Hashtables are now usable.
   ObjString* obj_name     = copy_string(STR(TYPENAME_OBJ), STR_LEN(STR(TYPENAME_OBJ)));
@@ -311,7 +311,7 @@ void init_vm() {
   vm.tuple_class->name   = tuple_name;
 
   // Create the natives lookup table.
-  init_hashtable(&vm.natives);
+  hashtable_init(&vm.natives);
 
   // Register the builtin classes in the builtin object
   hashtable_set(&vm.natives, str_value(obj_name), class_value(vm.obj_class));
@@ -341,8 +341,7 @@ void init_vm() {
   vm.special_prop_names[SPECIAL_PROP_FILE_PATH]   = copy_string(STR(SP_PROP_FILE_PATH), STR_LEN(STR(SP_PROP_FILE_PATH)));
   vm.special_prop_names[SPECIAL_PROP_MODULE_NAME] = copy_string(STR(SP_PROP_MODULE_NAME), STR_LEN(STR(SP_PROP_MODULE_NAME)));
 
-  // Register the built-in classes
-  finalize_native_obj_class();
+  native_obj_class_finalize();
 
   // Create the module class
   ObjString* module_name = copy_string(STR(TYPENAME_MODULE), STR_LEN(STR(TYPENAME_MODULE)));
@@ -352,25 +351,26 @@ void init_vm() {
   hashtable_add_all(&vm.obj_class->methods, &vm.module_class->methods);  // TODO: Unsure why this is required for it to work -
                                                                          // module.entries() is not found otherwise. Investigate
 
-  // Register the built-in functions
-  register_native_functions();
+  // Register native functions
+  native_register_functions();
 
-  finalize_native_nil_class();
-  finalize_native_bool_class();
-  finalize_native_num_class();
-  finalize_native_int_class();
-  finalize_native_float_class();
-  finalize_native_seq_class();
-  finalize_native_tuple_class();
-  finalize_native_str_class();
-  finalize_native_fn_class();
-  finalize_native_class_class();
+  // Finalize native classes - this attaches the methods to the classes. Accessors are already set.
+  native_nil_class_finalize();
+  native_bool_class_finalize();
+  native_num_class_finalize();
+  native_int_class_finalize();
+  native_float_class_finalize();
+  native_seq_class_finalize();
+  native_tuple_class_finalize();
+  native_str_class_finalize();
+  native_fn_class_finalize();
+  native_class_class_finalize();
 
-  // Register built-in modules
-  register_native_file_module();
-  register_native_perf_module();
-  register_native_debug_module();
-  register_native_gc_module();
+  // Register native modules
+  native_register_file_module();
+  native_register_perf_module();
+  native_register_debug_module();
+  native_register_gc_module();
 
   VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);  // Unpause
 
@@ -378,12 +378,12 @@ void init_vm() {
 }
 
 void free_vm() {
-  free_hashtable(&vm.strings);
-  free_hashtable(&vm.modules);
+  hashtable_free(&vm.strings);
+  hashtable_free(&vm.modules);
   memset(vm.special_method_names, 0, sizeof(vm.special_method_names));
   memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
   free_heap();
-  gc_shutdown_thread_pool();
+  gc_thread_pool_shutdown();
 }
 
 void push(Value value) {
@@ -693,13 +693,13 @@ char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* mod
   // Either we have a module path, or we check the current working directory
   if (module_path == NULL) {
     // Just slap the module name + extension onto the cwd
-    char* module_file_name = ensure_slang_extension(module_name->chars);
-    absolute_file_path     = join_path(cwd->chars, module_file_name);
+    char* module_file_name = file_ensure_slang_extension(module_name->chars);
+    absolute_file_path     = file_join_path(cwd->chars, module_file_name);
     free(module_file_name);
   } else {
     // It's probably a realtive path, we add the extension to the provided path and prepend the cwd
-    char* module_path_ = ensure_slang_extension(module_path->chars);
-    absolute_file_path = join_path(cwd->chars, module_path_);
+    char* module_path_ = file_ensure_slang_extension(module_path->chars);
+    absolute_file_path = file_join_path(cwd->chars, module_path_);
     free(module_path_);
 
     if (!file_exists(absolute_file_path)) {
@@ -843,7 +843,7 @@ static bool handle_error() {
     // stack state. Should be fine to execute more code after this, because the stack is reset.
     if (exit_slot == 0) {
       fprintf(stderr, "Uncaught error: ");
-      print_value_safe(stderr, vm.current_error);
+      value_print_safe(stderr, vm.current_error);
       fprintf(stderr, "\n");
 
       dump_location();
@@ -883,13 +883,13 @@ static bool handle_error() {
 #ifdef DEBUG_TRACE_EXECUTION
 static void debug_trace_execution() {
   // Print the current instruction
-  disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
+  debug_disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
 
   // Print the VMs stack
   printf(ANSI_CYAN_STR(" Stack "));
   for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
     printf(ANSI_CYAN_STR("["));
-    print_value_safe(stdout, *slot);
+    value_print_safe(stdout, *slot);
     printf(ANSI_CYAN_STR("]"));
   }
   printf("\n");
@@ -1017,12 +1017,12 @@ static Value run() {
 #define BIN_GTEQ MAKE_COMPARATOR(>=)
 
 #ifdef DEBUG_TRACE_EXECUTION
-  disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
+  debug_disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
 
   printf(ANSI_CYAN_STR(" Stack "));
   for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
     printf(ANSI_CYAN_STR("["));
-    print_value_safe(stdout, *slot);
+    value_print_safe(stdout, *slot);
     printf(ANSI_CYAN_STR("]"));
   }
   printf("\n");
@@ -1939,7 +1939,7 @@ ObjObject* make_module(const char* source_path, const char* module_name) {
   if (source_path == NULL) {
     hashtable_set(&module->fields, str_value(vm.special_method_names[SPECIAL_PROP_FILE_PATH]), nil_value());
   } else {
-    char* base_dir_path = base(source_path);
+    char* base_dir_path = file_base(source_path);
     define_value(&module->fields, STR(SP_PROP_FILE_PATH), str_value(copy_string(base_dir_path, (int)strlen(base_dir_path))));
     free(base_dir_path);
   }
@@ -1994,7 +1994,7 @@ Value run_file(const char* path, const char* module_name) {
   printf(ANSI_CYAN_STR("Running file: %s\n"), path);
 #endif
   const char* name = module_name == NULL ? path : module_name;
-  char* source     = read_file(path);
+  char* source     = file_read(path);
 
   if (source == NULL) {
     free(source);

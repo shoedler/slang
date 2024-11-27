@@ -27,7 +27,7 @@
 #define PRINT_VALUE_STR(_str) printf("%-*.*s", VALUE_STR_LEN, VALUE_STR_LEN, _str)
 
 void debug_print_value(Value value) {
-  int written = print_value_safe(stdout, value);
+  int written = value_print_safe(stdout, value);
 
   if (written < 0) {
     written = 0;
@@ -41,11 +41,11 @@ void debug_print_value(Value value) {
   }
 }
 
-void disassemble_chunk(Chunk* chunk, const char* name) {
+void debug_disassemble_chunk(Chunk* chunk, const char* name) {
   printf("\n== Chunk: %s ==\n", name);
 
   for (int offset = 0; offset < chunk->count;) {
-    offset = disassemble_instruction(chunk, offset);
+    offset = debug_disassemble_instruction(chunk, offset);
     printf("\n");
   }
 
@@ -144,7 +144,7 @@ static int invoke_instruction(const char* name, Chunk* chunk, int offset) {
   return offset + 3;
 }
 
-int disassemble_instruction(Chunk* chunk, int offset) {
+int debug_disassemble_instruction(Chunk* chunk, int offset) {
   PRINT_OFFSET(offset);
 
   if (offset > 0 && chunk->source_views[offset].line == chunk->source_views[offset - 1].line) {
