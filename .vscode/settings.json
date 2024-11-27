@@ -4,7 +4,15 @@
     {
       "directory": "runner"
     }
-  ]
+  ],
+  "files.associations": {
+    "array": "cpp",
+    "compare": "cpp",
+    "functional": "cpp",
+    "tuple": "cpp",
+    "type_traits": "cpp",
+    "utility": "cpp"
+  }
   // See: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
   // Note: `AllowShortEnumsOnASingleLine: false` and `BraceWrapping: { AfterEnum: true }` are to put each enum value on a new line
 }

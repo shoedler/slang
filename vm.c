@@ -43,6 +43,11 @@ void clear_error() {
   VM_CLEAR_FLAG(VM_FLAG_HAS_ERROR);  // Clear the error flag
 }
 
+// Retrieves the most recent call frame.
+static inline CallFrame* current_frame() {
+  return &vm.frames[vm.frame_count - 1];
+}
+
 static void reset_stack() {
   vm.stack_top     = vm.stack;
   vm.frame_count   = 0;
@@ -53,7 +58,7 @@ static void reset_stack() {
 }
 
 static void dump_location() {
-  CallFrame* frame      = &vm.frames[vm.frame_count - 1];
+  CallFrame* frame      = current_frame();
   ObjFunction* function = frame->closure->function;
   size_t instruction    = frame->ip - function->chunk.code - 1;
 
@@ -724,10 +729,11 @@ char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* mod
   return absolute_file_path;
 }
 
-// Imports a module by name and pushes it onto the stack. If the module was already imported, it is loaded
+// Imports a module by [module_name] and pushes it onto the stack. If the module was already imported, it is loaded
 // from cache. If the module was not imported yet, it is loaded from the file system and then cached.
-// If [module_path] is NULL, the module is expected to be in the same directory as the
-// importing module. Returns true if the module was successfully imported, false otherwise.
+// If [module_path] is NULL, the module is expected to be in the same directory as the importing module. Returns true if
+// the module was successfully imported, false otherwise. *WARNING*: Even though the import might have succeeded, the Vm's error
+// flag might still be set. Always check the error flag after calling this function.
 static bool import_module(ObjString* module_name, ObjString* module_path) {
   Value module;
 
@@ -834,7 +840,7 @@ static bool handle_error() {
   // Did we find a handler within the current frame?
   if (stack_offset < exit_slot) {
     // No handler found and we reached the bottom of the stack. So we print the stacktrace and reset the Vm's
-    // stack state. Should be fine to exectute more code after this, because the stack is reset.
+    // stack state. Should be fine to execute more code after this, because the stack is reset.
     if (exit_slot == 0) {
       fprintf(stderr, "Uncaught error: ");
       print_value_safe(stderr, vm.current_error);
@@ -874,10 +880,48 @@ static bool handle_error() {
   return true;
 }
 
+#ifdef DEBUG_TRACE_EXECUTION
+static void debug_trace_execution() {
+  // Print the current instruction
+  disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
+
+  // Print the VMs stack
+  printf(ANSI_CYAN_STR(" Stack "));
+  for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
+    printf(ANSI_CYAN_STR("["));
+    print_value_safe(stdout, *slot);
+    printf(ANSI_CYAN_STR("]"));
+  }
+  printf("\n");
+
+  // Check that we don't have a leaked error state
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    INTERNAL_ERROR(
+        "Leaked error state. VM is in error state just before transitioning to the next instruction. You are missing a check "
+        "for the VMs error flag somewhere.");
+  }
+}
+#endif
+
 // This function represents the main loop of the virtual machine. It fetches the next instruction, decodes it,
 // and dispatches it
 static Value run() {
-  CallFrame* frame = &vm.frames[vm.frame_count - 1];
+  CallFrame* frame = current_frame();
+
+  static void* dispatch_table[] = {
+#define DISPATCH_TABLE_ENTRY(name) &&DO_OP_##name,
+      OPCODES(DISPATCH_TABLE_ENTRY)
+#undef DISPATCH_TABLE_ENTRY
+  };
+
+// Dispatch to the next instruction
+#ifdef DEBUG_TRACE_EXECUTION
+#define DISPATCH()         \
+  debug_trace_execution(); \
+  goto* dispatch_table[READ_ONE()]
+#else
+#define DISPATCH() goto* dispatch_table[READ_ONE()]
+#endif
 
 // Read a single piece of data from the current instruction pointer and advance it
 #define READ_ONE() (*frame->ip++)
@@ -900,29 +944,29 @@ static Value run() {
     if (is_int(left) && is_int(right)) {                                                                                     \
       b_check;                                                                                                               \
       push(int_value(left.as.integer operator right.as.integer));                                                            \
-      break;                                                                                                                 \
+      DISPATCH();                                                                                                            \
     }                                                                                                                        \
     if (is_float(left)) {                                                                                                    \
       if (is_int(right)) {                                                                                                   \
         b_check;                                                                                                             \
         push(float_value(left.as.float_ operator(double) right.as.integer));                                                 \
-        break;                                                                                                               \
+        DISPATCH();                                                                                                          \
       }                                                                                                                      \
       if (is_float(right)) {                                                                                                 \
         b_check;                                                                                                             \
         push(float_value(left.as.float_ operator right.as.float_));                                                          \
-        break;                                                                                                               \
+        DISPATCH();                                                                                                          \
       }                                                                                                                      \
     } else if (is_float(right)) {                                                                                            \
       if (is_int(left)) {                                                                                                    \
         b_check;                                                                                                             \
         push(float_value((double)left.as.integer operator right.as.float_));                                                 \
-        break;                                                                                                               \
+        DISPATCH();                                                                                                          \
       }                                                                                                                      \
     }                                                                                                                        \
     runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", #operator, left.type->name->chars, \
                   right.type->name->chars);                                                                                  \
-    goto finish_error;                                                                                                       \
+    goto FINISH_ERROR;                                                                                                       \
   }
 
 #define BIN_ADD MAKE_BINARY_OP(+, (void)0)
@@ -932,7 +976,7 @@ static Value run() {
   MAKE_BINARY_OP(                                                                                       \
       /, if ((is_int(right) && right.as.integer == 0) || (is_float(right) && right.as.float_ == 0.0)) { \
           runtime_error("Division by zero.");                                                           \
-          goto finish_error;                                                                            \
+          goto FINISH_ERROR;                                                                            \
         })
 
 // Perform a comparison operation on the top two values on the stack. This consumes two pieces of data from the
@@ -945,26 +989,26 @@ static Value run() {
     Value left  = pop();                                                                                                         \
     if (is_int(left) && is_int(right)) {                                                                                         \
       push(bool_value(left.as.integer operator right.as.integer));                                                               \
-      break;                                                                                                                     \
+      DISPATCH();                                                                                                                \
     }                                                                                                                            \
     if (is_float(left)) {                                                                                                        \
       if (is_int(right)) {                                                                                                       \
         push(bool_value(left.as.float_ operator right.as.integer));                                                              \
-        break;                                                                                                                   \
+        DISPATCH();                                                                                                              \
       }                                                                                                                          \
       if (is_float(right)) {                                                                                                     \
         push(bool_value(left.as.float_ operator right.as.float_));                                                               \
-        break;                                                                                                                   \
+        DISPATCH();                                                                                                              \
       }                                                                                                                          \
     } else if (is_float(right)) {                                                                                                \
       if (is_int(left)) {                                                                                                        \
         push(bool_value(left.as.integer operator right.as.integer));                                                             \
-        break;                                                                                                                   \
+        DISPATCH();                                                                                                              \
       }                                                                                                                          \
     }                                                                                                                            \
     runtime_error("Incompatible types for comparison operand %s. Left was %s, right was %s.", #operator, left.type->name->chars, \
                   right.type->name->chars);                                                                                      \
-    goto finish_error;                                                                                                           \
+    goto FINISH_ERROR;                                                                                                           \
   }
 
 #define BIN_LT MAKE_COMPARATOR(<)
@@ -972,505 +1016,896 @@ static Value run() {
 #define BIN_LTEQ MAKE_COMPARATOR(<=)
 #define BIN_GTEQ MAKE_COMPARATOR(>=)
 
-  for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-    disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
+  disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
 
-    printf(ANSI_CYAN_STR(" Stack "));
-    for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
-      printf(ANSI_CYAN_STR("["));
-      print_value_safe(stdout, *slot);
-      printf(ANSI_CYAN_STR("]"));
-    }
-    printf("\n");
+  printf(ANSI_CYAN_STR(" Stack "));
+  for (Value* slot = vm.stack; slot < vm.stack_top; slot++) {
+    printf(ANSI_CYAN_STR("["));
+    print_value_safe(stdout, *slot);
+    printf(ANSI_CYAN_STR("]"));
+  }
+  printf("\n");
 #endif
 
-    switch (READ_ONE()) {
-      case OP_CONSTANT: {
-        Value constant = READ_CONSTANT();
-        push(constant);
-        break;
-      }
-      case OP_NIL: push(nil_value()); break;
-      case OP_TRUE: push(bool_value(true)); break;
-      case OP_FALSE: push(bool_value(false)); break;
-      case OP_POP: pop(); break;
-      case OP_DUPE: push(peek(READ_ONE())); break;
-      case OP_GET_LOCAL: {
-        uint16_t slot = READ_ONE();
-        push(frame->slots[slot]);
-        break;
-      }
-      case OP_GET_GLOBAL: {
-        ObjString* name = READ_STRING();
-        Value value;
-        if (!hashtable_get_by_string(frame->globals, name, &value)) {
-          if (!hashtable_get_by_string(&vm.natives, name, &value)) {
-            runtime_error("Undefined variable '%s'.", name->chars);
-            goto finish_error;
-          }
-        }
-        push(value);
-        break;
-      }
-      case OP_GET_UPVALUE: {
-        uint16_t slot = READ_ONE();
-        push(*frame->closure->upvalues[slot]->location);
-        break;
-      }
-      case OP_DEFINE_GLOBAL: {
-        ObjString* name = READ_STRING();
-        if (!hashtable_set(frame->globals, str_value(name), peek(0))) {
-          runtime_error("Variable '%s' is already defined.", name->chars);
-          goto finish_error;
-        }
-        pop();
-        break;
-      }
-      case OP_SET_LOCAL: {
-        uint16_t slot      = READ_ONE();
-        frame->slots[slot] = peek(0);  // peek, because assignment is an expression!
-        break;
-      }
-      case OP_SET_GLOBAL: {
-        ObjString* name = READ_STRING();
-        if (hashtable_set(frame->globals, str_value(name),
-                          peek(0))) {  // peek, because assignment is an expression!
-          hashtable_delete(frame->globals, str_value(name));
-          runtime_error("Undefined variable '%s'.", name->chars);
-          goto finish_error;
-        }
-        break;
-      }
-      case OP_SET_UPVALUE: {
-        uint16_t slot                             = READ_ONE();
-        *frame->closure->upvalues[slot]->location = peek(0);  // peek, because assignment is an expression!
-        break;
-      }
-      case OP_GET_SUBSCRIPT: {
-        Value receiver = peek(1);
-        Value index    = peek(0);
-        Value result;
-        if (receiver.type->__get_subs(receiver, index, &result)) {
-          pop();
-          pop();
-          push(result);
-          break;
-        }
-        // False return value means it encountered an error
-        goto finish_error;
-      }
-      case OP_SET_SUBSCRIPT: {
-        Value receiver = peek(2);
-        Value index    = peek(1);
-        Value result   = peek(0);
-        if (receiver.type->__set_subs(receiver, index, result)) {
-          pop();
-          pop();
-          pop();
-          push(result);  // Assignments are expressions
-          break;
-        }
-        // False return value means it encountered an error
-        goto finish_error;
-      }
-      case OP_GET_PROPERTY: {
-        ObjString* name = READ_STRING();
-        Value receiver  = peek(0);
-        Value result;
-        if (receiver.type->__get_prop(receiver, name, &result)) {
-          pop();
-          push(result);
-          break;
-        }
-        goto finish_error;
-        break;
-      }
-      case OP_SET_PROPERTY: {
-        ObjString* name = READ_STRING();
-        Value receiver  = peek(1);
-        Value result    = peek(0);
+  DISPATCH();
 
-        // TODO (optimize): Maybe remove this check for reserved words. We could just allow the user to override these things.
-        // This is
-        // tightly bound to the retrieval of properties, because if we check the special props before the fields, they would
-        // always return the internal value. Currently tough, we check the fields first, because most of the time you probably
-        // want to get fields you've defined as a user. So, getting a special property would yield the value the user assigned.
-        // This is bad, because you could override e.g. the length property and cause the vm to segfault.
+/**
+ * Pushes a constant from the constant pool onto the stack.
+ * @note stack: `[...] -> [...][const]`
+ * @note synopsis: `OP_CONSTANT, index`
+ * @param index index into the constant pool
+ */
+DO_OP_CONSTANT: {
+  Value constant = READ_CONSTANT();
+  push(constant);
+  DISPATCH();
+}
 
-        // Check if it is a reserved property.
-        for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
-          if (name == vm.special_prop_names[i]) {  // We can just compare pointers, because strings are interned.
-            runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, receiver.type->name->chars);
-            goto finish_error;
-          }
-        }
+/**
+ * Pushes a `nil` value onto the stack.
+ * @note stack: `[...] -> [...][nil]`
+ * @note synopsis: `OP_NIL`
+ */
+DO_OP_NIL: {
+  push(nil_value());
+  DISPATCH();
+}
 
-        if (receiver.type->__set_prop(receiver, name, result)) {
-          pop();
-          pop();
-          push(result);  // Assignments are expressions
-          break;
-        }
+/**
+ * Pushes a `true` value onto the stack.
+ * @note stack: `[...] -> [...][true]`
+ * @note synopsis: `OP_TRUE`
+ */
+DO_OP_TRUE: {
+  push(bool_value(true));
+  DISPATCH();
+}
 
-        // False return value means it encountered an error
-        goto finish_error;
-      }
-      case OP_IMPORT_FROM: {
-        ObjString* name = READ_STRING();
-        ObjString* from = READ_STRING();
-        if (!import_module(name, from)) {
-          goto finish_error;
-        }
-        break;
-      }
-      case OP_IMPORT: {
-        ObjString* name = READ_STRING();
-        if (!import_module(name, NULL)) {
-          goto finish_error;
-        }
-        break;
-      }
-      case OP_GET_BASE_METHOD: {
-        ObjString* name     = READ_STRING();
-        ObjClass* baseclass = AS_CLASS(pop());
+/**
+ * Pushes a `false` value onto the stack.
+ * @note stack: `[...] -> [...][false]`
+ * @note synopsis: `OP_FALSE`
+ */
+DO_OP_FALSE: {
+  push(bool_value(false));
+  DISPATCH();
+}
 
-        Value bound_method;
-        if (!bind_method(baseclass, name, &bound_method)) {
-          runtime_error("Method '%s' does not exist in '%s'.", name->chars, baseclass->name->chars);
-          goto finish_error;
-        }
-        pop();
-        push(bound_method);
-        break;
-      }
-      case OP_EQ: {
-        Value right = pop();
-        Value left  = pop();
-        push(bool_value(left.type->__equals(left, right)));
-        break;
-      }
-      case OP_NEQ: {
-        Value right = pop();
-        Value left  = pop();
-        push(bool_value(!left.type->__equals(left, right)));
-        break;
-      }
-      case OP_GT: BIN_GT
-      case OP_LT: BIN_LT
-      case OP_GTEQ: BIN_GTEQ
-      case OP_LTEQ: BIN_LTEQ
-      case OP_ADD: {
-        if (is_str(peek(0)) && is_str(peek(1))) {
-          concatenate();
-          break;
-        }
-        BIN_ADD
-      }
-      case OP_SUBTRACT: BIN_SUB
-      case OP_MULTIPLY: BIN_MUL
-      case OP_DIVIDE: BIN_DIV
-      case OP_MODULO: {
-        // Pretty much the same as MAKE_BINARY_OP, but expanded bc we use fmod(double, double) for floats
-        Value right = pop();
-        Value left  = pop();
+/**
+ * Pops the top value from the stack.
+ * @note stack: `[...][a] -> [...]`
+ * @note synopsis: `OP_POP`
+ */
+DO_OP_POP: {
+  pop();
+  DISPATCH();
+}
 
-        if (is_int(left) && is_int(right)) {
-          if (right.as.integer == 0) {
-            runtime_error("Modulo by zero.");
-            goto finish_error;
-          }
-          push(int_value(left.as.integer % right.as.integer));
-          break;
-        }
+/**
+ * Duplicates the value at the given index on the stack.
+ * @note stack: `[...][a] -> [...][a][a]`
+ * @note synopsis: `OP_DUPE, index`
+ * @param index index into the vms' stack (0: top, 1: second from top, etc.)
+ */
+DO_OP_DUPE: {
+  push(peek(READ_ONE()));
+  DISPATCH();
+}
 
-        if (is_float(left)) {
-          if (is_int(right)) {
-            if (right.as.integer == 0) {
-              runtime_error("Modulo by zero.");
-              goto finish_error;
-            }
-            push(float_value(fmod(left.as.float_, (double)right.as.integer)));
-            break;
-          }
+/**
+ * Gets a local variable and pushes it onto the stack.
+ * @note stack: `[...] -> [...][value]`
+ * @note synopsis: `OP_GET_LOCAL, slot`
+ * @param slot index into the current frames' stack window (aka. slots) (0: top, 1: second from top, etc.)
+ */
+DO_OP_GET_LOCAL: {
+  uint16_t slot = READ_ONE();
+  push(frame->slots[slot]);
+  DISPATCH();
+}
 
-          if (is_float(right)) {
-            if (right.as.float_ == 0) {
-              runtime_error("Modulo by zero.");
-              goto finish_error;
-            }
-            push(float_value(fmod(left.as.float_, right.as.float_)));
-            break;
-          }
-        } else if (is_float(right)) {
-          if (is_int(left)) {
-            if (right.as.integer == 0) {
-              runtime_error("Modulo by zero.");
-              goto finish_error;
-            }
-            push(float_value(fmod((double)left.as.integer, right.as.float_)));
-            break;
-          }
-        }
-
-        runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", left.type->name->chars,
-                      right.type->name->chars);
-        goto finish_error;
-      }
-      case OP_NOT: push(bool_value(is_falsey(pop()))); break;
-      case OP_NEGATE: {
-        if (is_int(peek(0))) {
-          push(int_value(-((pop()).as.integer)));
-        } else if (is_float(peek(0))) {
-          push(float_value(-((pop()).as.float_)));
-        } else {
-          runtime_error("Type for unary - must be a " STR(TYPENAME_NUM) ". Was %s.", peek(0).type->name->chars);
-          goto finish_error;
-        }
-        break;
-      }
-      case OP_PRINT: {
-        ObjString* str = (ObjString*)exec_callable(fn_value(peek(0).type->__to_str), 0).as.obj;
-        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
-          goto finish_error;
-        }
-        printf("%s\n", str->chars);
-        break;
-      }
-      case OP_SEQ_LITERAL: {
-        int count = READ_ONE();
-        make_seq(count);
-        break;
-      }
-      case OP_TUPLE_LITERAL: {
-        int count = READ_ONE();
-        make_tuple(count);
-        break;
-      }
-      case OP_OBJECT_LITERAL: {
-        int count = READ_ONE();
-        make_object(count);
-        break;
-      }
-      case OP_JUMP: {
-        uint16_t offset = READ_ONE();
-        frame->ip += offset;
-        break;
-      }
-      case OP_JUMP_IF_FALSE: {
-        uint16_t offset = READ_ONE();
-        if (is_falsey(peek(0))) {
-          frame->ip += offset;
-        }
-        break;
-      }
-      case OP_LOOP: {
-        uint16_t offset = READ_ONE();
-        frame->ip -= offset;
-        break;
-      }
-      case OP_TRY: {
-        uint16_t try_target = READ_ONE();
-        uint16_t offset = frame->ip - frame->closure->function->chunk.code;  // Offset from start of callframe to the try block
-        Value handler   = handler_value(try_target + offset);
-        push(handler);
-        break;
-      }
-      case OP_THROW: {
-        vm.current_error = pop();
-        VM_SET_FLAG(VM_FLAG_HAS_ERROR);
-        goto finish_error;
-      }
-      case OP_CALL: {
-        int arg_count = READ_ONE();
-        if (call_value(peek(arg_count), arg_count) == CALL_FAILED) {
-          if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
-            goto finish_error;
-          }
-          return nil_value();
-        }
-        frame = &vm.frames[vm.frame_count - 1];  // Set the frame to the current frame
-        break;
-      }
-      case OP_INVOKE: {
-        ObjString* method = READ_STRING();
-        int arg_count     = READ_ONE();
-        if (invoke(NULL, method, arg_count) == CALL_FAILED) {
-          if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
-            goto finish_error;
-          }
-          return nil_value();
-        }
-        frame = &vm.frames[vm.frame_count - 1];
-        break;
-      }
-      case OP_BASE_INVOKE: {
-        ObjString* method   = READ_STRING();
-        int arg_count       = READ_ONE();
-        ObjClass* baseclass = AS_CLASS(pop());  // Leaves 'this' on the stack, followed by the arguments (if any)
-        if (invoke(baseclass, method, arg_count) == CALL_FAILED) {
-          if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
-            goto finish_error;
-          }
-          return nil_value();
-        }
-        frame = &vm.frames[vm.frame_count - 1];
-        break;
-      }
-      case OP_CLOSURE: {
-        ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
-        ObjClosure* closure   = new_closure(function);
-        push(fn_value((Obj*)closure));
-
-        // Bring closure to life
-        for (int i = 0; i < closure->upvalue_count; i++) {
-          uint16_t is_local = READ_ONE();
-          uint16_t index    = READ_ONE();
-          if (is_local) {
-            closure->upvalues[i] = capture_upvalue(frame->slots + index);
-          } else {
-            closure->upvalues[i] = frame->closure->upvalues[index];
-          }
-        }
-        break;
-      }
-      case OP_CLOSE_UPVALUE:
-        close_upvalues(vm.stack_top - 1);
-        pop();
-        break;
-      case OP_RETURN: {
-        Value result = pop();
-        close_upvalues(frame->slots);
-        vm.frame_count--;
-        if (vm.frame_count == 0) {
-          return pop();  // Return the toplevel function - used for modules.
-        }
-
-        vm.stack_top = frame->slots;
-        if (vm.exit_on_frame == vm.frame_count) {
-          return result;
-        }
-        push(result);
-        frame = &vm.frames[vm.frame_count - 1];
-        break;
-      }
-      case OP_CLASS: {
-        // Initially, a class always inherits from Obj
-        ObjClass* klass = new_class(READ_STRING(), vm.obj_class);
-        push(class_value(klass));
-        hashtable_add_all(&klass->base->methods, &klass->methods);
-        break;
-      }
-      case OP_INHERIT: {
-        Value baseclass    = peek(1);
-        ObjClass* subclass = AS_CLASS(peek(0));
-        if (!is_class(baseclass)) {
-          runtime_error("Base class must be a class. Was %s.", baseclass.type->name->chars);
-          goto finish_error;
-        }
-        hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);
-        subclass->base = AS_CLASS(baseclass);
-        pop();  // Subclass.
-        break;
-      }
-      case OP_FINALIZE: {
-        Value klass = peek(0);
-        finalize_new_class(AS_CLASS(klass));  // We trust the compiler that this value is actually a class
-        pop();
-        break;
-      }
-      case OP_IS: {
-        Value type  = pop();
-        Value value = pop();
-
-        if (!is_class(type)) {
-          runtime_error("Type must be a class. Was %s.", type.type->name->chars);
-          goto finish_error;
-        }
-
-        ObjClass* value_klass = value.type;
-        ObjClass* type_klass  = AS_CLASS(type);
-
-        bool result = inherits(value_klass, type_klass);
-
-        push(bool_value(result));
-        break;
-      }
-      case OP_IN: {
-        Value in_target = peek(0);
-        Value value     = peek(1);
-
-        ObjClass* target_type = in_target.type;
-
-        push(in_target);  // Receiver
-        push(value);      // Argument
-        if (target_type->__has == NULL) {
-          runtime_error("Type %s does not support the 'in' operator. It must implement '" STR(SP_METHOD_HAS) "'.",
-                        target_type->name->chars);
-          goto finish_error;
-        }
-        Value result = exec_callable(fn_value(target_type->__has), 1);
-        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
-          goto finish_error;
-        }
-
-        // Since users can override this, we should that we got a bool back.
-        // Could also just use is_falsey, to be less strict - but for now I like this better.
-        if (!is_bool(result)) {
-          runtime_error("Method '" STR(SP_METHOD_HAS) "' on type %s must return a " STR(TYPENAME_BOOL) ", but got %s.",
-                        target_type->name->chars, result.type->name->chars);
-          goto finish_error;
-        }
-
-        pop();
-        pop();
-        push(result);
-        break;
-      }
-      case OP_GET_SLICE: {
-        // [receiver][start][end] is on the stack
-        ObjClass* type = peek(2).type;
-        if (type->__slice == NULL) {
-          runtime_error("Type %s does not support slicing. It must implement '" STR(SP_METHOD_SLICE) "'.", type->name->chars);
-          goto finish_error;
-        }
-
-        Value result = exec_callable(fn_value(type->__slice), 2);
-        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
-          goto finish_error;
-        }
-
-        push(result);
-
-        break;
-      }
-      case OP_METHOD: {
-        ObjString* name   = READ_STRING();
-        FunctionType type = (FunctionType)READ_ONE();  // We trust the compiler that this is either a method, or a static method
-        define_method(name, type);
-        break;
-      }
-    }
-
-    if (!(VM_HAS_FLAG(VM_FLAG_HAS_ERROR))) {
-      continue;
-    }
-
-  finish_error:
-    if (handle_error()) {
-      frame     = &vm.frames[vm.frame_count - 1];                             // Get the current frame
-      frame->ip = frame->closure->function->chunk.code + peek(0).as.handler;  // Jump to the handler
-
-      // Remove the handler from the stack and push the error value
-      pop();
-      push(vm.current_error);
-
-      // We're done with the error, so we can clear it
-      vm.current_error = nil_value();
-    } else {
-      return nil_value();
+/**
+ * Gets a global variable and pushes it onto the stack.
+ * @note stack: `[...] -> [...][value]`
+ * @note synopsis: `OP_GET_GLOBAL, str_index`
+ * @param str_index index into constant pool to get the name, which is then used to get [value] from the globals hashtable (or
+ * the natives lookup table - subject to change though)
+ */
+DO_OP_GET_GLOBAL: {
+  ObjString* name = READ_STRING();
+  Value value;
+  if (!hashtable_get_by_string(frame->globals, name, &value)) {
+    if (!hashtable_get_by_string(&vm.natives, name, &value)) {
+      runtime_error("Undefined variable '%s'.", name->chars);
+      goto FINISH_ERROR;
     }
   }
+  push(value);
+  DISPATCH();
+}
+
+/**
+ * Gets an upvalue and pushes it onto the stack.
+ * @note stack: `[...] -> [value]`
+ * @note synopsis: `OP_GET_UPVALUE, slot`
+ * @param slot index into the current frames' closures' upvalues (0: first, 1: second, etc.)
+ */
+DO_OP_GET_UPVALUE: {
+  uint16_t slot = READ_ONE();
+  push(*frame->closure->upvalues[slot]->location);
+  DISPATCH();
+}
+
+/**
+ * Defines the top value of the stack as a global variable and pops it.
+ * @note stack: `[...][value] -> [...]`
+ * @note synopsis: `OP_DEFINE_GLOBAL, str_index`
+ * @param str_index index into constant pool to get the name, which is then used to set [value] in the globals hashtable.
+ */
+DO_OP_DEFINE_GLOBAL: {
+  ObjString* name = READ_STRING();
+  if (!hashtable_set(frame->globals, str_value(name), peek(0))) {
+    runtime_error("Variable '%s' is already defined.", name->chars);
+    goto FINISH_ERROR;
+  }
+  pop();
+  DISPATCH();
+}
+
+/**
+ * Sets a local variable to the top value of the stack and leaves it.
+ * @note stack: `[...][value] -> [...][value]`
+ * @note synopsis: `OP_SET_LOCAL, slot`
+ * @param slot index into the current frames' stack window (aka. slots) (0: top, 1: second from top, etc.)
+ */
+DO_OP_SET_LOCAL: {
+  uint16_t slot      = READ_ONE();
+  frame->slots[slot] = peek(0);  // peek, because assignment is an expression!
+  DISPATCH();
+}
+
+/**
+ * Sets a global variable to the top value of the stack and leaves it.
+ * @note stack: `[...][value] -> [...][value]`
+ * @note synopsis: `OP_SET_GLOBAL, str_index`
+ * @param str_index index into constant pool to get the name, which is then used to set [value] in the globals hashtable.
+ */
+DO_OP_SET_GLOBAL: {
+  ObjString* name = READ_STRING();
+
+  if (hashtable_set(frame->globals, str_value(name),
+                    peek(0))) {  // peek, because assignment is an expression!
+    hashtable_delete(frame->globals, str_value(name));
+    runtime_error("Undefined variable '%s'.", name->chars);
+    goto FINISH_ERROR;
+  }
+
+  DISPATCH();
+}
+
+/**
+ * Sets an upvalue to the top value of the stack and leaves it.
+ * @note stack: `[...][value] -> [...][value]`
+ * @note synopsis: `OP_SET_UPVALUE, slot`
+ * @param slot index into the current frames' closures' upvalues (0: first, 1: second, etc.)
+ */
+DO_OP_SET_UPVALUE: {
+  uint16_t slot                             = READ_ONE();
+  *frame->closure->upvalues[slot]->location = peek(0);  // peek, because assignment is an expression!
+  DISPATCH();
+}
+
+/**
+ * Gets a subscript from the top two values on the stack and pushes the result. (Invokes `__get_subs` on the receiver)
+ * @note stack: `[...][receiver][index] -> [...][result]`
+ * @note synopsis: `OP_GET_SUBSCRIPT`
+ */
+DO_OP_GET_SUBSCRIPT: {
+  Value receiver = peek(1);
+  Value index    = peek(0);
+  Value result;
+
+  if (receiver.type->__get_subs(receiver, index, &result)) {
+    pop();
+    pop();
+    push(result);
+    DISPATCH();
+  }
+
+  goto FINISH_ERROR;  // False return value means it encountered an error
+}
+
+/**
+ * Sets a subscript on the top three values on the stack and leaves the result. (Invokes `__set_subs` on the receiver)
+ * @note stack: `[...][receiver][index][value] -> [...][result]`
+ * @note synopsis: `OP_SET_SUBSCRIPT`
+ */
+DO_OP_SET_SUBSCRIPT: {
+  Value receiver = peek(2);
+  Value index    = peek(1);
+  Value result   = peek(0);
+
+  if (receiver.type->__set_subs(receiver, index, result)) {
+    pop();
+    pop();
+    pop();
+    push(result);  // Assignments are expressions
+    DISPATCH();
+  }
+
+  goto FINISH_ERROR;  // False return value means it encountered an error
+}
+
+/**
+ * Gets a property from the top value on the stack and pushes the result. (Invokes `__get_prop` on the receiver)
+ * @note stack: `[...][receiver] -> [...][result]`
+ * @note synopsis: `OP_GET_PROPERTY, str_index`
+ * @param str_index index into constant pool to get the name, which is then used to get [result] from the receiver.
+ */
+DO_OP_GET_PROPERTY: {
+  ObjString* name = READ_STRING();
+  Value receiver  = peek(0);
+  Value result;
+
+  if (receiver.type->__get_prop(receiver, name, &result)) {
+    pop();
+    push(result);
+    DISPATCH();
+  }
+
+  goto FINISH_ERROR;  // False return value means it encountered an error
+}
+
+/**
+ * Sets a property on the 2nd-to-top value on the stack and leaves the result. (Invokes `__set_prop` on the receiver)
+ * @note stack: `[...][receiver][value] -> [...][result]`
+ * @note synopsis: `OP_SET_PROPERTY, str_index`
+ * @param str_index index into constant pool to get the name, which is then used to set [value] in the receiver.
+ */
+DO_OP_SET_PROPERTY: {
+  ObjString* name = READ_STRING();
+  Value receiver  = peek(1);
+  Value result    = peek(0);
+
+  // TODO (optimize): Maybe remove this check for reserved words. We could just allow the user to override these things.
+  // This is
+  // tightly bound to the retrieval of properties, because if we check the special props before the fields, they would
+  // always return the internal value. Currently tough, we check the fields first, because most of the time you probably
+  // want to get fields you've defined as a user. So, getting a special property would yield the value the user assigned.
+  // This is bad, because you could override e.g. the length property and cause the vm to segfault.
+
+  // Check if it is a reserved property.
+  for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
+    if (name == vm.special_prop_names[i]) {  // We can just compare pointers, because strings are interned.
+      runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, receiver.type->name->chars);
+      goto FINISH_ERROR;
+    }
+  }
+
+  if (receiver.type->__set_prop(receiver, name, result)) {
+    pop();
+    pop();
+    push(result);  // Assignments are expressions
+    DISPATCH();
+  }
+
+  goto FINISH_ERROR;  // False return value means it encountered an error
+}
+
+/**
+ * Gets a method from the top value on the stack, binds it to the 2nd-to-top value, and pushes the result.
+ * @note stack: `[...][receiver] -> [...][result]`
+ * @note synopsis: `OP_GET_METHOD, str_index`
+ * @param str_index index into constant pool to get the name, which is then used to get the method from the receiver.
+ */
+DO_OP_GET_BASE_METHOD: {
+  ObjString* name     = READ_STRING();
+  ObjClass* baseclass = AS_CLASS(pop());
+
+  Value bound_method;
+  if (!bind_method(baseclass, name, &bound_method)) {
+    runtime_error("Method '%s' does not exist in '%s'.", name->chars, baseclass->name->chars);
+    goto FINISH_ERROR;
+  }
+  pop();
+  push(bound_method);
+  DISPATCH();
+}
+
+/**
+ * Gets a slice from the 3rd-to-top value on the stack and pushes the result. (Invokes `__slice` on the receiver)
+ * @note stack: `[...][receiver][start][end] -> [...][slice]`
+ * @note synopsis: `OP_GET_SLICE`
+ */
+DO_OP_GET_SLICE: {
+  // [receiver][start][end] is on the stack
+  ObjClass* type = peek(2).type;
+  if (type->__slice == NULL) {
+    runtime_error("Type %s does not support slicing. It must implement '" STR(SP_METHOD_SLICE) "'.", type->name->chars);
+    goto FINISH_ERROR;
+  }
+
+  Value result = exec_callable(fn_value(type->__slice), 2);
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    goto FINISH_ERROR;
+  }
+
+  push(result);
+
+  DISPATCH();
+}
+
+/**
+ * Compares the top two values on the stack for equality and pushes the result. (Invokes `__equals` on the values)
+ * @note stack: `[...][a][b] -> [...][result]`
+ * @note synopsis: `OP_EQ`
+ */
+DO_OP_EQ: {
+  Value right = pop();
+  Value left  = pop();
+  push(bool_value(left.type->__equals(left, right)));
+  DISPATCH();
+}
+
+/**
+ * Compares the top two values on the stack for inequality and pushes the result. (Invokes `__equals` on the values)
+ * @note stack: `[...][a][b] -> [...][result]`
+ * @note synopsis: `OP_NEQ`
+ */
+DO_OP_NEQ: {
+  Value right = pop();
+  Value left  = pop();
+  push(bool_value(!left.type->__equals(left, right)));
+  DISPATCH();
+}
+
+/**
+ * Compares the top two values on the stack for greater-than and pushes the result.
+ * @note stack: `[...][a][b] -> [...][result]`
+ * @note synopsis: `OP_GT`
+ */
+DO_OP_GT: { BIN_GT }
+
+/**
+ * Compares the top two values on the stack for less-than and pushes the result.
+ * @note stack: `[...][a][b] -> [...][result]`
+ * @note synopsis: `OP_LT`
+ */
+DO_OP_LT: { BIN_LT }
+
+/**
+ * Compares the top two values on the stack for greater-than-or-equal and pushes the result.
+ * @note stack: `[...][a][b] -> [...][result]`
+ * @note synopsis: `OP_GTEQ`
+ */
+DO_OP_GTEQ: { BIN_GTEQ }
+
+/**
+ * Compares the top two values on the stack for less-than-or-equal and pushes the result.
+ * @note stack: `[...][a][b] -> [...][result]`
+ * @note synopsis: `OP_LTEQ`
+ */
+DO_OP_LTEQ: { BIN_LTEQ }
+
+/**
+ * Adds the top two values on the stack and pushes the result.
+ * @note stack: `[...][a][b] -> [...][result]`
+ * @note synopsis: `OP_ADD`
+ */
+DO_OP_ADD: {
+  if (is_str(peek(0)) && is_str(peek(1))) {
+    concatenate();
+    DISPATCH();
+  }
+  BIN_ADD
+}
+
+/**
+ * Subtracts the top two values on the stack and pushes the result.
+ * @note stack: `[...][a][b] -> [...][result]`
+ * @note synopsis: `OP_SUBTRACT`
+ */
+DO_OP_SUBTRACT: { BIN_SUB }
+
+/**
+ * Multiplies the top two values on the stack and pushes the result.
+ * @note stack: `[...][a][b] -> [...][result]`
+ * @note synopsis: `OP_MULTIPLY`
+ */
+DO_OP_MULTIPLY: { BIN_MUL }
+
+/**
+ * Divides the top two values on the stack and pushes the result.
+ * @note stack: `[...][a][b] -> [...][result]`
+ * @note synopsis: `OP_DIVIDE`
+ */
+DO_OP_DIVIDE: { BIN_DIV }
+
+/**
+ * Modulos the top two values on the stack and pushes the result.
+ * @note stack: `[...][a][b] -> [...][result]`
+ * @note synopsis: `OP_MODULO`
+ */
+DO_OP_MODULO: {
+  // Pretty much the same as MAKE_BINARY_OP, but expanded bc we use fmod(double, double) for floats
+  Value right = pop();
+  Value left  = pop();
+
+  if (is_int(left) && is_int(right)) {
+    if (right.as.integer == 0) {
+      runtime_error("Modulo by zero.");
+      goto FINISH_ERROR;
+    }
+    push(int_value(left.as.integer % right.as.integer));
+    DISPATCH();
+  }
+
+  if (is_float(left)) {
+    if (is_int(right)) {
+      if (right.as.integer == 0) {
+        runtime_error("Modulo by zero.");
+        goto FINISH_ERROR;
+      }
+      push(float_value(fmod(left.as.float_, (double)right.as.integer)));
+      DISPATCH();
+    }
+
+    if (is_float(right)) {
+      if (right.as.float_ == 0) {
+        runtime_error("Modulo by zero.");
+        goto FINISH_ERROR;
+      }
+      push(float_value(fmod(left.as.float_, right.as.float_)));
+      DISPATCH();
+    }
+  } else if (is_float(right)) {
+    if (is_int(left)) {
+      if (right.as.integer == 0) {
+        runtime_error("Modulo by zero.");
+        goto FINISH_ERROR;
+      }
+      push(float_value(fmod((double)left.as.integer, right.as.float_)));
+      DISPATCH();
+    }
+  }
+
+  runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", left.type->name->chars,
+                right.type->name->chars);
+  goto FINISH_ERROR;
+}
+
+/**
+ * Checks if the top value on the stack is falsy and pushes the result.
+ * @note stack: `[...][a] -> [...][result]`
+ * @note synopsis: `OP_NOT`
+ */
+DO_OP_NOT: {
+  push(bool_value(is_falsey(pop())));
+  DISPATCH();
+}
+
+/**
+ * Negates the top value on the stack and pushes the result.
+ * @note stack: `[...][a] -> [...][result]`
+ * @note synopsis: `OP_NEGATE`
+ */
+DO_OP_NEGATE: {
+  if (is_int(peek(0))) {
+    push(int_value(-((pop()).as.integer)));
+  } else if (is_float(peek(0))) {
+    push(float_value(-((pop()).as.float_)));
+  } else {
+    runtime_error("Type for unary - must be a " STR(TYPENAME_NUM) ". Was %s.", peek(0).type->name->chars);
+    goto FINISH_ERROR;
+  }
+  DISPATCH();
+}
+
+/**
+ * Prints the top value on the stack and pops it. (Invokes `__to_str` on the value)
+ * @note stack: `[...][a] -> [...]`
+ * @note synopsis: `OP_PRINT`
+ */
+DO_OP_PRINT: {
+  ObjString* str = (ObjString*)exec_callable(fn_value(peek(0).type->__to_str), 0).as.obj;
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    goto FINISH_ERROR;
+  }
+  printf("%s\n", str->chars);
+  DISPATCH();
+}
+
+/**
+ * Jumps to the instruction at the given offset (current ip + offset).
+ * @note stack: `[...] -> [...]`
+ * @note synopsis: `OP_JUMP, offset`
+ * @param offset offset to jump to (from the current ip)
+ */
+DO_OP_JUMP: {
+  uint16_t offset = READ_ONE();
+  frame->ip += offset;
+  DISPATCH();
+}
+
+/**
+ * Jumps to the instruction at the given offset if the top value on the stack is falsy and leaves it.
+ * @note stack: `[...][a] -> [...][a]`
+ * @note synopsis: `OP_JUMP_IF_FALSE, offset`
+ * @param offset offset to jump to (from the current ip)
+ */
+DO_OP_JUMP_IF_FALSE: {
+  uint16_t offset = READ_ONE();
+  if (is_falsey(peek(0))) {
+    frame->ip += offset;
+  }
+  DISPATCH();
+}
+
+/**
+ * Pushes a handler-value onto the stack (Consists of try-target and the offset from the start of the callframe to the try
+ * block).
+ * @note stack: `[...] -> [...][handler]`
+ * @note synopsis: `OP_TRY, try_target`
+ * @param try_target try-target
+ */
+DO_OP_TRY: {
+  uint16_t try_target = READ_ONE();
+  uint16_t offset     = frame->ip - frame->closure->function->chunk.code;  // Offset from start of callframe to the try block
+  Value handler       = handler_value(try_target + offset);
+  push(handler);
+  DISPATCH();
+}
+
+/**
+ * Loops back to the instruction at the given offset (current ip - offset).
+ * @note stack: `[...] -> [...]`
+ * @note synopsis: `OP_LOOP, offset`
+ * @param offset offset to loop back to (from the current ip)
+ */
+DO_OP_LOOP: {
+  uint16_t offset = READ_ONE();
+  frame->ip -= offset;
+  DISPATCH();
+}
+
+/**
+ * Calls the callable at the top of the stack with the given number of arguments.
+ * @note stack: `[...][callable][arg_0]...[arg_n] -> [...][result]` (in case of a native function)
+ * @note stack: `[...][callable][arg_0]...[arg_n] -> [...][arg_0][arg_1]...[arg_n]` (in case of a managed function)
+ * @note synopsis: `OP_CALL, arg_count`
+ * @param arg_count number of arguments to pass to the callable
+ */
+DO_OP_CALL: {
+  int arg_count = READ_ONE();
+  bool failed   = call_value(peek(arg_count), arg_count) == CALL_FAILED;
+  if (failed || VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    goto FINISH_ERROR;
+  }
+
+  frame = current_frame();  // Set the frame to the current frame
+  DISPATCH();
+}
+
+/**
+ * Invokes the callable at the top of the stack with the given number of arguments.
+ * @note stack: `[...][receiver][arg_0]...[arg_n] -> [...][result]` (in case of a native function)
+ * @note stack: `[...][receiver][arg_0]...[arg_n] -> [...][receiver][arg_0][arg_1]...[arg_n]` (in case of a managed function)
+ * @note synopsis: `OP_INVOKE, str_index, arg_count`
+ * @param str_index index into constant pool to get the name of the method to invoke
+ * @param arg_count number of arguments to pass to the callable
+ */
+DO_OP_INVOKE: {
+  ObjString* method = READ_STRING();
+  int arg_count     = READ_ONE();
+  bool failed       = invoke(NULL, method, arg_count) == CALL_FAILED;
+  if (failed || VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    goto FINISH_ERROR;
+  }
+
+  frame = current_frame();
+  DISPATCH();
+}
+
+/**
+ * Invokes the callable at the top of the stack with the given number of arguments and the base class.
+ * @note stack: `[...][receiver][arg_0]...[arg_n][base] -> [...][result]` (in case of a native function)
+ * @note stack: `[...][receiver][arg_0]...[arg_n][base] -> [...][receiver][arg_0]...[arg_n]` (in case of a managed function)
+ * @note synopsis: `OP_BASE_INVOKE, str_index, arg_count`
+ * @param str_index index into constant pool to get the name of the method to invoke
+ * @param arg_count number of arguments to pass to the callable
+ */
+DO_OP_BASE_INVOKE: {
+  ObjString* method   = READ_STRING();
+  int arg_count       = READ_ONE();
+  ObjClass* baseclass = AS_CLASS(pop());  // Leaves 'this' on the stack, followed by the arguments (if any)
+  if (invoke(baseclass, method, arg_count) == CALL_FAILED) {
+    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+      goto FINISH_ERROR;
+    }
+    return nil_value();
+  }
+  frame = current_frame();
+  DISPATCH();
+}
+
+/**
+ * Creates a closure from the function at the given index in the constant pool and pushes it.
+ * @note stack: `[...] -> [...][closure]`
+ * @note synopsis: `OP_CLOSURE, fn_index, (is_local, index) * upvalue_count`
+ * @param fn_index index into constant pool to get the function
+ * @param is_local whether the upvalue is local or not
+ * @param index index into the current frames' upvalues (0: first, 1: second, etc.)
+ */
+DO_OP_CLOSURE: {
+  ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
+  ObjClosure* closure   = new_closure(function);
+  push(fn_value((Obj*)closure));
+
+  // Bring closure to life
+  for (int i = 0; i < closure->upvalue_count; i++) {
+    uint16_t is_local = READ_ONE();
+    uint16_t index    = READ_ONE();
+    if (is_local) {
+      closure->upvalues[i] = capture_upvalue(frame->slots + index);
+    } else {
+      closure->upvalues[i] = frame->closure->upvalues[index];
+    }
+  }
+  DISPATCH();
+}
+
+/**
+ * Closes the topmost value on the stack and pops it.
+ * @note stack: `[...][value] -> [...]`
+ * @note synopsis: `OP_CLOSE_UPVALUE`
+ */
+DO_OP_CLOSE_UPVALUE: {
+  close_upvalues(vm.stack_top - 1);
+  pop();
+  DISPATCH();
+}
+
+/**
+ * Creates a sequence literal from the top `count` values on the stack and pushes the result.
+ * @note stack: `[...][v_0][v_1]...[v_n] -> [...][seq]`
+ * @note synopsis: `OP_SEQ_LITERAL, count`
+ * @param count number of values to include in the sequence (from the top of the stack)
+ */
+DO_OP_SEQ_LITERAL: {
+  int count = READ_ONE();
+  make_seq(count);
+  DISPATCH();
+}
+
+/**
+ * Creates a tuple literal from the top `count` values on the stack and pushes the result.
+ * @note stack: `[...][v_0][v_1]...[v_n] -> [...][tuple]`
+ * @note synopsis: `OP_TUPLE_LITERAL, count`
+ * @param count number of values to include in the tuple (from the top of the stack)
+ */
+DO_OP_TUPLE_LITERAL: {
+  int count = READ_ONE();
+  make_tuple(count);
+  DISPATCH();
+}
+
+/**
+ * Creates an object literal from the top `count` * 2 values on the stack (kvp) and pushes the result.
+ * @note stack: `[...][k_0][v_0][k_1][v_1]...[k_n][v_n] -> [...][object]`
+ * @note synopsis: `OP_OBJECT_LITERAL, count`
+ * @param count number of key-value pairs to include in the object (from the top of the stack)
+ */
+DO_OP_OBJECT_LITERAL: {
+  int count = READ_ONE();
+  make_object(count);
+  DISPATCH();
+}
+
+/**
+ * Closes all upvalues in the current frames' slots and returns from the current function.
+ * @note stack: `[...][fn] -> [...]`
+ * @note synopsis: `OP_RETURN`
+ */
+DO_OP_RETURN: {
+  Value result = pop();
+  close_upvalues(frame->slots);
+  vm.frame_count--;
+  if (vm.frame_count == 0) {
+    return pop();  // Return the toplevel function - used for modules.
+  }
+
+  vm.stack_top = frame->slots;
+  if (vm.exit_on_frame == vm.frame_count) {
+    return result;
+  }
+  push(result);
+  frame = current_frame();
+  DISPATCH();
+}
+
+/**
+ * Creates a new class and pushes it onto the stack.
+ * @note stack: `[...] -> [...][class]`
+ * @note synopsis: `OP_CLASS, str_index`
+ * @param str_index index into constant pool to get the name of the class
+ */
+DO_OP_CLASS: {
+  // Initially, a class always inherits from Obj
+  ObjClass* klass = new_class(READ_STRING(), vm.obj_class);
+  push(class_value(klass));
+  hashtable_add_all(&klass->base->methods, &klass->methods);
+  DISPATCH();
+}
+
+/**
+ * Inherits the top value on the stack from the 2nd-to-top value and leaves the base class.
+ * @note stack: `[...][base][derived] -> [...][base]`
+ * @note synopsis: `OP_INHERIT`
+ */
+DO_OP_INHERIT: {
+  Value baseclass    = peek(1);
+  ObjClass* subclass = AS_CLASS(peek(0));
+  if (!is_class(baseclass)) {
+    runtime_error("Base class must be a class. Was %s.", baseclass.type->name->chars);
+    goto FINISH_ERROR;
+  }
+  hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);
+  subclass->base = AS_CLASS(baseclass);
+  pop();  // Subclass.
+  DISPATCH();
+}
+
+/**
+ * Finalizes the top value on the stack and leaves it.
+ * @note stack: `[...][class] -> [...][class]`
+ * @note synopsis: `OP_FINALIZE`
+ */
+DO_OP_FINALIZE: {
+  Value klass = peek(0);
+  finalize_new_class(AS_CLASS(klass));  // We trust the compiler that this value is actually a class
+  pop();
+  DISPATCH();
+}
+
+/**
+ * Defines a method in the 2nd-to-top value on the stack and leaves it.
+ * @note stack: `[...][class][method] -> [...][class]`
+ * @note synopsis: `OP_DEFINE_METHOD, str_index, fn_type`
+ * @param str_index index into constant pool to get the name of the method
+ * @param fn_type function type of the method
+ */
+DO_OP_METHOD: {
+  ObjString* name   = READ_STRING();
+  FunctionType type = (FunctionType)READ_ONE();  // We trust the compiler that this is either a method, or a static method
+  define_method(name, type);
+  DISPATCH();
+}
+
+/**
+ * Imports a module by name.
+ * @note stack: `[...] -> [...][module]`
+ * @note synopsis: `OP_IMPORT, str_index`
+ * @param str_index index into constant pool to get the name of the module to import.
+ */
+DO_OP_IMPORT: {
+  ObjString* name = READ_STRING();
+  bool success    = import_module(name, NULL);
+  if (!success || VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    goto FINISH_ERROR;
+  }
+  DISPATCH();
+}
+
+/**
+ * Imports a module by name and file.
+ * @note stack: `[...] -> [...][module]`
+ * @note synopsis: `OP_IMPORT_FROM, name_index, file_path_index`
+ * @param name_index index into constant pool to get the name of the module to import.
+ * @param file_path_index index into constant pool to get the path of the file to import from.
+ */
+DO_OP_IMPORT_FROM: {
+  ObjString* name = READ_STRING();
+  ObjString* from = READ_STRING();
+  bool success    = import_module(name, from);
+  if (!success || VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    goto FINISH_ERROR;
+  }
+  DISPATCH();
+}
+
+/**
+ * Sets the current error to the top value on the stack (pops it) and puts the VM into error state.
+ * @note stack: `[...][error] -> [...]`
+ * @note synopsis: `OP_THROW`
+ */
+DO_OP_THROW: {
+  vm.current_error = pop();
+  VM_SET_FLAG(VM_FLAG_HAS_ERROR);
+  goto FINISH_ERROR;
+}
+
+/**
+ * Checks if the 2nd-to-top value on the stack is an instance of the top value and pushes the result.
+ * @note stack: `[...][instance][class] -> [...][result]`
+ * @note synopsis: `OP_IS`
+ */
+DO_OP_IS: {
+  Value type  = pop();
+  Value value = pop();
+
+  if (!is_class(type)) {
+    runtime_error("Type must be a class. Was %s.", type.type->name->chars);
+    goto FINISH_ERROR;
+  }
+
+  ObjClass* value_klass = value.type;
+  ObjClass* type_klass  = AS_CLASS(type);
+
+  bool result = inherits(value_klass, type_klass);
+
+  push(bool_value(result));
+  DISPATCH();
+}
+
+/**
+ * Checks if the 2nd-to-top value on the stack is "in" the top value and pushes the result. (Invokes `__has` on the container)
+ * @note stack: `[...][value][container] -> [...][result]`
+ * @note synopsis: `OP_CALL_METHOD, arg_count`
+ * @param arg_count number of arguments to pass to the callable
+ */
+DO_OP_IN: {
+  Value in_target = peek(0);
+  Value value     = peek(1);
+
+  ObjClass* target_type = in_target.type;
+
+  push(in_target);  // Receiver
+  push(value);      // Argument
+  if (target_type->__has == NULL) {
+    runtime_error("Type %s does not support the 'in' operator. It must implement '" STR(SP_METHOD_HAS) "'.",
+                  target_type->name->chars);
+    goto FINISH_ERROR;
+  }
+  Value result = exec_callable(fn_value(target_type->__has), 1);
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    goto FINISH_ERROR;
+  }
+
+  // Since users can override this, we should that we got a bool back.
+  // Could also just use is_falsey, to be less strict - but for now I like this better.
+  if (!is_bool(result)) {
+    runtime_error("Method '" STR(SP_METHOD_HAS) "' on type %s must return a " STR(TYPENAME_BOOL) ", but got %s.",
+                  target_type->name->chars, result.type->name->chars);
+    goto FINISH_ERROR;
+  }
+
+  pop();
+  pop();
+  push(result);
+  DISPATCH();
+}
+
+FINISH_ERROR: {
+  if (handle_error()) {
+    frame     = current_frame();                                            // Get the current frame
+    frame->ip = frame->closure->function->chunk.code + peek(0).as.handler;  // Jump to the handler
+
+    // Remove the handler from the stack and push the error value
+    pop();
+    push(vm.current_error);
+
+    // We're done with the error, so we can clear it
+    vm.current_error = nil_value();
+    DISPATCH();
+  } else {
+    return nil_value();
+  }
+}
+
+  return nil_value();  // This should never be reached, but the compiler doesn't know that
+
+#undef DISPATCH
 
 #undef READ_ONE
 #undef READ_CONSTANT

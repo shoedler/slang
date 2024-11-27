@@ -224,17 +224,26 @@ const printSummary = (results: TestResult[]) => {
   const totalTests = results.length;
   const passedTests = results.filter(r => r.passed).length;
   const skippedTests = results.filter(r => r.skipped).length;
+  const failedTests = totalTests - passedTests - skippedTests;
   const totalAssertions = results.reduce((sum, r) => sum + r.assertions, 0);
 
   ok('Done running tests. ');
-  const summaryMessage = `Summary: ${passedTests}/${totalTests} passed, ${skippedTests} skipped, ${totalAssertions} assertions`;
+  const failedMessage = failedTests > 0 ? `, ${chalk.red(totalTests - passedTests - skippedTests)} failed` : '';
+  const skippedMessage = skippedTests > 0 ? `, ${chalk.yellow(skippedTests)} skipped` : '';
+  const assertionsMessage = `. Made ${chalk.magenta(totalAssertions)} assertions`;
 
-  if (passedTests === totalTests - skippedTests) {
-    info(chalk.green(summaryMessage));
+  const summaryMessage =
+    `Summary: ${chalk.green(passedTests)}/${chalk.bold(totalTests)} passed` +
+    failedMessage +
+    skippedMessage +
+    assertionsMessage;
+
+  info(summaryMessage);
+
+  if (failedTests <= 0) {
     return;
   }
 
-  info(chalk.red(summaryMessage));
   info(chalk.red('Failed tests:'));
 
   results

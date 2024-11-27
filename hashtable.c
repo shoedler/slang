@@ -181,7 +181,7 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
       }
 
       // We found a tombstone. No need to do further checks and slow down the search.
-      goto finish_find_string_iteration;
+      goto FINISH_FIND_STRING_ITERATION;
     }
 
     // Check if we found the string.
@@ -191,7 +191,7 @@ ObjString* hashtable_find_string(HashTable* table, const char* chars, int length
       return string;
     }
 
-  finish_find_string_iteration:
+  FINISH_FIND_STRING_ITERATION:
     index = (index + 1) & (table->capacity - 1);
   }
 }

@@ -109,7 +109,7 @@ ObjString* const_globals[MAX_CONST_GLOBALS];
 int const_globals_count;
 
 // Retrieves the current chunk from the current compiler.
-static Chunk* current_chunk() {
+static inline Chunk* current_chunk() {
   return &current->function->chunk;
 }
 

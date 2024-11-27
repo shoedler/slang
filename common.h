@@ -15,7 +15,7 @@
 // #define DEBUG_PRINT_CODE  // Print all compiled bytecode chunks
 
 // Virtual Machine
-// #define DEBUG_TRACE_EXECUTION  // Print the execution of the Vm, including stack traces.
+// #define DEBUG_TRACE_EXECUTION  // Print the execution of the Vm, including stack traces. Also checks for leaked error states.
 
 // Garbage Collection
 // #define DEBUG_GC_PHASE_TIMES   // Log the time it takes for each phase of the Gc

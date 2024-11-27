@@ -167,7 +167,7 @@ uint64_t native_default_obj_hash(Value self);
     *result          = int_value(items.count);              \
     return true;                                            \
   }                                                         \
-  NATIVE_DEFAULT_GET_PROP_BODY(result->type)
+  NATIVE_DEFAULT_GET_PROP_BODY(receiver.type)
 
 #define NATIVE_LISTLIKE_GET_SUBS_BODY()                                                                 \
   ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(receiver);                                               \
