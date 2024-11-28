@@ -151,7 +151,7 @@ static void advance() {
   parser.previous = parser.current;
 
   for (;;) {
-    parser.current = scanner_next_token();
+    parser.current = scanner_scan_token();
 
     if (parser.current.type != TOKEN_ERROR) {
       break;
@@ -301,7 +301,7 @@ static void emit_return() {
 }
 
 // Initializes a new compiler.
-static void init_compiler(Compiler* compiler, FunctionType type) {
+static void compiler_init(Compiler* compiler, FunctionType type) {
   compiler->enclosing = current;
   current             = compiler;
 
@@ -353,7 +353,7 @@ static void init_compiler(Compiler* compiler, FunctionType type) {
 }
 
 // Frees a compiler
-static void free_compiler(Compiler* compiler) {
+static void compiler_free(Compiler* compiler) {
   FREE_ARRAY(int, compiler->brake_jumps, compiler->brakes_capacity);
 }
 
@@ -698,7 +698,7 @@ static void object_literal(bool can_assign) {
   }
 }
 
-Value parse_number(const char* str, size_t length) {
+Value compiler_parse_number(const char* str, size_t length) {
   if (length == 0) {
     return int_value(0);
   }
@@ -744,7 +744,7 @@ Value parse_number(const char* str, size_t length) {
 // The number has already been consumed and is referenced by the previous token.
 static void number(bool can_assign) {
   UNUSED(can_assign);
-  Value value = parse_number(parser.previous.start, parser.previous.length);
+  Value value = compiler_parse_number(parser.previous.start, parser.previous.length);
   emit_constant_here(value);
 }
 
@@ -975,7 +975,7 @@ static void base_(bool can_assign) {
 static void function(bool can_assign, FunctionType type) {
   UNUSED(can_assign);
   Compiler compiler;
-  init_compiler(&compiler, type);
+  compiler_init(&compiler, type);
   begin_scope();
 
   // Parameters
@@ -1022,7 +1022,7 @@ static void function(bool can_assign, FunctionType type) {
     emit_one_here(compiler.upvalues[i].index);
   }
 
-  free_compiler(&compiler);
+  compiler_free(&compiler);
 }
 
 static void anonymous_function(bool can_assign) {
@@ -1573,7 +1573,7 @@ static void destructuring(DestructureType type, bool rhs_is_import, bool is_cons
       cwd = str_value(copy_string("?", 1));
     }
 
-    char* absolute_path                  = resolve_module_path((ObjString*)cwd.as.obj, NULL, file_path);
+    char* absolute_path                  = vm_resolve_module_path((ObjString*)cwd.as.obj, NULL, file_path);
     uint16_t absolute_file_path_constant = make_constant(str_value(copy_string(absolute_path, strlen(absolute_path))));
     free(absolute_path);  // since we copied to make sure it's allocated on our managed heap, we need to free it.
 
@@ -2089,12 +2089,12 @@ static void declaration() {
   }
 }
 
-ObjFunction* compile_module(const char* source) {
+ObjFunction* compiler_compile_module(const char* source) {
   scanner_init(source);
   Compiler compiler;
   const_globals_count = 0;
 
-  init_compiler(&compiler, TYPE_MODULE);
+  compiler_init(&compiler, TYPE_MODULE);
 
 #ifdef DEBUG_PRINT_CODE
   printf("== Begin compilation ==\n");
@@ -2110,11 +2110,11 @@ ObjFunction* compile_module(const char* source) {
   }
 
   ObjFunction* function = end_compiler();
-  free_compiler(&compiler);
+  compiler_free(&compiler);
   return parser.had_error ? NULL : function;
 }
 
-void mark_compiler_roots() {
+void compiler_mark_roots() {
   Compiler* compiler = current;
   while (compiler != NULL) {
     mark_obj((Obj*)compiler->function);

@@ -57,7 +57,7 @@ static bool class_get_prop(Value receiver, ObjString* name, Value* result) {
 static Value class_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
-  runtime_error("Cannot instantiate a class via " STR(TYPENAME_CLASS) "." STR(SP_METHOD_CTOR) ".");
+  vm_error("Cannot instantiate a class via " STR(TYPENAME_CLASS) "." STR(SP_METHOD_CTOR) ".");
   return nil_value();
 }
 
@@ -74,7 +74,7 @@ static Value class_to_str(int argc, Value argv[]) {
   if (name == NULL || name->chars == NULL) {
     name = copy_string("???", 3);
   }
-  push(str_value(name));
+  vm_push(str_value(name));
 
   size_t buf_size = VALUE_STRFMT_CLASS_LEN + name->length;
   char* chars     = malloc(buf_size);
@@ -84,7 +84,7 @@ static Value class_to_str(int argc, Value argv[]) {
   ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
 
   free(chars);
-  pop();  // Name str
+  vm_pop();  // Name str
   return str_value(str_obj);
 }
 
@@ -105,7 +105,7 @@ static Value class_has(int argc, Value argv[]) {
   if (class_get_prop(argv[0], name, &result)) {
     return bool_value(true);
   }
-  clear_error();  // Clear the "Prop does not exist" error set by class_get_prop
+  vm_clear_error();  // Clear the "Prop does not exist" error set by class_get_prop
 
   return bool_value(false);
 }

@@ -110,7 +110,7 @@ typedef struct {
 void scanner_init(const char* source);
 
 // Scan and return the next token.
-Token scanner_next_token();
+Token scanner_scan_token();
 
 // Get the start of a line of a token, exclusive (points to the first character of the line).
 const char* scanner_get_line_start(Token token);

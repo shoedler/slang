@@ -49,7 +49,7 @@ static bool bool_get_prop(Value receiver, ObjString* name, Value* result) {
  */
 static Value bool_ctor(int argc, Value argv[]) {
   UNUSED(argc);
-  if (is_falsey(argv[1])) {
+  if (vm_is_falsey(argv[1])) {
     return bool_value(false);
   }
 

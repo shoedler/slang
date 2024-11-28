@@ -46,8 +46,8 @@ void chunk_free(Chunk* chunk) {
 }
 
 int chunk_add_constant(Chunk* chunk, Value value) {
-  push(value);  // Prevent GC from freeing the value.
+  vm_push(value);  // Prevent GC from freeing the value.
   value_array_write(&chunk->constants, value);
-  pop();  // Release the value.
+  vm_pop();  // Release the value.
   return chunk->constants.count - 1;
 }

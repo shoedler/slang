@@ -97,7 +97,7 @@ static Value instance_object_to_str(int argc, Value* argv) {
   if (name == NULL || name->chars == NULL) {
     name = copy_string("???", 3);
   }
-  push(str_value(name));
+  vm_push(str_value(name));
 
   size_t buf_size = VALUE_STRFTM_INSTANCE_LEN + name->length;
   char* chars     = malloc(buf_size);
@@ -108,7 +108,7 @@ static Value instance_object_to_str(int argc, Value* argv) {
   ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
 
   free(chars);
-  pop();  // Name str
+  vm_pop();  // Name str
   return str_value(str_obj);
 }
 
@@ -128,22 +128,22 @@ static Value anonymous_object_to_str(int argc, Value* argv) {
     }
 
     // Execute the to_str method on the key
-    push(object->fields.entries[i].key);  // Push the receiver (key at i) for to_str
-    ObjString* key_str = AS_STR(exec_callable(fn_value(object->fields.entries[i].key.type->__to_str), 0));
+    vm_push(object->fields.entries[i].key);  // Push the receiver (key at i) for to_str
+    ObjString* key_str = AS_STR(vm_exec_callable(fn_value(object->fields.entries[i].key.type->__to_str), 0));
     if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
       return nil_value();
     }
 
-    push(str_value(key_str));  // GC Protection
+    vm_push(str_value(key_str));  // GC Protection
 
     // Execute the to_str method on the value
-    push(object->fields.entries[i].value);  // Push the receiver (value at i) for to_str
-    ObjString* value_str = AS_STR(exec_callable(fn_value(object->fields.entries[i].value.type->__to_str), 0));
+    vm_push(object->fields.entries[i].value);  // Push the receiver (value at i) for to_str
+    ObjString* value_str = AS_STR(vm_exec_callable(fn_value(object->fields.entries[i].value.type->__to_str), 0));
     if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
       return nil_value();
     }
 
-    pop();  // Key str
+    vm_pop();  // Key str
 
     // Expand chars to fit the separator, delimiter plus the next key and value
     size_t new_buf_size = strlen(chars) + strlen(key_str->chars) + strlen(value_str->chars) +
@@ -240,13 +240,13 @@ static Value obj_has(int argc, Value argv[]) {
     // Function predicate
     for (int i = 0; i < count; i++) {
       // Execute the provided function on the item
-      push(argv[1]);          // Push the function
-      push(items.values[i]);  // Push the item
-      Value result = exec_callable(argv[1], 1);
+      vm_push(argv[1]);          // Push the function
+      vm_push(items.values[i]);  // Push the item
+      Value result = vm_exec_callable(argv[1], 1);
       if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
         return nil_value();  // Propagate the error
       }
-      // We don't use is_falsey here, because we want a boolean value.
+      // We don't use vm_is_falsey here, because we want a boolean value.
       if (is_bool(result) && result.as.boolean) {
         return bool_value(true);
       }
@@ -257,6 +257,7 @@ static Value obj_has(int argc, Value argv[]) {
 
   // Value equality, which is easy given that an obj is a hash table.
   Value discard;
+  // TODO (refactor): Use obj_get_prop. Just like in the other natives. See fn_has or class_has etc.
   bool has = hashtable_get(&AS_OBJECT(argv[0])->fields, argv[1], &discard);
   return bool_value(has);
 }
@@ -273,21 +274,21 @@ static Value obj_entries(int argc, Value argv[]) {
   ObjObject* object = AS_OBJECT(argv[0]);
   ValueArray items  = value_array_init_of_size(object->fields.count);
   ObjSeq* seq       = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
-  push(seq_value(seq));                  // GC Protection
+  vm_push(seq_value(seq));               // GC Protection
 
   // Since we took the seq, we shouldn't manipule the items array directly, because only its [values] field lives on the heap.
   // Modifying items.count for example, would not be reflected in the seq.
   for (int i = 0; i < object->fields.capacity; i++) {
     Entry* entry = &object->fields.entries[i];
     if (!is_empty_internal(entry->key)) {
-      push(entry->key);
-      push(entry->value);
-      make_seq(2);                                    // Leaves a seq with the key-value on the stack
-      seq->items.values[seq->items.count++] = pop();  // The seq
+      vm_push(entry->key);
+      vm_push(entry->value);
+      vm_make_seq(2);                                    // Leaves a seq with the key-value on the stack
+      seq->items.values[seq->items.count++] = vm_pop();  // The seq
     }
   }
 
-  return pop();  // The seq
+  return vm_pop();  // The seq
 }
 
 /**

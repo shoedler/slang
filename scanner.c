@@ -343,7 +343,7 @@ static Token string() {
   return make_token(TOKEN_STRING);
 }
 
-Token scanner_next_token() {
+Token scanner_scan_token() {
   scanner.is_first_on_line = false;
 
   skip_whitespace();

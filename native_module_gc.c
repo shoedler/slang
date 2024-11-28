@@ -15,7 +15,7 @@ static Value native_gc_stress(int argc, Value argv[]);
 #define MODULE_NAME Gc
 
 void native_register_gc_module() {
-  ObjObject* gc_module = make_module(NULL, STR(MODULE_NAME));
+  ObjObject* gc_module = vm_make_module(NULL, STR(MODULE_NAME));
   define_value(&vm.modules, STR(MODULE_NAME), instance_value(gc_module));
 
   define_native(&gc_module->fields, "collect", native_gc_collect, 0);

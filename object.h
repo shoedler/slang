@@ -150,7 +150,7 @@ ObjObject* new_instance(ObjClass* klass);
 ObjClass* new_class(ObjString* name, ObjClass* base);
 
 // Finalizes a new class object. This is used to set up the special methods and properties for quick access.
-// Also ensures that the class inherits the special methods and properties from its base class.
+// Also ensures that the class vm_inherits the special methods and properties from its base-class.
 void finalize_new_class(ObjClass* klass);
 
 // Creates, initializes and allocates a new closure object. Might trigger

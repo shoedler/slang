@@ -82,8 +82,8 @@ static bool seq_get_subs(Value receiver, Value index, Value* result) {
 
 static bool seq_set_subs(Value receiver, Value index, Value value) {
   if (!is_int(index)) {
-    runtime_error("Type %s does not support set-subscripting with %s. Expected " STR(TYPENAME_INT) ".",
-                  receiver.type->name->chars, index.type->name->chars);
+    vm_error("Type %s does not support set-subscripting with %s. Expected " STR(TYPENAME_INT) ".", receiver.type->name->chars,
+             index.type->name->chars);
     return false;
   }
 
@@ -91,7 +91,7 @@ static bool seq_set_subs(Value receiver, Value index, Value value) {
   ObjSeq* seq   = AS_SEQ(receiver);
 
   if (idx < 0 || idx >= seq->items.count) {
-    runtime_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", idx, seq->items.count);
+    vm_error("Index out of bounds. Was %d, but this " STR(TYPENAME_SEQ) " has length %d.", idx, seq->items.count);
     return false;
   }
 
@@ -112,14 +112,14 @@ static Value seq_ctor(int argc, Value argv[]) {
     ValueArray items;
     value_array_init(&items);
     ObjSeq* seq = take_seq(&items);  // TODO (optimize): Use value_array_init_of_size
-    push(seq_value(seq));            // GC Protection
+    vm_push(seq_value(seq));         // GC Protection
 
     int count = (int)argv[1].as.integer;
     for (int i = 0; i < count; i++) {
       value_array_write(&seq->items, nil_value());
     }
 
-    pop();  // The seq
+    vm_pop();  // The seq
     return seq_value(seq);
   }
 
@@ -136,8 +136,7 @@ static Value seq_ctor(int argc, Value argv[]) {
   }
 
   // TODO: Make a macro for this error message
-  runtime_error("Expected argument 0 of type " STR(TYPENAME_INT) " or " STR(TYPENAME_TUPLE) " but got %s.",
-                argv[1].type->name->chars);
+  vm_error("Expected argument 0 of type " STR(TYPENAME_INT) " or " STR(TYPENAME_TUPLE) " but got %s.", argv[1].type->name->chars);
   return nil_value();
 }
 
@@ -236,7 +235,7 @@ static Value seq_remove_at(int argc, Value argv[]) {
   long long index = argv[1].as.integer;
 
   if (index > INT32_MAX || index < INT32_MIN) {
-    runtime_error("Index %lld surpasses the maximum value of %d.", index, INT32_MAX);
+    vm_error("Index %lld surpasses the maximum value of %d.", index, INT32_MAX);
     return nil_value();
   }
 

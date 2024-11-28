@@ -61,19 +61,20 @@ You can, for example, easily cache stuff:
 
 ## Improvements
 
-- [ ] Align doc-comment style to use `/**` everywhere.
+- [ ] Use `obj_get_prop` in `obj_has` instead of just checking the hashtable for a value. Otherwise, they behave differently - which sucks.
 - [ ] Improve destructuring assignment:
   - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
 - [ ] Make managed-code callables accept less arguments than it has parameters. There is an inconsistency, since native-callables allow this. Should be easy, just pass `nil` to the missing arguments.
 - [ ] Call `to_str` implicitly when adding a string to a non-string. Only if the left side is a string.
-- [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
-- [ ] Remove `OP_PRINT` completely in favor of native `print` function
+- [ ] Remove `OP_PRINT` completely in favor of native `log` function
+- [ ] Make `log` accept a single argument and also, return it. That'd be awesome. `const x = a + b + c + log(d) + e`
+- [ ] Add `error` and other contextual keywords to a list of reserved words (Maybe including all natives). Check them when declaring anything.
+- [ ] Make compiler errors recoverable. Just let it sync, then continue - instead of aborting.
 - [ ] Make sure managed code classes do not override internal classes.
-- [ ] Add `error` and other contextual keywords to a list of reserved words. Check them when declaring a variable.
-- [ ] Align error messages. Some use `'` around names, or type names, some don't.
+- [ ] Fix VM finishing a program in error state not exiting with `EXIT_FAILURE`. (Probably, the flags are reset in `vm_free` or `reset_stack` or something).
 - [x] ~~Remove `string_to_double` and use `number` from the compiler instead.~~
 - [x] ~~Generalized calls. This is optional, but could enhance the language.~~
   - [x] ~~Move `hash_value` to types (`uint64_t ObjClass.__hash(value: Value)`)~~
@@ -87,17 +88,24 @@ You can, for example, easily cache stuff:
 - [x] ~~Add tests for `OP_MODULO`~~
 - [x] ~~Module Caching refactor: When trying to load a module from cache, we need to check for the absolute file path of the module instead of only the name. When importing a module with destructuring, we use the absolute path as the module name - when you load the same module with a relative path and a module name, it will currently be cached with the key "module name" and therefore not be found in the cache.~~
 
+## Codebase Refactors
+
+- [ ] Align doc-comment style to use `/**` everywhere.
+- [ ] Align error messages. Some use `'` around names, or type names, some don't.
+- [ ] Make a `NATIVE_METHOD_RUNTIME_ERROR(class_name, method_name)` macro, which throws a runtime error with a nice prefix and always returns `NIL_VAL`. Use this in all `NATIVE_METHOD_IMPL` functions.
+- [ ] Move utility functions from vm.c to respective files.
+
 ## Optimizations
 
 - [ ] Use `memcpy` for concat and such (See `Seq(Tuple)` ctor for an example). Check for for-loops in the native methods. Need to test if this copies values by reference or by value. Needs a decision on on how we want to handle that.
 - [ ] Implement a string builder and use it everywhere. This is a must-have.
-- [ ] Inline `push()`, `peek()` and `pop()` in the Vm.
-- [ ] Make a `NATIVE_METHOD_RUNTIME_ERROR(class_name, method_name)` macro, which throws a runtime error with a nice prefix and always returns `NIL_VAL`. Use this in all `NATIVE_METHOD_IMPL` functions.
+- [ ] Inline `vm_push()`, `peek()` and `vm_pop()` in the Vm.
 - [ ] Maybe add a fast hashtable-set function (key must be `ObjString`).
 - [ ] Move `ip` into a register. This is a must-have. (**_See Challenge 24.1_**)
 - [ ] Store strings as flexible array members (**_See Challenge 19.1_**)
 - [ ] Split globals into a `Hastable global_names` and a `ValueArray global_values`. This would allow for constant time global variable lookup. (**_See Challenge 21.2_**) https://github.com/munificent/craftinginterpreters/blob/master/note/answers/chapter21_global.md
 - [ ] Only necessary closures. Evaluate this, maybe it's not worth it. (**_See Challenge 25.1_**)
+- [ ] Closing over the loop variable. (**_See Challenge 25.2_**)
 - [ ] Single-op unaries. Not fully-fledged constant folding, but a good start. (**_See Challenge 15.4_**)
 - [x] ~~Move `values_equal` to types (`bool ObjClass.__equals(a: Value, b: Value)`) - this would make `values_equal` obsolete.~~
 

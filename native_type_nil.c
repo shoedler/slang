@@ -51,7 +51,7 @@ static bool nil_get_prop(Value receiver, ObjString* name, Value* result) {
 static Value nil_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
-  runtime_error("Cannot instantiate " VALUE_STR_NIL " via " STR(TYPENAME_NIL) "." STR(SP_METHOD_CTOR) ".");
+  vm_error("Cannot instantiate " VALUE_STR_NIL " via " STR(TYPENAME_NIL) "." STR(SP_METHOD_CTOR) ".");
   return nil_value();
 }
 

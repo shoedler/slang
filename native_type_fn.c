@@ -6,12 +6,12 @@
 #include "value.h"
 #include "vm.h"
 
-#define NATIVE_CHECK_RECEIVER_IS_FN()                                                                      \
-  if (!is_fn(argv[0])) {                                                                                   \
-    runtime_error("Expected receiver of type " STR(TYPENAME_FUNCTION) ", " STR(TYPENAME_CLOSURE) ", " STR( \
-                      TYPENAME_NATIVE) " or " STR(TYPENAME_BOUND_METHOD) ", but got %s.",                  \
-                  argv[0].type->name->chars);                                                              \
-    return nil_value();                                                                                    \
+#define NATIVE_CHECK_RECEIVER_IS_FN()                                                                 \
+  if (!is_fn(argv[0])) {                                                                              \
+    vm_error("Expected receiver of type " STR(TYPENAME_FUNCTION) ", " STR(TYPENAME_CLOSURE) ", " STR( \
+                 TYPENAME_NATIVE) " or " STR(TYPENAME_BOUND_METHOD) ", but got %s.",                  \
+             argv[0].type->name->chars);                                                              \
+    return nil_value();                                                                               \
   }
 
 static bool fn_get_prop(Value receiver, ObjString* name, Value* result);
@@ -57,7 +57,7 @@ static bool fn_get_prop(Value receiver, ObjString* name, Value* result) {
 static Value fn_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   UNUSED(argv);
-  runtime_error("Cannot instantiate a function via " STR(TYPENAME_FUNCTION) "." STR(SP_METHOD_CTOR) ".");
+  vm_error("Cannot instantiate a function via " STR(TYPENAME_FUNCTION) "." STR(SP_METHOD_CTOR) ".");
   return nil_value();
 }
 
@@ -97,7 +97,7 @@ static Value fn_to_str(int argc, Value argv[]) {
   if (name == NULL || name->chars == NULL) {
     name = copy_string("???", 3);
   }
-  push(str_value(name));  // GC Protection
+  vm_push(str_value(name));  // GC Protection
 
   size_t buf_size = fmt_len + name->length;
   char* chars     = malloc(buf_size);
@@ -108,7 +108,7 @@ static Value fn_to_str(int argc, Value argv[]) {
   ObjString* str_obj = copy_string(chars, (int)buf_size - 1);
 
   free(chars);
-  pop();  // Name str
+  vm_pop();  // Name str
   return str_value(str_obj);
 }
 
@@ -129,7 +129,7 @@ static Value fn_has(int argc, Value argv[]) {
   if (fn_get_prop(argv[0], name, &result)) {
     return bool_value(true);
   }
-  clear_error();  // Clear the "Prop does not exist" error set by fn_get_prop
+  vm_clear_error();  // Clear the "Prop does not exist" error set by fn_get_prop
 
   return bool_value(false);
 }

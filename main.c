@@ -68,7 +68,7 @@ static void configure_vm() {
 }
 
 static SlangExitCode repl() {
-  init_vm();
+  vm_init();
   configure_vm();
 
   if (!validate_options()) {
@@ -86,8 +86,8 @@ static SlangExitCode repl() {
     exit(SLANG_EXIT_IO_ERROR);
   }
 
-  // Create a module initially to act as our toplevel module.
-  start_module(cwd, CMD_REPL);
+  // Create a module initially to act as our toplevel.
+  vm_start_module(cwd, CMD_REPL);
 
   for (;;) {
     printf("slang > ");
@@ -97,17 +97,17 @@ static SlangExitCode repl() {
       break;
     }
 
-    interpret(line, NULL, NULL);
+    vm_interpret(line, NULL, NULL);
   }
 
   bool has_error = VM_HAS_FLAG(VM_FLAG_HAS_ERROR);
-  free_vm();
+  vm_free();
 
   return has_error ? SLANG_EXIT_FAILURE : SLANG_EXIT_SUCCESS;
 }
 
 static SlangExitCode run() {
-  init_vm();
+  vm_init();
   configure_vm();
 
   const char* path = pop_option();
@@ -120,10 +120,10 @@ static SlangExitCode run() {
     exit(SLANG_EXIT_BAD_USAGE);
   }
 
-  run_file(path, "main");
+  vm_run_file(path, "main");
 
   bool has_error = VM_HAS_FLAG(VM_FLAG_HAS_ERROR);
-  free_vm();
+  vm_free();
 
   return has_error ? SLANG_EXIT_FAILURE : SLANG_EXIT_SUCCESS;
 }

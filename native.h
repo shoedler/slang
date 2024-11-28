@@ -121,40 +121,39 @@ uint64_t native_default_obj_hash(Value self);
 
 // Default prop getter for any type.
 // TODO (refactor): Maybe also bind static methods, no?
-#define NATIVE_DEFAULT_GET_PROP_BODY(class)                                                            \
-  if (bind_method(class, name, result)) {                                                              \
-    return true;                                                                                       \
-  }                                                                                                    \
-  runtime_error("Property '%s' does not exist on value of type %s.", name->chars, class->name->chars); \
+#define NATIVE_DEFAULT_GET_PROP_BODY(class)                                                       \
+  if (bind_method(class, name, result)) {                                                         \
+    return true;                                                                                  \
+  }                                                                                               \
+  vm_error("Property '%s' does not exist on value of type %s.", name->chars, class->name->chars); \
   return false;
 
 //
 // Macros for argument checking in native functions.
 //
 
-#define NATIVE_CHECK_RECEIVER(class)                                                                            \
-  if (argv[0].type != class) {                                                                                  \
-    runtime_error("Expected receiver of type %s but got %s.", class->name->chars, (argv[0]).type->name->chars); \
-    return nil_value();                                                                                         \
+#define NATIVE_CHECK_RECEIVER(class)                                                                       \
+  if (argv[0].type != class) {                                                                             \
+    vm_error("Expected receiver of type %s but got %s.", class->name->chars, (argv[0]).type->name->chars); \
+    return nil_value();                                                                                    \
   }
 
-#define NATIVE_CHECK_RECEIVER_INHERITS(class)                                                                           \
-  if (!inherits(argv[0].type, class)) {                                                                                 \
-    runtime_error("Expected receiver to inherit type %s but got %s.", class->name->chars, (argv[0]).type->name->chars); \
-    return nil_value();                                                                                                 \
+#define NATIVE_CHECK_RECEIVER_INHERITS(class)                                                                      \
+  if (!vm_inherits(argv[0].type, class)) {                                                                         \
+    vm_error("Expected receiver to inherit type %s but got %s.", class->name->chars, (argv[0]).type->name->chars); \
+    return nil_value();                                                                                            \
   }
 
-#define NATIVE_CHECK_ARG_AT(index, class)                                                       \
-  if ((argv[index]).type != class) {                                                            \
-    runtime_error("Expected argument %d of type %s but got %s.", index - 1, class->name->chars, \
-                  (argv[index]).type->name->chars);                                             \
-    return nil_value();                                                                         \
+#define NATIVE_CHECK_ARG_AT(index, class)                                                                                    \
+  if ((argv[index]).type != class) {                                                                                         \
+    vm_error("Expected argument %d of type %s but got %s.", index - 1, class->name->chars, (argv[index]).type->name->chars); \
+    return nil_value();                                                                                                      \
   }
 
-#define NATIVE_CHECK_ARG_AT_IS_CALLABLE(index)                                                                  \
-  if (!is_callable(argv[index])) {                                                                              \
-    runtime_error("Expected argument %d to be callable but got %s.", index - 1, argv[index].type->name->chars); \
-    return nil_value();                                                                                         \
+#define NATIVE_CHECK_ARG_AT_IS_CALLABLE(index)                                                             \
+  if (!is_callable(argv[index])) {                                                                         \
+    vm_error("Expected argument %d to be callable but got %s.", index - 1, argv[index].type->name->chars); \
+    return nil_value();                                                                                    \
   }
 
 //
@@ -169,28 +168,28 @@ uint64_t native_default_obj_hash(Value self);
   }                                                         \
   NATIVE_DEFAULT_GET_PROP_BODY(receiver.type)
 
-#define NATIVE_LISTLIKE_GET_SUBS_BODY()                                                                 \
-  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(receiver);                                               \
-  if (!is_int(index)) {                                                                                 \
-    runtime_error("Type %s does not support get-subscripting with %s. Expected " STR(TYPENAME_INT) ".", \
-                  receiver.type->name->chars, index.type->name->chars);                                 \
-    return false;                                                                                       \
-  }                                                                                                     \
-  long long idx = index.as.integer;                                                                     \
-  if (idx >= items.count) {                                                                             \
-    *result = nil_value();                                                                              \
-    return true;                                                                                        \
-  }                                                                                                     \
-                                                                                                        \
-  /* Negative index */                                                                                  \
-  if (idx < 0) {                                                                                        \
-    idx += items.count;                                                                                 \
-  }                                                                                                     \
-  if (idx < 0) {                                                                                        \
-    *result = nil_value();                                                                              \
-    return true;                                                                                        \
-  }                                                                                                     \
-  *result = items.values[idx];                                                                          \
+#define NATIVE_LISTLIKE_GET_SUBS_BODY()                                                                                        \
+  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(receiver);                                                                      \
+  if (!is_int(index)) {                                                                                                        \
+    vm_error("Type %s does not support get-subscripting with %s. Expected " STR(TYPENAME_INT) ".", receiver.type->name->chars, \
+             index.type->name->chars);                                                                                         \
+    return false;                                                                                                              \
+  }                                                                                                                            \
+  long long idx = index.as.integer;                                                                                            \
+  if (idx >= items.count) {                                                                                                    \
+    *result = nil_value();                                                                                                     \
+    return true;                                                                                                               \
+  }                                                                                                                            \
+                                                                                                                               \
+  /* Negative index */                                                                                                         \
+  if (idx < 0) {                                                                                                               \
+    idx += items.count;                                                                                                        \
+  }                                                                                                                            \
+  if (idx < 0) {                                                                                                               \
+    *result = nil_value();                                                                                                     \
+    return true;                                                                                                               \
+  }                                                                                                                            \
+  *result = items.values[idx];                                                                                                 \
   return true;
 
 //
@@ -219,13 +218,13 @@ uint64_t native_default_obj_hash(Value self);
     /* Function predicate */                                                         \
     for (int i = 0; i < count; i++) {                                                \
       /* Execute the provided function on the item */                                \
-      push(argv[1]);         /* Push the function */                                 \
-      push(items.values[i]); /* Push the item */                                     \
-      Value result = exec_callable(argv[1], 1);                                      \
+      vm_push(argv[1]);         /* Push the function */                              \
+      vm_push(items.values[i]); /* Push the item */                                  \
+      Value result = vm_exec_callable(argv[1], 1);                                   \
       if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                          \
         return nil_value(); /* Propagate the error */                                \
       }                                                                              \
-      /* We don't use is_falsey here, because we want a boolean value. */            \
+      /* We don't use vm_is_falsey here, because we want a boolean value. */         \
       if (is_bool(result) && result.as.boolean) {                                    \
         return bool_value(true);                                                     \
       }                                                                              \
@@ -256,8 +255,8 @@ uint64_t native_default_obj_hash(Value self);
   strcpy(chars, start_chars);                                                                                         \
   for (int i = 0; i < items.count; i++) {                                                                             \
     /* Execute the to_str method on the item */                                                                       \
-    push(items.values[i]); /* Push the receiver (item at i) for to_str */                                             \
-    ObjString* item_str = AS_STR(exec_callable(fn_value(items.values[i].type->__to_str), 0));                         \
+    vm_push(items.values[i]); /* Push the receiver (item at i) for to_str */                                          \
+    ObjString* item_str = AS_STR(vm_exec_callable(fn_value(items.values[i].type->__to_str), 0));                      \
     if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                             \
       return nil_value();                                                                                             \
     }                                                                                                                 \
@@ -368,14 +367,14 @@ uint64_t native_default_obj_hash(Value self);
     /* Function predicate */                                                                              \
     for (int i = 0; i < count; i++) {                                                                     \
       /* Execute the provided function on the item */                                                     \
-      push(argv[1]);         /* Push the function */                                                      \
-      push(items.values[i]); /* Push the item */                                                          \
-      Value result = exec_callable(argv[1], 1);                                                           \
+      vm_push(argv[1]);         /* Push the function */                                                   \
+      vm_push(items.values[i]); /* Push the item */                                                       \
+      Value result = vm_exec_callable(argv[1], 1);                                                        \
       if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                               \
         return nil_value(); /* Propagate the error */                                                     \
       }                                                                                                   \
                                                                                                           \
-      /* We don't use is_falsey here, because we want to check for a boolean value. */                    \
+      /* We don't use vm_is_falsey here, because we want to check for a boolean value. */                 \
       if (is_bool(result) && result.as.boolean) {                                                         \
         return int_value(i);                                                                              \
       }                                                                                                   \
@@ -411,14 +410,14 @@ uint64_t native_default_obj_hash(Value self);
   /* Function predicate */                                                                                \
   for (int i = 0; i < count; i++) {                                                                       \
     /* Execute the provided function on the item */                                                       \
-    push(argv[1]);         /* Push the function */                                                        \
-    push(items.values[i]); /* Push the item */                                                            \
-    Value result = exec_callable(argv[1], 1);                                                             \
+    vm_push(argv[1]);         /* Push the function */                                                     \
+    vm_push(items.values[i]); /* Push the item */                                                         \
+    Value result = vm_exec_callable(argv[1], 1);                                                          \
     if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                 \
       return nil_value(); /* Propagate the error */                                                       \
     }                                                                                                     \
                                                                                                           \
-    /* We don't use is_falsey here, because we want to check for a boolean value. */                      \
+    /* We don't use vm_is_falsey here, because we want to check for a boolean value. */                   \
     if (is_bool(result) && result.as.boolean) {                                                           \
       return items.values[i];                                                                             \
     }                                                                                                     \
@@ -446,14 +445,14 @@ uint64_t native_default_obj_hash(Value self);
   /* Function predicate */                                                                                \
   for (int i = count - 1; i >= 0; i--) {                                                                  \
     /* Execute the provided function on the item */                                                       \
-    push(argv[1]);         /* Push the function */                                                        \
-    push(items.values[i]); /* Push the item */                                                            \
-    Value result = exec_callable(argv[1], 1);                                                             \
+    vm_push(argv[1]);         /* Push the function */                                                     \
+    vm_push(items.values[i]); /* Push the item */                                                         \
+    Value result = vm_exec_callable(argv[1], 1);                                                          \
     if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                 \
       return nil_value(); /* Propagate the error */                                                       \
     }                                                                                                     \
                                                                                                           \
-    /* We don't use is_falsey here, because we want to check for a boolean value. */                      \
+    /* We don't use vm_is_falsey here, because we want to check for a boolean value. */                   \
     if (is_bool(result) && result.as.boolean) {                                                           \
       return items.values[i];                                                                             \
     }                                                                                                     \
@@ -480,9 +479,9 @@ uint64_t native_default_obj_hash(Value self);
     case 1: {                                                                                                    \
       for (int i = 0; i < count; i++) {                                                                          \
         /* Execute the provided function on the item */                                                          \
-        push(argv[1]);         /* Push the function */                                                           \
-        push(items.values[i]); /* arg0: Push the item */                                                         \
-        exec_callable(argv[1], 1);                                                                               \
+        vm_push(argv[1]);         /* Push the function */                                                        \
+        vm_push(items.values[i]); /* arg0: Push the item */                                                      \
+        vm_exec_callable(argv[1], 1);                                                                            \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
@@ -492,10 +491,10 @@ uint64_t native_default_obj_hash(Value self);
     case 2: {                                                                                                    \
       for (int i = 0; i < count; i++) {                                                                          \
         /* Execute the provided function on the item */                                                          \
-        push(argv[1]);         /* Push the function */                                                           \
-        push(items.values[i]); /* arg0 (1): Push the item */                                                     \
-        push(int_value(i));    /* arg1 (2): Push the index */                                                    \
-        exec_callable(argv[1], 2);                                                                               \
+        vm_push(argv[1]);         /* Push the function */                                                        \
+        vm_push(items.values[i]); /* arg0 (1): Push the item */                                                  \
+        vm_push(int_value(i));    /* arg1 (2): Push the index */                                                 \
+        vm_exec_callable(argv[1], 2);                                                                            \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
@@ -503,7 +502,7 @@ uint64_t native_default_obj_hash(Value self);
       break;                                                                                                     \
     }                                                                                                            \
     default: {                                                                                                   \
-      runtime_error("Function passed to \"" STR(each) "\" must take 1 or 2 arguments, but got %d.", fn_arity);   \
+      vm_error("Function passed to \"" STR(each) "\" must take 1 or 2 arguments, but got %d.", fn_arity);        \
       return nil_value();                                                                                        \
     }                                                                                                            \
   }                                                                                                              \
@@ -530,13 +529,13 @@ uint64_t native_default_obj_hash(Value self);
     case 1: {                                                                                                     \
       while (mapped.count < count) {                                                                              \
         /* Execute the provided function on the item */                                                           \
-        push(argv[1]);                    /* Push the function */                                                 \
-        push(items.values[mapped.count]); /* arg0 (1): Push the item */                                           \
-        mapped.values[mapped.count] = exec_callable(argv[1], 1);                                                  \
+        vm_push(argv[1]);                    /* Push the function */                                              \
+        vm_push(items.values[mapped.count]); /* arg0 (1): Push the item */                                        \
+        mapped.values[mapped.count] = vm_exec_callable(argv[1], 1);                                               \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
           return nil_value(); /* Propagate the error */                                                           \
         }                                                                                                         \
-        push(mapped.values[mapped.count]); /* GC Protection */                                                    \
+        vm_push(mapped.values[mapped.count]); /* GC Protection */                                                 \
         mapped.count++;                                                                                           \
       }                                                                                                           \
       break;                                                                                                      \
@@ -544,27 +543,27 @@ uint64_t native_default_obj_hash(Value self);
     case 2: {                                                                                                     \
       while (mapped.count < count) {                                                                              \
         /* Execute the provided function on the item */                                                           \
-        push(argv[1]);                    /* Push the function */                                                 \
-        push(items.values[mapped.count]); /* arg0 (1): Push the item */                                           \
-        push(int_value(mapped.count));    /* arg1 (2): Push the index */                                          \
-        mapped.values[mapped.count] = exec_callable(argv[1], 2);                                                  \
+        vm_push(argv[1]);                    /* Push the function */                                              \
+        vm_push(items.values[mapped.count]); /* arg0 (1): Push the item */                                        \
+        vm_push(int_value(mapped.count));    /* arg1 (2): Push the index */                                       \
+        mapped.values[mapped.count] = vm_exec_callable(argv[1], 2);                                               \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
           return nil_value(); /* Propagate the error */                                                           \
         }                                                                                                         \
-        push(mapped.values[mapped.count]); /* GC Protection */                                                    \
+        vm_push(mapped.values[mapped.count]); /* GC Protection */                                                 \
         mapped.count++;                                                                                           \
       }                                                                                                           \
       break;                                                                                                      \
     }                                                                                                             \
     default: {                                                                                                    \
-      runtime_error("Function passed to \"" STR(map) "\" must take 1 or 2 arguments, but got %d.", fn_arity);     \
+      vm_error("Function passed to \"" STR(map) "\" must take 1 or 2 arguments, but got %d.", fn_arity);          \
       return nil_value();                                                                                         \
     }                                                                                                             \
   }                                                                                                               \
                                                                                                                   \
   /* Take at the end so that tuples calc their hash correctly */                                                  \
-  push(NATIVE_LISTLIKE_TAKE_ARRAY(mapped));                                                                       \
-  Value result = pop();                                                                                           \
+  vm_push(NATIVE_LISTLIKE_TAKE_ARRAY(mapped));                                                                    \
+  Value result = vm_pop();                                                                                        \
                                                                                                                   \
   /* Remove the values which were pushed for GC Protection */                                                     \
   vm.stack_top -= count;                                                                                          \
@@ -593,16 +592,16 @@ uint64_t native_default_obj_hash(Value self);
     case 1: {                                                                                                         \
       for (int i = 0; i < count; i++) {                                                                               \
         /* Execute the provided function on the item */                                                               \
-        push(argv[1]);         /* Push the function */                                                                \
-        push(items.values[i]); /* arg0 (1): Push the item */                                                          \
-        Value result = exec_callable(argv[1], 1);                                                                     \
+        vm_push(argv[1]);         /* Push the function */                                                             \
+        vm_push(items.values[i]); /* arg0 (1): Push the item */                                                       \
+        Value result = vm_exec_callable(argv[1], 1);                                                                  \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                         \
           return nil_value(); /* Propagate the error */                                                               \
         }                                                                                                             \
                                                                                                                       \
-        /* We don't use is_falsey here, because we want to check for a boolean value. */                              \
+        /* We don't use vm_is_falsey here, because we want to check for a boolean value. */                           \
         if (is_bool(result) && result.as.boolean) {                                                                   \
-          push(result); /* GC Protection */                                                                           \
+          vm_push(result); /* GC Protection */                                                                        \
           filtered_count++;                                                                                           \
           value_array_write(&filtered_items, items.values[i]);                                                        \
         }                                                                                                             \
@@ -612,17 +611,17 @@ uint64_t native_default_obj_hash(Value self);
     case 2: {                                                                                                         \
       for (int i = 0; i < count; i++) {                                                                               \
         /* Execute the provided function on the item */                                                               \
-        push(argv[1]);         /* Push the function */                                                                \
-        push(items.values[i]); /* arg0 (1): Push the item */                                                          \
-        push(int_value(i));    /* arg1 (2): Push the index */                                                         \
-        Value result = exec_callable(argv[1], 2);                                                                     \
+        vm_push(argv[1]);         /* Push the function */                                                             \
+        vm_push(items.values[i]); /* arg0 (1): Push the item */                                                       \
+        vm_push(int_value(i));    /* arg1 (2): Push the index */                                                      \
+        Value result = vm_exec_callable(argv[1], 2);                                                                  \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                         \
           return nil_value(); /* Propagate the error */                                                               \
         }                                                                                                             \
                                                                                                                       \
-        /* We don't use is_falsey here, because we want to check for a boolean value. */                              \
+        /* We don't use vm_is_falsey here, because we want to check for a boolean value. */                           \
         if (is_bool(result) && result.as.boolean) {                                                                   \
-          push(result); /* GC Protection */                                                                           \
+          vm_push(result); /* GC Protection */                                                                        \
           filtered_count++;                                                                                           \
           value_array_write(&filtered_items, items.values[i]);                                                        \
         }                                                                                                             \
@@ -630,14 +629,14 @@ uint64_t native_default_obj_hash(Value self);
       break;                                                                                                          \
     }                                                                                                                 \
     default: {                                                                                                        \
-      runtime_error("Function passed to \"" STR(filter) "\" must take 1 or 2 arguments, but got %d.", fn_arity);      \
+      vm_error("Function passed to \"" STR(filter) "\" must take 1 or 2 arguments, but got %d.", fn_arity);           \
       return nil_value();                                                                                             \
     }                                                                                                                 \
   }                                                                                                                   \
                                                                                                                       \
   /* Take at the end so that tuples calc their hash correctly */                                                      \
-  push(NATIVE_LISTLIKE_TAKE_ARRAY(filtered_items));                                                                   \
-  Value result = pop();                                                                                               \
+  vm_push(NATIVE_LISTLIKE_TAKE_ARRAY(filtered_items));                                                                \
+  Value result = vm_pop();                                                                                            \
                                                                                                                       \
   /* Remove the values which were pushed for GC Protection */                                                         \
   vm.stack_top -= filtered_count;                                                                                     \
@@ -664,8 +663,8 @@ uint64_t native_default_obj_hash(Value self);
     ObjString* item_str = NULL;                                                                        \
     if (!is_str(items.values[i])) {                                                                    \
       /* Execute the to_str method on the item */                                                      \
-      push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                        \
-      item_str = AS_STR(exec_callable(fn_value(items.values[i].type->__to_str), 0));                   \
+      vm_push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                     \
+      item_str = AS_STR(vm_exec_callable(fn_value(items.values[i].type->__to_str), 0));                \
       if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                            \
         return nil_value();                                                                            \
       }                                                                                                \
@@ -736,14 +735,14 @@ uint64_t native_default_obj_hash(Value self);
     case 1: {                                                                                                    \
       for (int i = 0; i < count; i++) {                                                                          \
         /* Execute the provided function on the item */                                                          \
-        push(argv[1]);         /* Push the function */                                                           \
-        push(items.values[i]); /* arg0 (1): Push the item */                                                     \
-        Value result = exec_callable(argv[1], 1);                                                                \
+        vm_push(argv[1]);         /* Push the function */                                                        \
+        vm_push(items.values[i]); /* arg0 (1): Push the item */                                                  \
+        Value result = vm_exec_callable(argv[1], 1);                                                             \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
                                                                                                                  \
-        /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
+        /* We don't use vm_is_falsey here, because we want to check for a boolean value. */                      \
         if (!is_bool(result) || !result.as.boolean) {                                                            \
           return bool_value(false);                                                                              \
         }                                                                                                        \
@@ -753,15 +752,15 @@ uint64_t native_default_obj_hash(Value self);
     case 2: {                                                                                                    \
       for (int i = 0; i < count; i++) {                                                                          \
         /* Execute the provided function on the item */                                                          \
-        push(argv[1]);         /* Push the function */                                                           \
-        push(items.values[i]); /* arg0 (1): Push the item */                                                     \
-        push(int_value(i));    /* arg1 (2): Push the index */                                                    \
-        Value result = exec_callable(argv[1], 2);                                                                \
+        vm_push(argv[1]);         /* Push the function */                                                        \
+        vm_push(items.values[i]); /* arg0 (1): Push the item */                                                  \
+        vm_push(int_value(i));    /* arg1 (2): Push the index */                                                 \
+        Value result = vm_exec_callable(argv[1], 2);                                                             \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
                                                                                                                  \
-        /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
+        /* We don't use vm_is_falsey here, because we want to check for a boolean value. */                      \
         if (!is_bool(result) || !result.as.boolean) {                                                            \
           return bool_value(false);                                                                              \
         }                                                                                                        \
@@ -769,7 +768,7 @@ uint64_t native_default_obj_hash(Value self);
       break;                                                                                                     \
     }                                                                                                            \
     default: {                                                                                                   \
-      runtime_error("Function passed to \"" STR(every) "\" must take 1 or 2 arguments, but got %d.", fn_arity);  \
+      vm_error("Function passed to \"" STR(every) "\" must take 1 or 2 arguments, but got %d.", fn_arity);       \
       return nil_value();                                                                                        \
     }                                                                                                            \
   }                                                                                                              \
@@ -799,14 +798,14 @@ uint64_t native_default_obj_hash(Value self);
     case 1: {                                                                                                    \
       for (int i = 0; i < count; i++) {                                                                          \
         /* Execute the provided function on the item */                                                          \
-        push(argv[1]);         /* Push the function */                                                           \
-        push(items.values[i]); /* arg0 (1): Push the item */                                                     \
-        Value result = exec_callable(argv[1], 1);                                                                \
+        vm_push(argv[1]);         /* Push the function */                                                        \
+        vm_push(items.values[i]); /* arg0 (1): Push the item */                                                  \
+        Value result = vm_exec_callable(argv[1], 1);                                                             \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
                                                                                                                  \
-        /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
+        /* We don't use vm_is_falsey here, because we want to check for a boolean value. */                      \
         if (is_bool(result) && result.as.boolean) {                                                              \
           return bool_value(true);                                                                               \
         }                                                                                                        \
@@ -816,15 +815,15 @@ uint64_t native_default_obj_hash(Value self);
     case 2: {                                                                                                    \
       for (int i = 0; i < count; i++) {                                                                          \
         /* Execute the provided function on the item */                                                          \
-        push(argv[1]);         /* Push the function */                                                           \
-        push(items.values[i]); /* arg0 (1): Push the item */                                                     \
-        push(int_value(i));    /* arg1 (2): Push the index */                                                    \
-        Value result = exec_callable(argv[1], 2);                                                                \
+        vm_push(argv[1]);         /* Push the function */                                                        \
+        vm_push(items.values[i]); /* arg0 (1): Push the item */                                                  \
+        vm_push(int_value(i));    /* arg1 (2): Push the index */                                                 \
+        Value result = vm_exec_callable(argv[1], 2);                                                             \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
           return nil_value(); /* Propagate the error */                                                          \
         }                                                                                                        \
                                                                                                                  \
-        /* We don't use is_falsey here, because we want to check for a boolean value. */                         \
+        /* We don't use vm_is_falsey here, because we want to check for a boolean value. */                      \
         if (is_bool(result) && result.as.boolean) {                                                              \
           return bool_value(true);                                                                               \
         }                                                                                                        \
@@ -832,7 +831,7 @@ uint64_t native_default_obj_hash(Value self);
       break;                                                                                                     \
     }                                                                                                            \
     default: {                                                                                                   \
-      runtime_error("Function passed to \"" STR(some) "\" must take 1 or 2 arguments, but got %d.", fn_arity);   \
+      vm_error("Function passed to \"" STR(some) "\" must take 1 or 2 arguments, but got %d.", fn_arity);        \
       return nil_value();                                                                                        \
     }                                                                                                            \
   }                                                                                                              \
@@ -859,10 +858,10 @@ uint64_t native_default_obj_hash(Value self);
     case 2: {                                                                                                     \
       for (int i = 0; i < count; i++) {                                                                           \
         /* Execute the provided function on the item */                                                           \
-        push(argv[2]);         /* Push the function */                                                            \
-        push(accumulator);     /* arg0 (1): Push the accumulator */                                               \
-        push(items.values[i]); /* arg1 (2): Push the item */                                                      \
-        accumulator = exec_callable(argv[2], 2);                                                                  \
+        vm_push(argv[2]);         /* Push the function */                                                         \
+        vm_push(accumulator);     /* arg0 (1): Push the accumulator */                                            \
+        vm_push(items.values[i]); /* arg1 (2): Push the item */                                                   \
+        accumulator = vm_exec_callable(argv[2], 2);                                                               \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
           return nil_value(); /* Propagate the error */                                                           \
         }                                                                                                         \
@@ -872,11 +871,11 @@ uint64_t native_default_obj_hash(Value self);
     case 3: {                                                                                                     \
       for (int i = 0; i < count; i++) {                                                                           \
         /* Execute the provided function on the item */                                                           \
-        push(argv[2]);         /* Push the function */                                                            \
-        push(accumulator);     /* arg0 (1): Push the accumulator */                                               \
-        push(items.values[i]); /* arg1 (2): Push the item */                                                      \
-        push(int_value(i));    /* arg2 (3): Push the index */                                                     \
-        accumulator = exec_callable(argv[2], 3);                                                                  \
+        vm_push(argv[2]);         /* Push the function */                                                         \
+        vm_push(accumulator);     /* arg0 (1): Push the accumulator */                                            \
+        vm_push(items.values[i]); /* arg1 (2): Push the item */                                                   \
+        vm_push(int_value(i));    /* arg2 (3): Push the index */                                                  \
+        accumulator = vm_exec_callable(argv[2], 3);                                                               \
         if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
           return nil_value(); /* Propagate the error */                                                           \
         }                                                                                                         \
@@ -884,7 +883,7 @@ uint64_t native_default_obj_hash(Value self);
       break;                                                                                                      \
     }                                                                                                             \
     default: {                                                                                                    \
-      runtime_error("Function passed to \"" STR(reduce) "\" must take 2 or 3 arguments, but got %d.", fn_arity);  \
+      vm_error("Function passed to \"" STR(reduce) "\" must take 2 or 3 arguments, but got %d.", fn_arity);       \
       return nil_value();                                                                                         \
     }                                                                                                             \
   }                                                                                                               \
@@ -913,21 +912,21 @@ uint64_t native_default_obj_hash(Value self);
   if (is_fn(argv[1])) {                                                                                         \
     int fn_arity = callable_get_arity(argv[1]);                                                                 \
     if (fn_arity != 1) {                                                                                        \
-      runtime_error("Function passed to \"" STR(count) "\" must take 1 argument, but got %d.", fn_arity);       \
+      vm_error("Function passed to \"" STR(count) "\" must take 1 argument, but got %d.", fn_arity);            \
       return nil_value();                                                                                       \
     }                                                                                                           \
                                                                                                                 \
     /* Function predicate */                                                                                    \
     for (int i = 0; i < count; i++) {                                                                           \
       /* Execute the provided function on the item */                                                           \
-      push(argv[1]);         /* Push the function */                                                            \
-      push(items.values[i]); /* Push the item */                                                                \
-      Value result = exec_callable(argv[1], 1);                                                                 \
+      vm_push(argv[1]);         /* Push the function */                                                         \
+      vm_push(items.values[i]); /* Push the item */                                                             \
+      Value result = vm_exec_callable(argv[1], 1);                                                              \
       if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
         return nil_value(); /* Propagate the error */                                                           \
       }                                                                                                         \
                                                                                                                 \
-      /* We don't use is_falsey here, because we want to check for a boolean value. */                          \
+      /* We don't use vm_is_falsey here, because we want to check for a boolean value. */                       \
       if (is_bool(result) && result.as.boolean) {                                                               \
         occurrences++;                                                                                          \
       }                                                                                                         \

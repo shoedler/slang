@@ -18,9 +18,9 @@ static ObjString* allocate_string(char* chars, int length, uint64_t hash) {
   string->chars     = chars;
   string->obj.hash  = hash;
 
-  push(str_value(string));  // Prevent GC from freeing string
+  vm_push(str_value(string));  // Prevent GC from freeing string
   hashtable_set(&vm.strings, str_value(string), nil_value());
-  pop();
+  vm_pop();
 
   return string;
 }

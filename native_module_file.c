@@ -16,7 +16,7 @@ static Value native_file_join_path(int argc, Value argv[]);
 #define MODULE_NAME File
 
 void native_register_file_module() {
-  ObjObject* file_module = make_module(NULL, STR(MODULE_NAME));
+  ObjObject* file_module = vm_make_module(NULL, STR(MODULE_NAME));
   define_value(&vm.modules, STR(MODULE_NAME), instance_value(file_module));
 
   define_native(&file_module->fields, "read", native_file_read, 1);
@@ -37,7 +37,7 @@ static Value native_file_read(int argc, Value argv[]) {
   const char* path = AS_CSTRING(argv[1]);
 
   if (!file_exists(path)) {
-    runtime_error("File '%s' does not exist.", path);
+    vm_error("File '%s' does not exist.", path);
     return nil_value();
   }
 

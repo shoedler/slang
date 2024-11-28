@@ -6,32 +6,32 @@
 bool native_set_prop_not_supported(Value receiver, ObjString* name, Value value) {
   UNUSED(name);
   UNUSED(value);
-  runtime_error("Type %s does not support property-set access.", receiver.type->name->chars);
+  vm_error("Type %s does not support property-set access.", receiver.type->name->chars);
   return false;
 }
 
 bool native_get_subs_not_supported(Value receiver, Value index, Value* result) {
   UNUSED(index);
   UNUSED(result);
-  runtime_error("Type %s does not support get-subscripting.", receiver.type->name->chars);
+  vm_error("Type %s does not support get-subscripting.", receiver.type->name->chars);
   return false;
 }
 
 bool native_set_subs_not_supported(Value receiver, Value index, Value value) {
   UNUSED(index);
   UNUSED(value);
-  runtime_error("Type %s does not support set-subscripting.", receiver.type->name->chars);
+  vm_error("Type %s does not support set-subscripting.", receiver.type->name->chars);
   return false;
 }
 
 bool native_equals_not_supported(Value self, Value other) {
   UNUSED(other);
-  runtime_error("Type %s does not support equality-comparison.", self.type->name->chars);
+  vm_error("Type %s does not support equality-comparison.", self.type->name->chars);
   return false;
 }
 
 uint64_t native_hash_not_supported(Value self) {
-  runtime_error("Type %s does not support hashing.", self.type->name->chars);
+  vm_error("Type %s does not support hashing.", self.type->name->chars);
   return false;
 }
 

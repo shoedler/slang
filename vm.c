@@ -36,9 +36,23 @@ typedef enum {
 } CallResult;
 
 static Value run();
-static Value peek(int distance);
 
-void clear_error() {
+void vm_push(Value value) {
+  *vm.stack_top = value;
+  vm.stack_top++;
+}
+
+Value vm_pop() {
+  vm.stack_top--;
+  return *vm.stack_top;
+}
+
+// Look at the value without popping it
+static Value peek(int distance) {
+  return vm.stack_top[-1 - distance];
+}
+
+void vm_clear_error() {
   vm.current_error = nil_value();
   VM_CLEAR_FLAG(VM_FLAG_HAS_ERROR);  // Clear the error flag
 }
@@ -54,7 +68,7 @@ static void reset_stack() {
   vm.open_upvalues = NULL;
 
   VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);  // Clear the pause flag, just to be sure
-  clear_error();
+  vm_clear_error();
 }
 
 static void dump_location() {
@@ -139,7 +153,7 @@ static void dump_stacktrace() {
   reset_stack();
 }
 
-void runtime_error(const char* format, ...) {
+void vm_error(const char* format, ...) {
   char buffer[1024] = {0};
 
   va_list args;
@@ -154,7 +168,7 @@ void runtime_error(const char* format, ...) {
 // This is just a plcaeholder to find where we actually throw compile errors.
 // I want another way to do this, but I don't know how yet.
 static void exit_with_compile_error() {
-  free_vm();
+  vm_free();
   // TODO (recovery): Find a way to progpagate errors */
   exit(SLANG_EXIT_COMPILE_ERROR);
 }
@@ -164,31 +178,31 @@ void define_native(HashTable* table, const char* name, NativeFn function, int ar
   ObjString* name_str = copy_string(name, (int)strlen(name));
   Value value         = fn_value((Obj*)new_native(function, name_str, arity));
 
-  push(key);
-  push(value);
-  push(str_value(name_str));
+  vm_push(key);
+  vm_push(value);
+  vm_push(str_value(name_str));
   hashtable_set(table, key, value);
-  pop();
-  pop();
-  pop();
+  vm_pop();
+  vm_pop();
+  vm_pop();
 }
 
 void define_value(HashTable* table, const char* name, Value value) {
   // TODO (fix):🐛 Seemingly out of nowhere the pushed key and value get swapped on the stack...?! I don't know why. Funnily
   // enough, it only happens when we start a nested module. E.g. we're in "main" and import "std", when the natives get attached
-  // to the module instances field within the start_module function key and value are swapped! Same goes for the name (WTF). I've
-  // found this out because in the stack trace we now see the modules name and for nested modules it always printed __name. The
-  // current remedy is to just use variables for "key" and "value" and just use these instead of pushing and peeking.
+  // to the module instances field within the vm_start_module function key and value are swapped! Same goes for the name (WTF).
+  // I've found this out because in the stack trace we now see the modules name and for nested modules it always printed __name.
+  // The current remedy is to just use variables for "key" and "value" and just use these instead of pushing and peeking.
   Value key = str_value(copy_string(name, (int)strlen(name)));
   // TODO (optimize): Just pause Gc here, remove the push/pop stuff
-  push(key);
-  push(value);
+  vm_push(key);
+  vm_push(value);
   hashtable_set(table, key, value);
-  pop();
-  pop();
+  vm_pop();
+  vm_pop();
 }
 
-void make_seq(int count) {
+void vm_make_seq(int count) {
   // Since we know the count, we can preallocate the value array for the list. This avoids
   // using value_array_write within the loop, which can trigger a GC due to growing the array
   // and free items in the middle of the loop. Also, it lets us pop the list items on the
@@ -196,13 +210,13 @@ void make_seq(int count) {
   // the array twice)
   ValueArray items = value_array_init_of_size(count);
   for (int i = count - 1; i >= 0; i--) {
-    items.values[i] = pop();
+    items.values[i] = vm_pop();
   }
   items.count = count;
-  push(seq_value(take_seq(&items)));
+  vm_push(seq_value(take_seq(&items)));
 }
 
-void make_tuple(int count) {
+void vm_make_tuple(int count) {
   // Since we know the count, we can preallocate the value array for the tuple. This avoids
   // using value_array_write within the loop, which can trigger a GC due to growing the array
   // and free items in the middle of the loop. Also, it lets us pop the tuple items on the
@@ -210,10 +224,10 @@ void make_tuple(int count) {
   // the array twice)
   ValueArray items = value_array_init_of_size(count);
   for (int i = count - 1; i >= 0; i--) {
-    items.values[i] = pop();
+    items.values[i] = vm_pop();
   }
   items.count = count;
-  push(tuple_value(take_tuple(&items)));
+  vm_push(tuple_value(take_tuple(&items)));
 }
 
 // Creates an object from the top "count" * 2 values on the stack.
@@ -234,16 +248,16 @@ static void make_object(int count) {
 
   // Use pop
   for (int i = 0; i < count; i++) {
-    Value value = pop();
-    Value key   = pop();
+    Value value = vm_pop();
+    Value key   = vm_pop();
 
     hashtable_set(&obj->fields, key, value);
   }
 
-  push(obj_value(obj));
+  vm_push(obj_value(obj));
 }
 
-void init_vm() {
+void vm_init() {
   prioritize_main_thread();
   reset_stack();
 
@@ -377,7 +391,7 @@ void init_vm() {
   reset_stack();
 }
 
-void free_vm() {
+void vm_free() {
   hashtable_free(&vm.strings);
   hashtable_free(&vm.modules);
   memset(vm.special_method_names, 0, sizeof(vm.special_method_names));
@@ -386,35 +400,20 @@ void free_vm() {
   gc_thread_pool_shutdown();
 }
 
-void push(Value value) {
-  *vm.stack_top = value;
-  vm.stack_top++;
-}
-
-Value pop() {
-  vm.stack_top--;
-  return *vm.stack_top;
-}
-
-// Look at the value without popping it
-static Value peek(int distance) {
-  return vm.stack_top[-1 - distance];
-}
-
 // If [expected] is positive, [actual] must match exactly. If [expected] is negative, [actual] must be at least
 // the absolute value of [expected].
-#define CHECK_ARGS(expected, actual)                                                  \
-  if (expected >= 0 ? actual != expected : actual < -expected) {                      \
-    if (expected == 1) {                                                              \
-      runtime_error("Expected 1 argument but got %d.", actual);                       \
-    } else if (expected == -1) {                                                      \
-      runtime_error("Expected at least 1 argument but got %d.", actual);              \
-    } else if (expected < -1) {                                                       \
-      runtime_error("Expected at least %d arguments but got %d.", -expected, actual); \
-    } else {                                                                          \
-      runtime_error("Expected %d arguments but got %d.", expected, actual);           \
-    }                                                                                 \
-    return CALL_FAILED;                                                               \
+#define CHECK_ARGS(expected, actual)                                             \
+  if (expected >= 0 ? actual != expected : actual < -expected) {                 \
+    if (expected == 1) {                                                         \
+      vm_error("Expected 1 argument but got %d.", actual);                       \
+    } else if (expected == -1) {                                                 \
+      vm_error("Expected at least 1 argument but got %d.", actual);              \
+    } else if (expected < -1) {                                                  \
+      vm_error("Expected at least %d arguments but got %d.", -expected, actual); \
+    } else {                                                                     \
+      vm_error("Expected %d arguments but got %d.", expected, actual);           \
+    }                                                                            \
+    return CALL_FAILED;                                                          \
   }
 
 // Executes a call to a managed-code function or method by creating a new call frame and pushing it onto the
@@ -424,7 +423,7 @@ static CallResult call_managed(ObjClosure* closure, int arg_count) {
   CHECK_ARGS(closure->function->arity, arg_count);
 
   if (vm.frame_count == FRAMES_MAX) {
-    runtime_error("Stack overflow. Maximum call stack depth of %d reached.", FRAMES_MAX);
+    vm_error("Stack overflow. Maximum call stack depth of %d reached.", FRAMES_MAX);
     return CALL_FAILED;
   }
 
@@ -445,7 +444,7 @@ static CallResult call_native(ObjNative* native, int arg_count) {
   Value* args  = vm.stack_top - arg_count - 1;
   Value result = native->function(arg_count, args);
   vm.stack_top -= arg_count + 1;  // Remove args + fn or receiver
-  push(result);
+  vm_push(result);
 
   return CALL_RETURNED;
 }
@@ -496,20 +495,20 @@ static CallResult call_value(Value callable, int arg_count) {
         case OBJ_GC_CLOSURE: return call_managed(AS_CLOSURE(ctor), arg_count);
         case OBJ_GC_NATIVE: return call_native(AS_NATIVE(ctor), arg_count);
         default: {
-          runtime_error("Cannot invoke ctor of type %s", ctor.type->name->chars);
+          vm_error("Cannot invoke ctor of type %s", ctor.type->name->chars);
           return CALL_FAILED;
         }
       }
     }
 
     if (arg_count != 0) {
-      runtime_error("Expected 0 arguments but got %d.", arg_count);
+      vm_error("Expected 0 arguments but got %d.", arg_count);
       return CALL_FAILED;
     }
     return CALL_RETURNED;
   }
 
-  runtime_error("Attempted to call non-callable value of type %s.", callable.type->name->chars);
+  vm_error("Attempted to call non-callable value of type %s.", callable.type->name->chars);
   return CALL_FAILED;
 }
 
@@ -528,7 +527,7 @@ static CallResult invoke(ObjClass* source_klass, ObjString* name, int arg_count)
       case OBJ_GC_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
       case OBJ_GC_NATIVE: return call_native(AS_NATIVE(method), arg_count);
       default: {
-        runtime_error("Cannot invoke method of type %s on class", method.type->name->chars);
+        vm_error("Cannot invoke method of type %s on class", method.type->name->chars);
         return CALL_FAILED;
       }
     }
@@ -542,7 +541,7 @@ static CallResult invoke(ObjClass* source_klass, ObjString* name, int arg_count)
         case OBJ_GC_CLOSURE: return call_managed(AS_CLOSURE(method), arg_count);
         case OBJ_GC_NATIVE: return call_native(AS_NATIVE(method), arg_count);
         default: {
-          runtime_error("Cannot invoke method of type %s on class", method.type->name->chars);
+          vm_error("Cannot invoke method of type %s on class", method.type->name->chars);
           return CALL_FAILED;
         }
       }
@@ -559,8 +558,8 @@ static CallResult invoke(ObjClass* source_klass, ObjString* name, int arg_count)
   }
 
   bool is_base = klass->base == NULL;
-  runtime_error("Undefined callable '%s' in type %s%s.", name->chars, klass->name->chars,
-                is_base ? "" : " or any of its parent classes");
+  vm_error("Undefined callable '%s' in type %s%s.", name->chars, klass->name->chars,
+           is_base ? "" : " or any of its parent classes");
   return CALL_FAILED;
 }
 
@@ -575,11 +574,11 @@ static Value run_frame() {
   return result;
 }
 
-Value exec_callable(Value callable, int arg_count) {
+Value vm_exec_callable(Value callable, int arg_count) {
   CallResult result = call_value(callable, arg_count);
 
   if (result == CALL_RETURNED) {
-    return pop();
+    return vm_pop();
   }
 
   if (result == CALL_RUNNING) {
@@ -665,14 +664,14 @@ static void define_method(ObjString* name, FunctionType type) {
     }
   }
 
-  pop();
+  vm_pop();
 }
 
-bool is_falsey(Value value) {
+bool vm_is_falsey(Value value) {
   return is_nil(value) || (is_bool(value) && !value.as.boolean);
 }
 
-bool inherits(ObjClass* klass, ObjClass* base) {
+bool vm_inherits(ObjClass* klass, ObjClass* base) {
   while (klass != NULL) {
     if (klass == base) {
       return true;
@@ -682,7 +681,7 @@ bool inherits(ObjClass* klass, ObjClass* base) {
   return false;
 }
 
-char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path) {
+char* vm_resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path) {
   if (module_path == NULL && module_name == NULL) {
     INTERNAL_ERROR("Cannot resolve module path. Both module name and path are NULL.");
     exit(SLANG_EXIT_MEMORY_ERROR);
@@ -741,32 +740,32 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   // Getting a module this way is only possible for modules that were registered by name only, which is currently
   // only the case for native modules.
   if (hashtable_get_by_string(&vm.modules, module_name, &module)) {
-    push(module);
+    vm_push(module);
     return true;
   }
 
   // First, we need to get the current working directory
   Value cwd = native_cwd(0, NULL);
   if (is_nil(cwd)) {
-    runtime_error(
+    vm_error(
         "Could not import module '%s'. Could not get current working directory, because there is no "
         "active module or the active module is not a file.",
         module_name->chars);
     return false;
   }
 
-  char* abs_module_path = resolve_module_path(AS_STR(cwd), module_name, module_path);
+  char* abs_module_path = vm_resolve_module_path(AS_STR(cwd), module_name, module_path);
 
   // Check if we have already imported the module by absolute path.
   if (hashtable_get_by_string(&vm.modules, copy_string(abs_module_path, strlen(abs_module_path)), &module)) {
-    push(module);
+    vm_push(module);
     free(abs_module_path);
     return true;
   }
 
   // Nope, so we need to load the module from the file system
   if (!file_exists(abs_module_path)) {
-    runtime_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars, abs_module_path);
+    vm_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars, abs_module_path);
     free(abs_module_path);
     return false;
   }
@@ -774,21 +773,21 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   // Load the module by running the file
   int previous_exit_frame = vm.exit_on_frame;
   vm.exit_on_frame        = vm.frame_count;
-  module                  = run_file(abs_module_path, module_name->chars);
+  module                  = vm_run_file(abs_module_path, module_name->chars);
   vm.exit_on_frame        = previous_exit_frame;
 
   // Check if the module is actually a module
   if (!(module.type == vm.module_class)) {
-    runtime_error("Could not import module '%s' from file '%s'. Expected module type", module_name->chars, abs_module_path);
+    vm_error("Could not import module '%s' from file '%s'. Expected module type", module_name->chars, abs_module_path);
     free(abs_module_path);
     return false;
   }
 
-  push(module);  // Show ourselves to the GC before we do anything that might trigger a GC
+  vm_push(module);  // Show ourselves to the GC before we do anything that might trigger a GC
   ObjString* path = copy_string(abs_module_path, strlen(abs_module_path));
-  push(str_value(path));  // Show ourselves to the GC before we do anything that might trigger a GC
+  vm_push(str_value(path));  // Show ourselves to the GC before we do anything that might trigger a GC
   hashtable_set(&vm.modules, str_value(path), module);
-  pop();  // path
+  vm_pop();  // path
 
   free(abs_module_path);
   return true;
@@ -807,9 +806,9 @@ static void concatenate() {
   chars[length] = '\0';
 
   ObjString* result = take_string(chars, length);
-  pop();  // right
-  pop();  // left
-  push(str_value(result));
+  vm_pop();  // right
+  vm_pop();  // left
+  vm_push(str_value(result));
 }
 
 // Handles errors in the virtual machine.
@@ -937,36 +936,36 @@ static Value run() {
 // stack, and pushes the result.
 //
 // TODO (optimize): These probably have some potential for optimization.
-#define MAKE_BINARY_OP(operator, b_check)                                                                                    \
-  {                                                                                                                          \
-    Value right = pop();                                                                                                     \
-    Value left  = pop();                                                                                                     \
-    if (is_int(left) && is_int(right)) {                                                                                     \
-      b_check;                                                                                                               \
-      push(int_value(left.as.integer operator right.as.integer));                                                            \
-      DISPATCH();                                                                                                            \
-    }                                                                                                                        \
-    if (is_float(left)) {                                                                                                    \
-      if (is_int(right)) {                                                                                                   \
-        b_check;                                                                                                             \
-        push(float_value(left.as.float_ operator(double) right.as.integer));                                                 \
-        DISPATCH();                                                                                                          \
-      }                                                                                                                      \
-      if (is_float(right)) {                                                                                                 \
-        b_check;                                                                                                             \
-        push(float_value(left.as.float_ operator right.as.float_));                                                          \
-        DISPATCH();                                                                                                          \
-      }                                                                                                                      \
-    } else if (is_float(right)) {                                                                                            \
-      if (is_int(left)) {                                                                                                    \
-        b_check;                                                                                                             \
-        push(float_value((double)left.as.integer operator right.as.float_));                                                 \
-        DISPATCH();                                                                                                          \
-      }                                                                                                                      \
-    }                                                                                                                        \
-    runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", #operator, left.type->name->chars, \
-                  right.type->name->chars);                                                                                  \
-    goto FINISH_ERROR;                                                                                                       \
+#define MAKE_BINARY_OP(operator, b_check)                                                                               \
+  {                                                                                                                     \
+    Value right = vm_pop();                                                                                             \
+    Value left  = vm_pop();                                                                                             \
+    if (is_int(left) && is_int(right)) {                                                                                \
+      b_check;                                                                                                          \
+      vm_push(int_value(left.as.integer operator right.as.integer));                                                    \
+      DISPATCH();                                                                                                       \
+    }                                                                                                                   \
+    if (is_float(left)) {                                                                                               \
+      if (is_int(right)) {                                                                                              \
+        b_check;                                                                                                        \
+        vm_push(float_value(left.as.float_ operator(double) right.as.integer));                                         \
+        DISPATCH();                                                                                                     \
+      }                                                                                                                 \
+      if (is_float(right)) {                                                                                            \
+        b_check;                                                                                                        \
+        vm_push(float_value(left.as.float_ operator right.as.float_));                                                  \
+        DISPATCH();                                                                                                     \
+      }                                                                                                                 \
+    } else if (is_float(right)) {                                                                                       \
+      if (is_int(left)) {                                                                                               \
+        b_check;                                                                                                        \
+        vm_push(float_value((double)left.as.integer operator right.as.float_));                                         \
+        DISPATCH();                                                                                                     \
+      }                                                                                                                 \
+    }                                                                                                                   \
+    vm_error("Incompatible types for binary operand %s. Left was %s, right was %s.", #operator, left.type->name->chars, \
+             right.type->name->chars);                                                                                  \
+    goto FINISH_ERROR;                                                                                                  \
   }
 
 #define BIN_ADD MAKE_BINARY_OP(+, (void)0)
@@ -975,7 +974,7 @@ static Value run() {
 #define BIN_DIV                                                                                         \
   MAKE_BINARY_OP(                                                                                       \
       /, if ((is_int(right) && right.as.integer == 0) || (is_float(right) && right.as.float_ == 0.0)) { \
-          runtime_error("Division by zero.");                                                           \
+          vm_error("Division by zero.");                                                                \
           goto FINISH_ERROR;                                                                            \
         })
 
@@ -983,32 +982,32 @@ static Value run() {
 // stack, and pushes the result.
 //
 // TODO (optimize): These probably have some potential for optimization.
-#define MAKE_COMPARATOR(operator)                                                                                                \
-  {                                                                                                                              \
-    Value right = pop();                                                                                                         \
-    Value left  = pop();                                                                                                         \
-    if (is_int(left) && is_int(right)) {                                                                                         \
-      push(bool_value(left.as.integer operator right.as.integer));                                                               \
-      DISPATCH();                                                                                                                \
-    }                                                                                                                            \
-    if (is_float(left)) {                                                                                                        \
-      if (is_int(right)) {                                                                                                       \
-        push(bool_value(left.as.float_ operator right.as.integer));                                                              \
-        DISPATCH();                                                                                                              \
-      }                                                                                                                          \
-      if (is_float(right)) {                                                                                                     \
-        push(bool_value(left.as.float_ operator right.as.float_));                                                               \
-        DISPATCH();                                                                                                              \
-      }                                                                                                                          \
-    } else if (is_float(right)) {                                                                                                \
-      if (is_int(left)) {                                                                                                        \
-        push(bool_value(left.as.integer operator right.as.integer));                                                             \
-        DISPATCH();                                                                                                              \
-      }                                                                                                                          \
-    }                                                                                                                            \
-    runtime_error("Incompatible types for comparison operand %s. Left was %s, right was %s.", #operator, left.type->name->chars, \
-                  right.type->name->chars);                                                                                      \
-    goto FINISH_ERROR;                                                                                                           \
+#define MAKE_COMPARATOR(operator)                                                                                           \
+  {                                                                                                                         \
+    Value right = vm_pop();                                                                                                 \
+    Value left  = vm_pop();                                                                                                 \
+    if (is_int(left) && is_int(right)) {                                                                                    \
+      vm_push(bool_value(left.as.integer operator right.as.integer));                                                       \
+      DISPATCH();                                                                                                           \
+    }                                                                                                                       \
+    if (is_float(left)) {                                                                                                   \
+      if (is_int(right)) {                                                                                                  \
+        vm_push(bool_value(left.as.float_ operator right.as.integer));                                                      \
+        DISPATCH();                                                                                                         \
+      }                                                                                                                     \
+      if (is_float(right)) {                                                                                                \
+        vm_push(bool_value(left.as.float_ operator right.as.float_));                                                       \
+        DISPATCH();                                                                                                         \
+      }                                                                                                                     \
+    } else if (is_float(right)) {                                                                                           \
+      if (is_int(left)) {                                                                                                   \
+        vm_push(bool_value(left.as.integer operator right.as.integer));                                                     \
+        DISPATCH();                                                                                                         \
+      }                                                                                                                     \
+    }                                                                                                                       \
+    vm_error("Incompatible types for comparison operand %s. Left was %s, right was %s.", #operator, left.type->name->chars, \
+             right.type->name->chars);                                                                                      \
+    goto FINISH_ERROR;                                                                                                      \
   }
 
 #define BIN_LT MAKE_COMPARATOR(<)
@@ -1038,7 +1037,7 @@ static Value run() {
  */
 DO_OP_CONSTANT: {
   Value constant = READ_CONSTANT();
-  push(constant);
+  vm_push(constant);
   DISPATCH();
 }
 
@@ -1048,7 +1047,7 @@ DO_OP_CONSTANT: {
  * @note synopsis: `OP_NIL`
  */
 DO_OP_NIL: {
-  push(nil_value());
+  vm_push(nil_value());
   DISPATCH();
 }
 
@@ -1058,7 +1057,7 @@ DO_OP_NIL: {
  * @note synopsis: `OP_TRUE`
  */
 DO_OP_TRUE: {
-  push(bool_value(true));
+  vm_push(bool_value(true));
   DISPATCH();
 }
 
@@ -1068,7 +1067,7 @@ DO_OP_TRUE: {
  * @note synopsis: `OP_FALSE`
  */
 DO_OP_FALSE: {
-  push(bool_value(false));
+  vm_push(bool_value(false));
   DISPATCH();
 }
 
@@ -1078,7 +1077,7 @@ DO_OP_FALSE: {
  * @note synopsis: `OP_POP`
  */
 DO_OP_POP: {
-  pop();
+  vm_pop();
   DISPATCH();
 }
 
@@ -1089,7 +1088,7 @@ DO_OP_POP: {
  * @param index index into the vms' stack (0: top, 1: second from top, etc.)
  */
 DO_OP_DUPE: {
-  push(peek(READ_ONE()));
+  vm_push(peek(READ_ONE()));
   DISPATCH();
 }
 
@@ -1101,7 +1100,7 @@ DO_OP_DUPE: {
  */
 DO_OP_GET_LOCAL: {
   uint16_t slot = READ_ONE();
-  push(frame->slots[slot]);
+  vm_push(frame->slots[slot]);
   DISPATCH();
 }
 
@@ -1117,11 +1116,11 @@ DO_OP_GET_GLOBAL: {
   Value value;
   if (!hashtable_get_by_string(frame->globals, name, &value)) {
     if (!hashtable_get_by_string(&vm.natives, name, &value)) {
-      runtime_error("Undefined variable '%s'.", name->chars);
+      vm_error("Undefined variable '%s'.", name->chars);
       goto FINISH_ERROR;
     }
   }
-  push(value);
+  vm_push(value);
   DISPATCH();
 }
 
@@ -1133,7 +1132,7 @@ DO_OP_GET_GLOBAL: {
  */
 DO_OP_GET_UPVALUE: {
   uint16_t slot = READ_ONE();
-  push(*frame->closure->upvalues[slot]->location);
+  vm_push(*frame->closure->upvalues[slot]->location);
   DISPATCH();
 }
 
@@ -1146,10 +1145,10 @@ DO_OP_GET_UPVALUE: {
 DO_OP_DEFINE_GLOBAL: {
   ObjString* name = READ_STRING();
   if (!hashtable_set(frame->globals, str_value(name), peek(0))) {
-    runtime_error("Variable '%s' is already defined.", name->chars);
+    vm_error("Variable '%s' is already defined.", name->chars);
     goto FINISH_ERROR;
   }
-  pop();
+  vm_pop();
   DISPATCH();
 }
 
@@ -1177,7 +1176,7 @@ DO_OP_SET_GLOBAL: {
   if (hashtable_set(frame->globals, str_value(name),
                     peek(0))) {  // peek, because assignment is an expression!
     hashtable_delete(frame->globals, str_value(name));
-    runtime_error("Undefined variable '%s'.", name->chars);
+    vm_error("Undefined variable '%s'.", name->chars);
     goto FINISH_ERROR;
   }
 
@@ -1207,9 +1206,9 @@ DO_OP_GET_SUBSCRIPT: {
   Value result;
 
   if (receiver.type->__get_subs(receiver, index, &result)) {
-    pop();
-    pop();
-    push(result);
+    vm_pop();
+    vm_pop();
+    vm_push(result);
     DISPATCH();
   }
 
@@ -1227,10 +1226,10 @@ DO_OP_SET_SUBSCRIPT: {
   Value result   = peek(0);
 
   if (receiver.type->__set_subs(receiver, index, result)) {
-    pop();
-    pop();
-    pop();
-    push(result);  // Assignments are expressions
+    vm_pop();
+    vm_pop();
+    vm_pop();
+    vm_push(result);  // Assignments are expressions
     DISPATCH();
   }
 
@@ -1249,8 +1248,8 @@ DO_OP_GET_PROPERTY: {
   Value result;
 
   if (receiver.type->__get_prop(receiver, name, &result)) {
-    pop();
-    push(result);
+    vm_pop();
+    vm_push(result);
     DISPATCH();
   }
 
@@ -1278,15 +1277,15 @@ DO_OP_SET_PROPERTY: {
   // Check if it is a reserved property.
   for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
     if (name == vm.special_prop_names[i]) {  // We can just compare pointers, because strings are interned.
-      runtime_error("Cannot set reserved property '%s' on value of type %s.", name->chars, receiver.type->name->chars);
+      vm_error("Cannot set reserved property '%s' on value of type %s.", name->chars, receiver.type->name->chars);
       goto FINISH_ERROR;
     }
   }
 
   if (receiver.type->__set_prop(receiver, name, result)) {
-    pop();
-    pop();
-    push(result);  // Assignments are expressions
+    vm_pop();
+    vm_pop();
+    vm_push(result);  // Assignments are expressions
     DISPATCH();
   }
 
@@ -1301,15 +1300,15 @@ DO_OP_SET_PROPERTY: {
  */
 DO_OP_GET_BASE_METHOD: {
   ObjString* name     = READ_STRING();
-  ObjClass* baseclass = AS_CLASS(pop());
+  ObjClass* baseclass = AS_CLASS(vm_pop());
 
   Value bound_method;
   if (!bind_method(baseclass, name, &bound_method)) {
-    runtime_error("Method '%s' does not exist in '%s'.", name->chars, baseclass->name->chars);
+    vm_error("Method '%s' does not exist in '%s'.", name->chars, baseclass->name->chars);
     goto FINISH_ERROR;
   }
-  pop();
-  push(bound_method);
+  vm_pop();
+  vm_push(bound_method);
   DISPATCH();
 }
 
@@ -1322,16 +1321,16 @@ DO_OP_GET_SLICE: {
   // [receiver][start][end] is on the stack
   ObjClass* type = peek(2).type;
   if (type->__slice == NULL) {
-    runtime_error("Type %s does not support slicing. It must implement '" STR(SP_METHOD_SLICE) "'.", type->name->chars);
+    vm_error("Type %s does not support slicing. It must implement '" STR(SP_METHOD_SLICE) "'.", type->name->chars);
     goto FINISH_ERROR;
   }
 
-  Value result = exec_callable(fn_value(type->__slice), 2);
+  Value result = vm_exec_callable(fn_value(type->__slice), 2);
   if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
     goto FINISH_ERROR;
   }
 
-  push(result);
+  vm_push(result);
 
   DISPATCH();
 }
@@ -1342,9 +1341,9 @@ DO_OP_GET_SLICE: {
  * @note synopsis: `OP_EQ`
  */
 DO_OP_EQ: {
-  Value right = pop();
-  Value left  = pop();
-  push(bool_value(left.type->__equals(left, right)));
+  Value right = vm_pop();
+  Value left  = vm_pop();
+  vm_push(bool_value(left.type->__equals(left, right)));
   DISPATCH();
 }
 
@@ -1354,9 +1353,9 @@ DO_OP_EQ: {
  * @note synopsis: `OP_NEQ`
  */
 DO_OP_NEQ: {
-  Value right = pop();
-  Value left  = pop();
-  push(bool_value(!left.type->__equals(left, right)));
+  Value right = vm_pop();
+  Value left  = vm_pop();
+  vm_push(bool_value(!left.type->__equals(left, right)));
   DISPATCH();
 }
 
@@ -1429,49 +1428,49 @@ DO_OP_DIVIDE: { BIN_DIV }
  */
 DO_OP_MODULO: {
   // Pretty much the same as MAKE_BINARY_OP, but expanded bc we use fmod(double, double) for floats
-  Value right = pop();
-  Value left  = pop();
+  Value right = vm_pop();
+  Value left  = vm_pop();
 
   if (is_int(left) && is_int(right)) {
     if (right.as.integer == 0) {
-      runtime_error("Modulo by zero.");
+      vm_error("Modulo by zero.");
       goto FINISH_ERROR;
     }
-    push(int_value(left.as.integer % right.as.integer));
+    vm_push(int_value(left.as.integer % right.as.integer));
     DISPATCH();
   }
 
   if (is_float(left)) {
     if (is_int(right)) {
       if (right.as.integer == 0) {
-        runtime_error("Modulo by zero.");
+        vm_error("Modulo by zero.");
         goto FINISH_ERROR;
       }
-      push(float_value(fmod(left.as.float_, (double)right.as.integer)));
+      vm_push(float_value(fmod(left.as.float_, (double)right.as.integer)));
       DISPATCH();
     }
 
     if (is_float(right)) {
       if (right.as.float_ == 0) {
-        runtime_error("Modulo by zero.");
+        vm_error("Modulo by zero.");
         goto FINISH_ERROR;
       }
-      push(float_value(fmod(left.as.float_, right.as.float_)));
+      vm_push(float_value(fmod(left.as.float_, right.as.float_)));
       DISPATCH();
     }
   } else if (is_float(right)) {
     if (is_int(left)) {
       if (right.as.integer == 0) {
-        runtime_error("Modulo by zero.");
+        vm_error("Modulo by zero.");
         goto FINISH_ERROR;
       }
-      push(float_value(fmod((double)left.as.integer, right.as.float_)));
+      vm_push(float_value(fmod((double)left.as.integer, right.as.float_)));
       DISPATCH();
     }
   }
 
-  runtime_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", left.type->name->chars,
-                right.type->name->chars);
+  vm_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", left.type->name->chars,
+           right.type->name->chars);
   goto FINISH_ERROR;
 }
 
@@ -1481,7 +1480,7 @@ DO_OP_MODULO: {
  * @note synopsis: `OP_NOT`
  */
 DO_OP_NOT: {
-  push(bool_value(is_falsey(pop())));
+  vm_push(bool_value(vm_is_falsey(vm_pop())));
   DISPATCH();
 }
 
@@ -1492,11 +1491,11 @@ DO_OP_NOT: {
  */
 DO_OP_NEGATE: {
   if (is_int(peek(0))) {
-    push(int_value(-((pop()).as.integer)));
+    vm_push(int_value(-((vm_pop()).as.integer)));
   } else if (is_float(peek(0))) {
-    push(float_value(-((pop()).as.float_)));
+    vm_push(float_value(-((vm_pop()).as.float_)));
   } else {
-    runtime_error("Type for unary - must be a " STR(TYPENAME_NUM) ". Was %s.", peek(0).type->name->chars);
+    vm_error("Type for unary - must be a " STR(TYPENAME_NUM) ". Was %s.", peek(0).type->name->chars);
     goto FINISH_ERROR;
   }
   DISPATCH();
@@ -1508,7 +1507,7 @@ DO_OP_NEGATE: {
  * @note synopsis: `OP_PRINT`
  */
 DO_OP_PRINT: {
-  ObjString* str = (ObjString*)exec_callable(fn_value(peek(0).type->__to_str), 0).as.obj;
+  ObjString* str = (ObjString*)vm_exec_callable(fn_value(peek(0).type->__to_str), 0).as.obj;
   if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
     goto FINISH_ERROR;
   }
@@ -1536,7 +1535,7 @@ DO_OP_JUMP: {
  */
 DO_OP_JUMP_IF_FALSE: {
   uint16_t offset = READ_ONE();
-  if (is_falsey(peek(0))) {
+  if (vm_is_falsey(peek(0))) {
     frame->ip += offset;
   }
   DISPATCH();
@@ -1553,7 +1552,7 @@ DO_OP_TRY: {
   uint16_t try_target = READ_ONE();
   uint16_t offset     = frame->ip - frame->closure->function->chunk.code;  // Offset from start of callframe to the try block
   Value handler       = handler_value(try_target + offset);
-  push(handler);
+  vm_push(handler);
   DISPATCH();
 }
 
@@ -1618,7 +1617,7 @@ DO_OP_INVOKE: {
 DO_OP_BASE_INVOKE: {
   ObjString* method   = READ_STRING();
   int arg_count       = READ_ONE();
-  ObjClass* baseclass = AS_CLASS(pop());  // Leaves 'this' on the stack, followed by the arguments (if any)
+  ObjClass* baseclass = AS_CLASS(vm_pop());  // Leaves 'this' on the stack, followed by the arguments (if any)
   if (invoke(baseclass, method, arg_count) == CALL_FAILED) {
     if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
       goto FINISH_ERROR;
@@ -1640,7 +1639,7 @@ DO_OP_BASE_INVOKE: {
 DO_OP_CLOSURE: {
   ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
   ObjClosure* closure   = new_closure(function);
-  push(fn_value((Obj*)closure));
+  vm_push(fn_value((Obj*)closure));
 
   // Bring closure to life
   for (int i = 0; i < closure->upvalue_count; i++) {
@@ -1662,7 +1661,7 @@ DO_OP_CLOSURE: {
  */
 DO_OP_CLOSE_UPVALUE: {
   close_upvalues(vm.stack_top - 1);
-  pop();
+  vm_pop();
   DISPATCH();
 }
 
@@ -1674,7 +1673,7 @@ DO_OP_CLOSE_UPVALUE: {
  */
 DO_OP_SEQ_LITERAL: {
   int count = READ_ONE();
-  make_seq(count);
+  vm_make_seq(count);
   DISPATCH();
 }
 
@@ -1686,7 +1685,7 @@ DO_OP_SEQ_LITERAL: {
  */
 DO_OP_TUPLE_LITERAL: {
   int count = READ_ONE();
-  make_tuple(count);
+  vm_make_tuple(count);
   DISPATCH();
 }
 
@@ -1708,18 +1707,18 @@ DO_OP_OBJECT_LITERAL: {
  * @note synopsis: `OP_RETURN`
  */
 DO_OP_RETURN: {
-  Value result = pop();
+  Value result = vm_pop();
   close_upvalues(frame->slots);
   vm.frame_count--;
   if (vm.frame_count == 0) {
-    return pop();  // Return the toplevel function - used for modules.
+    return vm_pop();  // Return the toplevel function - used for modules.
   }
 
   vm.stack_top = frame->slots;
   if (vm.exit_on_frame == vm.frame_count) {
     return result;
   }
-  push(result);
+  vm_push(result);
   frame = current_frame();
   DISPATCH();
 }
@@ -1731,9 +1730,9 @@ DO_OP_RETURN: {
  * @param str_index index into constant pool to get the name of the class
  */
 DO_OP_CLASS: {
-  // Initially, a class always inherits from Obj
+  // Initially, a class always vm_inherits from Obj
   ObjClass* klass = new_class(READ_STRING(), vm.obj_class);
-  push(class_value(klass));
+  vm_push(class_value(klass));
   hashtable_add_all(&klass->base->methods, &klass->methods);
   DISPATCH();
 }
@@ -1747,12 +1746,12 @@ DO_OP_INHERIT: {
   Value baseclass    = peek(1);
   ObjClass* subclass = AS_CLASS(peek(0));
   if (!is_class(baseclass)) {
-    runtime_error("Base class must be a class. Was %s.", baseclass.type->name->chars);
+    vm_error("Base class must be a class. Was %s.", baseclass.type->name->chars);
     goto FINISH_ERROR;
   }
   hashtable_add_all(&AS_CLASS(baseclass)->methods, &subclass->methods);
   subclass->base = AS_CLASS(baseclass);
-  pop();  // Subclass.
+  vm_pop();  // Subclass.
   DISPATCH();
 }
 
@@ -1764,7 +1763,7 @@ DO_OP_INHERIT: {
 DO_OP_FINALIZE: {
   Value klass = peek(0);
   finalize_new_class(AS_CLASS(klass));  // We trust the compiler that this value is actually a class
-  pop();
+  vm_pop();
   DISPATCH();
 }
 
@@ -1820,7 +1819,7 @@ DO_OP_IMPORT_FROM: {
  * @note synopsis: `OP_THROW`
  */
 DO_OP_THROW: {
-  vm.current_error = pop();
+  vm.current_error = vm_pop();
   VM_SET_FLAG(VM_FLAG_HAS_ERROR);
   goto FINISH_ERROR;
 }
@@ -1831,20 +1830,20 @@ DO_OP_THROW: {
  * @note synopsis: `OP_IS`
  */
 DO_OP_IS: {
-  Value type  = pop();
-  Value value = pop();
+  Value type  = vm_pop();
+  Value value = vm_pop();
 
   if (!is_class(type)) {
-    runtime_error("Type must be a class. Was %s.", type.type->name->chars);
+    vm_error("Type must be a class. Was %s.", type.type->name->chars);
     goto FINISH_ERROR;
   }
 
   ObjClass* value_klass = value.type;
   ObjClass* type_klass  = AS_CLASS(type);
 
-  bool result = inherits(value_klass, type_klass);
+  bool result = vm_inherits(value_klass, type_klass);
 
-  push(bool_value(result));
+  vm_push(bool_value(result));
   DISPATCH();
 }
 
@@ -1860,29 +1859,28 @@ DO_OP_IN: {
 
   ObjClass* target_type = in_target.type;
 
-  push(in_target);  // Receiver
-  push(value);      // Argument
+  vm_push(in_target);  // Receiver
+  vm_push(value);      // Argument
   if (target_type->__has == NULL) {
-    runtime_error("Type %s does not support the 'in' operator. It must implement '" STR(SP_METHOD_HAS) "'.",
-                  target_type->name->chars);
+    vm_error("Type %s does not support the 'in' operator. It must implement '" STR(SP_METHOD_HAS) "'.", target_type->name->chars);
     goto FINISH_ERROR;
   }
-  Value result = exec_callable(fn_value(target_type->__has), 1);
+  Value result = vm_exec_callable(fn_value(target_type->__has), 1);
   if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
     goto FINISH_ERROR;
   }
 
   // Since users can override this, we should that we got a bool back.
-  // Could also just use is_falsey, to be less strict - but for now I like this better.
+  // Could also just use vm_is_falsey, to be less strict - but for now I like this better.
   if (!is_bool(result)) {
-    runtime_error("Method '" STR(SP_METHOD_HAS) "' on type %s must return a " STR(TYPENAME_BOOL) ", but got %s.",
-                  target_type->name->chars, result.type->name->chars);
+    vm_error("Method '" STR(SP_METHOD_HAS) "' on type %s must return a " STR(TYPENAME_BOOL) ", but got %s.",
+             target_type->name->chars, result.type->name->chars);
     goto FINISH_ERROR;
   }
 
-  pop();
-  pop();
-  push(result);
+  vm_pop();
+  vm_pop();
+  vm_push(result);
   DISPATCH();
 }
 
@@ -1892,8 +1890,8 @@ FINISH_ERROR: {
     frame->ip = frame->closure->function->chunk.code + peek(0).as.handler;  // Jump to the handler
 
     // Remove the handler from the stack and push the error value
-    pop();
-    push(vm.current_error);
+    vm_pop();
+    vm_push(vm.current_error);
 
     // We're done with the error, so we can clear it
     vm.current_error = nil_value();
@@ -1924,7 +1922,7 @@ FINISH_ERROR: {
 #undef BIN_GTEQ
 }
 
-ObjObject* make_module(const char* source_path, const char* module_name) {
+ObjObject* vm_make_module(const char* source_path, const char* module_name) {
   ObjObject* prev_module = vm.module;
   ObjObject* module      = new_instance(vm.module_class);
 
@@ -1949,20 +1947,20 @@ ObjObject* make_module(const char* source_path, const char* module_name) {
   return module;
 }
 
-void start_module(const char* source_path, const char* module_name) {
-  ObjObject* module = make_module(source_path, module_name);
+void vm_start_module(const char* source_path, const char* module_name) {
+  ObjObject* module = vm_make_module(source_path, module_name);
   vm.module         = module;
 }
 
-Value interpret(const char* source, const char* source_path, const char* module_name) {
+Value vm_interpret(const char* source, const char* source_path, const char* module_name) {
   ObjObject* enclosing_module = vm.module;
   bool is_module              = module_name != NULL && source_path != NULL;
 
   if (is_module) {
-    start_module(source_path, module_name);
+    vm_start_module(source_path, module_name);
   }
 
-  ObjFunction* function = compile_module(source);
+  ObjFunction* function = compiler_compile_module(source);
   if (function == NULL) {
     exit_with_compile_error();
     if (is_module) {
@@ -1971,10 +1969,10 @@ Value interpret(const char* source, const char* source_path, const char* module_
     return nil_value();
   }
 
-  push(fn_value((Obj*)function));  // Gc protection
+  vm_push(fn_value((Obj*)function));  // Gc protection
   ObjClosure* closure = new_closure(function);
-  pop();
-  push(fn_value((Obj*)closure));
+  vm_pop();
+  vm_push(fn_value((Obj*)closure));
   call_value(fn_value((Obj*)closure), 0);
 
   Value result = run();
@@ -1988,7 +1986,7 @@ Value interpret(const char* source, const char* source_path, const char* module_
   return result;
 }
 
-Value run_file(const char* path, const char* module_name) {
+Value vm_run_file(const char* path, const char* module_name) {
 #ifdef DEBUG_TRACE_EXECUTION
   printf("\n");
   printf(ANSI_CYAN_STR("Running file: %s\n"), path);
@@ -2001,7 +1999,7 @@ Value run_file(const char* path, const char* module_name) {
     return nil_value();
   }
 
-  Value result = interpret(source, path, name);
+  Value result = vm_interpret(source, path, name);
   free(source);
 
 #ifdef DEBUG_TRACE_EXECUTION

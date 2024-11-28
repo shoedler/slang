@@ -119,40 +119,40 @@ typedef struct {
 extern Vm vm;
 
 // Initialize the virtual machine.
-void init_vm();
+void vm_init();
 
 // Free the virtual machine.
-void free_vm();
-
-// Clears the error state of the Vm.
-void clear_error();
+void vm_free();
 
 // Creates a new module instance. [source_path] is optional. The [module_name] however, is required.
-ObjObject* make_module(const char* source_path, const char* module_name);
+ObjObject* vm_make_module(const char* source_path, const char* module_name);
 
 // Creates a new module instance and sets it as the current module.
-void start_module(const char* source_path, const char* module_name);
+void vm_start_module(const char* source_path, const char* module_name);
 
 // Takes a string of source code, compiles it and then runs it.
 // Returns the result of the interpretation as a value.
 // Accepts an optional source path and name for the module which should result from calling this function.
 // Calling without the latter two arguments just runs the code as a script.
-Value interpret(const char* source, const char* source_path, const char* module_name);
+Value vm_interpret(const char* source, const char* source_path, const char* module_name);
 
 // Reads a file from path, compiles it and then runs it.
 // Returns the result of the interpretation as a value.
 // Accepts an optional name for the module which should result from calling this function. If NULL is
 // provided, path is used as the name.
-Value run_file(const char* path, const char* module_name);
+Value vm_run_file(const char* path, const char* module_name);
 
 // Push a value onto the stack.
-void push(Value value);
+void vm_push(Value value);
 
 // Pop a value off the stack.
-Value pop();
+Value vm_pop();
 
 // Sets the current error value and puts the Vm into error state.
-void runtime_error(const char* format, ...);
+void vm_error(const char* format, ...);
+
+// Clears the error state of the Vm.
+void vm_clear_error();
 
 // Internal function to execute a call to a managed-code or native callable.
 // This function will execute the [callable] with the arguments on the stack. [arg_count] of zero means only a receiver (or
@@ -163,27 +163,21 @@ void runtime_error(const char* format, ...);
 //
 // Note that [callable] does not have to be on the stack - there can be a receiver instead. This is useful for calling methods.
 // **Calls should be followed by a check for errors!**
-Value exec_callable(Value callable, int arg_count);
-
-// Defines a native [function] in the given [table] with the provided [name] and [arity].
-void define_native(HashTable* table, const char* name, NativeFn function, int arity);
-
-// Defines a [value] in the given [table] with the provided [name].
-void define_value(HashTable* table, const char* name, Value value);
+Value vm_exec_callable(Value callable, int arg_count);
 
 // Determines whether a [value] is falsey. We consider nil and false to be falsey,
 // and everything else to be truthy.
-bool is_falsey(Value value);
+bool vm_is_falsey(Value value);
 
-// Determines whether a [klass] inherits from [base]
-bool inherits(ObjClass* klass, ObjClass* base);
+// Determines whether a [klass] vm_inherits from [base]
+bool vm_inherits(ObjClass* klass, ObjClass* base);
 
 // Resolves an import-path to an absolute file-path, based on the current working directory.
 // - [module_name] can be NULL, if the module is imported solely by [module_path] (relative or absolute).
 // - [module_path] can be NULL, if the module is expected to be in the same directory as the importing module and the file is
 // named after [module_name].
 // Returns the absolute path to the module. The caller is responsible for freeing the memory.
-char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path);
+char* vm_resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path);
 
 // Creates a sequence of length "count" from the top "count" values on the stack.
 // The resulting sequence is pushed onto the stack.
@@ -191,7 +185,7 @@ char* resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* mod
 //
 // TODO (optimize): This is mainly used for OP_SEQ_LITERAL, where all items are on the stack, maybe we could
 // batch-copy them into the value_array?
-void make_seq(int count);
+void vm_make_seq(int count);
 
 // Creates a tuple of length "count" from the top "count" values on the stack.
 // The resulting tuple is pushed onto the stack.
@@ -199,11 +193,22 @@ void make_seq(int count);
 //
 // TODO (optimize): This is mainly used for OP_TUPLE_LITERAL, where all items are on the stack, maybe we could
 // batch-copy them into the value_array?
-void make_tuple(int count);
+void vm_make_tuple(int count);
 
 // Binds a method to an instance by creating a new bound method object from the instance and the method name.
 // The stack is unchanged.
+// TODO (refactor): Move to object.h/c
 bool bind_method(ObjClass* klass, ObjString* name, Value* bound_method);
+
+// Defines a native [function] in the given [table] with the provided [name] and [arity].
+// TODO (refactor): Move to object.h/c
+void define_native(HashTable* table, const char* name, NativeFn function, int arity);
+
+// Defines a [value] in the given [table] with the provided [name].
+// TODO (refactor): Move to object.h/c
+void define_value(HashTable* table, const char* name, Value value);
+
+// TODO (refactor): Move all of the following to value.h/c
 
 // Wraps an integer into a value.
 static inline Value int_value(long long value) {

@@ -12,7 +12,7 @@ static Value native_perf_since(int argc, Value argv[]);
 #define MODULE_NAME Perf
 
 void native_register_perf_module() {
-  ObjObject* perf_module = make_module(NULL, STR(MODULE_NAME));
+  ObjObject* perf_module = vm_make_module(NULL, STR(MODULE_NAME));
   define_value(&vm.modules, STR(MODULE_NAME), instance_value(perf_module));
 
   define_native(&perf_module->fields, "now", native_perf_now, 0);

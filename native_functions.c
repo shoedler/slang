@@ -37,12 +37,10 @@ Value native_cwd(int argc, Value argv[]) {
 }
 
 Value native_log(int argc, Value argv[]) {
-  // Since argv[0] contains the receiver or function, we start at 1 and run that, even if we have only one
-  // arg. Basically, arguments are 1 indexed for native function
-  for (int i = 1; i <= argc; i++) {
+  for (int i = 1 /* Skip receiver */; i <= argc; i++) {
     // Execute the to_str method on the receiver
-    push(argv[i]);  // Load the receiver onto the stack
-    ObjString* str = AS_STR(exec_callable(fn_value(argv[i].type->__to_str), 0));
+    vm_push(argv[i]);  // Load the receiver onto the stack
+    ObjString* str = AS_STR(vm_exec_callable(fn_value(argv[i].type->__to_str), 0));
     if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
       return nil_value();
     }

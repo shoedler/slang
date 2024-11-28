@@ -316,7 +316,7 @@ static void mark_roots() {
 
   // And the compiler roots. The GC can run while compiling, so we need to mark
   // the compiler's internal state as well.
-  mark_compiler_roots();
+  compiler_mark_roots();
 }
 
 static void mark() {

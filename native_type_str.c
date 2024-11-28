@@ -87,8 +87,8 @@ static bool str_get_subs(Value receiver, Value index, Value* result) {
 static Value str_ctor(int argc, Value argv[]) {
   UNUSED(argc);
   // Execute the to_str method on the argument
-  push(argv[1]);  // Push the receiver for to_str, which is the ctors' argument
-  Value result = exec_callable(fn_value(argv[1].type->__to_str), 0);  // Convert to string
+  vm_push(argv[1]);  // Push the receiver for to_str, which is the ctors' argument
+  Value result = vm_exec_callable(fn_value(argv[1].type->__to_str), 0);  // Convert to string
   if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
     return nil_value();
   }
@@ -123,26 +123,26 @@ static Value str_split(int argc, Value argv[]) {
   if (sep->length == 0) {
     ValueArray items = value_array_init_of_size(str->length);
     ObjSeq* seq      = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
-    push(seq_value(seq));                 // GC Protection
+    vm_push(seq_value(seq));              // GC Protection
     for (int i = 0; i < str->length; i++) {
       seq->items.values[i] = str_value(copy_string(str->chars + i, 1));
       seq->items.count++;
     }
 
-    return pop();  // The seq
+    return vm_pop();  // The seq
   }
 
   ObjSeq* seq = new_seq();
-  push(seq_value(seq));  // GC Protection
+  vm_push(seq_value(seq));  // GC Protection
 
   // Split the string by looking for the separator at each character
   int start = 0;
   for (int i = 0; i < str->length; i++) {
     if (strncmp(str->chars + i, sep->chars, sep->length) == 0) {
       Value item = str_value(copy_string(str->chars + start, i - start));
-      push(item);  // GC Protection
+      vm_push(item);  // GC Protection
       value_array_write(&seq->items, item);
-      pop();  // The item
+      vm_pop();  // The item
       start = i + sep->length;
     }
   }
@@ -150,11 +150,11 @@ static Value str_split(int argc, Value argv[]) {
   // Add the last part of the string aswell - same behavior as Js.
   // TODO (optimize): Maybe remove this? "123".split("3") -> ["12", ""], but without this it would be ["12"]
   Value item = str_value(copy_string(str->chars + start, str->length - start));
-  push(item);  // GC Protection
+  vm_push(item);  // GC Protection
   value_array_write(&seq->items, item);
-  pop();  // The item
+  vm_pop();  // The item
 
-  pop();  // The seq
+  vm_pop();  // The seq
   return seq_value(seq);
 }
 

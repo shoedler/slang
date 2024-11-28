@@ -13,7 +13,7 @@ static Value native_debug_modules(int argc, Value argv[]);
 #define MODULE_NAME Debug
 
 void native_register_debug_module() {
-  ObjObject* debug_module = make_module(NULL, STR(MODULE_NAME));
+  ObjObject* debug_module = vm_make_module(NULL, STR(MODULE_NAME));
   define_value(&vm.modules, STR(MODULE_NAME), instance_value(debug_module));
 
   define_native(&debug_module->fields, "stack", native_debug_stack, 0);
@@ -33,11 +33,11 @@ static Value native_debug_stack(int argc, Value argv[]) {
   int stack_size = (int)(vm.stack_top - vm.stack - 1);
 
   for (int i = 0; i < stack_size; i++) {
-    push(vm.stack[i]);
+    vm_push(vm.stack[i]);
   }
 
-  make_seq(stack_size);
-  return pop();
+  vm_make_seq(stack_size);
+  return vm_pop();
 }
 
 /**
