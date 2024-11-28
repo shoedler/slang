@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "common.h"
+#include "compiler.h"
 #include "native.h"
 #include "object.h"
 #include "value.h"
@@ -95,11 +96,23 @@ static bool float_get_prop(Value receiver, ObjString* name, Value* result) {
 }
 
 static bool int_eq(Value self, Value other) {
-  return self.type == other.type && self.as.integer == other.as.integer;
+  if (self.type == other.type) {
+    return self.as.integer == other.as.integer;
+  }
+  if (is_float(other)) {
+    return (double)self.as.integer == other.as.float_;
+  }
+  return false;
 }
 
 static bool float_eq(Value self, Value other) {
-  return self.type == other.type && self.as.float_ == other.as.float_;
+  if (self.type == other.type) {
+    return self.as.float_ == other.as.float_;
+  }
+  if (is_int(other)) {
+    return self.as.float_ == (double)other.as.integer;
+  }
+  return false;
 }
 
 static uint64_t int_hash(Value self) {
@@ -150,7 +163,13 @@ static Value int_ctor(int argc, Value argv[]) {
   }
   if (is_str(argv[1])) {
     ObjString* str = AS_STR(argv[1]);
-    return int_value((long long)string_to_double(str->chars, str->length));
+    Value num      = parse_number(str->chars, str->length);
+    if (!is_int(num)) {
+      // Then it must be a float, which, in this case, we cast to an int.
+      double float_val = num.as.float_;
+      return int_value((long long)float_val);
+    }
+    return num;
   }
 
   return int_value(0);
@@ -192,7 +211,13 @@ static Value float_ctor(int argc, Value argv[]) {
   }
   if (is_str(argv[1])) {
     ObjString* str = AS_STR(argv[1]);
-    return float_value(string_to_double(str->chars, str->length));
+    Value num      = parse_number(str->chars, str->length);
+    if (!is_float(num)) {
+      // Then it must be an int, which, in this case, we cast to a float.
+      long long int_val = num.as.integer;
+      return float_value((double)int_val);
+    }
+    return num;
   }
 
   return float_value(0.0);

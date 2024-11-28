@@ -698,48 +698,54 @@ static void object_literal(bool can_assign) {
   }
 }
 
-// Compiles a number literal and emits it as a number value.
-// The number has already been consumed and is referenced by the previous token.
-static void number(bool can_assign) {
-  UNUSED(can_assign);
-  if (parser.previous.start[0] == '0') {
-    char kind = parser.previous.start[1];
+Value parse_number(const char* str, size_t length) {
+  if (length == 0) {
+    return int_value(0);
+  }
+
+  if (str[0] == '0' && length >= 2) {
+    char kind = str[1];
     // See if it's a hexadecimal, binary, or octal number.
     if ((kind == 'x' || kind == 'X')) {
-      long long value = strtoll(parser.previous.start + 2, NULL, 16);
-      emit_constant_here(int_value(value));
-      return;
+      long long value = strtoll(str + 2, NULL, 16);
+      return int_value(value);
     }
 
     if ((kind == 'b' || kind == 'B')) {
-      long long value = strtoll(parser.previous.start + 2, NULL, 2);
-      emit_constant_here(int_value(value));
-      return;
+      long long value = strtoll(str + 2, NULL, 2);
+      return int_value(value);
     }
 
     if ((kind == 'o' || kind == 'O')) {
-      long long value = strtoll(parser.previous.start + 2, NULL, 8);
-      emit_constant_here(int_value(value));
-      return;
+      long long value = strtoll(str + 2, NULL, 8);
+      return int_value(value);
     }
   }
 
   // Check if the number is a float.
   bool is_float = false;
-  for (int i = 0; i < parser.previous.length; i++) {
-    if (parser.previous.start[i] == '.') {
+  for (size_t i = 0; i < length; i++) {
+    if (str[i] == '.') {
       is_float = true;
       break;
     }
   }
 
   if (is_float) {
-    double value = strtod(parser.previous.start, NULL);
-    emit_constant_here(float_value(value));
+    double value = strtod(str, NULL);
+    return float_value(value);
   } else {
-    long long int value = strtoll(parser.previous.start, NULL, 10);
-    emit_constant_here(int_value(value));
+    long long int value = strtoll(str, NULL, 10);
+    return int_value(value);
   }
+}
+
+// Compiles a number literal and emits it as a number value.
+// The number has already been consumed and is referenced by the previous token.
+static void number(bool can_assign) {
+  UNUSED(can_assign);
+  Value value = parse_number(parser.previous.start, parser.previous.length);
+  emit_constant_here(value);
 }
 
 // Compiles a string literal and emits it as a string object value.

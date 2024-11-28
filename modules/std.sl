@@ -1,6 +1,9 @@
 cls Set {
-  ctor() {
+  ctor(seq) {
     this.data = {}
+    for let i = 0; i < seq.len; i++; {
+      this.data[seq[i]] = true
+    }
   }
 
   fn values -> this.data.keys()

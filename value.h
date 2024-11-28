@@ -111,12 +111,6 @@ Value value_array_remove_at(ValueArray* array, int index);
 // Free a value array.
 void value_array_free(ValueArray* array);
 
-// Converts a string to a double.
-// Result for "[ 1, 2, 3, 4]": 1234.000000
-// Result for "12.34.56": 12.345600
-// Returns 0.0 if the string is not a valid number.
-double string_to_double(char* str, int length);
-
 // Prints a value to a file. Will look different from the values default print representation, but it will
 // guarantee that the gc will not be called.
 // Returns the number of characters printed.

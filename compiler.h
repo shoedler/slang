@@ -30,6 +30,9 @@ typedef enum {
 // This function is the main entry point of the compiler. It compiles the given source code into bytecode.
 ObjFunction* compile_module(const char* source);
 
+// Parses a number literal and returns the corresponding value (int or float).
+Value parse_number(const char* str, size_t length);
+
 // Marks all compiler roots. This is necessary because the compiler
 // can run while the GC is running. Marking compiler roots marks all
 // compilers functions.

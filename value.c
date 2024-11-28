@@ -80,35 +80,6 @@ void value_array_free(ValueArray* array) {
   value_array_init(array);
 }
 
-int is_digit(char chr) {
-  return chr >= '0' && chr <= '9';
-}
-
-// TODO: Remove and use the compiler's number parsing. Lol, this is a actually quite funny.
-double string_to_double(char* str, int length) {
-  double result              = 0.0;
-  double decimal_place_value = 1.0;
-  bool found_decimal_place   = false;
-
-  for (int i = 0; i < length; ++i) {
-    if (is_digit(str[i])) {
-      if (found_decimal_place) {
-        // Process fraction
-        decimal_place_value /= 10.0;
-        result += (str[i] - '0') * decimal_place_value;
-      } else {
-        // Process whole number
-        result = result * 10.0 + (str[i] - '0');
-      }
-    } else if (str[i] == '.' && !found_decimal_place) {
-      found_decimal_place = true;  // Mark that we've found the decimal point
-    }
-    // Ignore all other characters
-  }
-
-  return result;
-}
-
 int value_print_safe(FILE* file, Value value) {
   if (is_bool(value)) {
     return fprintf(file, value.as.boolean ? VALUE_STR_TRUE : VALUE_STR_FALSE);

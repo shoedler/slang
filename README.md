@@ -73,8 +73,8 @@ You can, for example, easily cache stuff:
 - [ ] Remove `OP_PRINT` completely in favor of native `print` function
 - [ ] Make sure managed code classes do not override internal classes.
 - [ ] Add `error` and other contextual keywords to a list of reserved words. Check them when declaring a variable.
-- [ ] Remove `string_to_double` and use `number` from the compiler instead.
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
+- [x] ~~Remove `string_to_double` and use `number` from the compiler instead.~~
 - [x] ~~Generalized calls. This is optional, but could enhance the language.~~
   - [x] ~~Move `hash_value` to types (`uint64_t ObjClass.__hash(value: Value)`)~~
   - [x] ~~Move `values_equal` to types (`bool ObjClass.__equals(a: Value, b: Value)`) **DUPE**, see "Optimizations".~~
