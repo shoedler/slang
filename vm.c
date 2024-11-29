@@ -473,7 +473,10 @@ static CallResult call_value(Value callable, int arg_count) {
     switch (bound->method->type) {
       case OBJ_GC_CLOSURE: return call_managed((ObjClosure*)bound->method, arg_count);
       case OBJ_GC_NATIVE: return call_native((ObjNative*)bound->method, arg_count);
-      default: break;  // Non-callable object type.
+      default: {
+        INTERNAL_ERROR("Cannot invoke ctor of type %d", bound->method->type);
+        return CALL_FAILED;
+      }
     }
   }
 
@@ -489,13 +492,13 @@ static CallResult call_value(Value callable, int arg_count) {
     // construct anything. As you can see, the instance already exists. It's actually more like an 'init'
     // method. It's perfectly valid to have no ctor - you'll also end up with a valid instance on the
     // stack.
-    Value ctor;
-    if (hashtable_get_by_string(&klass->methods, vm.special_method_names[SPECIAL_METHOD_CTOR], &ctor)) {
-      switch (ctor.as.obj->type) {
-        case OBJ_GC_CLOSURE: return call_managed(AS_CLOSURE(ctor), arg_count);
-        case OBJ_GC_NATIVE: return call_native(AS_NATIVE(ctor), arg_count);
+    Obj* ctor = klass->__ctor;
+    if (ctor != NULL) {
+      switch (ctor->type) {
+        case OBJ_GC_CLOSURE: return call_managed((ObjClosure*)(ctor), arg_count);
+        case OBJ_GC_NATIVE: return call_native((ObjNative*)(ctor), arg_count);
         default: {
-          vm_error("Cannot invoke ctor of type %s", ctor.type->name->chars);
+          INTERNAL_ERROR("Cannot invoke ctor of type %d", ctor->type);
           return CALL_FAILED;
         }
       }
@@ -1618,12 +1621,11 @@ DO_OP_BASE_INVOKE: {
   ObjString* method   = READ_STRING();
   int arg_count       = READ_ONE();
   ObjClass* baseclass = AS_CLASS(vm_pop());  // Leaves 'this' on the stack, followed by the arguments (if any)
-  if (invoke(baseclass, method, arg_count) == CALL_FAILED) {
-    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
-      goto FINISH_ERROR;
-    }
-    return nil_value();
+  bool failed         = invoke(baseclass, method, arg_count) == CALL_FAILED;
+  if (failed || VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    goto FINISH_ERROR;
   }
+
   frame = current_frame();
   DISPATCH();
 }
@@ -1935,7 +1937,7 @@ ObjObject* vm_make_module(const char* source_path, const char* module_name) {
 
   // Add a reference to the file path of the module, if available
   if (source_path == NULL) {
-    hashtable_set(&module->fields, str_value(vm.special_method_names[SPECIAL_PROP_FILE_PATH]), nil_value());
+    hashtable_set(&module->fields, str_value(vm.special_prop_names[SPECIAL_PROP_FILE_PATH]), nil_value());
   } else {
     char* base_dir_path = file_base(source_path);
     define_value(&module->fields, STR(SP_PROP_FILE_PATH), str_value(copy_string(base_dir_path, (int)strlen(base_dir_path))));
