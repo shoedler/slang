@@ -255,11 +255,27 @@ static Value obj_has(int argc, Value argv[]) {
     return bool_value(false);
   }
 
-  // Value equality, which is easy given that an obj is a hash table.
+  // Value equality, which is easy given that an obj is a hash table. This is a shortcut before calling obj_get_prop, since most
+  // of the time this is what we want.
   Value discard;
-  // TODO (refactor): Use obj_get_prop. Just like in the other natives. See fn_has or class_has etc.
   bool has = hashtable_get(&AS_OBJECT(argv[0])->fields, argv[1], &discard);
-  return bool_value(has);
+  if (has) {
+    return bool_value(true);
+  }
+
+  if (is_str(argv[1])) {
+    // Also execute the obj_get_prop function to see if the obj has the thing. We use this approach to make sure the two are
+    // aligned and return the same result.
+    // TODO (optimize): This has some overhead, since obj_get_prop will also check the objs hashtable, which we
+    // already checked above.
+    Value result;
+    if (obj_get_prop(argv[0], AS_STR(argv[1]), &result)) {
+      return bool_value(true);
+    }
+    vm_clear_error();  // Clear the "Prop does not exist" error set by obj_get_prop
+  }
+
+  return bool_value(false);
 }
 
 /**
