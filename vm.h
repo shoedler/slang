@@ -14,8 +14,6 @@
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
 #define KEYWORD_THIS "this"
-#define KEYWORD_THIS_LEN (STR_LEN(KEYWORD_THIS))
-
 #define KEYWORD_BASE "base"
 #define KEYWORD_ERROR "error"
 
@@ -28,7 +26,6 @@
 #define SP_PROP_NAME __name
 #define SP_PROP_FILE_PATH __file_path
 #define SP_PROP_MODULE_NAME __module_name
-#define SP_PROP_PARENT_MODULE __parent_module
 
 // Holds the state of a stack frame.
 // Represents a single ongoing function call.
@@ -41,10 +38,10 @@ typedef struct {
 
 typedef enum {
   // Methods that are commonly used in the VM and need to be accessed quickly.
-  SPECIAL_METHOD_CTOR,    // ctor
-  SPECIAL_METHOD_TO_STR,  // to_str  Implicitly used by the string interpolation and print functions
-  SPECIAL_METHOD_HAS,     // has     Impllicitly used by the 'in' operator
-  SPECIAL_METHOD_SLICE,   // slice   Implicitly used by the slice operator and destructuring
+  SPECIAL_METHOD_CTOR,
+  SPECIAL_METHOD_TO_STR,  // Implicitly used by the string interpolation and print functions
+  SPECIAL_METHOD_HAS,     // Impllicitly used by the 'in' operator
+  SPECIAL_METHOD_SLICE,   // Implicitly used by the slice operator and destructuring
 
   SPECIAL_METHOD_MAX,
 } SpecialMethodNames;
@@ -52,7 +49,6 @@ typedef enum {
 typedef enum {
   SPECIAL_PROP_LEN,
   SPECIAL_PROP_NAME,
-  SPECIAL_PROP_DOC,
   SPECIAL_PROP_FILE_PATH,
   SPECIAL_PROP_MODULE_NAME,
 
@@ -68,17 +64,22 @@ typedef struct {
   Chunk* chunk;
   uint16_t* ip;  // Instruction pointer, points to the NEXT instruction to execute
   Value stack[STACK_MAX];
-  Value* stack_top;   // Stack pointer
+  Value* stack_top;  // Stack pointer
+
+  HashTable modules;  // Modules
   HashTable strings;  // Interned strings
   HashTable natives;  // The table of native functions and types
   ObjUpvalue* open_upvalues;
-
   Obj* objects;  // Linked list of all objects in the VM (heap)
   atomic_size_t object_count;
 
-  HashTable modules;  // Modules
+  ObjString* special_method_names[SPECIAL_METHOD_MAX];  // Special method names for quick access
+  ObjString* special_prop_names[SPECIAL_PROP_MAX];      // Special prop names for quick access
+
   ObjObject* module;  // The current module
   int exit_on_frame;  // Index of the frame to exit on
+  Value current_error;
+  int flags;
 
   ObjClass* obj_class;    // Base class: The obj class
   ObjClass* num_class;    // Base class: The num class
@@ -97,15 +98,10 @@ typedef struct {
 
   ObjClass* module_class;  // Obj-class: The module class
 
-  ObjString* special_method_names[SPECIAL_METHOD_MAX];  // Special method names for quick access
-  ObjString* special_prop_names[SPECIAL_PROP_MAX];      // Special prop names for quick access
-
   size_t bytes_allocated;  // Number of bytes currently allocated.
   size_t prev_gc_freed;    // Number of bytes freed in the last garbage collection.
   size_t next_gc;          // Number of bytes at which the next garbage collection will occur.
 
-  Value current_error;
-  int flags;
 } Vm;
 
 #define VM_FLAG_PAUSE_GC (1 << 0)

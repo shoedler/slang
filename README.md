@@ -71,10 +71,10 @@ You can, for example, easily cache stuff:
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
 - [ ] Make `log` accept a single argument and also, return it. That'd be awesome. `const x = a + b + c + log(d) + e`
-- [ ] Add `error` and other contextual keywords to a list of reserved words (Maybe including all natives). Check them when declaring anything.
+- [ ] Fix VM finishing a program in error state not exiting with `EXIT_FAILURE`. (Probably, the flags are reset in `vm_free` or `reset_stack` or something).
 - [ ] Make compiler errors recoverable. Just let it sync, then continue - instead of aborting.
 - [ ] Make sure managed code classes do not override internal classes.
-- [ ] Fix VM finishing a program in error state not exiting with `EXIT_FAILURE`. (Probably, the flags are reset in `vm_free` or `reset_stack` or something).
+- [x] ~~Add `error` and other contextual keywords to a list of reserved words (Maybe including all natives). Check them when declaring anything.~~ Not necessary, since other ctx keywords have their own TOKEN type. As for errors, we'll just allow redeclaration, even inside a catch-block. The reason being that the error-var gets injected into a scope surrounding the whole try/catch statement, not just in the catch-block.
 - [x] ~~Remove `string_to_double` and use `number` from the compiler instead.~~
 - [x] ~~Generalized calls. This is optional, but could enhance the language.~~
   - [x] ~~Move `hash_value` to types (`uint64_t ObjClass.__hash(value: Value)`)~~

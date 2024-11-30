@@ -1270,21 +1270,6 @@ DO_OP_SET_PROPERTY: {
   Value receiver  = peek(1);
   Value result    = peek(0);
 
-  // TODO (optimize): Maybe remove this check for reserved words. We could just allow the user to override these things.
-  // This is
-  // tightly bound to the retrieval of properties, because if we check the special props before the fields, they would
-  // always return the internal value. Currently tough, we check the fields first, because most of the time you probably
-  // want to get fields you've defined as a user. So, getting a special property would yield the value the user assigned.
-  // This is bad, because you could override e.g. the length property and cause the vm to segfault.
-
-  // Check if it is a reserved property.
-  for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
-    if (name == vm.special_prop_names[i]) {  // We can just compare pointers, because strings are interned.
-      vm_error("Cannot set reserved property '%s' on value of type %s.", name->chars, receiver.type->name->chars);
-      goto FINISH_ERROR;
-    }
-  }
-
   if (receiver.type->__set_prop(receiver, name, result)) {
     vm_pop();
     vm_pop();

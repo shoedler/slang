@@ -1,5 +1,6 @@
 #include "compiler.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -115,38 +116,56 @@ static inline Chunk* current_chunk() {
 
 // Prints the given token as an error message.
 // Sets the parser into panic mode to avoid cascading errors.
-static void error_at(Token* token, const char* message) {
+static void print_compiler_error(Token* token, const char* format, va_list args) {
   if (parser.panic_mode) {
     return;
   }
 
   parser.panic_mode = true;
+
   fprintf(stderr, "Compile error at line %d", token->line);
 
   if (token->type == TOKEN_EOF) {
     fprintf(stderr, " at end");
-  } else if (token->type == TOKEN_ERROR) {
-    // Nothing.
-  } else {
+  } else if (token->type != TOKEN_ERROR) {
     fprintf(stderr, " at '%.*s'", token->length, token->start);
   }
 
-  fprintf(stderr, ": %s\n", message);
+  fprintf(stderr, ": ");
+  vfprintf(stderr, format, args);
+  fprintf(stderr, "\n");
+
   parser.had_error = true;
 }
 
+// Prints the given token as an error message.
+// Sets the parser into panic mode to avoid cascading errors.
+static void compiler_error(Token* token, const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  print_compiler_error(token, format, args);
+  va_end(args);
+}
+
 // Prints an error message at the previous token.
-static void error(const char* message) {
-  error_at(&parser.previous, message);
+// Sets the parser into panic mode to avoid cascading errors.
+static void compiler_error_at_previous(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  print_compiler_error(&parser.previous, format, args);
+  va_end(args);
 }
 
 // Prints an error message at the current token.
-static void error_at_current(const char* message) {
-  error_at(&parser.current, message);
+// Sets the parser into panic mode to avoid cascading errors.
+static void compiler_error_at_current(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  print_compiler_error(&parser.current, format, args);
+  va_end(args);
 }
 
-// Parse the next token.
-// Consumes error tokens, so that on the next call we have a valid token.
+// Parse the next token. Consumes error tokens, so that on the next call we have a valid token.
 static void advance() {
   parser.previous = parser.current;
 
@@ -157,19 +176,22 @@ static void advance() {
       break;
     }
 
-    error_at_current(parser.current.start);
+    compiler_error_at_current(parser.current.start);
   }
 }
 
 // Assert and cosume the current token according to the provided token type.
 // If it doesn't match, print an error message.
-static void consume(TokenKind type, const char* message) {
+static void consume(TokenKind type, const char* format, ...) {
   if (parser.current.type == type) {
     advance();
     return;
   }
 
-  error_at_current(message);
+  va_list args;
+  va_start(args, format);
+  print_compiler_error(&parser.current, format, args);
+  va_end(args);
 }
 
 // Compares the current token with the provided token type.
@@ -194,6 +216,28 @@ static bool check_statement_return_end() {
          check(TOKEN_CBRACE) ||  // If the current token is a closing brace, indicating the end of a block ({ ret x` })
          check(TOKEN_ELSE) ||    // If the current token is an else keyword (if a ret b` else ret c)
          check(TOKEN_EOF);       // If the current token is the end of the file
+}
+
+// Checks whether a token matches a reserved property name.
+static bool check_reserved_prop(Token* name) {
+  for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
+    if (vm.special_prop_names[i]->length == name->length &&
+        memcmp(vm.special_prop_names[i]->chars, name->start, name->length) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Checks whether a token matches a reserved method name.
+static bool check_reserved_method(Token* name) {
+  for (int i = 0; i < SPECIAL_METHOD_MAX; i++) {
+    if (vm.special_method_names[i]->length == name->length &&
+        memcmp(vm.special_method_names[i]->chars, name->start, name->length) == 0) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Writes an opcode or operand to the current chunk.
@@ -221,16 +265,14 @@ static void emit_two_here(uint16_t data1, uint16_t data2) {
   emit_two(data1, data2, parser.previous);  // 'current' is actually the next one we want to consume. So we use 'previous'.
 }
 
-// Emits a loop instruction.
-// The operand is a 16-bit offset.
-// It is calculated by subtracting the current chunk's count from the offset of
-// the jump instruction.
+// Emits a loop instruction. The operand is a 16-bit offset. It is calculated by subtracting the current chunk's count from the
+// offset of the jump instruction.
 static void emit_loop(int loop_start) {
   emit_one_here(OP_LOOP);
 
   int offset = current_chunk()->count - loop_start + 1;
   if (offset > MAX_JUMP) {
-    error("Loop body too large.");
+    compiler_error_at_previous("Loop body too large, cannot jump over %d opcodes. Max is " STR(MAX_JUMP), offset);
   }
 
   emit_one_here((uint16_t)offset);
@@ -253,7 +295,7 @@ static void patch_jump(int offset) {
   int jump = current_chunk()->count - offset - 1;
 
   if (jump > MAX_JUMP) {
-    error("Too much code to jump over.");
+    compiler_error_at_previous("Too much code to jump over, cannot jump over %d opcodes. Max is " STR(MAX_JUMP), jump);
   }
 
   current_chunk()->code[offset] = (uint16_t)jump;
@@ -268,11 +310,10 @@ static void patch_breaks(int jump_start_offset) {
 }
 
 // Adds a value to the current constant pool and returns its index.
-// Logs a compile error if the constant pool is full.
 static uint16_t make_constant(Value value) {
   int constant = chunk_add_constant(current_chunk(), value);
   if (constant > MAX_CONSTANTS) {
-    error("Too many constants in one chunk.");
+    compiler_error_at_previous("Too many constants in one chunk. Max is " STR(MAX_CONSTANTS));
     return 0;
   }
 
@@ -345,7 +386,7 @@ static void compiler_init(Compiler* compiler, FunctionType type) {
   // Sometimes we need to "inject" the 'this' keyword, depending on the type of function we're compiling.
   if (type == TYPE_CONSTRUCTOR || type == TYPE_METHOD) {
     local->name.start  = KEYWORD_THIS;
-    local->name.length = KEYWORD_THIS_LEN;
+    local->name.length = STR_LEN(KEYWORD_THIS);
   } else {
     local->name.start  = "";  // Not accessible.
     local->name.length = 0;
@@ -479,15 +520,28 @@ static void dot(bool can_assign) {
   Token error_start = parser.previous;
   uint16_t name     = identifier_constant(&parser.previous);
 
+#define CHECK_RESERVED()                                                                                         \
+  if (check_reserved_prop(&error_start)) {                                                                       \
+    compiler_error(&error_start, "Cannot set reserved property '%.*s'.", error_start.length, error_start.start); \
+    return;                                                                                                      \
+  }                                                                                                              \
+  if (check_reserved_method(&error_start)) {                                                                     \
+    compiler_error(&error_start, "Cannot set reserved method '%.*s'.", error_start.length, error_start.start);   \
+    return;                                                                                                      \
+  }
+
   if (can_assign && match(TOKEN_ASSIGN)) {
+    CHECK_RESERVED();
     expression();
     emit_two(OP_SET_PROPERTY, name, error_start);
   } else if (can_assign && match_inc_dec()) {
+    CHECK_RESERVED();
     emit_two(OP_DUPE, 0, error_start);  // Duplicate the object.
     emit_two(OP_GET_PROPERTY, name, error_start);
     inc_dec();
     emit_two(OP_SET_PROPERTY, name, error_start);
   } else if (can_assign && match_compound_assignment()) {
+    CHECK_RESERVED();
     emit_two(OP_DUPE, 0, error_start);  // Duplicate the object.
     emit_two(OP_GET_PROPERTY, name, error_start);
     compound_assignment();
@@ -501,11 +555,11 @@ static void dot(bool can_assign) {
   } else {
     emit_two(OP_GET_PROPERTY, name, error_start);
   }
+
+#undef CHECK_RESERVED
 }
 
-// Compiles a subscripting expression.
-// The opening bracket has already been consumed and is referenced by the
-// previous token.
+// Compiles a subscripting expression. The opening bracket has already been consumed and is referenced by the previous token.
 static void subscripting(bool can_assign) {
   bool slice_started = false;
 
@@ -541,7 +595,7 @@ static void subscripting(bool can_assign) {
     emit_one(OP_GET_SLICE, error_start);
 
     if (match(TOKEN_ASSIGN)) {
-      error("Slices can't be assigned to.");
+      compiler_error_at_previous("Slices can't be assigned to.");
     }
     return;
   }
@@ -605,8 +659,8 @@ static void tuple_literal(bool can_assign, int already_emitted_items, Token erro
   if (count <= MAX_TUPLE_LITERAL_ITEMS) {
     emit_two(OP_TUPLE_LITERAL, (uint16_t)(count + already_emitted_items), error_start);
   } else {
-    // Still use 'error_at_current' because the message would be very long if we'd start at 'error_start'.
-    error_at_current("Can't have more than " STR(MAX_TUPLE_LITERAL_ITEMS) " items in a " STR(TYPENAME_TUPLE) ".");
+    // Still use 'compiler_error_at_current' because the message would be very long if we'd start at 'error_start'.
+    compiler_error_at_current("Can't have more than " STR(MAX_TUPLE_LITERAL_ITEMS) " items in a " STR(TYPENAME_TUPLE) ".");
   }
 }
 
@@ -665,7 +719,8 @@ static void seq_literal(bool can_assign) {
   if (count <= MAX_SEQ_LITERAL_ITEMS) {
     emit_two(OP_SEQ_LITERAL, (uint16_t)count, error_start);
   } else {
-    error_at_current("Can't have more than " STR(MAX_SEQ_LITERAL_ITEMS) " items in a " STR(TYPENAME_SEQ) ".");
+    // Still use 'compiler_error_at_current' because the message would be very long if we'd start at 'error_start'.
+    compiler_error_at_current("Can't have more than " STR(MAX_SEQ_LITERAL_ITEMS) " items in a " STR(TYPENAME_SEQ) ".");
   }
 }
 
@@ -694,7 +749,8 @@ static void object_literal(bool can_assign) {
   if (count <= MAX_OBJECT_LITERAL_ITEMS) {
     emit_two(OP_OBJECT_LITERAL, (uint16_t)count, error_start);
   } else {
-    error_at_current("Can't have more than " STR(MAX_OBJECT_LITERAL_ITEMS) " items in a " STR(TYPENAME_OBJ) ".");
+    // Still use 'compiler_error_at_current' because the message would be very long if we'd start at 'error_start'.
+    compiler_error_at_current("Can't have more than " STR(MAX_OBJECT_LITERAL_ITEMS) " items in a " STR(TYPENAME_OBJ) ".");
   }
 }
 
@@ -774,7 +830,7 @@ static void string(bool can_assign) {
     while (cur < end) {
       if (*cur == '\\') {
         if (cur + 1 > end) {
-          error_at_current("Unterminated escape sequence.");
+          compiler_error_at_current("Unterminated escape sequence.");
           return;
         }
         switch (cur[1]) {
@@ -787,7 +843,7 @@ static void string(bool can_assign) {
           case '\\': PUSH_CHAR('\\'); break;
           case '\"': PUSH_CHAR('\"'); break;
           case '\'': PUSH_CHAR('\''); break;
-          default: error_at_current("Invalid escape sequence."); return;
+          default: compiler_error_at_current("Invalid escape sequence."); return;
         }
         cur += 2;
       } else {
@@ -850,9 +906,9 @@ static void binary(bool can_assign) {
   }
 }
 
-// Compiles a variable. Generates bytecode to load a variable with the given name onto the stack.
+// Generates bytecode to load a variable with the given name onto the stack.
 // [name] can be a synthetic token, but [error_start] must be the actual token from the source code.
-static void named_variable(Token name, bool can_assign, Token error_start) {
+static void load_variable(Token name, bool can_assign, Token error_start) {
   uint16_t get_op;
   uint16_t set_op;
   bool is_var_const = false;
@@ -880,39 +936,52 @@ static void named_variable(Token name, bool can_assign, Token error_start) {
     set_op = OP_SET_GLOBAL;
   }
 
+#define CHECK_CONSTNESS()                                       \
+  if (is_var_const) {                                           \
+    compiler_error(&error_start, "Can't reassign a constant."); \
+    return;                                                     \
+  }
+
+#define CHECK_RESERVED_GLOBAL()                                                                                               \
+  if (set_op == OP_SET_GLOBAL && check_reserved_prop(&error_start)) {                                                         \
+    compiler_error(&error_start, "Cannot assign to global reserved property '%.*s'.", error_start.length, error_start.start); \
+    return;                                                                                                                   \
+  }                                                                                                                           \
+  if (set_op == OP_SET_GLOBAL && check_reserved_method(&error_start)) {                                                       \
+    compiler_error(&error_start, "Cannot assign to global reserved method '%.*s'.", error_start.length, error_start.start);   \
+    return;                                                                                                                   \
+  }
+
   if (can_assign && match(TOKEN_ASSIGN)) {
-    if (is_var_const) {
-      error_at(&error_start, "Can't reassign a constant.");
-    } else {
-      expression();
-      emit_two(set_op, (uint16_t)arg, error_start);
-    }
+    CHECK_CONSTNESS();
+    CHECK_RESERVED_GLOBAL();
+    expression();
+    emit_two(set_op, (uint16_t)arg, error_start);
   } else if (can_assign && match_inc_dec()) {
-    if (is_var_const) {
-      error_at(&error_start, "Can't reassign a constant.");
-    } else {
-      emit_two(get_op, (uint16_t)arg, error_start);
-      inc_dec();
-      emit_two(set_op, (uint16_t)arg, error_start);
-    }
+    CHECK_CONSTNESS();
+    CHECK_RESERVED_GLOBAL();
+    emit_two(get_op, (uint16_t)arg, error_start);
+    inc_dec();
+    emit_two(set_op, (uint16_t)arg, error_start);
   } else if (can_assign && match_compound_assignment()) {
-    if (is_var_const) {
-      error_at(&error_start, "Can't reassign a constant.");
-    } else {
-      emit_two(get_op, (uint16_t)arg, error_start);
-      compound_assignment();
-      emit_two(set_op, (uint16_t)arg, error_start);
-    }
+    CHECK_CONSTNESS();
+    CHECK_RESERVED_GLOBAL();
+    emit_two(get_op, (uint16_t)arg, error_start);
+    compound_assignment();
+    emit_two(set_op, (uint16_t)arg, error_start);
   } else {
     emit_two(get_op, (uint16_t)arg, error_start);
   }
+
+#undef CHECK_CONSTNESS
+#undef CHECK_RESERVED_GLOBAL
 }
 
 // Compiles a variable reference.
 // The variable has already been consumed and is referenced by the previous
 // token.
 static void variable(bool can_assign) {
-  named_variable(parser.previous, can_assign, parser.previous);
+  load_variable(parser.previous, can_assign, parser.previous);
 }
 
 // Creates a token from the given text.
@@ -934,11 +1003,11 @@ static void base_(bool can_assign) {
   Token error_start = parser.previous;
 
   if (current_class == NULL) {
-    error("Can't use '" KEYWORD_BASE "' outside of a class.");
+    compiler_error_at_previous("Can't use '" KEYWORD_BASE "' outside of a class.");
   } else if (!current_class->has_baseclass) {
-    error("Can't use '" KEYWORD_BASE "' in a class with no base-class.");
+    compiler_error_at_previous("Can't use '" KEYWORD_BASE "' in a class with no base-class.");
   } else if (current->type == TYPE_METHOD_STATIC) {
-    error("Can't use '" KEYWORD_BASE "' in a static method.");
+    compiler_error_at_previous("Can't use '" KEYWORD_BASE "' in a static method.");
   }
 
   Token method_name;
@@ -953,17 +1022,17 @@ static void base_(bool can_assign) {
 
   uint16_t name = identifier_constant(&method_name);
 
-  named_variable(synthetic_token(KEYWORD_THIS), false, error_start);
+  load_variable(synthetic_token(KEYWORD_THIS), false, error_start);
   if (match(TOKEN_OPAR)) {
     // Shorthand for method calls. This combines two instructions into one:
     // getting a property and calling a method.
     uint16_t arg_count = argument_list();
 
-    named_variable(synthetic_token(KEYWORD_BASE), false, error_start);
+    load_variable(synthetic_token(KEYWORD_BASE), false, error_start);
     emit_two(OP_BASE_INVOKE, name, error_start);
     emit_one(arg_count, error_start);
   } else {
-    named_variable(synthetic_token(KEYWORD_BASE), false, error_start);
+    load_variable(synthetic_token(KEYWORD_BASE), false, error_start);
     emit_two(OP_GET_BASE_METHOD, name, error_start);
   }
 }
@@ -984,7 +1053,7 @@ static void function(bool can_assign, FunctionType type) {
       do {
         current->function->arity++;
         if (current->function->arity > MAX_FN_ARGS) {
-          error_at_current("Can't have more than " STR(MAX_FN_ARGS) " parameters.");
+          compiler_error_at_current("Can't have more than " STR(MAX_FN_ARGS) " parameters.");
         }
 
         uint16_t constant = parse_variable("Expecting parameter name.", CONSTNESS_FN_PARAMS);
@@ -993,7 +1062,7 @@ static void function(bool can_assign, FunctionType type) {
     }
 
     if (!match(TOKEN_CPAR)) {
-      error_at_current("Expecting ')' after parameters.");
+      compiler_error_at_current("Expecting ')' after parameters.");
     }
   }
 
@@ -1002,7 +1071,7 @@ static void function(bool can_assign, FunctionType type) {
     block();
   } else if (match(TOKEN_LAMBDA)) {
     if (type == TYPE_CONSTRUCTOR) {
-      error_at_current("Constructors can't be lambda functions.");
+      compiler_error_at_current("Constructors can't be lambda functions.");
     }
     // TODO (optimize): end_compiler() will also emit OP_NIL and OP_RETURN, which are unnecessary (Same goes
     // for non-lambda functions which only have a return) We could optimize this by not emitting those
@@ -1011,7 +1080,7 @@ static void function(bool can_assign, FunctionType type) {
     expression();
     emit_one_here(OP_RETURN);
   } else {
-    error_at_current("Expecting '{' or '->' before function body.");
+    compiler_error_at_current("Expecting '{' or '->' before function body.");
   }
 
   ObjFunction* function = end_compiler();  // Also handles end of scope. (end_scope())
@@ -1129,12 +1198,12 @@ static void in_(bool can_assign) {
 static void this_(bool can_assign) {
   UNUSED(can_assign);
   if (current_class == NULL) {
-    error("Can't use '" KEYWORD_THIS "' outside of a class.");
+    compiler_error_at_previous("Can't use '" KEYWORD_THIS "' outside of a class.");
     return;
   }
 
   if (current->type == TYPE_METHOD_STATIC) {
-    error("Can't use '" KEYWORD_THIS "' in a static method.");
+    compiler_error_at_previous("Can't use '" KEYWORD_THIS "' in a static method.");
     return;
   }
 
@@ -1209,7 +1278,7 @@ static void parse_precedence(Precedence precedence) {
   advance();
   ParseFn prefix_rule = get_rule(parser.previous.type)->prefix;
   if (prefix_rule == NULL) {
-    error("Expecting expression.");
+    compiler_error_at_previous("Expecting expression.");
     return;
   }
 
@@ -1235,11 +1304,11 @@ static void parse_precedence(Precedence precedence) {
   }
 
   if (can_assign && match(TOKEN_ASSIGN)) {
-    error("Invalid assignment target.");
+    compiler_error_at_previous("Invalid assignment target.");
   } else if (can_assign && match_inc_dec()) {
-    error("Invalid inc/dec target.");
+    compiler_error_at_previous("Invalid inc/dec target.");
   } else if (can_assign && match_compound_assignment()) {
-    error("Invalid compound assignment target.");
+    compiler_error_at_previous("Invalid compound assignment target.");
   }
 }
 
@@ -1268,7 +1337,7 @@ static int resolve_local(Compiler* compiler, Token* name, bool* is_const) {
     Local* local = &compiler->locals[i];
     if (identifiers_equal(name, &local->name)) {
       if (local->depth == -1) {
-        error("Can't read local variable in its own initializer.");
+        compiler_error_at_previous("Can't read local variable in its own initializer.");
       }
       *is_const = local->is_const;
       return i;
@@ -1314,7 +1383,7 @@ static int resolve_upvalue(Compiler* compiler, Token* name, bool* is_const) {
 // Adds a local variable to the current compiler's local variables array.
 static void add_local(Token name, bool is_const) {
   if (current->local_count == MAX_LOCALS) {
-    error("Can't have more than " STR(MAX_LOCALS) " local variables in one scope.");
+    compiler_error_at_previous("Can't have more than " STR(MAX_LOCALS) " local variables in one scope.");
     return;
   }
 
@@ -1332,7 +1401,7 @@ static void add_const_global(uint16_t global) {
   INTERNAL_ASSERT(current->scope_depth == 0, "Can't add a global in a local scope.");
 
   if (const_globals_count == MAX_CONST_GLOBALS) {
-    error("Can't have more than " STR(MAX_CONST_GLOBALS) " global constants per compilation.");
+    compiler_error_at_previous("Can't have more than " STR(MAX_CONST_GLOBALS) " global constants per compilation.");
     return;
   }
 
@@ -1355,7 +1424,7 @@ static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
   }
 
   if (upvalue_count == MAX_UPVALUES) {
-    error("Can't have more than " STR(MAX_UPVALUES) " closure variables in one function.");
+    compiler_error_at_previous("Can't have more than " STR(MAX_UPVALUES) " closure variables in one function.");
     return 0;
   }
 
@@ -1379,9 +1448,10 @@ static void declare_local(Token* name, bool is_const) {
     }
 
     if (identifiers_equal(name, &local->name)) {
-      error("Already a variable with this name in this scope.");
+      compiler_error_at_previous("Already a variable with this name in this scope.");
     }
   }
+
   add_local(*name, is_const);
 }
 
@@ -1437,7 +1507,7 @@ static uint16_t argument_list() {
     do {
       expression();
       if (arg_count == MAX_FN_ARGS) {
-        error("Can't have more than " STR(MAX_FN_ARGS) " arguments.");
+        compiler_error_at_previous("Can't have more than " STR(MAX_FN_ARGS) " arguments.");
       }
       arg_count++;
     } while (match(TOKEN_COMMA));
@@ -1510,11 +1580,11 @@ static void destructuring(DestructureType type, bool rhs_is_import, bool is_cons
   // Parse the left-hand side of the assignment, e.g. the variables.
   while (!check(closing) && !check(TOKEN_EOF)) {
     if (has_rest) {
-      error("Rest parameter must be last in destructuring assignment.");
+      compiler_error_at_previous("Rest parameter must be last in destructuring assignment.");
     }
     has_rest = match(TOKEN_DOTDOTDOT);
     if (has_rest && type == DESTRUCTURE_OBJ) {
-      error("Rest parameter is not allowed in " STR(TYPENAME_OBJ) " destructuring assignment.");
+      compiler_error_at_previous("Rest parameter is not allowed in " STR(TYPENAME_OBJ) " destructuring assignment.");
     }
 
     // A variable is parsed just like in a normal let declaration. But, because the rhs is not yet compiled,
@@ -1540,7 +1610,7 @@ static void destructuring(DestructureType type, bool rhs_is_import, bool is_cons
     }
 
     if (++current_index > MAX_DESTRUCTURING_VARS) {
-      error("Can't have more than " STR(MAX_DESTRUCTURING_VARS) " variables in destructuring assignment.");
+      compiler_error_at_previous("Can't have more than " STR(MAX_DESTRUCTURING_VARS) " variables in destructuring assignment.");
     }
 
     if (has_rest) {
@@ -1553,7 +1623,8 @@ static void destructuring(DestructureType type, bool rhs_is_import, bool is_cons
   }
 
   if (!match(closing)) {
-    has_rest ? error("Rest parameter must be last in destructuring assignment.") : error("Unterminated destructuring pattern.");
+    has_rest ? compiler_error_at_previous("Rest parameter must be last in destructuring assignment.")
+             : compiler_error_at_previous("Unterminated destructuring pattern.");
   }
 
   // Parse the right-hand side of the assignment.
@@ -1733,12 +1804,12 @@ static void statement_return() {
     emit_return();
   } else {
     if (current->type == TYPE_CONSTRUCTOR) {
-      error("Can't return a value from a constructor.");
+      compiler_error_at_previous("Can't return a value from a constructor.");
     }
 
     expression();
     if (!check_statement_return_end()) {
-      error_at_current("Expecting newline, '}' or some other statement after return value.");
+      compiler_error_at_current("Expecting newline, '}' or some other statement after return value.");
     }
     emit_one(OP_RETURN, error_start);
   }
@@ -1843,7 +1914,7 @@ static void statement_for() {
 // The skip keyword has already been consumed at this point.
 static void statement_skip() {
   if (current->innermost_loop_start == -1) {
-    error("Can't skip outside of a loop.");
+    compiler_error_at_previous("Can't skip outside of a loop.");
   }
 
   // Discard any locals created in the loop body.
@@ -1859,7 +1930,7 @@ static void statement_skip() {
 // The break keyword has already been consumed at this point.
 static void statement_break() {
   if (current->innermost_loop_start == -1) {
-    error("Can't break outside of a loop.");
+    compiler_error_at_previous("Can't break outside of a loop.");
   }
 
   // Grow the array if necessary.
@@ -1903,7 +1974,7 @@ static void statement_import() {
   } else if (match(TOKEN_OBRACE)) {
     destructuring(DESTRUCTURE_OBJ, true /* rhs_is_import */, CONSTNESS_IMPORT_BINDINGS);  // Import bindings are always constants.
   } else {
-    error_at(&parser.current, "Expecting module name or destructuring assignment after import.");
+    compiler_error(&parser.current, "Expecting module name or destructuring assignment after import.");
   }
 }
 
@@ -1984,7 +2055,7 @@ static void declaration_const() {
     if (match(TOKEN_ASSIGN)) {
       expression();
     } else {
-      error("Expecting '=' after constant name.");
+      compiler_error_at_previous("Expecting '=' after constant name.");
     }
 
     define_variable(global, constness);
@@ -2029,7 +2100,7 @@ static void declaration_class() {
     variable(false);
 
     if (identifiers_equal(&class_name, &parser.previous)) {
-      error("A class can't inherit from itself.");
+      compiler_error_at_previous("A class can't inherit from itself.");
     }
 
     begin_scope();
@@ -2039,12 +2110,12 @@ static void declaration_class() {
     define_variable(0 /* ignore, we're not in global scope */,
                     CONSTNESS_KW_BASE);  // We're never in global scope here, so we can pass 0 as the global index.
 
-    named_variable(class_name, false, parser.previous);
+    load_variable(class_name, false, parser.previous);
     emit_one(OP_INHERIT, parser.previous);
     class_compiler.has_baseclass = true;
   }
 
-  named_variable(class_name, false, error_start);
+  load_variable(class_name, false, error_start);
 
   // Body
   bool has_ctor = false;
@@ -2052,7 +2123,7 @@ static void declaration_class() {
   while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF) && !parser.panic_mode) {
     if (check(TOKEN_CTOR)) {
       if (has_ctor) {
-        error("Can't have more than one constructor.");
+        compiler_error_at_previous("Can't have more than one constructor.");
       }
       constructor();
       has_ctor = true;

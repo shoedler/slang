@@ -1,194 +1,204 @@
 {
-    "name": "SlangScript",
-    "scopeName": "source.SlangScript",
-    "fileTypes": [
-        "ns"
-    ],
-    "patterns": [
-        {
-            "include": "#comments"
-        },
-        {
-            "include": "#keywords"
-        },
-        {
-            "include": "#numbers"
-        },
-        {
-            "include": "#strings"
-        },
-        {
-            "include": "#constants"
-        },
-        {
-            "include": "#types"
-        },
-        {
-            "include": "#variables"
-        },
-        {
-            "include": "#operators"
-        }
-    ],
-    "repository": {
-        "comments": {
-            "patterns": [
-                {
-                    "name": "comment.line.double-slash.SlangScript",
-                    "begin": "//",
-                    "end": "$",
-                    "patterns": [
-                        {
-                            "name": "storage.type.SlangScript",
-                            "match": "\\[(expect|skip|expect-error|exit)\\]"
-                        }
-                    ]
-                }
-            ]
-        },
-        "types": {
-            "patterns": [
-                {
-                    "name": "entity.name.type.SlangScript",
-                    "match": "\\b(Obj|Nil|Bool|Num|Int|Float|Str|Seq|Tuple|Fn|Class)\\b"
-                }
-            ]
-        },
-        "constants": {
-            "patterns": [
-                {
-                    "name": "constant.language.SlangScript",
-                    "match": "\\b(nil|true|false)\\b"
-                }
-            ]
-        },
-        "keywords": {
-            "patterns": [
-                {
-                    "name": "keyword.control.SlangScript",
-                    "match": "\\b(if|for|else|while|ret|print|import|from|throw|try|catch|skip|break)\\b"
-                },
-                {
-                    "name": "keyword.operator.expression.SlangScript",
-                    "match": "\\b(typeof|is|in|cwd|clock|log)\\b"
-                },
-                {
-                    "name": "keyword.operator.logical.SlangScript",
-                    "match": "\\b(or|and)\\b"
-                },
-                {
-                    "name": "storage.type.SlangScript",
-                    "match": "\\b(let|const|ctor)\\b"
-                },
-                {
-                    "match": "(cls)\\s+\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b(\\s*:\\s*)?([a-zA-Z_][a-zA-Z0-9_]*)?",
-                    "captures": {
-                        "1": {
-                            "name": "storage.type.SlangScript"
-                        },
-                        "2": {
-                            "name": "entity.name.type.class.SlangScript"
-                        },
-                        "4": {
-                            "name": "entity.other.inherited-class.SlangScript"
-                        }
-                    }
-                },
-                {
-                    "match": "(fn)\\s+([a-zA-Z_][a-zA-Z0-9_]*)?",
-                    "captures": {
-                        "1": {
-                            "name": "storage.type.SlangScript"
-                        },
-                        "2": {
-                            "name": "entity.name.function.SlangScript"
-                        }
-                    }
-                },
-                {
-                    "name": "storage.modifier.SlangScript",
-                    "match": "\\b(static)\\b"
-                }
-            ]
-        },
-        "numbers": {
-            "patterns": [
-                {
-                    "name": "constant.numeric.integer.SlangScript",
-                    "match": "\\b[0-9]+\\b"
-                },
-                {
-                    "name": "constant.numeric.float.SlangScript",
-                    "match": "\\b[0-9]+\\.[0-9]+\\b"
-                },
-                {
-                    "name": "constant.numeric.hex.SlangScript",
-                    "match": "\\b0x[0-9A-Fa-f]+\\b"
-                },
-                {
-                    "name": "constant.numeric.binary.SlangScript",
-                    "match": "\\b0b[01]+\\b"
-                },
-                {
-                    "name": "constant.numeric.octal.SlangScript",
-                    "match": "\\b0o[0-7]+\\b"
-                }
-            ]
-        },
-        "strings": {
-            "patterns": [
-                {
-                    "name": "string.quoted.double.SlangScript",
-                    "begin": "\"",
-                    "end": "\"",
-                    "patterns": [
-                        {
-                            "name": "constant.character.escape.SlangScript",
-                            "match": "\\\\(u[0-9A-Fa-f]{4}|x[0-9A-Fa-f]{2}|[0-7]{1,3}|[bfnrt\"'\\\\])"
-                        }
-                    ]
-                }
-            ]
-        },
-        "variables": {
-            "patterns": [
-                {
-                    "name": "variable.language.SlangScript",
-                    "match": "\\b(this|base|error)\\b"
-                },
-                {
-                    "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(",
-                    "captures": {
-                        "1": {
-                            "name": "entity.name.function.SlangScript"
-                        }
-                    }
-                },
-                {
-                    "name": "variable.other.local.SlangScript",
-                    "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
-                }
-            ]
-        },
-        "operators": {
-            "patterns": [
-                {
-                    "name": "keyword.operator.arithmetic.SlangScript",
-                    "match": "\\+|-|\\*|/|%|\\^"
-                },
-                {
-                    "name": "keyword.operator.assignment.SlangScript",
-                    "match": "=|->"
-                },
-                {
-                    "name": "keyword.operator.comparison.SlangScript",
-                    "match": "==|!=|<|>|<=|>="
-                },
-                {
-                    "name": "keyword.operator.logical.SlangScript",
-                    "match": "\\!|\\?|\\:"
-                }
-            ]
-        }
+  "name": "SlangScript",
+  "scopeName": "source.SlangScript",
+  "fileTypes": ["sl"],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#variables"
+    },
+    {
+      "include": "#operators"
     }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.SlangScript",
+          "begin": "//",
+          "end": "$",
+          "patterns": [
+            {
+              "name": "storage.type.SlangScript",
+              "match": "\\[(expect|skip|expect-error|exit)\\]"
+            }
+          ]
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "entity.name.type.SlangScript",
+          "match": "\\b(Obj|Nil|Bool|Num|Int|Float|Str|Seq|Tuple|Fn|Class)\\b"
+        },
+        {
+          "name": "entity.name.type.SlangScript",
+          "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.SlangScript",
+          "match": "\\b(nil|true|false)\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.SlangScript",
+          "match": "\\b(if|for|else|while|ret|print|import|from|throw|try|catch|skip|break)\\b"
+        },
+        {
+          "name": "keyword.operator.expression.SlangScript",
+          "match": "\\b(typeof|is|in|cwd|clock|log)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.SlangScript",
+          "match": "\\b(or|and)\\b"
+        },
+        {
+          "name": "storage.type.SlangScript",
+          "match": "\\b(let|const|ctor)\\b"
+        },
+        {
+          "match": "(cls)\\s+\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b(\\s*:\\s*)?([a-zA-Z_][a-zA-Z0-9_]*)?",
+          "captures": {
+            "1": {
+              "name": "storage.type.SlangScript"
+            },
+            "2": {
+              "name": "entity.name.type.class.SlangScript"
+            },
+            "4": {
+              "name": "entity.other.inherited-class.SlangScript"
+            }
+          }
+        },
+        {
+          "match": "(fn)\\s+([a-zA-Z_][a-zA-Z0-9_]*)?",
+          "captures": {
+            "1": {
+              "name": "storage.type.SlangScript"
+            },
+            "2": {
+              "name": "entity.name.function.SlangScript"
+            }
+          }
+        },
+        {
+          "name": "storage.modifier.SlangScript",
+          "match": "\\b(static)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.integer.SlangScript",
+          "match": "\\b[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.SlangScript",
+          "match": "\\b[0-9]+\\.[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.hex.SlangScript",
+          "match": "\\b0x[0-9A-Fa-f]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.SlangScript",
+          "match": "\\b0b[01]+\\b"
+        },
+        {
+          "name": "constant.numeric.octal.SlangScript",
+          "match": "\\b0o[0-7]+\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.SlangScript",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.SlangScript",
+              "match": "\\\\(u[0-9A-Fa-f]{4}|x[0-9A-Fa-f]{2}|[0-7]{1,3}|[bfnrt\"'\\\\])"
+            }
+          ]
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.language.SlangScript",
+          "match": "\\b(this|base|error|__file_path|__module_name|__name)\\b"
+        },
+        {
+          "match": "\\.\\s*\\b(len|__name)\\b",
+          "captures": {
+            "1": {
+              "name": "variable.language.SlangScript"
+            }
+          }
+        },
+        {
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.SlangScript"
+            }
+          }
+        },
+        {
+          "name": "variable.other.local.SlangScript",
+          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arithmetic.SlangScript",
+          "match": "\\+|-|\\*|/|%|\\^"
+        },
+        {
+          "name": "keyword.operator.assignment.SlangScript",
+          "match": "=|->"
+        },
+        {
+          "name": "keyword.operator.comparison.SlangScript",
+          "match": "==|!=|<|>|<=|>="
+        },
+        {
+          "name": "keyword.operator.logical.SlangScript",
+          "match": "\\!|\\?|\\:"
+        }
+      ]
+    }
+  }
 }
