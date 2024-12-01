@@ -1,3 +1,14 @@
+cls TypeErr {
+  ctor (expected_type, actual_value) {
+    this.expected_type = expected_type
+    this.actual_value = actual_value
+  }
+
+  fn to_str {
+    ret "Expected " + this.expected_type.to_str() + " but got " + typeof(this.actual_value).to_str() + " instead."
+  }
+}
+
 cls Set {
   ctor(seq) {
     this.data = {}

@@ -836,10 +836,32 @@ static bool handle_runtime_error() {
     // No handler found and we reached the bottom of the stack. So we print the stacktrace and reset the Vm's
     // stack state. Should be fine to execute more code after this, because the stack is reset.
     if (exit_slot == 0) {
-      VM_SET_FLAG(VM_FLAG_HAD_UNCAUGHT_RUNTIME_ERROR);
-      fprintf(stderr, "Uncaught error: ");
+      VM_SET_FLAG(VM_FLAG_HAD_UNCAUGHT_RUNTIME_ERROR);  // Forever-set
+
+      // Store the current error, so we can reset the stack to call the errors __to_str method
+      Value error = vm.current_error;
+      vm_clear_error();
+
+      // Try to execute the __to_str method of the error value.
+      // Now, what if the __to_str method is managed code and it throws an error itself? It's not too bad, because we have that
+      // new error too, so we can guide the user through what went wrong.
+      vm_push(error);
+      ObjString* str = (ObjString*)vm_exec_callable(fn_value(error.type->__to_str), 0).as.obj;
+      if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+        fprintf(stderr, "Uncaught error within " STR(SP_METHOD_TO_STR) "-method of previous error value. ");
+        fprintf(stderr, "The previous error value was of type: " ANSI_COLOR_RED);
+        value_print_safe(stderr, class_value(error.type));
+        fprintf(stderr, ANSI_COLOR_RESET "\n");
+        fprintf(stderr, "Calling its " STR(SP_METHOD_TO_STR) "-method resulted in the following uncaught error: " ANSI_COLOR_RED);
       value_print_safe(stderr, vm.current_error);
-      fprintf(stderr, "\n");
+        fprintf(stderr, ANSI_COLOR_RESET "\n");
+        vm_clear_error();  // Is done too in reset_stack, but that might change in the future.
+      } else {
+        fprintf(stderr, "Uncaught error: " ANSI_RED_STR("%s") "\n", str->chars);
+      }
+
+      // Pop the synthetic handler
+      vm_pop();
 
       dump_location();
       dump_stacktrace();
