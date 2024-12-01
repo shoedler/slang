@@ -42,10 +42,11 @@ print b // [expect] [4, 5, 6]
 import Gc
 Gc.stress(true) // This is set to true by default in the test runner - just to be explicit
 
-// Fuzzy test to try to trigger the GC
+// Fuzzy test with GC
 let c = [1,2,3]
 print c.map(fn (x) {
-  let trigger_gc = {1: "a", 2: "b", 3: "c"} // by creating a new object
+  let trigger_gc = {1: "a", 2: "b", 3: "c"} 
+  Gc.collect() // Will happen anyway, since the GC is stressed
   ret trigger_gc[x]
 }) // [expect] [a, b, c]
 

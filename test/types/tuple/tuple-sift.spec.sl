@@ -32,11 +32,15 @@ let b = (1,2,3)
 print b.sift(fn (x) { b = (9, 9, 9) }) // [expect] ()
 print b                             // [expect] (9, 9, 9)
 
-// Fuzzy test to try to trigger the GC
+import Gc
+Gc.stress(true) // This is set to true by default in the test runner - just to be explicit
+
+// Fuzzy test with GC
 let c = (1,2,3)
 print c.sift(fn (x) {
-  let trigger_gc = {"c": 2} // by cracting a new object
+  let trigger_gc = {"c": 2}
   let k = trigger_gc["c"]
+  Gc.collect() // Will happen anyway, since the GC is stressed
   ret x == k
 }) // [expect] (2)
 
