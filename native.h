@@ -839,11 +839,11 @@ uint64_t native_default_obj_hash(Value self);
   return bool_value(false);
 
 /**
- * TYPENAME_T.reduce(initial: TYPENAME_VALUE, fn: TYPENAME_FUNCTION) -> TYPENAME_VALUE
+ * TYPENAME_T.fold(initial: TYPENAME_VALUE, fn: TYPENAME_FUNCTION) -> TYPENAME_VALUE
  * @brief Reduces the items of a TYPENAME_T to a single value by executing 'fn' on each item. 'fn' should take two or three
  * arguments: the accumulator, the item and the index. The latter is optional. The initial value of the accumulator is 'initial'.
  */
-#define NATIVE_LISTLIKE_REDUCE_BODY(class)                                                                        \
+#define NATIVE_LISTLIKE_FOLD_BODY(class)                                                                          \
   UNUSED(argc);                                                                                                   \
   NATIVE_CHECK_RECEIVER(class)                                                                                    \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(2)                                                                              \
@@ -883,7 +883,7 @@ uint64_t native_default_obj_hash(Value self);
       break;                                                                                                      \
     }                                                                                                             \
     default: {                                                                                                    \
-      vm_error("Function passed to \"" STR(reduce) "\" must take 2 or 3 arguments, but got %d.", fn_arity);       \
+      vm_error("Function passed to \"" STR(fold) "\" must take 2 or 3 arguments, but got %d.", fn_arity);         \
       return nil_value();                                                                                         \
     }                                                                                                             \
   }                                                                                                               \

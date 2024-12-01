@@ -22,7 +22,7 @@ static Value tuple_join(int argc, Value argv[]);
 static Value tuple_flip(int argc, Value argv[]);
 static Value tuple_every(int argc, Value argv[]);
 static Value tuple_some(int argc, Value argv[]);
-static Value tuple_reduce(int argc, Value argv[]);
+static Value tuple_fold(int argc, Value argv[]);
 static Value tuple_count(int argc, Value argv[]);
 static Value tuple_concat(int argc, Value argv[]);
 
@@ -54,7 +54,7 @@ void native_tuple_class_finalize() {
   define_native(&vm.tuple_class->methods, "flip", tuple_flip, 0);
   define_native(&vm.tuple_class->methods, "every", tuple_every, 1);
   define_native(&vm.tuple_class->methods, "some", tuple_some, 1);
-  define_native(&vm.tuple_class->methods, "reduce", tuple_reduce, 2);
+  define_native(&vm.tuple_class->methods, "fold", tuple_fold, 2);
   define_native(&vm.tuple_class->methods, "count", tuple_count, 1);
   define_native(&vm.tuple_class->methods, "concat", tuple_concat, 1);
   finalize_new_class(vm.tuple_class);
@@ -133,8 +133,8 @@ static Value tuple_every(int argc, Value argv[]) {
 static Value tuple_some(int argc, Value argv[]) {
   NATIVE_LISTLIKE_SOME_BODY(vm.tuple_class);
 }
-static Value tuple_reduce(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_REDUCE_BODY(vm.tuple_class);
+static Value tuple_fold(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_FOLD_BODY(vm.tuple_class);
 }
 static Value tuple_count(int argc, Value argv[]) {
   NATIVE_LISTLIKE_COUNT_BODY(vm.tuple_class);

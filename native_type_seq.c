@@ -27,7 +27,7 @@ static Value seq_join(int argc, Value argv[]);
 static Value seq_flip(int argc, Value argv[]);
 static Value seq_every(int argc, Value argv[]);
 static Value seq_some(int argc, Value argv[]);
-static Value seq_reduce(int argc, Value argv[]);
+static Value seq_fold(int argc, Value argv[]);
 static Value seq_count(int argc, Value argv[]);
 static Value seq_concat(int argc, Value argv[]);
 
@@ -62,7 +62,7 @@ void native_seq_class_finalize() {
   define_native(&vm.seq_class->methods, "flip", seq_flip, 0);
   define_native(&vm.seq_class->methods, "every", seq_every, 1);
   define_native(&vm.seq_class->methods, "some", seq_some, 1);
-  define_native(&vm.seq_class->methods, "reduce", seq_reduce, 2);
+  define_native(&vm.seq_class->methods, "fold", seq_fold, 2);
   define_native(&vm.seq_class->methods, "count", seq_count, 1);
   define_native(&vm.seq_class->methods, "concat", seq_concat, 1);
   finalize_new_class(vm.seq_class);
@@ -182,8 +182,8 @@ static Value seq_every(int argc, Value argv[]) {
 static Value seq_some(int argc, Value argv[]) {
   NATIVE_LISTLIKE_SOME_BODY(vm.seq_class);
 }
-static Value seq_reduce(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_REDUCE_BODY(vm.seq_class);
+static Value seq_fold(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_FOLD_BODY(vm.seq_class);
 }
 static Value seq_count(int argc, Value argv[]) {
   NATIVE_LISTLIKE_COUNT_BODY(vm.seq_class);
