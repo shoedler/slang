@@ -12,7 +12,7 @@ static Value tuple_ctor(int argc, Value argv[]);
 static Value tuple_to_str(int argc, Value argv[]);
 static Value tuple_has(int argc, Value argv[]);
 static Value tuple_slice(int argc, Value argv[]);
-static Value tuple_index_of(int argc, Value argv[]);
+static Value tuple_pos(int argc, Value argv[]);
 static Value tuple_first(int argc, Value argv[]);
 static Value tuple_last(int argc, Value argv[]);
 static Value tuple_each(int argc, Value argv[]);
@@ -44,7 +44,7 @@ void native_tuple_class_finalize() {
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_TO_STR), tuple_to_str, 0);
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_HAS), tuple_has, 1);
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_SLICE), tuple_slice, 2);
-  define_native(&vm.tuple_class->methods, "index_of", tuple_index_of, 1);
+  define_native(&vm.tuple_class->methods, "pos", tuple_pos, 1);
   define_native(&vm.tuple_class->methods, "first", tuple_first, 1);
   define_native(&vm.tuple_class->methods, "last", tuple_last, 1);
   define_native(&vm.tuple_class->methods, "each", tuple_each, 1);
@@ -103,8 +103,8 @@ static Value tuple_slice(int argc, Value argv[]) {
 static Value tuple_to_str(int argc, Value argv[]) {
   NATIVE_LISTLIKE_TO_STR_BODY(vm.tuple_class, VALUE_STR_TUPLE_START, VALUE_STR_TUPLE_DELIM, VALUE_STR_TUPLE_END);
 }
-static Value tuple_index_of(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_INDEX_OF_BODY(vm.tuple_class);
+static Value tuple_pos(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_POS_BODY(vm.tuple_class);
 }
 static Value tuple_first(int argc, Value argv[]) {
   NATIVE_LISTLIKE_FIRST_BODY(vm.tuple_class);

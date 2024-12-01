@@ -17,7 +17,7 @@ static Value seq_slice(int argc, Value argv[]);
 static Value seq_push(int argc, Value argv[]);
 static Value seq_pop(int argc, Value argv[]);
 static Value seq_yank(int argc, Value argv[]);
-static Value seq_index_of(int argc, Value argv[]);
+static Value seq_pos(int argc, Value argv[]);
 static Value seq_first(int argc, Value argv[]);
 static Value seq_last(int argc, Value argv[]);
 static Value seq_each(int argc, Value argv[]);
@@ -52,7 +52,7 @@ void native_seq_class_finalize() {
   define_native(&vm.seq_class->methods, "push", seq_push, -1);
   define_native(&vm.seq_class->methods, "pop", seq_pop, 0);
   define_native(&vm.seq_class->methods, "yank", seq_yank, 1);
-  define_native(&vm.seq_class->methods, "index_of", seq_index_of, 1);
+  define_native(&vm.seq_class->methods, "pos", seq_pos, 1);
   define_native(&vm.seq_class->methods, "first", seq_first, 1);
   define_native(&vm.seq_class->methods, "last", seq_last, 1);
   define_native(&vm.seq_class->methods, "each", seq_each, 1);
@@ -152,8 +152,8 @@ static Value seq_slice(int argc, Value argv[]) {
 static Value seq_to_str(int argc, Value argv[]) {
   NATIVE_LISTLIKE_TO_STR_BODY(vm.seq_class, VALUE_STR_SEQ_START, VALUE_STR_SEQ_DELIM, VALUE_STR_SEQ_END);
 }
-static Value seq_index_of(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_INDEX_OF_BODY(vm.seq_class);
+static Value seq_pos(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_POS_BODY(vm.seq_class);
 }
 static Value seq_first(int argc, Value argv[]) {
   NATIVE_LISTLIKE_FIRST_BODY(vm.seq_class);

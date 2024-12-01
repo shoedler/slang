@@ -345,14 +345,14 @@ uint64_t native_default_obj_hash(Value self);
   return NATIVE_LISTLIKE_TAKE_ARRAY(sliced);
 
 /**
- * TYPENAME_T.index_of(value: TYPENAME_VALUE) -> TYPENAME_INT
+ * TYPENAME_T.pos(value: TYPENAME_VALUE) -> TYPENAME_INT
  * @brief Returns the index of the first item which equals 'value' in a TYPENAME_T. Returns VALUE_STR_NIL if 'value' is not found.
  *
- * TYPENAME_T.index_of(pred: TYPENAME_FUNCTION -> TYPENAME_BOOL) -> TYPENAME_INT
+ * TYPENAME_T.pos(pred: TYPENAME_FUNCTION -> TYPENAME_BOOL) -> TYPENAME_INT
  * @brief Returns the index of the first item in a TYPENAME_T for which 'pred' evaluates to VALUE_STR_TRUE. Returns VALUE_STR_NIL
  * if no item satisfies the predicate.
  */
-#define NATIVE_LISTLIKE_INDEX_OF_BODY(listlike_type)                                                      \
+#define NATIVE_LISTLIKE_POS_BODY(listlike_type)                                                           \
   UNUSED(argc);                                                                                           \
   NATIVE_CHECK_RECEIVER(listlike_type)                                                                    \
                                                                                                           \
