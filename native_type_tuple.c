@@ -19,7 +19,7 @@ static Value tuple_each(int argc, Value argv[]);
 static Value tuple_map(int argc, Value argv[]);
 static Value tuple_sift(int argc, Value argv[]);
 static Value tuple_join(int argc, Value argv[]);
-static Value tuple_reverse(int argc, Value argv[]);
+static Value tuple_flip(int argc, Value argv[]);
 static Value tuple_every(int argc, Value argv[]);
 static Value tuple_some(int argc, Value argv[]);
 static Value tuple_reduce(int argc, Value argv[]);
@@ -51,7 +51,7 @@ void native_tuple_class_finalize() {
   define_native(&vm.tuple_class->methods, "map", tuple_map, 1);
   define_native(&vm.tuple_class->methods, "sift", tuple_sift, 1);
   define_native(&vm.tuple_class->methods, "join", tuple_join, 1);
-  define_native(&vm.tuple_class->methods, "reverse", tuple_reverse, 0);
+  define_native(&vm.tuple_class->methods, "flip", tuple_flip, 0);
   define_native(&vm.tuple_class->methods, "every", tuple_every, 1);
   define_native(&vm.tuple_class->methods, "some", tuple_some, 1);
   define_native(&vm.tuple_class->methods, "reduce", tuple_reduce, 2);
@@ -124,8 +124,8 @@ static Value tuple_sift(int argc, Value argv[]) {
 static Value tuple_join(int argc, Value argv[]) {
   NATIVE_LISTLIKE_JOIN_BODY(vm.tuple_class);
 }
-static Value tuple_reverse(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_REVERSE_BODY(vm.tuple_class);
+static Value tuple_flip(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_FLIP_BODY(vm.tuple_class);
 }
 static Value tuple_every(int argc, Value argv[]) {
   NATIVE_LISTLIKE_EVERY_BODY(vm.tuple_class);

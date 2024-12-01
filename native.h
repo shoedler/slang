@@ -697,10 +697,10 @@ uint64_t native_default_obj_hash(Value self);
   return str_value(str_obj);
 
 /**
- * TYPENAME_T.reverse() -> TYPENAME_T
- * @brief Reverses the items of a TYPENAME_T. Returns a new TYPENAME_T with the items in reverse order.
+ * TYPENAME_T.flip() -> TYPENAME_T
+ * @brief Reverses the items of a TYPENAME_T. Returns a new TYPENAME_T with the items in flip order.
  */
-#define NATIVE_LISTLIKE_REVERSE_BODY(class)                                \
+#define NATIVE_LISTLIKE_FLIP_BODY(class)                                   \
   UNUSED(argc);                                                            \
   NATIVE_CHECK_RECEIVER(class)                                             \
                                                                            \
