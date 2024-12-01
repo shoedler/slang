@@ -70,8 +70,8 @@ You can, for example, easily cache stuff:
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
 - [ ] Make `log` accept a single argument and also, return it. That'd be awesome. `const x = a + b + c + log(d) + e`
-- [ ] Fix VM finishing a program in error state not exiting with `EXIT_FAILURE`. (Probably, the flags are reset in `vm_free` or `reset_stack` or something).
-- [ ] Make compiler errors recoverable. Just let it sync, then continue - instead of aborting.
+- [x] ~~Fix VM finishing a program in error state not exiting with `EXIT_FAILURE`. (Probably, the flags are reset in `vm_free` or `reset_stack` or something).~~
+- [x] ~~Make compiler errors recoverable. Just let it sync, then continue - instead of aborting.~~
 - [x] ~~Use `obj_get_prop` in `obj_has` instead of just checking the hashtable for a value. Otherwise, they behave differently - which sucks.~~
 - [x] ~~Make sure managed code classes do not override internal classes.~~ Not necessary, since we don't update the Vms internalized natives. 
 - [x] ~~Add `error` and other contextual keywords to a list of reserved words (Maybe including all natives). Check them when declaring anything.~~ Not necessary, since other ctx keywords have their own TOKEN type. As for errors, we'll just allow redeclaration, even inside a catch-block. The reason being that the error-var gets injected into a scope surrounding the whole try/catch statement, not just in the catch-block.

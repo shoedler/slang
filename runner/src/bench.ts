@@ -185,8 +185,8 @@ export const runBenchmarks = async (langPattern?: string) => {
       }
 
       // Create a progress spinner
-      const SPINNER = '⣾⣽⣻⢿⡿⣟⣯⣷';
-      const [PENDING, COMPLETED] = '▰▰';
+      const SPINNER = '░▒▓';
+      const [PENDING, COMPLETED] = '░█';
       const cursor = (show: boolean) => process.stdout.write(show ? '\x1b[?25h' : '\x1b[?25l');
       let i = 0;
 
@@ -368,6 +368,8 @@ export const serveResults = () => {
 // const SPINNER = '━┛┗━┏┓';
 // const SPINNER = '◇◈◆◈';
 // const SPINNER = '⯌⯐';
+// const SPINNER = '⣾⣽⣻⢿⡿⣟⣯⣷';
+// const [PENDING, COMPLETED] = '▰▰';
 // const [PENDING, COMPLETED] = '▬▮';
 // const [PENDING, COMPLETED] = '⬡⬢';
 // const [PENDING, COMPLETED] = '▢▣';

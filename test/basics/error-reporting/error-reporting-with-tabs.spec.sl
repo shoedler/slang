@@ -1,3 +1,4 @@
+// [exit] 3
 // prettier-ignore-file
 import File
 fn lol {
@@ -11,9 +12,9 @@ fn lol {
 
 fn main {
 	throw lol()	// [expect-error] Uncaught error: nil
-}							// [expect-error]     13 | 	throw lol()
+}							// [expect-error]     14 | 	throw lol()
 							// [expect-error]           ~~~~~~~~~~~
-main()				// [expect-error]   at line 13 at the toplevel of module "main"
-							// [expect-error]   at line 16 at the toplevel of module "main"
+main()				// [expect-error]   at line 14 at the toplevel of module "main"
+							// [expect-error]   at line 17 at the toplevel of module "main"
 
 // What did we learn here? You should use spaces instead of tabs in your code.

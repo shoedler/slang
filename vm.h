@@ -107,6 +107,8 @@ typedef struct {
 #define VM_FLAG_PAUSE_GC (1 << 0)
 #define VM_FLAG_HAS_ERROR (1 << 1)
 #define VM_FLAG_STRESS_GC (1 << 2)
+#define VM_FLAG_HAD_COMPILE_ERROR (1 << 3)
+#define VM_FLAG_HAD_UNCAUGHT_RUNTIME_ERROR (1 << 4)
 
 #define VM_SET_FLAG(flag) (vm.flags |= (flag))
 #define VM_CLEAR_FLAG(flag) (vm.flags &= ~(flag))

@@ -165,14 +165,6 @@ void vm_error(const char* format, ...) {
   vm.current_error = str_value(copy_string(buffer, (int)length));
 }
 
-// This is just a plcaeholder to find where we actually throw compile errors.
-// I want another way to do this, but I don't know how yet.
-static void exit_with_compile_error() {
-  vm_free();
-  // TODO (recovery): Find a way to progpagate errors */
-  exit(SLANG_EXIT_COMPILE_ERROR);
-}
-
 void define_native(HashTable* table, const char* name, NativeFn function, int arity) {
   Value key           = str_value(copy_string(name, (int)strlen(name)));
   ObjString* name_str = copy_string(name, (int)strlen(name));
@@ -821,7 +813,7 @@ static void concatenate() {
 // If no error handler is found, it prints the error message, dumps the stack trace, resets the virtual
 // machine's stack state and returns false. Returns true if an error handler is found and the virtual machine
 // state is reset, false otherwise.
-static bool handle_error() {
+static bool handle_runtime_error() {
   int stack_offset;
   int frame_offset;
   int exit_slot = 0;  // Slot in the stack where we should stop looking for a handler
@@ -844,6 +836,7 @@ static bool handle_error() {
     // No handler found and we reached the bottom of the stack. So we print the stacktrace and reset the Vm's
     // stack state. Should be fine to execute more code after this, because the stack is reset.
     if (exit_slot == 0) {
+      VM_SET_FLAG(VM_FLAG_HAD_UNCAUGHT_RUNTIME_ERROR);
       fprintf(stderr, "Uncaught error: ");
       value_print_safe(stderr, vm.current_error);
       fprintf(stderr, "\n");
@@ -1872,7 +1865,7 @@ DO_OP_IN: {
 }
 
 FINISH_ERROR: {
-  if (handle_error()) {
+  if (handle_runtime_error()) {
     frame     = current_frame();                                            // Get the current frame
     frame->ip = frame->closure->function->chunk.code + peek(0).as.handler;  // Jump to the handler
 
@@ -1949,7 +1942,6 @@ Value vm_interpret(const char* source, const char* source_path, const char* modu
 
   ObjFunction* function = compiler_compile_module(source);
   if (function == NULL) {
-    exit_with_compile_error();
     if (is_module) {
       vm.module = enclosing_module;
     }

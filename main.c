@@ -60,6 +60,7 @@ static void usage(const char* error) {
 }
 
 static void configure_vm() {
+  vm_init();
   bool gc_stress = consume_option(OPT_STRESS_GC);
   if (gc_stress) {
     INTERNAL_WARN("GC stress testing enabled, can be disabled during runtime using the Gc module.");
@@ -67,8 +68,21 @@ static void configure_vm() {
   }
 }
 
+static SlangExitCode shutdown_vm() {
+  int exit_code = 0;
+
+  if (VM_HAS_FLAG(VM_FLAG_HAD_COMPILE_ERROR)) {
+    exit_code = SLANG_EXIT_COMPILE_ERROR;
+  } else if (VM_HAS_FLAG(VM_FLAG_HAD_UNCAUGHT_RUNTIME_ERROR)) {
+    exit_code = SLANG_EXIT_RUNTIME_ERROR;
+  }
+
+  vm_free();
+
+  return exit_code;
+}
+
 static SlangExitCode repl() {
-  vm_init();
   configure_vm();
 
   if (!validate_options()) {
@@ -100,14 +114,10 @@ static SlangExitCode repl() {
     vm_interpret(line, NULL, NULL);
   }
 
-  bool has_error = VM_HAS_FLAG(VM_FLAG_HAS_ERROR);
-  vm_free();
-
-  return has_error ? SLANG_EXIT_FAILURE : SLANG_EXIT_SUCCESS;
+  return shutdown_vm();
 }
 
 static SlangExitCode run() {
-  vm_init();
   configure_vm();
 
   const char* path = pop_option();
@@ -122,10 +132,7 @@ static SlangExitCode run() {
 
   vm_run_file(path, "main");
 
-  bool has_error = VM_HAS_FLAG(VM_FLAG_HAS_ERROR);
-  vm_free();
-
-  return has_error ? SLANG_EXIT_FAILURE : SLANG_EXIT_SUCCESS;
+  return shutdown_vm();
 }
 
 int main(int argc, char* argv[]) {

@@ -116,11 +116,12 @@ static inline Chunk* current_chunk() {
 
 // Prints the given token as an error message.
 // Sets the parser into panic mode to avoid cascading errors.
-static void print_compiler_error(Token* token, const char* format, va_list args) {
+static void handle_compiler_error(Token* token, const char* format, va_list args) {
   if (parser.panic_mode) {
     return;
   }
 
+  VM_SET_FLAG(VM_FLAG_HAD_COMPILE_ERROR);
   parser.panic_mode = true;
 
   fprintf(stderr, "Compile error at line %d", token->line);
@@ -143,7 +144,7 @@ static void print_compiler_error(Token* token, const char* format, va_list args)
 static void compiler_error(Token* token, const char* format, ...) {
   va_list args;
   va_start(args, format);
-  print_compiler_error(token, format, args);
+  handle_compiler_error(token, format, args);
   va_end(args);
 }
 
@@ -152,7 +153,7 @@ static void compiler_error(Token* token, const char* format, ...) {
 static void compiler_error_at_previous(const char* format, ...) {
   va_list args;
   va_start(args, format);
-  print_compiler_error(&parser.previous, format, args);
+  handle_compiler_error(&parser.previous, format, args);
   va_end(args);
 }
 
@@ -161,7 +162,7 @@ static void compiler_error_at_previous(const char* format, ...) {
 static void compiler_error_at_current(const char* format, ...) {
   va_list args;
   va_start(args, format);
-  print_compiler_error(&parser.current, format, args);
+  handle_compiler_error(&parser.current, format, args);
   va_end(args);
 }
 
@@ -190,7 +191,7 @@ static void consume(TokenKind type, const char* format, ...) {
 
   va_list args;
   va_start(args, format);
-  print_compiler_error(&parser.current, format, args);
+  handle_compiler_error(&parser.current, format, args);
   va_end(args);
 }
 
