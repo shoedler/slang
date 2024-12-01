@@ -66,6 +66,9 @@ extern void native_register_debug_module();
 // Registers the native gc module
 extern void native_register_gc_module();
 
+// Registers the native math module
+extern void native_register_math_module();
+
 //
 // Native functions
 //
@@ -148,6 +151,13 @@ uint64_t native_default_obj_hash(Value self);
   if ((argv[index]).type != class) {                                                                                         \
     vm_error("Expected argument %d of type %s but got %s.", index - 1, class->name->chars, (argv[index]).type->name->chars); \
     return nil_value();                                                                                                      \
+  }
+
+#define NATIVE_CHECK_ARG_AT_INHERITS(index, class)                                                       \
+  if (!vm_inherits((argv[index]).type, class)) {                                                         \
+    vm_error("Expected argument %d to be a descendant of %s but got %s.", index - 1, class->name->chars, \
+             (argv[index]).type->name->chars);                                                           \
+    return nil_value();                                                                                  \
   }
 
 #define NATIVE_CHECK_ARG_AT_IS_CALLABLE(index)                                                             \

@@ -377,6 +377,7 @@ void vm_init() {
   native_register_perf_module();
   native_register_debug_module();
   native_register_gc_module();
+  native_register_math_module();
 
   VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);  // Unpause
 
@@ -853,7 +854,7 @@ static bool handle_runtime_error() {
         value_print_safe(stderr, class_value(error.type));
         fprintf(stderr, ANSI_COLOR_RESET "\n");
         fprintf(stderr, "Calling its " STR(SP_METHOD_TO_STR) "-method resulted in the following uncaught error: " ANSI_COLOR_RED);
-      value_print_safe(stderr, vm.current_error);
+        value_print_safe(stderr, vm.current_error);
         fprintf(stderr, ANSI_COLOR_RESET "\n");
         vm_clear_error();  // Is done too in reset_stack, but that might change in the future.
       } else {

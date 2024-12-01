@@ -1,9 +1,9 @@
 // List of all the native modules embedded in the runtime:
-let native = ["Debug", "File", "Perf", "Gc"]
+const native = ["Debug", "File", "Perf", "Gc", "Math"]
 
 import Debug
 
-let module_cache = Debug.modules()
+const module_cache = Debug.modules()
 
 module_cache.keys().each(fn (module) {
   if !(module in native) {

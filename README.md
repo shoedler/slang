@@ -37,17 +37,20 @@ You can, for example, easily cache stuff:
 
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
-- [ ] Implement native `Math` module.
-  - [ ] Implement `Math.abs(Num) -> Num`.
-  - [ ] Implement `Math.int_div(Num, Num) -> Int`.
-  - [ ] Implement `Math.ceil(Num) -> Int`.
-  - [ ] Implement `Math.floor(Num) -> Int`.
-  - [ ] Implement `Math.round(Num) -> Int`. (Nearest integer)
 - [ ] Implement native `Json` module.
   - [ ] Implement `Json.parse(Str) -> Obj`.
   - [ ] Implement `Json.stringify(Value) -> Str`.
   - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
-- [ ] Implement `Seq.sort(sort_fn) -> Seq`.
+- [ ] Implement `Seq.sort(sort_fn) -> Seq`. (Sort a sequence in place. Requires some sort of __lt)
+- [ ] Implement `Seq.cull(Value|Fn) -> Seq`. (Remove all elements that are equal to the argument or satisfy the predicate)
+- [ ] Implement `static Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)
+- [ ] Implement `Seq.sum() -> Num`, `Tuple.sum() -> Num`. (Sum all elements. Requires some sort of __add)
+- [ ] Add a variant of `log` (Maybe `tap`/`info`/`dump`/`peek`?) which accepts a single argument and also, return it. That'd be awesome: `const x = a + b + c + tap(d) + e`
+- [ ] Add more error classes to std. Add a native `Error` base class, from which managed-code errors inherit. Check `vm_inherits(error.type, vm.error_class)` in `handle_runtime_error` and - if true - use `error.type->name` as the prefix instead of `Uncaught error`.
+- [x] ~~Implement native `Math` module.~~
+  - [x] ~~Implement `Math.abs(Num) -> Num`.~~
+  - [x] ~~Implement `Math.ceil(Num) -> Int`.~~
+  - [x] ~~Implement `Math.floor(Num) -> Int`.~~
 - [x] ~~Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`~~
 - [x] ~~Add destructuring to module imports.~~
 - [x] ~~Add `const` (**_See Challenge 22.3_**)~~
@@ -69,7 +72,6 @@ You can, for example, easily cache stuff:
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
-- [ ] Make `log` accept a single argument and also, return it. That'd be awesome. `const x = a + b + c + log(d) + e`
 - [x] ~~Fix VM finishing a program in error state not exiting with `EXIT_FAILURE`. (Probably, the flags are reset in `vm_free` or `reset_stack` or something).~~
 - [x] ~~Make compiler errors recoverable. Just let it sync, then continue - instead of aborting.~~
 - [x] ~~Use `obj_get_prop` in `obj_has` instead of just checking the hashtable for a value. Otherwise, they behave differently - which sucks.~~
