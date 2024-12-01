@@ -16,7 +16,7 @@ static Value seq_has(int argc, Value argv[]);
 static Value seq_slice(int argc, Value argv[]);
 static Value seq_push(int argc, Value argv[]);
 static Value seq_pop(int argc, Value argv[]);
-static Value seq_remove_at(int argc, Value argv[]);
+static Value seq_yank(int argc, Value argv[]);
 static Value seq_index_of(int argc, Value argv[]);
 static Value seq_first(int argc, Value argv[]);
 static Value seq_last(int argc, Value argv[]);
@@ -51,7 +51,7 @@ void native_seq_class_finalize() {
   define_native(&vm.seq_class->methods, STR(SP_METHOD_SLICE), seq_slice, 2);
   define_native(&vm.seq_class->methods, "push", seq_push, -1);
   define_native(&vm.seq_class->methods, "pop", seq_pop, 0);
-  define_native(&vm.seq_class->methods, "remove_at", seq_remove_at, 1);
+  define_native(&vm.seq_class->methods, "yank", seq_yank, 1);
   define_native(&vm.seq_class->methods, "index_of", seq_index_of, 1);
   define_native(&vm.seq_class->methods, "first", seq_first, 1);
   define_native(&vm.seq_class->methods, "last", seq_last, 1);
@@ -222,11 +222,11 @@ static Value seq_pop(int argc, Value argv[]) {
 }
 
 /**
- * TYPENAME_SEQ.remove_at(index: TYPENAME_INT) -> TYPENAME_VALUE
+ * TYPENAME_SEQ.yank(index: TYPENAME_INT) -> TYPENAME_VALUE
  * @brief Removes and returns the item at 'index' from a TYPENAME_SEQ. Returns TYPENAME_NIL if 'index' is out of bounds.
  * Modifies the TYPENAME_SEQ.
  */
-static Value seq_remove_at(int argc, Value argv[]) {
+static Value seq_yank(int argc, Value argv[]) {
   UNUSED(argc);
   NATIVE_CHECK_RECEIVER(vm.seq_class)
   NATIVE_CHECK_ARG_AT(1, vm.int_class)
