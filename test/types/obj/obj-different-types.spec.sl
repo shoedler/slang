@@ -36,12 +36,12 @@ print a["hello"] // [expect] world
 // ... so we can't really test the order of the keys
 
 let entries = a.entries()
-print entries.filter(fn(x) -> (x[0] is Nil)).len    // [expect] 1
-print entries.filter(fn(x) -> (x[0] is Bool)).len   // [expect] 1
-print entries.filter(fn(x) -> (x[0] is Num)).len    // [expect] 1
-print entries.filter(fn(x) -> (x[0] is Str)).len    // [expect] 1
-print entries.filter(fn(x) -> (x[0] is Seq)).len    // [expect] 2
+print entries.sift(fn(x) -> (x[0] is Nil)).len    // [expect] 1
+print entries.sift(fn(x) -> (x[0] is Bool)).len   // [expect] 1
+print entries.sift(fn(x) -> (x[0] is Num)).len    // [expect] 1
+print entries.sift(fn(x) -> (x[0] is Str)).len    // [expect] 1
+print entries.sift(fn(x) -> (x[0] is Seq)).len    // [expect] 2
 // We only get one tuple, because we overwrote the previous one
-print entries.filter(fn(x) -> (x[0] is Tuple)).len  // [expect] 1
-print entries.filter(fn(x) -> (x[0] is Fn)).len     // [expect] 2
-print entries.filter(fn(x) -> (x[0] is Obj)).len    // [expect] 2
+print entries.sift(fn(x) -> (x[0] is Tuple)).len  // [expect] 1
+print entries.sift(fn(x) -> (x[0] is Fn)).len     // [expect] 2
+print entries.sift(fn(x) -> (x[0] is Obj)).len    // [expect] 2

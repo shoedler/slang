@@ -570,11 +570,11 @@ uint64_t native_default_obj_hash(Value self);
   return result;
 
 /**
- * TYPENAME_T.filter(fn: TYPENAME_FUNCTION -> TYPENAME_BOOL) -> TYPENAME_T
+ * TYPENAME_T.sift(fn: TYPENAME_FUNCTION -> TYPENAME_BOOL) -> TYPENAME_T
  * @brief Filters the items of a TYPENAME_T by executing 'fn' on each item. Returns a new TYPENAME_T with the items for which 'fn'
  * evaluates to VALUE_STR_TRUE. 'fn' should take one or two arguments: the item and the index of the item. The latter is optional.
  */
-#define NATIVE_LISTLIKE_FILTER_BODY(type)                                                                             \
+#define NATIVE_LISTLIKE_SIFT_BODY(type)                                                                               \
   UNUSED(argc);                                                                                                       \
   NATIVE_CHECK_RECEIVER(type)                                                                                         \
   NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)                                                                                  \
@@ -629,7 +629,7 @@ uint64_t native_default_obj_hash(Value self);
       break;                                                                                                          \
     }                                                                                                                 \
     default: {                                                                                                        \
-      vm_error("Function passed to \"" STR(filter) "\" must take 1 or 2 arguments, but got %d.", fn_arity);           \
+      vm_error("Function passed to \"" STR(sift) "\" must take 1 or 2 arguments, but got %d.", fn_arity);             \
       return nil_value();                                                                                             \
     }                                                                                                                 \
   }                                                                                                                   \

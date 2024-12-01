@@ -22,7 +22,7 @@ static Value seq_first(int argc, Value argv[]);
 static Value seq_last(int argc, Value argv[]);
 static Value seq_each(int argc, Value argv[]);
 static Value seq_map(int argc, Value argv[]);
-static Value seq_filter(int argc, Value argv[]);
+static Value seq_sift(int argc, Value argv[]);
 static Value seq_join(int argc, Value argv[]);
 static Value seq_reverse(int argc, Value argv[]);
 static Value seq_every(int argc, Value argv[]);
@@ -57,7 +57,7 @@ void native_seq_class_finalize() {
   define_native(&vm.seq_class->methods, "last", seq_last, 1);
   define_native(&vm.seq_class->methods, "each", seq_each, 1);
   define_native(&vm.seq_class->methods, "map", seq_map, 1);
-  define_native(&vm.seq_class->methods, "filter", seq_filter, 1);
+  define_native(&vm.seq_class->methods, "sift", seq_sift, 1);
   define_native(&vm.seq_class->methods, "join", seq_join, 1);
   define_native(&vm.seq_class->methods, "reverse", seq_reverse, 0);
   define_native(&vm.seq_class->methods, "every", seq_every, 1);
@@ -167,8 +167,8 @@ static Value seq_each(int argc, Value argv[]) {
 static Value seq_map(int argc, Value argv[]) {
   NATIVE_LISTLIKE_MAP_BODY(vm.seq_class);
 }
-static Value seq_filter(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_FILTER_BODY(vm.seq_class);
+static Value seq_sift(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_SIFT_BODY(vm.seq_class);
 }
 static Value seq_join(int argc, Value argv[]) {
   NATIVE_LISTLIKE_JOIN_BODY(vm.seq_class);

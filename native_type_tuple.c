@@ -17,7 +17,7 @@ static Value tuple_first(int argc, Value argv[]);
 static Value tuple_last(int argc, Value argv[]);
 static Value tuple_each(int argc, Value argv[]);
 static Value tuple_map(int argc, Value argv[]);
-static Value tuple_filter(int argc, Value argv[]);
+static Value tuple_sift(int argc, Value argv[]);
 static Value tuple_join(int argc, Value argv[]);
 static Value tuple_reverse(int argc, Value argv[]);
 static Value tuple_every(int argc, Value argv[]);
@@ -49,7 +49,7 @@ void native_tuple_class_finalize() {
   define_native(&vm.tuple_class->methods, "last", tuple_last, 1);
   define_native(&vm.tuple_class->methods, "each", tuple_each, 1);
   define_native(&vm.tuple_class->methods, "map", tuple_map, 1);
-  define_native(&vm.tuple_class->methods, "filter", tuple_filter, 1);
+  define_native(&vm.tuple_class->methods, "sift", tuple_sift, 1);
   define_native(&vm.tuple_class->methods, "join", tuple_join, 1);
   define_native(&vm.tuple_class->methods, "reverse", tuple_reverse, 0);
   define_native(&vm.tuple_class->methods, "every", tuple_every, 1);
@@ -118,8 +118,8 @@ static Value tuple_each(int argc, Value argv[]) {
 static Value tuple_map(int argc, Value argv[]) {
   NATIVE_LISTLIKE_MAP_BODY(vm.tuple_class);
 }
-static Value tuple_filter(int argc, Value argv[]) {
-  NATIVE_LISTLIKE_FILTER_BODY(vm.tuple_class);
+static Value tuple_sift(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_SIFT_BODY(vm.tuple_class);
 }
 static Value tuple_join(int argc, Value argv[]) {
   NATIVE_LISTLIKE_JOIN_BODY(vm.tuple_class);
