@@ -6,6 +6,10 @@ export enum SlangBuildConfigs {
   Debug = 'debug',
 }
 
+export enum SlangDefines {
+  EnableColorOutput = 'SLANG_ENABLE_COLOR_OUTPUT',
+}
+
 export enum SlangRunFlags {
   StressGc = '--stress-gc',
 }

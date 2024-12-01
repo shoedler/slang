@@ -7,7 +7,8 @@ MKDIR=mkdir -p
 MAKEFLAGS += --no-print-directory 
 
 # General compiler flags
-CFLAGS=-Wall -Wextra -Werror -std=c17 -m64 -D_UNICODE -DUNICODE
+EXTRA_CFLAGS?= # Extra flags to pass to the compiler by command line
+CFLAGS=-Wall -Wextra -Werror -std=c17 -m64 -D_UNICODE -DUNICODE $(EXTRA_CFLAGS)
 LDFLAGS=-m64
 LIBS=-lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -luuid -lodbc32 -lodbccp32 -lmimalloc
 

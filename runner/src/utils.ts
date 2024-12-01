@@ -76,7 +76,6 @@ export const runProcess = (
  * @param buildConfig - Build config to use
  * @param runFlags - Flags to pass to slang run
  * @param signal - Abort signal to use
- * @param colorStderr - Whether to color stderr red
  * @returns Object containing output and exit code
  */
 export const runSlangFile = (
@@ -84,7 +83,6 @@ export const runSlangFile = (
   buildConfig: SlangBuildConfigs,
   runFlags: SlangRunFlags[] = [],
   signal: AbortSignal | null = null,
-  colorStderr: boolean = false,
 ): Promise<{ exitCode: number | null; stdoutOutput: string; stderrOutput: string }> => {
   const cmd = `${path.join(SlangPaths.BinDir, buildConfig, 'slang.exe')} run ${runFlags.join(' ')} ${file}`;
   const options = signal ? { signal } : {};
@@ -95,7 +93,7 @@ export const runSlangFile = (
     let stderrOutput = '';
 
     child.stdout.on('data', data => (stdoutOutput += data.toString()));
-    child.stderr.on('data', data => (stderrOutput += colorStderr ? chalk.red(data.toString()) : data.toString()));
+    child.stderr.on('data', data => (stderrOutput += data.toString()));
     child.on('error', err => {
       if (err.name === 'AbortError') {
         info('Aborting process...', cmd);
@@ -145,14 +143,16 @@ const forceDeleteDirectory = async (dirPath: PathLike, signal: AbortSignal | nul
  * @param buildConfig - Build config to use
  * @param signal - Abort signal to use
  * @param abortOnError - Whether to abort (exiting the app) on error (non-zero exit code or stderr)
+ * @param extraMakeArgs - Extra arguments to pass to make
  * @returns Promise that resolves when build completes
  */
 export const buildSlangConfig = async (
   buildConfig: SlangBuildConfigs,
   signal: AbortSignal | null = null,
   abortOnError = true,
+  extraMakeArgs: string = '',
 ): Promise<string | undefined> => {
-  const cmd = `make -C ${SLANG_PROJ_DIR} ${buildConfig}`;
+  const cmd = `make -C ${SLANG_PROJ_DIR} ${buildConfig} ${extraMakeArgs}`;
   await forceDeleteDirectory(path.join(SlangPaths.BinDir, buildConfig), signal);
   info(`Building slang ${buildConfig}`, `Command: "${cmd}"`);
   return await runProcess(cmd, `Building config "${buildConfig}" failed`, signal, abortOnError);

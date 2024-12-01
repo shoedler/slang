@@ -28,7 +28,7 @@
 // Feature flags
 //
 
-// #define ENABLE_COLOR_OUTPUT  // Enable ANSI-colored output in terminal
+// #define SLANG_ENABLE_COLOR_OUTPUT  // Enable ANSI-colors in terminal. Defined as default for release builds - see Makefile
 
 //
 // Constants
@@ -55,7 +55,7 @@ typedef enum {
 // Color output macros
 //
 
-#ifdef ENABLE_COLOR_OUTPUT
+#ifdef SLANG_ENABLE_COLOR_OUTPUT
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_YELLOW "\x1b[33m"
@@ -179,5 +179,13 @@ typedef enum {
 #define _aligned_offset_realloc(p, n, a, o) mi_realloc_aligned_at(p, n, a, o)
 #define _aligned_offset_recalloc(p, s, n, a, o) mi_recalloc_aligned_at(p, s, n, a, o)
 // #define _aligned_msize(p, a, o) mi_usable_size(p)
+
+//
+// Configuration checks
+//
+
+#ifndef _WIN32
+#error "Only Windows is supported."
+#endif
 
 #endif

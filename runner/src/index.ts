@@ -1,6 +1,13 @@
 import process from 'node:process';
 import { runBenchmarks, serveResults } from './bench.ts';
-import { SLANG_PROJ_DIR, SlangBuildConfigs, SlangFileSuffixes, SlangPaths, SlangRunFlags } from './config.ts';
+import {
+  SLANG_PROJ_DIR,
+  SlangBuildConfigs,
+  SlangDefines,
+  SlangFileSuffixes,
+  SlangPaths,
+  SlangRunFlags,
+} from './config.ts';
 import { findTests, runTests } from './test.ts';
 import { abort, buildSlangConfig, info, runSlangFile, separator, testFeatureFlag, warn } from './utils.ts';
 import { watch } from './watch.ts';
@@ -94,7 +101,7 @@ switch (cmd) {
     const testNamePattern = options.pop() || '.*';
     validateOptions();
 
-    const ansiColorsEnabled = await testFeatureFlag('ENABLE_COLOR_OUTPUT');
+    const ansiColorsEnabled = await testFeatureFlag(SlangDefines.EnableColorOutput);
     if (ansiColorsEnabled) {
       abort('ANSI colors are enabled. Must be disabled for tests to ensure consistent results.');
     }
@@ -113,7 +120,7 @@ switch (cmd) {
     const config = SlangBuildConfigs.Release;
     validateOptions();
 
-    await buildSlangConfig(config);
+    await buildSlangConfig(config, null, true, `EXTRA_CFLAGS="-D${SlangDefines.EnableColorOutput}"`);
     console.clear();
     info('Running slang file', SlangPaths.SampleFile);
     const { stdoutOutput, stderrOutput } = await runSlangFile(SlangPaths.SampleFile, config);
@@ -135,17 +142,22 @@ switch (cmd) {
       SLANG_PROJ_DIR,
       { recursive: true },
       (filename: string) => filename.endsWith('.c') || filename.endsWith('.h') || sampleFilePath.endsWith(filename),
-      async (signal: AbortSignal, triggerFile: string, isFirstRun: boolean) => {
+      async (signal, triggerFilename) => {
         // Only build if the trigger file is not the sample file, or if it is the first run
-        if (isFirstRun || !sampleFilePath.endsWith(triggerFile)) {
-          const didBuild = await buildSlangConfig(config, signal, false /* don't abort on error */);
+        if (!triggerFilename || !sampleFilePath.endsWith(triggerFilename)) {
+          const didBuild = await buildSlangConfig(
+            config,
+            signal,
+            false /* don't abort on error */,
+            `EXTRA_CFLAGS="-D${SlangDefines.EnableColorOutput}"`,
+          );
           if (!didBuild) {
             return;
           }
         }
 
         info('Running slang file', sampleFilePath);
-        const { stdoutOutput, stderrOutput } = await runSlangFile(sampleFilePath, config, [], signal, true);
+        const { stdoutOutput, stderrOutput } = await runSlangFile(sampleFilePath, config, [], signal);
         console.clear();
 
         separator();
@@ -171,10 +183,10 @@ switch (cmd) {
         filename.endsWith('.c') ||
         filename.endsWith('.h') ||
         (filename.endsWith(SlangFileSuffixes.Test) && new RegExp(testNamePattern).test(filename)),
-      async (signal, triggerFile, isFirstRun) => {
+      async (signal, triggerFilename) => {
         // Only build if the trigger file is not a test file, or if it is the first run
-        if (isFirstRun || !triggerFile.endsWith(SlangFileSuffixes.Test)) {
-          const ansiColorsEnabled = await testFeatureFlag('ENABLE_COLOR_OUTPUT');
+        if (!triggerFilename || !triggerFilename.endsWith(SlangFileSuffixes.Test)) {
+          const ansiColorsEnabled = await testFeatureFlag(SlangDefines.EnableColorOutput);
           if (ansiColorsEnabled) {
             abort('ANSI colors are enabled. Must be disabled for tests to ensure consistent results.');
           }
