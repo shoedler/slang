@@ -14,6 +14,8 @@ static Value str_ctor(int argc, Value argv[]);
 static Value str_to_str(int argc, Value argv[]);
 static Value str_has(int argc, Value argv[]);
 static Value str_slice(int argc, Value argv[]);
+static Value str_add(int argc, Value argv[]);
+
 static Value str_split(int argc, Value argv[]);
 static Value str_trim(int argc, Value argv[]);
 
@@ -35,6 +37,7 @@ void native_str_class_finalize() {
   define_native(&vm.str_class->methods, STR(SP_METHOD_TO_STR), str_to_str, 0);
   define_native(&vm.str_class->methods, STR(SP_METHOD_HAS), str_has, 1);
   define_native(&vm.str_class->methods, STR(SP_METHOD_SLICE), str_slice, 2);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_ADD), str_add, 1);
   define_native(&vm.str_class->methods, "split", str_split, 1);
   define_native(&vm.str_class->methods, "trim", str_trim, 0);
   finalize_new_class(vm.str_class);
@@ -265,4 +268,28 @@ static Value str_slice(int argc, Value argv[]) {
   int length            = end - start;
   ObjString* sliced_str = copy_string(start_ptr, length);
   return str_value(sliced_str);
+}
+
+/**
+ * TYPENAME_STRING.SP_METHOD_ADD(other: TYPENAME_VALUE) -> TYPENAME_STRING
+ * @brief Concatenates two TYPENAME_STRINGs, if [other] isn't a TYPENAME_STRING, it's SP_METHOD_TO_STR is called.
+ */
+static Value str_add(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.str_class)
+
+  Value other = argv[1];
+
+  if (!is_str(other)) {
+    vm_push(other);  // GC Protection
+    other = vm_exec_callable(fn_value(other.type->__to_str), 0);
+    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+      return nil_value();
+    }
+  }
+
+  vm_push(argv[0]);  // GC Protection
+  vm_push(other);    // GC Protection
+  vm_concatenate();
+  return vm_pop();  // The new string
 }

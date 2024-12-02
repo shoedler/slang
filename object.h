@@ -123,6 +123,17 @@ typedef struct ObjClass {
   Obj* __has;
   Obj* __to_str;
   Obj* __slice;
+
+  Obj* __add;
+  Obj* __sub;
+  Obj* __mul;
+  Obj* __div;
+  Obj* __mod;
+
+  Obj* __lt;
+  Obj* __gt;
+  Obj* __lteq;
+  Obj* __gteq;
 } ObjClass;
 
 typedef struct ObjObject {

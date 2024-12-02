@@ -121,6 +121,10 @@ typedef enum {
 #define STR(x) ___STRINGIFY(x)
 #define STR_LEN(x) (sizeof(x) - 1)
 
+// Concatenate two tokens
+#define PASTE(a, b) a##b
+
+// Get the smaller of two numbers
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 // Suppress unused parameter macro

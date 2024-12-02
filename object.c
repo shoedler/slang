@@ -61,11 +61,13 @@ void finalize_new_class(ObjClass* klass) {
   };
 
   struct MethodMap specials[] = {
-      {&klass->__ctor, SPECIAL_METHOD_CTOR},
-      {&klass->__to_str, SPECIAL_METHOD_TO_STR},
-      {&klass->__has, SPECIAL_METHOD_HAS},
-      {&klass->__slice, SPECIAL_METHOD_SLICE},
-      {NULL, SPECIAL_METHOD_MAX},
+      {&klass->__ctor, SPECIAL_METHOD_CTOR}, {&klass->__to_str, SPECIAL_METHOD_TO_STR},
+      {&klass->__has, SPECIAL_METHOD_HAS},   {&klass->__slice, SPECIAL_METHOD_SLICE},
+      {&klass->__add, SPECIAL_METHOD_ADD},   {&klass->__sub, SPECIAL_METHOD_SUB},
+      {&klass->__mul, SPECIAL_METHOD_MUL},   {&klass->__div, SPECIAL_METHOD_DIV},
+      {&klass->__mod, SPECIAL_METHOD_MOD},   {&klass->__lt, SPECIAL_METHOD_LT},
+      {&klass->__gt, SPECIAL_METHOD_GT},     {&klass->__lteq, SPECIAL_METHOD_LTEQ},
+      {&klass->__gteq, SPECIAL_METHOD_GTEQ}, {NULL, SPECIAL_METHOD_MAX},
   };
 
   Value temp = nil_value();

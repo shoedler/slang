@@ -123,7 +123,6 @@ bool native_default_obj_equals(Value self, Value other);
 uint64_t native_default_obj_hash(Value self);
 
 // Default prop getter for any type.
-// TODO (refactor): Maybe also bind static methods, no?
 #define NATIVE_DEFAULT_GET_PROP_BODY(class)                                                       \
   if (bind_method(class, name, result)) {                                                         \
     return true;                                                                                  \
@@ -132,8 +131,12 @@ uint64_t native_default_obj_hash(Value self);
   return false;
 
 //
-// Macros for argument checking in native functions.
+// Macros for argument checking in native functions and general utilities.
 //
+
+#define NATIVE_BIN_OP_ILLEGAL_TYPES(op)                                                                  \
+  vm_error("Incompatible types for binary operand '%s': %s %s %s.", #op, argv[0].type->name->chars, #op, \
+           argv[1].type->name->chars);
 
 #define NATIVE_CHECK_RECEIVER(class)                                                                       \
   if (argv[0].type != class) {                                                                             \

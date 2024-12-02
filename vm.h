@@ -21,6 +21,15 @@
 #define SP_METHOD_TO_STR to_str
 #define SP_METHOD_HAS has
 #define SP_METHOD_SLICE slice
+#define SP_METHOD_ADD add
+#define SP_METHOD_SUB sub
+#define SP_METHOD_MUL mul
+#define SP_METHOD_DIV div
+#define SP_METHOD_MOD mod
+#define SP_METHOD_LT lt
+#define SP_METHOD_GT gt
+#define SP_METHOD_LTEQ lteq
+#define SP_METHOD_GTEQ gteq
 
 #define SP_PROP_LEN len
 #define SP_PROP_NAME __name
@@ -42,6 +51,15 @@ typedef enum {
   SPECIAL_METHOD_TO_STR,  // Implicitly used by the string interpolation and print functions
   SPECIAL_METHOD_HAS,     // Impllicitly used by the 'in' operator
   SPECIAL_METHOD_SLICE,   // Implicitly used by the slice operator and destructuring
+  SPECIAL_METHOD_ADD,     // Implicitly used by the '+' operator and things like Seq.sum()
+  SPECIAL_METHOD_SUB,     // Implicitly used by the '-' operator
+  SPECIAL_METHOD_MUL,     // Implicitly used by the '*' operator
+  SPECIAL_METHOD_DIV,     // Implicitly used by the '/' operator
+  SPECIAL_METHOD_MOD,     // Implicitly used by the '%' operator
+  SPECIAL_METHOD_LT,      // Implicitly used by the '<' operator and things like Seq.min(), Seq.max(), Seq.sort()
+  SPECIAL_METHOD_GT,      // Implicitly used by the '>' operator
+  SPECIAL_METHOD_LTEQ,    // Implicitly used by the '<=' operator
+  SPECIAL_METHOD_GTEQ,    // Implicitly used by the '>=' operator
 
   SPECIAL_METHOD_MAX,
 } SpecialMethodNames;
@@ -169,6 +187,10 @@ bool vm_is_falsey(Value value);
 
 // Determines whether a [klass] vm_inherits from [base]
 bool vm_inherits(ObjClass* klass, ObjClass* base);
+
+// Concatenates two strings on the stack (pops them) into a new string and pushes it onto the stack
+// `Stack: ...[a][b]` → `Stack: ...[a+b]`
+void vm_concatenate();
 
 // Resolves an import-path to an absolute file-path, based on the current working directory.
 // - [module_name] can be NULL, if the module is imported solely by [module_path] (relative or absolute).

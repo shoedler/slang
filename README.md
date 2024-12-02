@@ -68,10 +68,12 @@ You can, for example, easily cache stuff:
   - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
 - [ ] Make managed-code callables accept less arguments than it has parameters. There is an inconsistency, since native-callables allow this. Should be easy, just pass `nil` to the missing arguments.
-- [ ] Call `to_str` implicitly when adding a string to a non-string. Only if the left side is a string.
+- [ ] Align `DO_OP_IN` with `MAKE_OP()`, there's some unnecessary push/pop-int in there.
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
+- [ ] Remove `"" + value.to_str()` throughout the codebase, `"" + value` should now work.
+- [x] ~~Call `to_str` implicitly when adding a string to a non-string. Only if the left side is a string.~~
 - [x] ~~Fix VM finishing a program in error state not exiting with `EXIT_FAILURE`. (Probably, the flags are reset in `vm_free` or `reset_stack` or something).~~
 - [x] ~~Make compiler errors recoverable. Just let it sync, then continue - instead of aborting.~~
 - [x] ~~Use `obj_get_prop` in `obj_has` instead of just checking the hashtable for a value. Otherwise, they behave differently - which sucks.~~
@@ -99,6 +101,7 @@ You can, for example, easily cache stuff:
 
 ## Optimizations
 
+- [ ] Maybe delete `NATIVE_CHECK_RECEIVER` as most of the time the method is called from the receiver.
 - [ ] Use `memcpy` for concat and such (See `Seq(Tuple)` ctor for an example). Check for for-loops in the native methods. Need to test if this copies values by reference or by value. Needs a decision on on how we want to handle that.
 - [ ] Implement a string builder and use it everywhere. This is a must-have.
 - [ ] Inline `vm_push()`, `peek()` and `vm_pop()` in the Vm.

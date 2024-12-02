@@ -1040,8 +1040,7 @@ static void base_(bool can_assign) {
 
 // Compiles a function.
 // The declaration has already been consumed. Here, we start at the function's
-// parameters. Therefore is used for all supported functions:
-// named functions, anonymous functions, constructors and methods.
+// parameters. This is used for all supported functions types named functions, anonymous functions, constructors and methods.
 static void function(bool can_assign, FunctionType type) {
   UNUSED(can_assign);
   Compiler compiler;
@@ -1057,6 +1056,7 @@ static void function(bool can_assign, FunctionType type) {
           compiler_error_at_current("Can't have more than " STR(MAX_FN_ARGS) " parameters.");
         }
 
+        // Parameters are just local variables.
         uint16_t constant = parse_variable("Expecting parameter name.", CONSTNESS_FN_PARAMS);
         define_variable(constant, CONSTNESS_FN_PARAMS);
       } while (match(TOKEN_COMMA));

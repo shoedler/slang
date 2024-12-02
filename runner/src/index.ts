@@ -47,6 +47,7 @@ const hint = [
   '    - no-build      Skip building the project (default is to build)',
   '    - <pattern>     Run language that matches the regex pattern',
   '  - sample          Run sample file (sample.sl)',
+  '    - no-build      Skip building the project (default is to build)',
   '  - test            Run tests (.spec.sl files)',
   '    - update-files  Update test files with new expectations',
   '    - no-parallel   Run tests sequentially (default is parallel)',
@@ -118,9 +119,13 @@ switch (cmd) {
   }
   case 'sample': {
     const config = SlangBuildConfigs.Release;
+    const doNoBuild = Boolean(consumeOption('no-build', false));
     validateOptions();
 
-    await buildSlangConfig(config, null, true, `EXTRA_CFLAGS="-D${SlangDefines.EnableColorOutput}"`);
+    if (!doNoBuild) {
+      await buildSlangConfig(config, null, true, `EXTRA_CFLAGS="-D${SlangDefines.EnableColorOutput}"`);
+    }
+
     console.clear();
     info('Running slang file', SlangPaths.SampleFile);
     const { stdoutOutput, stderrOutput } = await runSlangFile(SlangPaths.SampleFile, config);

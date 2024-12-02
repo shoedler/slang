@@ -1,4 +1,3 @@
-#include <math.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -340,6 +339,15 @@ void vm_init() {
   vm.special_method_names[SPECIAL_METHOD_TO_STR] = copy_string(STR(SP_METHOD_TO_STR), STR_LEN(STR(SP_METHOD_TO_STR)));
   vm.special_method_names[SPECIAL_METHOD_HAS]    = copy_string(STR(SP_METHOD_HAS), STR_LEN(STR(SP_METHOD_HAS)));
   vm.special_method_names[SPECIAL_METHOD_SLICE]  = copy_string(STR(SP_METHOD_SLICE), STR_LEN(STR(SP_METHOD_SLICE)));
+  vm.special_method_names[SPECIAL_METHOD_ADD]    = copy_string(STR(SP_METHOD_ADD), STR_LEN(STR(SP_METHOD_ADD)));
+  vm.special_method_names[SPECIAL_METHOD_SUB]    = copy_string(STR(SP_METHOD_SUB), STR_LEN(STR(SP_METHOD_SUB)));
+  vm.special_method_names[SPECIAL_METHOD_MUL]    = copy_string(STR(SP_METHOD_MUL), STR_LEN(STR(SP_METHOD_MUL)));
+  vm.special_method_names[SPECIAL_METHOD_DIV]    = copy_string(STR(SP_METHOD_DIV), STR_LEN(STR(SP_METHOD_DIV)));
+  vm.special_method_names[SPECIAL_METHOD_MOD]    = copy_string(STR(SP_METHOD_MOD), STR_LEN(STR(SP_METHOD_MOD)));
+  vm.special_method_names[SPECIAL_METHOD_LT]     = copy_string(STR(SP_METHOD_LT), STR_LEN(STR(SP_METHOD_LT)));
+  vm.special_method_names[SPECIAL_METHOD_GT]     = copy_string(STR(SP_METHOD_GT), STR_LEN(STR(SP_METHOD_GT)));
+  vm.special_method_names[SPECIAL_METHOD_LTEQ]   = copy_string(STR(SP_METHOD_LTEQ), STR_LEN(STR(SP_METHOD_LTEQ)));
+  vm.special_method_names[SPECIAL_METHOD_GTEQ]   = copy_string(STR(SP_METHOD_GTEQ), STR_LEN(STR(SP_METHOD_GTEQ)));
 
   memset(vm.special_prop_names, 0, sizeof(vm.special_prop_names));
   vm.special_prop_names[SPECIAL_PROP_LEN]         = copy_string(STR(SP_PROP_LEN), STR_LEN(STR(SP_PROP_LEN)));
@@ -789,9 +797,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   return true;
 }
 
-// Concatenates two strings on the stack (pops them) into a new string and pushes it onto the stack
-// `Stack: ...[a][b]` → `Stack: ...[a+b]`
-static void concatenate() {
+void vm_concatenate() {
   ObjString* right = AS_STR(peek(0));  // Peek, so it doesn't get freed by the GC
   ObjString* left  = AS_STR(peek(1));  // Peek, so it doesn't get freed by the GC
 
@@ -951,88 +957,18 @@ static Value run() {
 // Read a string from the constant pool.
 #define READ_STRING() AS_STR(READ_CONSTANT())
 
-// Perform a binary operation on the top two values on the stack. This consumes two pieces of data from the
-// stack, and pushes the result.
-//
-// TODO (optimize): These probably have some potential for optimization.
-#define MAKE_BINARY_OP(operator, b_check)                                                                               \
-  {                                                                                                                     \
-    Value right = vm_pop();                                                                                             \
-    Value left  = vm_pop();                                                                                             \
-    if (is_int(left) && is_int(right)) {                                                                                \
-      b_check;                                                                                                          \
-      vm_push(int_value(left.as.integer operator right.as.integer));                                                    \
-      DISPATCH();                                                                                                       \
-    }                                                                                                                   \
-    if (is_float(left)) {                                                                                               \
-      if (is_int(right)) {                                                                                              \
-        b_check;                                                                                                        \
-        vm_push(float_value(left.as.float_ operator(double) right.as.integer));                                         \
-        DISPATCH();                                                                                                     \
-      }                                                                                                                 \
-      if (is_float(right)) {                                                                                            \
-        b_check;                                                                                                        \
-        vm_push(float_value(left.as.float_ operator right.as.float_));                                                  \
-        DISPATCH();                                                                                                     \
-      }                                                                                                                 \
-    } else if (is_float(right)) {                                                                                       \
-      if (is_int(left)) {                                                                                               \
-        b_check;                                                                                                        \
-        vm_push(float_value((double)left.as.integer operator right.as.float_));                                         \
-        DISPATCH();                                                                                                     \
-      }                                                                                                                 \
-    }                                                                                                                   \
-    vm_error("Incompatible types for binary operand %s. Left was %s, right was %s.", #operator, left.type->name->chars, \
-             right.type->name->chars);                                                                                  \
-    goto FINISH_ERROR;                                                                                                  \
-  }
-
-#define BIN_ADD MAKE_BINARY_OP(+, (void)0)
-#define BIN_SUB MAKE_BINARY_OP(-, (void)0)
-#define BIN_MUL MAKE_BINARY_OP(*, (void)0)
-#define BIN_DIV                                                                                         \
-  MAKE_BINARY_OP(                                                                                       \
-      /, if ((is_int(right) && right.as.integer == 0) || (is_float(right) && right.as.float_ == 0.0)) { \
-          vm_error("Division by zero.");                                                                \
-          goto FINISH_ERROR;                                                                            \
-        })
-
-// Perform a comparison operation on the top two values on the stack. This consumes two pieces of data from the
-// stack, and pushes the result.
-//
-// TODO (optimize): These probably have some potential for optimization.
-#define MAKE_COMPARATOR(operator)                                                                                           \
-  {                                                                                                                         \
-    Value right = vm_pop();                                                                                                 \
-    Value left  = vm_pop();                                                                                                 \
-    if (is_int(left) && is_int(right)) {                                                                                    \
-      vm_push(bool_value(left.as.integer operator right.as.integer));                                                       \
-      DISPATCH();                                                                                                           \
-    }                                                                                                                       \
-    if (is_float(left)) {                                                                                                   \
-      if (is_int(right)) {                                                                                                  \
-        vm_push(bool_value(left.as.float_ operator right.as.integer));                                                      \
-        DISPATCH();                                                                                                         \
-      }                                                                                                                     \
-      if (is_float(right)) {                                                                                                \
-        vm_push(bool_value(left.as.float_ operator right.as.float_));                                                       \
-        DISPATCH();                                                                                                         \
-      }                                                                                                                     \
-    } else if (is_float(right)) {                                                                                           \
-      if (is_int(left)) {                                                                                                   \
-        vm_push(bool_value(left.as.integer operator right.as.integer));                                                     \
-        DISPATCH();                                                                                                         \
-      }                                                                                                                     \
-    }                                                                                                                       \
-    vm_error("Incompatible types for comparison operand %s. Left was %s, right was %s.", #operator, left.type->name->chars, \
-             right.type->name->chars);                                                                                      \
-    goto FINISH_ERROR;                                                                                                      \
-  }
-
-#define BIN_LT MAKE_COMPARATOR(<)
-#define BIN_GT MAKE_COMPARATOR(>)
-#define BIN_LTEQ MAKE_COMPARATOR(<=)
-#define BIN_GTEQ MAKE_COMPARATOR(>=)
+#define MAKE_OP(sp_name, op)                                                                                                    \
+  Value left = peek(1);                                                                                                         \
+  if (left.type->PASTE(__, sp_name) == NULL) {                                                                                  \
+    vm_error("Type %s does not support the '%s' operator. It must implement '" STR(sp_name) "'.", left.type->name->chars, #op); \
+    goto FINISH_ERROR;                                                                                                          \
+  }                                                                                                                             \
+  Value result = vm_exec_callable(fn_value(left.type->PASTE(__, sp_name)), 1);                                                  \
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                                         \
+    goto FINISH_ERROR;                                                                                                          \
+  }                                                                                                                             \
+  vm_push(result);                                                                                                              \
+  DISPATCH();
 
 #ifdef DEBUG_TRACE_EXECUTION
   debug_disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
@@ -1368,115 +1304,63 @@ DO_OP_NEQ: {
  * @note stack: `[...][a][b] -> [...][result]`
  * @note synopsis: `OP_GT`
  */
-DO_OP_GT: { BIN_GT }
+DO_OP_GT: { MAKE_OP(SP_METHOD_GT, >) }
 
 /**
  * Compares the top two values on the stack for less-than and pushes the result.
  * @note stack: `[...][a][b] -> [...][result]`
  * @note synopsis: `OP_LT`
  */
-DO_OP_LT: { BIN_LT }
+DO_OP_LT: { MAKE_OP(SP_METHOD_LT, <) }
 
 /**
  * Compares the top two values on the stack for greater-than-or-equal and pushes the result.
  * @note stack: `[...][a][b] -> [...][result]`
  * @note synopsis: `OP_GTEQ`
  */
-DO_OP_GTEQ: { BIN_GTEQ }
+DO_OP_GTEQ: { MAKE_OP(SP_METHOD_GTEQ, >=) }
 
 /**
  * Compares the top two values on the stack for less-than-or-equal and pushes the result.
  * @note stack: `[...][a][b] -> [...][result]`
  * @note synopsis: `OP_LTEQ`
  */
-DO_OP_LTEQ: { BIN_LTEQ }
+DO_OP_LTEQ: { MAKE_OP(SP_METHOD_LTEQ, <=) }
 
 /**
  * Adds the top two values on the stack and pushes the result.
  * @note stack: `[...][a][b] -> [...][result]`
  * @note synopsis: `OP_ADD`
  */
-DO_OP_ADD: {
-  if (is_str(peek(0)) && is_str(peek(1))) {
-    concatenate();
-    DISPATCH();
-  }
-  BIN_ADD
-}
+DO_OP_ADD: { MAKE_OP(SP_METHOD_ADD, +) }
 
 /**
  * Subtracts the top two values on the stack and pushes the result.
  * @note stack: `[...][a][b] -> [...][result]`
  * @note synopsis: `OP_SUBTRACT`
  */
-DO_OP_SUBTRACT: { BIN_SUB }
+DO_OP_SUBTRACT: { MAKE_OP(SP_METHOD_SUB, -) }
 
 /**
  * Multiplies the top two values on the stack and pushes the result.
  * @note stack: `[...][a][b] -> [...][result]`
  * @note synopsis: `OP_MULTIPLY`
  */
-DO_OP_MULTIPLY: { BIN_MUL }
+DO_OP_MULTIPLY: { MAKE_OP(SP_METHOD_MUL, *) }
 
 /**
  * Divides the top two values on the stack and pushes the result.
  * @note stack: `[...][a][b] -> [...][result]`
  * @note synopsis: `OP_DIVIDE`
  */
-DO_OP_DIVIDE: { BIN_DIV }
+DO_OP_DIVIDE: { MAKE_OP(SP_METHOD_DIV, /) }
 
 /**
  * Modulos the top two values on the stack and pushes the result.
  * @note stack: `[...][a][b] -> [...][result]`
  * @note synopsis: `OP_MODULO`
  */
-DO_OP_MODULO: {
-  // Pretty much the same as MAKE_BINARY_OP, but expanded bc we use fmod(double, double) for floats
-  Value right = vm_pop();
-  Value left  = vm_pop();
-
-  if (is_int(left) && is_int(right)) {
-    if (right.as.integer == 0) {
-      vm_error("Modulo by zero.");
-      goto FINISH_ERROR;
-    }
-    vm_push(int_value(left.as.integer % right.as.integer));
-    DISPATCH();
-  }
-
-  if (is_float(left)) {
-    if (is_int(right)) {
-      if (right.as.integer == 0) {
-        vm_error("Modulo by zero.");
-        goto FINISH_ERROR;
-      }
-      vm_push(float_value(fmod(left.as.float_, (double)right.as.integer)));
-      DISPATCH();
-    }
-
-    if (is_float(right)) {
-      if (right.as.float_ == 0) {
-        vm_error("Modulo by zero.");
-        goto FINISH_ERROR;
-      }
-      vm_push(float_value(fmod(left.as.float_, right.as.float_)));
-      DISPATCH();
-    }
-  } else if (is_float(right)) {
-    if (is_int(left)) {
-      if (right.as.integer == 0) {
-        vm_error("Modulo by zero.");
-        goto FINISH_ERROR;
-      }
-      vm_push(float_value(fmod((double)left.as.integer, right.as.float_)));
-      DISPATCH();
-    }
-  }
-
-  vm_error("Incompatible types for binary operand %s. Left was %s, right was %s.", "%", left.type->name->chars,
-           right.type->name->chars);
-  goto FINISH_ERROR;
-}
+DO_OP_MODULO: { MAKE_OP(SP_METHOD_MOD, %) }
 
 /**
  * Checks if the top value on the stack is falsy and pushes the result.
@@ -1912,17 +1796,7 @@ FINISH_ERROR: {
 #undef READ_CONSTANT
 #undef READ_STRING
 
-#undef MAKE_BINARY_OP
-#undef BIN_ADD
-#undef BIN_SUB
-#undef BIN_MUL
-#undef BIN_DIV
-
-#undef MAKE_COMPARATOR
-#undef BIN_LT
-#undef BIN_GT
-#undef BIN_LTEQ
-#undef BIN_GTEQ
+#undef MAKE_OP
 }
 
 ObjObject* vm_make_module(const char* source_path, const char* module_name) {

@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 #include "common.h"
 #include "compiler.h"
@@ -20,9 +21,27 @@ static Value num_ctor(int argc, Value argv[]);
 
 static Value int_ctor(int argc, Value argv[]);
 static Value int_to_str(int argc, Value argv[]);
+static Value int_add(int argc, Value argv[]);
+static Value int_sub(int argc, Value argv[]);
+static Value int_mul(int argc, Value argv[]);
+static Value int_div(int argc, Value argv[]);
+static Value int_mod(int argc, Value argv[]);
+static Value int_lt(int argc, Value argv[]);
+static Value int_gt(int argc, Value argv[]);
+static Value int_lteq(int argc, Value argv[]);
+static Value int_gteq(int argc, Value argv[]);
 
 static Value float_ctor(int argc, Value argv[]);
 static Value float_to_str(int argc, Value argv[]);
+static Value float_add(int argc, Value argv[]);
+static Value float_sub(int argc, Value argv[]);
+static Value float_mul(int argc, Value argv[]);
+static Value float_div(int argc, Value argv[]);
+static Value float_mod(int argc, Value argv[]);
+static Value float_lt(int argc, Value argv[]);
+static Value float_gt(int argc, Value argv[]);
+static Value float_lteq(int argc, Value argv[]);
+static Value float_gteq(int argc, Value argv[]);
 
 ObjClass* native_num_class_partial_init() {
   ObjClass* num_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
@@ -58,6 +77,16 @@ ObjClass* native_int_class_partial_init(ObjClass* num_base_class) {
 void native_int_class_finalize() {
   define_native(&vm.int_class->methods, STR(SP_METHOD_CTOR), int_ctor, 1);
   define_native(&vm.int_class->methods, STR(SP_METHOD_TO_STR), int_to_str, 0);
+  define_native(&vm.int_class->methods, STR(SP_METHOD_ADD), int_add, 1);
+  define_native(&vm.int_class->methods, STR(SP_METHOD_SUB), int_sub, 1);
+  define_native(&vm.int_class->methods, STR(SP_METHOD_MUL), int_mul, 1);
+  define_native(&vm.int_class->methods, STR(SP_METHOD_DIV), int_div, 1);
+  define_native(&vm.int_class->methods, STR(SP_METHOD_MOD), int_mod, 1);
+  define_native(&vm.int_class->methods, STR(SP_METHOD_LT), int_lt, 1);
+  define_native(&vm.int_class->methods, STR(SP_METHOD_GT), int_gt, 1);
+  define_native(&vm.int_class->methods, STR(SP_METHOD_LTEQ), int_lteq, 1);
+  define_native(&vm.int_class->methods, STR(SP_METHOD_GTEQ), int_gteq, 1);
+
   finalize_new_class(vm.int_class);
 }
 
@@ -77,6 +106,16 @@ ObjClass* native_float_class_partial_init(ObjClass* num_base_class) {
 void native_float_class_finalize() {
   define_native(&vm.float_class->methods, STR(SP_METHOD_CTOR), float_ctor, 1);
   define_native(&vm.float_class->methods, STR(SP_METHOD_TO_STR), float_to_str, 0);
+  define_native(&vm.float_class->methods, STR(SP_METHOD_ADD), float_add, 1);
+  define_native(&vm.float_class->methods, STR(SP_METHOD_SUB), float_sub, 1);
+  define_native(&vm.float_class->methods, STR(SP_METHOD_MUL), float_mul, 1);
+  define_native(&vm.float_class->methods, STR(SP_METHOD_DIV), float_div, 1);
+  define_native(&vm.float_class->methods, STR(SP_METHOD_MOD), float_mod, 1);
+  define_native(&vm.float_class->methods, STR(SP_METHOD_LT), float_lt, 1);
+  define_native(&vm.float_class->methods, STR(SP_METHOD_GT), float_gt, 1);
+  define_native(&vm.float_class->methods, STR(SP_METHOD_LTEQ), float_lteq, 1);
+  define_native(&vm.float_class->methods, STR(SP_METHOD_GTEQ), float_gteq, 1);
+
   finalize_new_class(vm.float_class);
 }
 
@@ -191,6 +230,175 @@ static Value int_to_str(int argc, Value argv[]) {
 }
 
 /**
+ * TYPENAME_INT.SP_METHOD_ADD(other: TYPENAME_NUM) -> TYPENAME_NUM
+ * @brief Adds a TYPENAME_NUM to a TYPENAME_INT.
+ */
+static Value int_add(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.int_class)
+  if (is_int(argv[1])) {
+    return int_value(argv[0].as.integer + argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return float_value((double)argv[0].as.integer + argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(+)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_INT.SP_METHOD_SUB(other: TYPENAME_NUM) -> TYPENAME_NUM
+ * @brief Subtracts a TYPENAME_NUM from a TYPENAME_INT.
+ */
+static Value int_sub(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.int_class)
+  if (is_int(argv[1])) {
+    return int_value(argv[0].as.integer - argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return float_value((double)argv[0].as.integer - argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(-)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_INT.SP_METHOD_MUL(other: TYPENAME_NUM) -> TYPENAME_NUM
+ * @brief Multiplies a TYPENAME_INT by a TYPENAME_NUM.
+ */
+static Value int_mul(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.int_class)
+  if (is_int(argv[1])) {
+    return int_value(argv[0].as.integer * argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return float_value((double)argv[0].as.integer * argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(*)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_INT.SP_METHOD_DIV(other: TYPENAME_NUM) -> TYPENAME_FLOAT
+ * @brief Divides a TYPENAME_INT by a TYPENAME_NUM.
+ */
+static Value int_div(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.int_class)
+  if (is_int(argv[1])) {
+    if (argv[1].as.integer == 0) {
+      vm_error("Division by zero.");
+      return nil_value();
+    }
+    return float_value((double)argv[0].as.integer / (double)argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    if (argv[1].as.float_ == 0.0) {
+      vm_error("Division by zero.");
+      return nil_value();
+    }
+    return float_value((double)argv[0].as.integer / argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(/)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_INT.SP_METHOD_MOD(other: TYPENAME_NUM) -> TYPENAME_NUM
+ * @brief Modulos a TYPENAME_INT by a TYPENAME_NUM.
+ */
+static Value int_mod(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.int_class)
+  if (is_int(argv[1])) {
+    if (argv[1].as.integer == 0) {
+      vm_error("Modulo by zero.");
+      return nil_value();
+    }
+    return int_value(argv[0].as.integer % argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    if (argv[1].as.float_ == 0.0) {
+      vm_error("Modulo by zero.");
+      return nil_value();
+    }
+    return float_value(fmod((double)argv[0].as.integer, argv[1].as.float_));
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(%)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_INT.SP_METHOD_LT(other: TYPENAME_NUM) -> TYPENAME_BOOL
+ * @brief Checks if a TYPENAME_INT is less than a TYPENAME_NUM.
+ */
+static Value int_lt(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.int_class)
+  if (is_int(argv[1])) {
+    return bool_value(argv[0].as.integer < argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return bool_value((double)argv[0].as.integer < argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(<)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_INT.SP_METHOD_GT(other: TYPENAME_NUM) -> TYPENAME_BOOL
+ * @brief Checks if a TYPENAME_INT is greater than a TYPENAME_NUM.
+ */
+static Value int_gt(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.int_class)
+  if (is_int(argv[1])) {
+    return bool_value(argv[0].as.integer > argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return bool_value((double)argv[0].as.integer > argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(>)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_INT.SP_METHOD_LTEQ(other: TYPENAME_NUM) -> TYPENAME_BOOL
+ * @brief Checks if a TYPENAME_INT is less than or equal to a TYPENAME_NUM.
+ */
+static Value int_lteq(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.int_class)
+  if (is_int(argv[1])) {
+    return bool_value(argv[0].as.integer <= argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return bool_value((double)argv[0].as.integer <= argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(<=)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_INT.SP_METHOD_GTEQ(other: TYPENAME_NUM) -> TYPENAME_BOOL
+ * @brief Checks if a TYPENAME_INT is greater than or equal to a TYPENAME_NUM.
+ */
+static Value int_gteq(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.int_class)
+  if (is_int(argv[1])) {
+    return bool_value(argv[0].as.integer >= argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return bool_value((double)argv[0].as.integer >= argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(>=)
+  return nil_value();
+}
+
+/**
  * TYPENAME_FLOAT.SP_METHOD_CTOR() -> TYPENAME_FLOAT
  * @brief No-op constructor for TYPENAME_FLOAT.
  */
@@ -246,4 +454,173 @@ static Value float_to_str(int argc, Value argv[]) {
 
   ObjString* str_obj = copy_string(buffer, len);
   return str_value(str_obj);
+}
+
+/**
+ * TYPENAME_FLOAT.SP_METHOD_ADD(other: TYPENAME_NUM) -> TYPENAME_FLOAT
+ * @brief Adds a TYPENAME_NUM to a TYPENAME_FLOAT.
+ */
+static Value float_add(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.float_class)
+  if (is_int(argv[1])) {
+    return float_value(argv[0].as.float_ + (double)argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return float_value(argv[0].as.float_ + argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(+)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_FLOAT.SP_METHOD_SUB(other: TYPENAME_NUM) -> TYPENAME_FLOAT
+ * @brief Subtracts a TYPENAME_NUM from a TYPENAME_FLOAT.
+ */
+static Value float_sub(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.float_class)
+  if (is_int(argv[1])) {
+    return float_value(argv[0].as.float_ - (double)argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return float_value(argv[0].as.float_ - argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(-)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_FLOAT.SP_METHOD_MUL(other: TYPENAME_NUM) -> TYPENAME_FLOAT
+ * @brief Multiplies a TYPENAME_FLOAT by a TYPENAME_NUM.
+ */
+static Value float_mul(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.float_class)
+  if (is_int(argv[1])) {
+    return float_value(argv[0].as.float_ * (double)argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return float_value(argv[0].as.float_ * argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(*)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_FLOAT.SP_METHOD_DIV(other: TYPENAME_NUM) -> TYPENAME_FLOAT
+ * @brief Divides a TYPENAME_FLOAT by a TYPENAME_NUM.
+ */
+static Value float_div(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.float_class)
+  if (is_int(argv[1])) {
+    if (argv[1].as.integer == 0) {
+      vm_error("Division by zero.");
+      return nil_value();
+    }
+    return float_value(argv[0].as.float_ / (double)argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    if (argv[1].as.float_ == 0.0) {
+      vm_error("Division by zero.");
+      return nil_value();
+    }
+    return float_value(argv[0].as.float_ / argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(/)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_FLOAT.SP_METHOD_MOD(other: TYPENAME_NUM) -> TYPENAME_FLOAT
+ * @brief Modulos a TYPENAME_FLOAT by a TYPENAME_NUM.
+ */
+static Value float_mod(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.float_class)
+  if (is_int(argv[1])) {
+    if (argv[1].as.integer == 0) {
+      vm_error("Modulo by zero.");
+      return nil_value();
+    }
+    return float_value(fmod(argv[0].as.float_, (double)argv[1].as.integer));
+  }
+  if (is_float(argv[1])) {
+    if (argv[1].as.float_ == 0.0) {
+      vm_error("Modulo by zero.");
+      return nil_value();
+    }
+    return float_value(fmod(argv[0].as.float_, argv[1].as.float_));
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(%)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_FLOAT.SP_METHOD_LT(other: TYPENAME_NUM) -> TYPENAME_BOOL
+ * @brief Checks if a TYPENAME_FLOAT is less than a TYPENAME_NUM.
+ */
+static Value float_lt(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.float_class)
+  if (is_int(argv[1])) {
+    return bool_value(argv[0].as.float_ < (double)argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return bool_value(argv[0].as.float_ < argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(<)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_FLOAT.SP_METHOD_GT(other: TYPENAME_NUM) -> TYPENAME_BOOL
+ * @brief Checks if a TYPENAME_FLOAT is greater than a TYPENAME_NUM.
+ */
+static Value float_gt(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.float_class)
+  if (is_int(argv[1])) {
+    return bool_value(argv[0].as.float_ > (double)argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return bool_value(argv[0].as.float_ > argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(>)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_FLOAT.SP_METHOD_LTEQ(other: TYPENAME_NUM) -> TYPENAME_BOOL
+ * @brief Checks if a TYPENAME_FLOAT is less than or equal to a TYPENAME_NUM.
+ */
+static Value float_lteq(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.float_class)
+  if (is_int(argv[1])) {
+    return bool_value(argv[0].as.float_ <= (double)argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return bool_value(argv[0].as.float_ <= argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(<=)
+  return nil_value();
+}
+
+/**
+ * TYPENAME_FLOAT.SP_METHOD_GTEQ(other: TYPENAME_NUM) -> TYPENAME_BOOL
+ * @brief Checks if a TYPENAME_FLOAT is greater than or equal to a TYPENAME_NUM.
+ */
+static Value float_gteq(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.float_class)
+  if (is_int(argv[1])) {
+    return bool_value(argv[0].as.float_ >= (double)argv[1].as.integer);
+  }
+  if (is_float(argv[1])) {
+    return bool_value(argv[0].as.float_ >= argv[1].as.float_);
+  }
+  NATIVE_BIN_OP_ILLEGAL_TYPES(>=)
+  return nil_value();
 }
