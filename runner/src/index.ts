@@ -150,13 +150,13 @@ switch (cmd) {
       async (signal, triggerFilename) => {
         // Only build if the trigger file is not the sample file, or if it is the first run
         if (!triggerFilename || !sampleFilePath.endsWith(triggerFilename)) {
-          const didBuild = await buildSlangConfig(
+          const { code } = await buildSlangConfig(
             config,
             signal,
             false /* don't abort on error */,
             `EXTRA_CFLAGS="-D${SlangDefines.EnableColorOutput}"`,
           );
-          if (!didBuild) {
+          if (code !== 0) {
             return;
           }
         }

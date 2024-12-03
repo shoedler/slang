@@ -154,7 +154,7 @@ export const runBenchmarks = async (langPattern?: string) => {
     const { lang, ext, cmd } = language;
     const isSlang = lang === 'slang';
 
-    let interpreterVersion = await runProcess(language.version.join(' '));
+    let { output: interpreterVersion } = await runProcess(language.version.join(' '));
     if (!interpreterVersion) {
       warn(`${lang} version command failed`, `Received no output`);
       interpreterVersion = 'unknown version';
@@ -218,7 +218,7 @@ export const runBenchmarks = async (langPattern?: string) => {
 
       // Run benchmark
       for (; i < NUM_RUNS; i++) {
-        const output = await runProcess(runCommand, '', undefined, false, true);
+        const { output } = await runProcess(runCommand, '', undefined, false, true);
 
         if (!output) {
           stopSpinner();

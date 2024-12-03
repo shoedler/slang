@@ -15,7 +15,7 @@ import { SLANG_PROJ_DIR, SlangBuildConfigs, SlangPaths, SlangRunFlags } from './
  * @param signal - Abort signal to use
  * @param abortOnError - Whether to abort (exiting the app) on error (non-zero exit code or stderr)
  * @param ignoreStderr - Whether to ignore stderr and not abort on error
- * @returns Promise that resolves to stdout, or undefined if abortOnError is false and the process fails
+ * @returns Promise that resolves to an obj containing stdout, or undefined if abortOnError is false and the process fails - and the exit code
  */
 export const runProcess = (
   cmd: string,
@@ -23,7 +23,10 @@ export const runProcess = (
   signal: AbortSignal | null = null,
   abortOnError = true,
   ignoreStderr = false,
-): Promise<string | undefined> => {
+): Promise<{
+  output: string | undefined;
+  code: number | null;
+}> => {
   const options = signal ? { signal } : {};
   const child = spawn(cmd, { shell: true, ...options });
 
@@ -42,14 +45,14 @@ export const runProcess = (
     });
     child.on('close', (code, nodeSignal) => {
       if (nodeSignal === 'SIGTERM') {
-        return resolve(output);
+        return resolve({ output, code });
       }
 
       if (code === 0 && errorOutput === '') {
-        return resolve(output);
+        return resolve({ output, code });
       } else {
         if (ignoreStderr && code === 0) {
-          return resolve(output);
+          return resolve({ output, code });
         }
 
         if (abortOnError) {
@@ -62,7 +65,7 @@ export const runProcess = (
             errorMessage ?? 'Process had non-zero exit or output on stderr',
             `Command: ${cmd}, exit code: ${code}, stderr: ${errorOutput}, stdout: ${output}`,
           );
-          resolve(undefined);
+          resolve({ output: undefined, code });
         }
       }
     });
@@ -144,14 +147,17 @@ const forceDeleteDirectory = async (dirPath: PathLike, signal: AbortSignal | nul
  * @param signal - Abort signal to use
  * @param abortOnError - Whether to abort (exiting the app) on error (non-zero exit code or stderr)
  * @param extraMakeArgs - Extra arguments to pass to make
- * @returns Promise that resolves when build completes
+ * @returns Promise that resolves when build completes with the output and exit code
  */
 export const buildSlangConfig = async (
   buildConfig: SlangBuildConfigs,
   signal: AbortSignal | null = null,
   abortOnError = true,
   extraMakeArgs: string = '',
-): Promise<string | undefined> => {
+): Promise<{
+  output: string | undefined;
+  code: number | null;
+}> => {
   const cmd = `make -C ${SLANG_PROJ_DIR} ${buildConfig} ${extraMakeArgs}`;
   await forceDeleteDirectory(path.join(SlangPaths.BinDir, buildConfig), signal);
   info(`Building slang ${buildConfig}`, `Command: "${cmd}"`);
@@ -239,7 +245,9 @@ export const readFile = async (file: PathLike): Promise<string> => {
 export const gitStatus = async (): Promise<{ date: string; hash: string; message: string }> => {
   const formats = ['%ci', '%H', '%s'];
   const cmd = `git log -1 --pretty=format:`;
-  const [date, hash, message] = await Promise.all(formats.map(f => runProcess(cmd + f, `Getting git log faied`)));
+  const [date, hash, message] = await Promise.all(
+    formats.map(f => runProcess(cmd + f, `Getting git log faied`).then(o => o.output)),
+  );
   return { date: date!, hash: hash!, message: message! };
 };
 
@@ -250,7 +258,8 @@ export const gitStatus = async (): Promise<{ date: string; hash: string; message
 export const getProcessorName = async (): Promise<string> => {
   const cmd = 'wmic cpu get name';
   info(`Getting processor name`, `Command: "${cmd}"`);
-  const labelAndName = (await runProcess(cmd, `Getting processor name failed`)) ?? ' \r\nCOULD NOT GET PROCESSOR NAME';
+  const labelAndName =
+    (await runProcess(cmd, `Getting processor name failed`)).output ?? ' \r\nCOULD NOT GET PROCESSOR NAME';
   return labelAndName.split('\r\n')[1].trim();
 };
 
