@@ -22,5 +22,5 @@ print (X(3), X(2), X(1)).sort().map(fn (x) -> x.x) // [expect] (1, 2, 3)
 cls Y { fn lt(x) -> 1}
 print try (Y(), Y(), Y()).sort() else error // [expect] Method "lt" must return a Bool. Got Int.
 
-// Doen't break hash
+// Doesn't break hash
 print (1,2,3).sort() == (1,2,3) // [expect] true
