@@ -42,10 +42,10 @@ You can, for example, easily cache stuff:
   - [ ] Implement `Json.stringify(Value) -> Str`.
   - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
 - [ ] Implement `Seq.cull(Value|Fn) -> Seq`. (Remove all elements that are equal to the argument or satisfy the predicate)
-- [ ] Implement `static Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)
-- [ ] Implement `Seq.sum() -> Num`, `Tuple.sum() -> Num`. (Sum all elements. Requires some sort of __add)
+- [ ] Implement `Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)
 - [ ] Add a variant of `log` (Maybe `tap`/`info`/`dump`/`peek`?) which accepts a single argument and also, return it. That'd be awesome: `const x = a + b + c + tap(d) + e`
 - [ ] Add more error classes to std. Add a native `Error` base class, from which managed-code errors inherit. Check `vm_inherits(error.type, vm.error_class)` in `handle_runtime_error` and - if true - use `error.type->name` as the prefix instead of `Uncaught error`.
+- [x] ~~Implement `Seq.sum() -> Num`, `Tuple.sum() -> Num`. (Sum all elements. Requires some sort of __add)~~
 - [x] ~~Implement `Seq.sort(sort_fn) -> Seq`. (Sort a sequence in place. Requires some sort of __lt)~~
 - [x] ~~Implement native `Math` module.~~
   - [x] ~~Implement `Math.abs(Num) -> Num`.~~
@@ -72,6 +72,7 @@ You can, for example, easily cache stuff:
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
 - [ ] Add a mimalloc segfault handler.
+- [ ] Maybe check for `NULL` functions in `vm_exec_callable` instead of before calling it - would add some overhead though.
 - [x] ~~Add `Tuple.order` test.~~
 - [x] ~~Remove `"" + value.to_str()` throughout the codebase, `"" + value` should now work.~~
 - [x] ~~Align `DO_OP_IN` with `MAKE_OP()`, there's some unnecessary push/pop-int in there.~~
