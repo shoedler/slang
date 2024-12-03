@@ -900,7 +900,7 @@ static bool handle_runtime_error() {
 }
 
 #ifdef DEBUG_TRACE_EXECUTION
-static void debug_trace_execution() {
+static void debug_trace_execution(CallFrame* frame) {
   // Print the current instruction
   debug_disassemble_instruction(&frame->closure->function->chunk, (int)(frame->ip - frame->closure->function->chunk.code));
 
@@ -935,8 +935,8 @@ static Value run() {
 
 // Dispatch to the next instruction
 #ifdef DEBUG_TRACE_EXECUTION
-#define DISPATCH()         \
-  debug_trace_execution(); \
+#define DISPATCH()              \
+  debug_trace_execution(frame); \
   goto* dispatch_table[READ_ONE()]
 #else
 #define DISPATCH() goto* dispatch_table[READ_ONE()]
