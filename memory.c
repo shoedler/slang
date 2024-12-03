@@ -43,7 +43,7 @@ void* reallocate(void* pointer, size_t old_size, size_t new_size) {
 Obj* allocate_obj(size_t size, ObjGcType type) {
   Obj* object = (Obj*)reallocate(NULL, 0,
                                  size);  // Might trigger GC, but it's fine since our new object
-                                         // isn't referenced by anything yet -> not reachable by GC
+                                         // isn't in the linked list yet -> not reachable by GC
   object->type = type;
   object->hash = (uint64_t)((uintptr_t)(object) >> 4 | (uintptr_t)(object) << 60);  // Get a better distribution of hash
                                                                                     // values, by shifting the address

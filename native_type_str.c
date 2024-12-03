@@ -281,7 +281,7 @@ static Value str_add(int argc, Value argv[]) {
   Value other = argv[1];
 
   if (!is_str(other)) {
-    vm_push(other);  // GC Protection
+    vm_push(other);  // Receiver
     other = vm_exec_callable(fn_value(other.type->__to_str), 0);
     if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
       return nil_value();

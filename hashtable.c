@@ -122,7 +122,7 @@ void hashtable_init_of_size(HashTable* table, int target_count) {
 }
 
 bool hashtable_set(HashTable* table, Value key, Value value) {
-  // This check/strategy needs to be in sync with init_hashtable_with_count.
+  // This check/strategy needs to be in sync with hashtable_init_of_size.
   if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
     int capacity = GROW_CAPACITY(table->capacity);
     adjust_capacity(table, capacity);

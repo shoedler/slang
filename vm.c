@@ -224,20 +224,15 @@ void vm_make_tuple(int count) {
 // Creates an object from the top "count" * 2 values on the stack.
 // The resulting object is pushed onto the stack.
 static void make_object(int count) {
-  // Since we know the count, we can preallocate the hashtable for the object. This allows
-  // using hashtable_set within the loop. We don't have to worry about it wanting to resize the hashtable,
-  // which can trigger a GC and free items in the middle of the loop, because it already has enough capacity.
-  // Also, it lets us pop the object items on the stack, instead of peeking and then having to pop them later
-  // (Requiring us to loop over the keys and values twice)
+  // Since we know the count, we can preallocate the hashtable for the object. This allows using hashtable_set within the loop. We
+  // don't have to worry about it wanting to resize the hashtable, which can trigger a GC and free items in the middle of the
+  // loop, because it already has enough capacity. Also, it lets us pop the items on the stack, instead of peeking and then having
+  // to pop them later (Requiring us to loop over the keys and values twice)
   HashTable entries;
   hashtable_init(&entries);
   hashtable_init_of_size(&entries, count);
 
-  // Take the hashtable while before we start popping the stack, so the entries are still seen by the GC as
-  // we allocate the new object.
   ObjObject* obj = take_object(&entries);
-
-  // Use pop
   for (int i = 0; i < count; i++) {
     Value value = vm_pop();
     Value key   = vm_pop();
