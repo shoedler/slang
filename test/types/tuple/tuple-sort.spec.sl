@@ -20,7 +20,11 @@ print (X(3), X(2), X(1)).sort().map(fn (x) -> x.x) // [expect] (1, 2, 3)
 
 // ...which must be implemented correctly (i.e. return a boolean)
 cls Y { fn lt(x) -> 1}
-print try (Y(), Y(), Y()).sort() else error // [expect] Method "lt" must return a Bool. Got Int.
+print try (Y(), Y(), Y()).sort() else error // [expect] Method "Y.lt" must return a Bool. Got Int.
+
+// ...even broader: it must be implemented at all
+cls Z {}
+print try (Z(), Z(), Z()).sort() else error // [expect] Method "Z.lt" does not exist.
 
 // Doesn't break hash
 print (1,2,3).sort() == (1,2,3) // [expect] true
