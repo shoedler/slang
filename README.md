@@ -64,7 +64,6 @@ You can, for example, easily cache stuff:
 
 ## Improvements
 
-- [ ] Add `Tuple.order` test.
 - [ ] Improve destructuring assignment:
   - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
@@ -72,6 +71,8 @@ You can, for example, easily cache stuff:
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
+- [ ] Add a mimalloc segfault handler.
+- [x] ~~Add `Tuple.order` test.~~
 - [x] ~~Remove `"" + value.to_str()` throughout the codebase, `"" + value` should now work.~~
 - [x] ~~Align `DO_OP_IN` with `MAKE_OP()`, there's some unnecessary push/pop-int in there.~~
 - [x] ~~Call `to_str` implicitly when adding a string to a non-string. Only if the left side is a string.~~

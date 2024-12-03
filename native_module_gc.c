@@ -51,14 +51,26 @@ static Value native_gc_stats(int argc, Value argv[]) {
   HashTable fields;
   hashtable_init(&fields);
 
-  hashtable_set(&fields, str_value(copy_string("bytes_allocated", (int)strlen("bytes_allocated"))),
-                int_value(vm.bytes_allocated));
-  hashtable_set(&fields, str_value(copy_string("next_gc", (int)strlen("next_gc"))), int_value(vm.next_gc));
-  hashtable_set(&fields, str_value(copy_string("prev_gc_freed", (int)strlen("prev_gc_freed"))), int_value(vm.prev_gc_freed));
+#define ALLOCD bytes_allocated
+#define NEXTGC next_gc
+#define PREVGC prev_gc_freed
+
+  VM_SET_FLAG(VM_FLAG_PAUSE_GC);
+
+  hashtable_set(&fields, str_value(copy_string(STR(ALLOCD), STR_LEN(STR(ALLOCD)))), int_value(vm.ALLOCD));
+  hashtable_set(&fields, str_value(copy_string(STR(NEXTGC), STR_LEN(STR(NEXTGC)))), int_value(vm.NEXTGC));
+  hashtable_set(&fields, str_value(copy_string(STR(PREVGC), STR_LEN(STR(PREVGC)))), int_value(vm.PREVGC));
+
+#undef ALLOCD
+#undef NEXTGC
+#undef PREVGC
 
   ObjObject* stats = take_object(&fields);
+  Value stats_obj  = instance_value(stats);
 
-  return instance_value(stats);
+  VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
+
+  return stats_obj;
 }
 
 /**

@@ -6,7 +6,7 @@
       "label": "gcc-make-debug",
       "type": "shell",
       "command": "make",
-      "args": ["debug"],
+      "args": ["debug", "EXTRA_CFLAGS=\"-DSLANG_ENABLE_COLOR_OUTPUT\""],
       "group": "build",
       "presentation": {
         "reveal": "silent"
@@ -17,7 +17,7 @@
       "label": "gcc-make-release",
       "type": "shell",
       "command": "make",
-      "args": ["release"],
+      "args": ["release", "EXTRA_CFLAGS=\"-DSLANG_ENABLE_COLOR_OUTPUT\""],
       "group": "build",
       "presentation": {
         "reveal": "silent"
