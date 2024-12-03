@@ -90,15 +90,15 @@ fn solve {
   let result = max_relief(valve_labels["AA"], opened, 30, 1)
   let time = Perf.now() - start
 
-  print "Part 1: " + result.to_str() + " took " + time.to_str() + "s"
-  print "Cache size " + cache[1].len.to_str()
+  print "Part 1: " + result + " took " + time + "s"
+  print "Cache size " + cache[1].len
   
   start = Perf.now()
   result = max_relief(valve_labels["AA"], opened, 26, 2)
   time = Perf.now() - start
 
-  print "Part 2: " + result.to_str() + " took " + time.to_str() + "s"
-  print "Cache size " + cache[2].len.to_str()
+  print "Part 2: " + result + " took " + time + "s"
+  print "Cache size " + cache[2].len
 }
 
 solve() // In a fn, so we can collect the garbage after it's done to test the garbage collector

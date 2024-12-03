@@ -84,5 +84,5 @@ let start = Perf.now()
 let result = max_relief(valve_labels["AA"], opened, 30, 1)
 let time = Perf.now() - start
 
-print "Result: " + result.to_str() + " took " + time.to_str() + "s" + ", cache size " + cache[1].len.to_str()
+print "Result: " + result + " took " + time + "s" + ", cache size " + cache[1].len
 // 1460 took 1.05499110004166s

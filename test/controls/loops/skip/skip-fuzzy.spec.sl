@@ -5,14 +5,14 @@ while i++ <= 5 {
     while j++ <= 5 {
       if j == 3 
         skip
-      print "do_something: i = " + i.to_str() + ", j = " + j.to_str()
+      print "do_something: i = " + i + ", j = " + j
     }
   }
 
   for let l = 0; l <= 5; l++; {
     if l == 2 
       skip
-    print "l = " + l.to_str()
+    print "l = " + l
   }
 
   let do_something_else = fn {
@@ -20,7 +20,7 @@ while i++ <= 5 {
     while k++ <= 5 {
       if k == 2 
         skip
-      print "do_something_else: i = " + i.to_str() + ", k = " + k.to_str()
+      print "do_something_else: i = " + i + ", k = " + k
     }
   }
 

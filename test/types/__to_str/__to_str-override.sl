@@ -10,10 +10,10 @@ cls List {
   }
 
   fn to_str {
-    ret "List with " + this.list.len.to_str() + " elements: " + this.list.to_str()
+    ret "List with " + this.list.len + " elements: " + this.list
   }
 }
 
-print ListWithoutStrOverride().to_str() // [expect] <Instance of ListWithoutStrOverride>
+print ListWithoutStrOverride() // [expect] <Instance of ListWithoutStrOverride>
 
-print List().to_str() // [expect] List with 3 elements: [1, 2, [true, nil, lol]]
+print List() // [expect] List with 3 elements: [1, 2, [true, nil, lol]]

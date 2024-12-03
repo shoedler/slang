@@ -7,7 +7,7 @@ cls Bool {
     this.val = val
   }
 
-  fn to_str -> "bool=" + this.val.to_str()
+  fn to_str -> "bool=" + this.val
 }
 
 print true is Bool // [expect] false

@@ -10,7 +10,7 @@ cls Skip {
 
 for let i = 0; i < 3; i++; {
   if i == 1 skip
-  print "Running Skip.test with i = " + i.to_str() + "..."
+  print "Running Skip.test with i = " + i + "..."
   Skip().test(i)
 }
 

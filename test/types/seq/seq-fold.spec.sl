@@ -26,7 +26,7 @@ print [1,3,4].fold(1, calc.mult) // [expect] 324
 print [1,2,3].fold(0, fn(acc,x) -> acc + x) // [expect] 6
 print {1:10, true:10, nil:10, []:10, "9": "10"}
   .values()
-  .fold("", fn (acc, x) -> acc + x.to_str()) // [expect] 1010101010
+  .fold("", fn (acc, x) -> acc + x) // [expect] 1010101010
 
 // Side effects
 let a = [1,2,3]

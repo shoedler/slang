@@ -5,7 +5,7 @@ while i++ < 3 {
     while j++ < 3 {
       if i == j
         skip
-      print "  do_something: i = " + i.to_str() + ", j = " + j.to_str()
+      print "  do_something: i = " + i + ", j = " + j
     }
   }
 

@@ -3,13 +3,13 @@ fn inner_loop(outer_index) {
   while j++ < 3 {
     if j == outer_index
       break
-    print "  Inner loop: " + j.to_str()
+    print "  Inner loop: " + j
   }
 }
 
 let i = 0
 while i++ < 3 {
-  print "Outer loop: " + i.to_str()
+  print "Outer loop: " + i
   inner_loop(i)
 }
 

@@ -5,7 +5,7 @@ cls TypeErr {
   }
 
   fn to_str {
-    ret "Expected " + this.expected_type.to_str() + " but got " + typeof(this.actual_value).to_str() + " instead."
+    ret "Expected " + this.expected_type + " but got " + typeof(this.actual_value) + " instead."
   }
 }
 
@@ -19,7 +19,7 @@ cls Set {
 
   fn values -> this.data.keys()
 
-  fn to_str -> "<Set " + this.values().to_str() + ">"
+  fn to_str -> "<Set " + this.values() + ">"
 
   fn add(value) {
     this.data[value] = true

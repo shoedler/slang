@@ -8,7 +8,7 @@ cls TypeErr {
   }
 
   fn to_str {
-    ret "Expected " + this.expected_type.to_str() + " but got " + typeof(this.actual_value).to_str() + " instead."
+    ret "Expected " + this.expected_type + " but got " + typeof(this.actual_value) + " instead."
   }
 }
 

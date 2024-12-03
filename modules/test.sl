@@ -1,22 +1,22 @@
 cls Is {
   static fn true_ -> Is(
-    fn (a) -> a == true ? nil : "Expected actual to be true, but got " + a.to_str() + " instead."
+    fn (a) -> a == true ? nil : "Expected actual to be true, but got " + a + " instead."
   )
 
   static fn false_ -> Is(
-    fn (a) -> a == false ? nil : "Expected actual to be false, but got " + a.to_str() + " instead."
+    fn (a) -> a == false ? nil : "Expected actual to be false, but got " + a + " instead."
   )
 
   static fn nil_ -> Is(
-    fn (a) -> a == nil ? nil : "Expected actual to be nil, but got " + a.to_str() + " instead."
+    fn (a) -> a == nil ? nil : "Expected actual to be nil, but got " + a + " instead."
   )
 
   static fn equal_to(e) -> Is(
-    fn (a) -> e == a ? nil : "Expected actual to be " + e.to_str() + ", but got " + a.to_str() + " instead."
+    fn (a) -> e == a ? nil : "Expected actual to be " + e + ", but got " + a + " instead."
   )
 
   static fn not_equal_to(e) -> Is(
-    fn (a) -> e != a ? nil : "Expected actual to not be " + e.to_str() + ", but it was. (actual: " + a.to_str() + ")"
+    fn (a) -> e != a ? nil : "Expected actual to not be " + e + ", but it was. (actual: " + a + ")"
   )
 
   ctor (test_fn) {
@@ -27,14 +27,14 @@ cls Is {
 cls Does {
   static fn throw_(e) -> Does(
     fn (threw, a) {
-      if !threw ret "Expected an error to be thrown with value '" + e.to_str() + "', but no error was thrown."
+      if !threw ret "Expected an error to be thrown with value '" + e + "', but no error was thrown."
       else if e == a ret nil
-      else ret "Expected an error to be thrown with value '" + e.to_str() + "', but threw '" + a.to_str() + "' instead."
+      else ret "Expected an error to be thrown with value '" + e + "', but threw '" + a + "' instead."
     }
   )
   static fn not_throw -> Does(
     fn (threw, a) {
-      if threw ret "Expected no error to be thrown, but an error was thrown with value '" + a.to_str() + "'."
+      if threw ret "Expected no error to be thrown, but an error was thrown with value '" + a + "'."
       else ret nil
     }
   )

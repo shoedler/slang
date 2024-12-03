@@ -10,4 +10,4 @@ for let i = 0; i < 5; i++; {
     print fib(30)
 }
 
-print "elapsed: " + (Perf.now() - start).to_str() + "s"
+print "elapsed: " + (Perf.now() - start) + "s"

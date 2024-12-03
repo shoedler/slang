@@ -8,7 +8,7 @@ cls A {
   }
 }
 
-print ({"a": A(), "b": A() }).to_str()
+print ({"a": A(), "b": A() })
 
 // [expect-error] Uncaught error: true
 // [expect-error]      5 |   fn to_str -> this.check(fn (x) { throw x })

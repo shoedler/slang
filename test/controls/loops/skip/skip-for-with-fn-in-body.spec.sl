@@ -3,7 +3,7 @@ for let i = 0; i < 3; i++; {
     for let j = 0; j < 3; j++; {
       if i == j
         skip
-      print "  do_something: i = " + i.to_str() + ", j = " + j.to_str()
+      print "  do_something: i = " + i + ", j = " + j
     }
   }
 

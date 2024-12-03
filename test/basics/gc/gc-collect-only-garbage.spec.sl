@@ -111,8 +111,8 @@ fn test_keep_alive {
   if result != test_value throw "Propagation failed"
   
   print "All references and closures survived collection properly"
-  // print "Memory before test: " + before_stats.bytes_allocated.to_str()
-  // print "Memory after test:  " + after_stats.bytes_allocated.to_str()
+  // print "Memory before test: " + before_stats.bytes_allocated
+  // print "Memory after test:  " + after_stats.bytes_allocated
 }
 
 test_keep_alive() // [expect] All references and closures survived collection properly

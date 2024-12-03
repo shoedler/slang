@@ -1,9 +1,9 @@
 for let i = 0; i < 4; i++; {
-  print "Outer loop: " + i.to_str()
+  print "Outer loop: " + i
   for let j = 0; j < 3; j++; {
     if j == i 
       break
-    print "  Inner loop: " + j.to_str()
+    print "  Inner loop: " + j
   }
 
   if i == 2
