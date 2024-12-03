@@ -310,51 +310,51 @@ uint64_t native_default_obj_hash(Value self);
  * 'end' can be negative to count from the end of the TYPENAME_T. If 'start' is greater than or equal to 'end', an empty
  * TYPENAME_T is returned. If 'end' is TYPENAME_NIL, all items from 'start' to the end of the TYPENAME_T are included.
  */
-#define NATIVE_LISTLIKE_SLICE_BODY(class)                                                   \
-  UNUSED(argc);                                                                             \
-  NATIVE_CHECK_RECEIVER(class)                                                              \
-  NATIVE_CHECK_ARG_AT(1, vm.int_class)                                                      \
-  if (is_nil(argv[2])) {                                                                    \
-    argv[2] = int_value(AS_SEQ(argv[0])->items.count); /* hack: use Seq to extract count */ \
-  }                                                                                         \
-  NATIVE_CHECK_ARG_AT(2, vm.int_class)                                                      \
-                                                                                            \
-  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                    \
-  int count        = items.count;                                                           \
-                                                                                            \
-  if (count == 0) {                                                                         \
-    return NATIVE_LISTLIKE_NEW_EMPTY();                                                     \
-  }                                                                                         \
-                                                                                            \
-  int start = (int)argv[1].as.integer;                                                      \
-  int end   = (int)argv[2].as.integer;                                                      \
-                                                                                            \
-  /* Handle negative indices */                                                             \
-  if (start < 0) {                                                                          \
-    start = count + start;                                                                  \
-  }                                                                                         \
-  if (end < 0) {                                                                            \
-    end = count + end;                                                                      \
-  }                                                                                         \
-                                                                                            \
-  /* Clamp out-of-bounds indices */                                                         \
-  if (start < 0) {                                                                          \
-    start = 0;                                                                              \
-  }                                                                                         \
-  if (end > count) {                                                                        \
-    end = count;                                                                            \
-  }                                                                                         \
-                                                                                            \
-  /* Handle invalid or 0 length ranges */                                                   \
-  if (start >= end) {                                                                       \
-    return NATIVE_LISTLIKE_NEW_EMPTY();                                                     \
-  }                                                                                         \
-  ValueArray sliced = value_array_init_of_size(end - start);                                \
-  for (int i = start; i < end; i++) {                                                       \
-    sliced.values[sliced.count++] = items.values[i];                                        \
-  }                                                                                         \
-                                                                                            \
-  /* No need for GC protection - taking an array will not trigger a GC. */                  \
+#define NATIVE_LISTLIKE_SLICE_BODY(class)                                  \
+  UNUSED(argc);                                                            \
+  NATIVE_CHECK_RECEIVER(class)                                             \
+  NATIVE_CHECK_ARG_AT(1, vm.int_class)                                     \
+  if (is_nil(argv[2])) {                                                   \
+    argv[2] = int_value(NATIVE_LISTLIKE_GET_ARRAY(argv[0]).count);         \
+  }                                                                        \
+  NATIVE_CHECK_ARG_AT(2, vm.int_class)                                     \
+                                                                           \
+  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                   \
+  int count        = items.count;                                          \
+                                                                           \
+  if (count == 0) {                                                        \
+    return NATIVE_LISTLIKE_NEW_EMPTY();                                    \
+  }                                                                        \
+                                                                           \
+  int start = (int)argv[1].as.integer;                                     \
+  int end   = (int)argv[2].as.integer;                                     \
+                                                                           \
+  /* Handle negative indices */                                            \
+  if (start < 0) {                                                         \
+    start = count + start;                                                 \
+  }                                                                        \
+  if (end < 0) {                                                           \
+    end = count + end;                                                     \
+  }                                                                        \
+                                                                           \
+  /* Clamp out-of-bounds indices */                                        \
+  if (start < 0) {                                                         \
+    start = 0;                                                             \
+  }                                                                        \
+  if (end > count) {                                                       \
+    end = count;                                                           \
+  }                                                                        \
+                                                                           \
+  /* Handle invalid or 0 length ranges */                                  \
+  if (start >= end) {                                                      \
+    return NATIVE_LISTLIKE_NEW_EMPTY();                                    \
+  }                                                                        \
+  ValueArray sliced = value_array_init_of_size(end - start);               \
+  for (int i = start; i < end; i++) {                                      \
+    sliced.values[sliced.count++] = items.values[i];                       \
+  }                                                                        \
+                                                                           \
+  /* No need for GC protection - taking an array will not trigger a GC. */ \
   return NATIVE_LISTLIKE_TAKE_ARRAY(sliced);
 
 /**
