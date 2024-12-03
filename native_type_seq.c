@@ -30,6 +30,8 @@ static Value seq_some(int argc, Value argv[]);
 static Value seq_fold(int argc, Value argv[]);
 static Value seq_count(int argc, Value argv[]);
 static Value seq_concat(int argc, Value argv[]);
+static Value seq_sort(int argc, Value argv[]);
+static Value seq_order(int argc, Value argv[]);
 
 ObjClass* native_seq_class_partial_init() {
   ObjClass* seq_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
@@ -65,6 +67,8 @@ void native_seq_class_finalize() {
   define_native(&vm.seq_class->methods, "fold", seq_fold, 2);
   define_native(&vm.seq_class->methods, "count", seq_count, 1);
   define_native(&vm.seq_class->methods, "concat", seq_concat, 1);
+  define_native(&vm.seq_class->methods, "sort", seq_sort, 0);
+  define_native(&vm.seq_class->methods, "order", seq_order, 1);
   finalize_new_class(vm.seq_class);
 }
 
@@ -140,6 +144,53 @@ static Value seq_ctor(int argc, Value argv[]) {
   return nil_value();
 }
 
+/**
+ * TYPENAME_SEQ.push(arg1: TYPENAME_VALUE, ...args: TYPENAME_VALUE) -> TYPENAME_NIL
+ * @brief Pushes one or many values to a TYPENAME_SEQ.
+ */
+static Value seq_push(int argc, Value argv[]) {
+  NATIVE_CHECK_RECEIVER(vm.seq_class)
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+  for (int i = 1; i <= argc; i++) {
+    value_array_write(&seq->items, argv[i]);
+  }
+  return nil_value();
+}
+
+/**
+ * TYPENAME_SEQ.pop() -> TYPENAME_VALUE
+ * @brief Pops and returns the last item of a TYPENAME_SEQ. Returns TYPENAME_NIL if it is empty.
+ */
+static Value seq_pop(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.seq_class)
+
+  ObjSeq* seq = AS_SEQ(argv[0]);
+  return value_array_pop(&seq->items);  // Does bounds checking
+}
+
+/**
+ * TYPENAME_SEQ.yank(index: TYPENAME_INT) -> TYPENAME_VALUE
+ * @brief Removes and returns the item at 'index' from a TYPENAME_SEQ. Returns TYPENAME_NIL if 'index' is out of bounds.
+ * Modifies the TYPENAME_SEQ.
+ */
+static Value seq_yank(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.seq_class)
+  NATIVE_CHECK_ARG_AT(1, vm.int_class)
+
+  ObjSeq* seq     = AS_SEQ(argv[0]);
+  long long index = argv[1].as.integer;
+
+  if (index > INT32_MAX || index < INT32_MIN) {
+    vm_error("Index %lld surpasses the maximum value of %d.", index, INT32_MAX);
+    return nil_value();
+  }
+
+  return value_array_remove_at(&seq->items, (int)index);  // Does bounds checking
+}
+
 #define NATIVE_LISTLIKE_GET_ARRAY(value) AS_SEQ(value)->items
 #define NATIVE_LISTLIKE_NEW_EMPTY() seq_value(new_seq())
 #define NATIVE_LISTLIKE_TAKE_ARRAY(value_array) seq_value(take_seq(&value_array))
@@ -191,53 +242,12 @@ static Value seq_count(int argc, Value argv[]) {
 static Value seq_concat(int argc, Value argv[]) {
   NATIVE_LISTLIKE_CONCAT_BODY(vm.seq_class);
 }
+static Value seq_order(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_ORDER_BODY(vm.seq_class);
+}
+static Value seq_sort(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_SORT_BODY(vm.seq_class);
+}
 #undef NATIVE_LISTLIKE_GET_ARRAY
 #undef NATIVE_LISTLIKE_NEW_EMPTY
 #undef NATIVE_LISTLIKE_TAKE_ARRAY
-
-/**
- * TYPENAME_SEQ.push(arg1: TYPENAME_VALUE, ...args: TYPENAME_VALUE) -> TYPENAME_NIL
- * @brief Pushes one or many values to a TYPENAME_SEQ.
- */
-static Value seq_push(int argc, Value argv[]) {
-  NATIVE_CHECK_RECEIVER(vm.seq_class)
-
-  ObjSeq* seq = AS_SEQ(argv[0]);
-  for (int i = 1; i <= argc; i++) {
-    value_array_write(&seq->items, argv[i]);
-  }
-  return nil_value();
-}
-
-/**
- * TYPENAME_SEQ.pop() -> TYPENAME_VALUE
- * @brief Pops and returns the last item of a TYPENAME_SEQ. Returns TYPENAME_NIL if it is empty.
- */
-static Value seq_pop(int argc, Value argv[]) {
-  UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(vm.seq_class)
-
-  ObjSeq* seq = AS_SEQ(argv[0]);
-  return value_array_pop(&seq->items);  // Does bounds checking
-}
-
-/**
- * TYPENAME_SEQ.yank(index: TYPENAME_INT) -> TYPENAME_VALUE
- * @brief Removes and returns the item at 'index' from a TYPENAME_SEQ. Returns TYPENAME_NIL if 'index' is out of bounds.
- * Modifies the TYPENAME_SEQ.
- */
-static Value seq_yank(int argc, Value argv[]) {
-  UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(vm.seq_class)
-  NATIVE_CHECK_ARG_AT(1, vm.int_class)
-
-  ObjSeq* seq     = AS_SEQ(argv[0]);
-  long long index = argv[1].as.integer;
-
-  if (index > INT32_MAX || index < INT32_MIN) {
-    vm_error("Index %lld surpasses the maximum value of %d.", index, INT32_MAX);
-    return nil_value();
-  }
-
-  return value_array_remove_at(&seq->items, (int)index);  // Does bounds checking
-}

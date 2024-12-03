@@ -64,6 +64,9 @@ typedef struct ObjClass ObjClass;
 #define VALUE_STR_OBJECT_DELIM ", "
 #define VALUE_STR_UPVALUE "<Upvalue>"
 
+// Switchover point for quicksort to insertion sort.
+#define VALUE_ARRAY_QUICKSORT_THRESHOLD 50
+
 // The single value construct used to represent all values in the language.
 typedef struct {
   ObjClass* type;
@@ -83,6 +86,11 @@ typedef struct {
   int count;
   Value* values;
 } ValueArray;
+
+// Wrapper function for sorting comparison functions. Takes (Value a, Value b, Value cmp_fn) and returns an int.
+// [cmp_fn] is only used for custom comparison functions and ignored in the native wrapper.
+// Returns a negative value if a < b, a positive value if a > b, and 0 if a == b. Also returns 0 on error.
+typedef int (*SortCompareWrapperFn)(Value, Value, Value);
 
 // Initialize a value array.
 void value_array_init(ValueArray* array);
@@ -115,5 +123,19 @@ void value_array_free(ValueArray* array);
 // guarantee that the gc will not be called.
 // Returns the number of characters printed.
 int value_print_safe(FILE* file, Value value);
+
+// Native sort fn wrapper. Compares two Values using the [a] types SP_METHOD_LT.
+int value_array_sort_compare_wrapper_native(Value a, Value b, Value cmp_fn);
+
+// Custom sort fn wrapper. Compare two Values using a custom comparison function [cmp_fn]. The function must take two arguments
+// and return an TYPENAME_INT.
+int value_array_sort_compare_wrapper_custom(Value a, Value b, Value cmp_fn);
+
+// In-place sorting of a value array using insertion sort. This is used for small arrays.
+void value_array_insertion_sort(ValueArray* array, SortCompareWrapperFn cmp_fn_wrapper, Value cmp_fn);
+
+// In-place sorting of a value array using quicksort. This is used for large arrays and will fall back to insertion sort for small
+// arrays. See VALUE_ARRAY_QUICKSORT_THRESHOLD.
+void value_array_quicksort(ValueArray* array, int low, int high, SortCompareWrapperFn cmp_fn_wrapper, Value cmp_fn);
 
 #endif

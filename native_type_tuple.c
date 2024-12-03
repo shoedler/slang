@@ -25,6 +25,8 @@ static Value tuple_some(int argc, Value argv[]);
 static Value tuple_fold(int argc, Value argv[]);
 static Value tuple_count(int argc, Value argv[]);
 static Value tuple_concat(int argc, Value argv[]);
+static Value tuple_order(int argc, Value argv[]);
+static Value tuple_sort(int argc, Value argv[]);
 
 ObjClass* native_tuple_class_partial_init() {
   ObjClass* tuple_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
@@ -57,6 +59,8 @@ void native_tuple_class_finalize() {
   define_native(&vm.tuple_class->methods, "fold", tuple_fold, 2);
   define_native(&vm.tuple_class->methods, "count", tuple_count, 1);
   define_native(&vm.tuple_class->methods, "concat", tuple_concat, 1);
+  define_native(&vm.tuple_class->methods, "order", tuple_order, 1);
+  define_native(&vm.tuple_class->methods, "sort", tuple_sort, 0);
   finalize_new_class(vm.tuple_class);
 }
 
@@ -141,6 +145,12 @@ static Value tuple_count(int argc, Value argv[]) {
 }
 static Value tuple_concat(int argc, Value argv[]) {
   NATIVE_LISTLIKE_CONCAT_BODY(vm.tuple_class);
+}
+static Value tuple_order(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_ORDER_BODY(vm.tuple_class);
+}
+static Value tuple_sort(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_SORT_BODY(vm.tuple_class);
 }
 #undef NATIVE_LISTLIKE_GET_ARRAY
 #undef NATIVE_LISTLIKE_NEW_EMPTY

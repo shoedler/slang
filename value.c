@@ -191,3 +191,135 @@ int value_print_safe(FILE* file, Value value) {
   // Everything else is an instance.
   return fprintf(file, VALUE_STRFTM_INSTANCE, value.type->name->chars);
 }
+
+int value_array_sort_compare_wrapper_native(Value a, Value b, Value cmp_fn) {
+  UNUSED(cmp_fn);
+  vm_push(a);
+  vm_push(b);
+  Value result = vm_exec_callable(fn_value(a.type->__lt), 1);
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    return 0;
+  }
+
+  if (is_bool(result)) {
+    return result.as.boolean ? -1 : 1;
+  }
+
+  vm_error("Method \"" STR(SP_METHOD_LT) "\" must return a " STR(TYPENAME_BOOL) ". Got %s.", result.type->name->chars);
+  return 0;
+}
+
+int value_array_sort_compare_wrapper_custom(Value a, Value b, Value cmp_fn) {
+  vm_push(cmp_fn);
+  vm_push(a);
+  vm_push(b);
+  Value result = vm_exec_callable(cmp_fn, 2);
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    return 0;
+  }
+
+  if (is_int(result)) {
+    return result.as.integer;
+  }
+
+  vm_error("Comparison " STR(TYPENAME_FUNCTION) " must return an " STR(TYPENAME_INT) ". Got %s.", result.type->name->chars);
+  return 0;
+}
+
+void value_array_insertion_sort(ValueArray* array, SortCompareWrapperFn cmp_fn_wrapper, Value cmp_fn) {
+  for (int i = 1; i < array->count; i++) {
+    Value current = array->values[i];
+    int j         = i;
+
+    while (j > 0) {
+      int cmp = cmp_fn_wrapper(array->values[j - 1], current, cmp_fn);
+      if (cmp <= 0) {
+        break;
+      }
+
+      array->values[j] = array->values[j - 1];
+      j--;
+    }
+
+    if (j != i) {
+      array->values[j] = current;
+    }
+  }
+}
+
+// Select pivot using median-of-three
+static int select_pivot_index(ValueArray* array, int low, int high, SortCompareWrapperFn cmp_fn_wrapper, Value cmp_fn) {
+  int mid = low + (high - low) / 2;
+
+  // Sort low, mid, high elements
+  if (cmp_fn_wrapper(array->values[low], array->values[mid], cmp_fn) > 0) {
+    Value temp         = array->values[low];
+    array->values[low] = array->values[mid];
+    array->values[mid] = temp;
+  }
+
+  if (cmp_fn_wrapper(array->values[mid], array->values[high], cmp_fn) > 0) {
+    Value temp          = array->values[mid];
+    array->values[mid]  = array->values[high];
+    array->values[high] = temp;
+
+    if (cmp_fn_wrapper(array->values[low], array->values[mid], cmp_fn) > 0) {
+      temp               = array->values[low];
+      array->values[low] = array->values[mid];
+      array->values[mid] = temp;
+    }
+  }
+
+  return mid;
+}
+
+// Partition array around pivot
+static int partition(ValueArray* array, int low, int high, SortCompareWrapperFn cmp_fn_wrapper, Value cmp_fn) {
+  int pivot_idx = select_pivot_index(array, low, high, cmp_fn_wrapper, cmp_fn);
+  Value pivot   = array->values[pivot_idx];
+
+  // Move pivot to end
+  array->values[pivot_idx] = array->values[high];
+  array->values[high]      = pivot;
+
+  int store = low;
+
+  for (int i = low; i < high; i++) {
+    if (cmp_fn_wrapper(array->values[i], pivot, cmp_fn) < 0) {
+      // cmp_fn_wrapper return 0 on error, so no need to check error here
+      if (i != store) {
+        Value temp           = array->values[i];
+        array->values[i]     = array->values[store];
+        array->values[store] = temp;
+      }
+      store++;
+    }
+  }
+
+  // Restore pivot
+  array->values[high]  = array->values[store];
+  array->values[store] = pivot;
+
+  return store;
+}
+
+void value_array_quicksort(ValueArray* array, int low, int high, SortCompareWrapperFn cmp_fn_wrapper, Value cmp_fn) {
+  while (high - low > 50) {  // Use quicksort for larger segments
+    int p = partition(array, low, high, cmp_fn_wrapper, cmp_fn);
+
+    // Recurse on smaller partition, iterate on larger partition
+    if (p - low < high - p) {
+      value_array_quicksort(array, low, p - 1, cmp_fn_wrapper, cmp_fn);
+      low = p + 1;
+    } else {
+      value_array_quicksort(array, p + 1, high, cmp_fn_wrapper, cmp_fn);
+      high = p - 1;
+    }
+  }
+
+  // Use insertion sort for small segments
+  if (high > low) {
+    ValueArray subarray = {.values = array->values + low, .count = high - low + 1, .capacity = high - low + 1};
+    value_array_insertion_sort(&subarray, cmp_fn_wrapper, cmp_fn);
+  }
+}

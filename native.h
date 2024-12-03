@@ -980,4 +980,78 @@ uint64_t native_default_obj_hash(Value self);
   /* No need for GC protection - taking an array will not trigger a GC. */         \
   return NATIVE_LISTLIKE_TAKE_ARRAY(concatenated);
 
+/**
+ * TYPENAME_T.sort() -> TYPENAME_T
+ * @brief Sorts the items of a TYPENAME_T in ascending order. Returns a new TYPENAME_T with the sorted items.
+ * The items are sorted using the default "SP_METHOD_LT" method of the items type.
+ */
+#define NATIVE_LISTLIKE_SORT_BODY(class)                                                                         \
+  UNUSED(argc);                                                                                                  \
+  NATIVE_CHECK_RECEIVER(class)                                                                                   \
+                                                                                                                 \
+  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                                         \
+  int count        = items.count; /* We need to store this, because the listlike might change during the loop */ \
+                                                                                                                 \
+  /* Copy, so that the original array isn't in a somewhat-sorted state when an error happens */                  \
+  ValueArray sorted = value_array_init_of_size(count);                                                           \
+  memcpy(sorted.values, items.values, items.count * sizeof(Value));                                              \
+  sorted.count = items.count;                                                                                    \
+                                                                                                                 \
+  SortCompareWrapperFn cmp_fn_wrapper = value_array_sort_compare_wrapper_native;                                 \
+  Value cmp_fn                        = nil_value();                                                             \
+  if (sorted.count <= VALUE_ARRAY_QUICKSORT_THRESHOLD) {                                                         \
+    value_array_insertion_sort(&sorted, cmp_fn_wrapper, cmp_fn);                                                 \
+  } else {                                                                                                       \
+    value_array_quicksort(&sorted, 0, sorted.count - 1, cmp_fn_wrapper, cmp_fn);                                 \
+  }                                                                                                              \
+                                                                                                                 \
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                          \
+    value_array_free(&sorted);                                                                                   \
+    return nil_value();                                                                                          \
+  }                                                                                                              \
+                                                                                                                 \
+  /* Take at the end so that tuples calc their hash correctly */                                                 \
+  return NATIVE_LISTLIKE_TAKE_ARRAY(sorted);
+
+/**
+ * TYPENAME_T.order(cmp: TYPENAME_FN) -> TYPENAME_T
+ * @brief Sorts the items of a TYPENAME_T according to [cmp] TYPENAME_FN. Returns a new TYPENAME_T with the sorted items.
+ * The items are sorted using the provided comparison function, which should take two arguments (a, b) and return a TYPENAME_INT.
+ * Negative, if a < b, 0 if a == b, and positive if a > b.
+ */
+#define NATIVE_LISTLIKE_ORDER_BODY(class)                                                                        \
+  UNUSED(argc);                                                                                                  \
+  NATIVE_CHECK_RECEIVER(class)                                                                                   \
+  NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)                                                                             \
+                                                                                                                 \
+  int arity = callable_get_arity(argv[1]);                                                                       \
+  if (arity != 2) {                                                                                              \
+    vm_error("Function passed to \"" STR(order) "\" must take 2 arguments, but got %d.", arity);                 \
+    return nil_value();                                                                                          \
+  }                                                                                                              \
+                                                                                                                 \
+  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                                         \
+  int count        = items.count; /* We need to store this, because the listlike might change during the loop */ \
+                                                                                                                 \
+  /* Copy, so that the original array isn't in a somewhat-sorted state when an error happens */                  \
+  ValueArray sorted = value_array_init_of_size(count);                                                           \
+  memcpy(sorted.values, items.values, items.count * sizeof(Value));                                              \
+  sorted.count = items.count;                                                                                    \
+                                                                                                                 \
+  SortCompareWrapperFn cmp_fn_wrapper = value_array_sort_compare_wrapper_custom;                                 \
+  Value cmp_fn                        = argv[1];                                                                 \
+  if (sorted.count <= VALUE_ARRAY_QUICKSORT_THRESHOLD) {                                                         \
+    value_array_insertion_sort(&sorted, cmp_fn_wrapper, cmp_fn);                                                 \
+  } else {                                                                                                       \
+    value_array_quicksort(&sorted, 0, sorted.count - 1, cmp_fn_wrapper, cmp_fn);                                 \
+  }                                                                                                              \
+                                                                                                                 \
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                          \
+    value_array_free(&sorted);                                                                                   \
+    return nil_value();                                                                                          \
+  }                                                                                                              \
+                                                                                                                 \
+  /* Take at the end so that tuples calc their hash correctly */                                                 \
+  return NATIVE_LISTLIKE_TAKE_ARRAY(sorted);
+
 #endif  // NATIVE_H

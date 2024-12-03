@@ -41,12 +41,12 @@ You can, for example, easily cache stuff:
   - [ ] Implement `Json.parse(Str) -> Obj`.
   - [ ] Implement `Json.stringify(Value) -> Str`.
   - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
-- [ ] Implement `Seq.sort(sort_fn) -> Seq`. (Sort a sequence in place. Requires some sort of __lt)
 - [ ] Implement `Seq.cull(Value|Fn) -> Seq`. (Remove all elements that are equal to the argument or satisfy the predicate)
 - [ ] Implement `static Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)
 - [ ] Implement `Seq.sum() -> Num`, `Tuple.sum() -> Num`. (Sum all elements. Requires some sort of __add)
 - [ ] Add a variant of `log` (Maybe `tap`/`info`/`dump`/`peek`?) which accepts a single argument and also, return it. That'd be awesome: `const x = a + b + c + tap(d) + e`
 - [ ] Add more error classes to std. Add a native `Error` base class, from which managed-code errors inherit. Check `vm_inherits(error.type, vm.error_class)` in `handle_runtime_error` and - if true - use `error.type->name` as the prefix instead of `Uncaught error`.
+- [x] ~~Implement `Seq.sort(sort_fn) -> Seq`. (Sort a sequence in place. Requires some sort of __lt)~~
 - [x] ~~Implement native `Math` module.~~
   - [x] ~~Implement `Math.abs(Num) -> Num`.~~
   - [x] ~~Implement `Math.ceil(Num) -> Int`.~~
@@ -64,15 +64,16 @@ You can, for example, easily cache stuff:
 
 ## Improvements
 
+- [ ] Add `Tuple.order` test.
 - [ ] Improve destructuring assignment:
   - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
 - [ ] Make managed-code callables accept less arguments than it has parameters. There is an inconsistency, since native-callables allow this. Should be easy, just pass `nil` to the missing arguments.
-- [ ] Align `DO_OP_IN` with `MAKE_OP()`, there's some unnecessary push/pop-int in there.
 - [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
 - [ ] Remove `"" + value.to_str()` throughout the codebase, `"" + value` should now work.
+- [x] ~~Align `DO_OP_IN` with `MAKE_OP()`, there's some unnecessary push/pop-int in there.~~
 - [x] ~~Call `to_str` implicitly when adding a string to a non-string. Only if the left side is a string.~~
 - [x] ~~Fix VM finishing a program in error state not exiting with `EXIT_FAILURE`. (Probably, the flags are reset in `vm_free` or `reset_stack` or something).~~
 - [x] ~~Make compiler errors recoverable. Just let it sync, then continue - instead of aborting.~~
