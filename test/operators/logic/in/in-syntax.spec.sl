@@ -23,6 +23,8 @@ const idk_what_type_i_am = nil
 print typeof(idk_what_type_i_am) in [Str, Num, Float, Nil] // [expect] true
 print typeof(idk_what_type_i_am) in [Str, Num, Float] // [expect] false
 
-// Implementations of 'has' should return a boolean
+// Implementations of 'has' *should* return a boolean
 cls Test { fn has(x) -> nil } // Custom 'has' implementation (returns nil)
-print try (1 in Test()) else error // [expect] Method 'has' on type Test must return a Bool, but got Nil.
+// ...but they don't have to
+print try (1 in Test()) else error // [expect] nil
+

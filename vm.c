@@ -1741,34 +1741,11 @@ DO_OP_IS: {
  * @param arg_count number of arguments to pass to the callable
  */
 DO_OP_IN: {
-  Value in_target = peek(0);
-  Value value     = peek(1);
-
-  ObjClass* target_type = in_target.type;
-
-  vm_push(in_target);  // Receiver
-  vm_push(value);      // Argument
-  if (target_type->__has == NULL) {
-    vm_error("Type %s does not support the 'in' operator. It must implement '" STR(SP_METHOD_HAS) "'.", target_type->name->chars);
-    goto FINISH_ERROR;
-  }
-  Value result = vm_exec_callable(fn_value(target_type->__has), 1);
-  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
-    goto FINISH_ERROR;
-  }
-
-  // Since users can override this, we should that we got a bool back.
-  // Could also just use vm_is_falsey, to be less strict - but for now I like this better.
-  if (!is_bool(result)) {
-    vm_error("Method '" STR(SP_METHOD_HAS) "' on type %s must return a " STR(TYPENAME_BOOL) ", but got %s.",
-             target_type->name->chars, result.type->name->chars);
-    goto FINISH_ERROR;
-  }
-
-  vm_pop();
-  vm_pop();
-  vm_push(result);
-  DISPATCH();
+  Value a = vm_pop();
+  Value b = vm_pop();
+  vm_push(a);
+  vm_push(b);
+  MAKE_OP(SP_METHOD_HAS, in)
 }
 
 FINISH_ERROR: {
