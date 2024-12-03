@@ -28,6 +28,7 @@ typedef struct ObjClass ObjClass;
 #define TYPENAME_INSTANCE Instance
 #define TYPENAME_NATIVE NativeFn
 #define TYPENAME_UPVALUE Upvalue
+#define TYPENAME_HANDLER $Handler$
 
 #define TYPENAME_MODULE Module
 

@@ -165,17 +165,13 @@ void vm_error(const char* format, ...) {
 }
 
 void define_native(HashTable* table, const char* name, NativeFn function, int arity) {
-  Value key           = str_value(copy_string(name, (int)strlen(name)));
+  VM_SET_FLAG(VM_FLAG_PAUSE_GC);
   ObjString* name_str = copy_string(name, (int)strlen(name));
+  Value key           = str_value(name_str);
   Value value         = fn_value((Obj*)new_native(function, name_str, arity));
 
-  vm_push(key);
-  vm_push(value);
-  vm_push(str_value(name_str));
   hashtable_set(table, key, value);
-  vm_pop();
-  vm_pop();
-  vm_pop();
+  VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);  // Resume GC
 }
 
 void define_value(HashTable* table, const char* name, Value value) {
@@ -184,13 +180,10 @@ void define_value(HashTable* table, const char* name, Value value) {
   // to the module instances field within the vm_start_module function key and value are swapped! Same goes for the name (WTF).
   // I've found this out because in the stack trace we now see the modules name and for nested modules it always printed __name.
   // The current remedy is to just use variables for "key" and "value" and just use these instead of pushing and peeking.
+  VM_SET_FLAG(VM_FLAG_PAUSE_GC);
   Value key = str_value(copy_string(name, (int)strlen(name)));
-  // TODO (optimize): Just pause Gc here, remove the push/pop stuff
-  vm_push(key);
-  vm_push(value);
   hashtable_set(table, key, value);
-  vm_pop();
-  vm_pop();
+  VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
 }
 
 void vm_make_seq(int count) {
