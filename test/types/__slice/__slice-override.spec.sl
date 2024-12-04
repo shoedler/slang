@@ -14,7 +14,7 @@ cls List {
   }
 }
 
-print try ListWithoutSliceOverride().slice(0, 1) else error // [expect] Undefined callable 'slice' in type ListWithoutSliceOverride or any of its parent classes.
+print try ListWithoutSliceOverride().slice(0, 1) else error // [expect] Type ListWithoutSliceOverride does not support "slice".
 
 const list = List()
 

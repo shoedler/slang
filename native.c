@@ -42,3 +42,44 @@ bool native_default_obj_equals(Value self, Value other) {
 uint64_t native_default_obj_hash(Value self) {
   return self.as.obj->hash;
 }
+
+#define NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(method)                                     \
+  UNUSED(argc);                                                                         \
+  vm_error("Type %s does not support \"" STR(method) "\".", argv[0].type->name->chars); \
+  return nil_value();
+
+Value native___has_not_supported(int argc, Value argv[]) {
+  NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(SP_METHOD_HAS);
+}
+Value native___slice_not_supported(int argc, Value argv[]) {
+  NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(SP_METHOD_SLICE);
+}
+Value native___add_not_supported(int argc, Value argv[]) {
+  NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(SP_METHOD_ADD);
+}
+Value native___sub_not_supported(int argc, Value argv[]) {
+  NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(SP_METHOD_SUB);
+}
+Value native___mul_not_supported(int argc, Value argv[]) {
+  NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(SP_METHOD_MUL);
+}
+Value native___div_not_supported(int argc, Value argv[]) {
+  NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(SP_METHOD_DIV);
+}
+Value native___mod_not_supported(int argc, Value argv[]) {
+  NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(SP_METHOD_MOD);
+}
+Value native___lt_not_supported(int argc, Value argv[]) {
+  NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(SP_METHOD_LT);
+}
+Value native___gt_not_supported(int argc, Value argv[]) {
+  NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(SP_METHOD_GT);
+}
+Value native___lteq_not_supported(int argc, Value argv[]) {
+  NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(SP_METHOD_LTEQ);
+}
+Value native___gteq_not_supported(int argc, Value argv[]) {
+  NATIVE_SP_METHOD_NOT_SUPPORTED_BODY(SP_METHOD_GTEQ);
+}
+
+#undef NATIVE_SP_METHOD_NOT_SUPPORTED_BODY

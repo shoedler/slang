@@ -1,2 +1,2 @@
-print try (true.has(true)) else error // [expect] Undefined callable 'has' in type Bool.
-print try ("to_str" in true) else error // [expect] Type Bool does not support the 'in' operator. It must implement 'has'.
+print try (true.has(true)) else error // [expect] Type Bool does not support "has".
+print try ("to_str" in true) else error // [expect] Type Bool does not support "has".

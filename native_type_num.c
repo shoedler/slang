@@ -57,7 +57,16 @@ ObjClass* native_num_class_partial_init() {
 }
 
 void native_num_class_finalize() {
+  // We do need a "ctor" which is used to throw an error when trying to instantiate an "abstract" class:
   define_native(&vm.num_class->methods, STR(SP_METHOD_CTOR), num_ctor, 1);
+
+  // These are also not available for TYPENAME_INT and TYPENAME_FLOAT:
+  define_native(&vm.num_class->methods, STR(SP_METHOD_HAS), native___has_not_supported, 1);
+  define_native(&vm.num_class->methods, STR(SP_METHOD_SLICE), native___slice_not_supported, 2);
+
+  // No need for any other SP_METHODs, because TYPENAME_NUM is an abstract class and TYPENAME_INT and TYPENAME_FLOAT should
+  // implement them.
+
   finalize_new_class(vm.num_class);
 }
 

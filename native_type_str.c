@@ -38,6 +38,15 @@ void native_str_class_finalize() {
   define_native(&vm.str_class->methods, STR(SP_METHOD_HAS), str_has, 1);
   define_native(&vm.str_class->methods, STR(SP_METHOD_SLICE), str_slice, 2);
   define_native(&vm.str_class->methods, STR(SP_METHOD_ADD), str_add, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_SUB), native___sub_not_supported, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_MUL), native___mul_not_supported, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_DIV), native___div_not_supported, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_MOD), native___mod_not_supported, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_LT), native___lt_not_supported, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_GT), native___gt_not_supported, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_LTEQ), native___lteq_not_supported, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_GTEQ), native___gteq_not_supported, 1);
+
   define_native(&vm.str_class->methods, "split", str_split, 1);
   define_native(&vm.str_class->methods, "trim", str_trim, 0);
   finalize_new_class(vm.str_class);

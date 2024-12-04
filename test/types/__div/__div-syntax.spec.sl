@@ -2,17 +2,17 @@ cls X{}
 cls Y{ fn div(x) -> 42 }
 cls Z{ fn div(x) -> ["Lol"] } // Doesn't have to return a Num
 
-print try nil / 2 else error        // [expect] Type Nil does not support the '/' operator. It must implement 'div'.
-print try true / 2 else error       // [expect] Type Bool does not support the '/' operator. It must implement 'div'.
+print try nil / 2 else error        // [expect] Type Nil does not support "div".
+print try true / 2 else error       // [expect] Type Bool does not support "div".
 print try Int(1) / 2 else error     // [expect] 0.5
 print try Float(1.0) / 2 else error // [expect] 0.5
-print try "1" / 2 else error        // [expect] Type Str does not support the '/' operator. It must implement 'div'.
-print try [1] / 2 else error        // [expect] Type Seq does not support the '/' operator. It must implement 'div'.
-print try (1,) / 2 else error       // [expect] Type Tuple does not support the '/' operator. It must implement 'div'.
-print try {} / 2 else error         // [expect] Type Obj does not support the '/' operator. It must implement 'div'.
-print try (fn -> 1) / 2 else error  // [expect] Type Fn does not support the '/' operator. It must implement 'div'.
-print try X / 2 else error          // [expect] Type Class does not support the '/' operator. It must implement 'div'.
-print try X() / 2 else error        // [expect] Type X does not support the '/' operator. It must implement 'div'.
+print try "1" / 2 else error        // [expect] Type Str does not support "div".
+print try [1] / 2 else error        // [expect] Type Seq does not support "div".
+print try (1,) / 2 else error       // [expect] Type Tuple does not support "div".
+print try {} / 2 else error         // [expect] Type Obj does not support "div".
+print try (fn -> 1) / 2 else error  // [expect] Type Fn does not support "div".
+print try X / 2 else error          // [expect] Type Class does not support "div".
+print try X() / 2 else error        // [expect] Type X does not support "div".
 print try Y() / 2 else error        // [expect] 42
 print try Z() / 2 else error        // [expect] [Lol]
 

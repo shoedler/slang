@@ -47,6 +47,16 @@ void native_tuple_class_finalize() {
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_TO_STR), tuple_to_str, 0);
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_HAS), tuple_has, 1);
   define_native(&vm.tuple_class->methods, STR(SP_METHOD_SLICE), tuple_slice, 2);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_ADD), native___add_not_supported, 1);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_SUB), native___sub_not_supported, 1);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_MUL), native___mul_not_supported, 1);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_DIV), native___div_not_supported, 1);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_MOD), native___mod_not_supported, 1);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_LT), native___lt_not_supported, 1);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_GT), native___gt_not_supported, 1);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_LTEQ), native___lteq_not_supported, 1);
+  define_native(&vm.tuple_class->methods, STR(SP_METHOD_GTEQ), native___gteq_not_supported, 1);
+
   define_native(&vm.tuple_class->methods, "pos", tuple_pos, 1);
   define_native(&vm.tuple_class->methods, "first", tuple_first, 1);
   define_native(&vm.tuple_class->methods, "last", tuple_last, 1);

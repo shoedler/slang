@@ -37,6 +37,17 @@ void native_obj_class_finalize() {
   define_native(&vm.obj_class->methods, STR(SP_METHOD_CTOR), obj_ctor, 0);
   define_native(&vm.obj_class->methods, STR(SP_METHOD_TO_STR), obj_to_str, 0);
   define_native(&vm.obj_class->methods, STR(SP_METHOD_HAS), obj_has, 1);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_SLICE), native___slice_not_supported, 2);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_ADD), native___add_not_supported, 1);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_SUB), native___sub_not_supported, 1);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_MUL), native___mul_not_supported, 1);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_DIV), native___div_not_supported, 1);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_MOD), native___mod_not_supported, 1);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_LT), native___lt_not_supported, 1);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_GT), native___gt_not_supported, 1);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_LTEQ), native___lteq_not_supported, 1);
+  define_native(&vm.obj_class->methods, STR(SP_METHOD_GTEQ), native___gteq_not_supported, 1);
+
   define_native(&vm.obj_class->methods, "entries", obj_entries, 0);
   define_native(&vm.obj_class->methods, "values", obj_values, 0);
   define_native(&vm.obj_class->methods, "keys", obj_keys, 0);

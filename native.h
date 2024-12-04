@@ -116,6 +116,39 @@ bool native_equals_not_supported(Value self, Value other);
 // Default hash for types that don't support it.
 uint64_t native_hash_not_supported(Value self);
 
+// Default SP_METHOD_HAS for types that don't support it.
+Value native___has_not_supported(int argc, Value argv[]);
+
+// Default SP_METHOD_SLICE for types that don't support it.
+Value native___slice_not_supported(int argc, Value argv[]);
+
+// Default SP_METHOD_ADD for types that don't support it.
+Value native___add_not_supported(int argc, Value argv[]);
+
+// Default SP_METHOD_SUB for types that don't support it.
+Value native___sub_not_supported(int argc, Value argv[]);
+
+// Default SP_METHOD_MUL for types that don't support it.
+Value native___mul_not_supported(int argc, Value argv[]);
+
+// Default SP_METHOD_DIV for types that don't support it.
+Value native___div_not_supported(int argc, Value argv[]);
+
+// Default SP_METHOD_MOD for types that don't support it.
+Value native___mod_not_supported(int argc, Value argv[]);
+
+// Default SP_METHOD_LT for types that don't support it.
+Value native___lt_not_supported(int argc, Value argv[]);
+
+// Default SP_METHOD_GT for types that don't support it.
+Value native___gt_not_supported(int argc, Value argv[]);
+
+// Default SP_METHOD_LTEQ for types that don't support it.
+Value native___lteq_not_supported(int argc, Value argv[]);
+
+// Default SP_METHOD_GTEQ for types that don't support it.
+Value native___gteq_not_supported(int argc, Value argv[]);
+
 // Default equals for object-based types.
 bool native_default_obj_equals(Value self, Value other);
 
@@ -1059,32 +1092,26 @@ uint64_t native_default_obj_hash(Value self);
  * @brief Sums all the items of a TYPENAME_T using the items "SP_METHOD_ADD". Returns TYPENAME_NIL if the TYPENAME_T is empty.
  * Uses the "SP_METHOD_ADD" method of the items type to add the items.
  */
-#define NATIVE_LISTLIKE_SUM_BODY(class)                                                      \
-  UNUSED(argc);                                                                              \
-  NATIVE_CHECK_RECEIVER(class)                                                               \
-                                                                                             \
-  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                     \
-  if (items.count == 0) {                                                                    \
-    return nil_value();                                                                      \
-  }                                                                                          \
-                                                                                             \
-  Value sum = items.values[0];                                                               \
-                                                                                             \
-  if (sum.type->__add == NULL) {                                                             \
-    vm_error("Method \"%s." STR(SP_METHOD_ADD) "\" does not exist.", sum.type->name->chars); \
-    return nil_value();                                                                      \
-  }                                                                                          \
-                                                                                             \
-  Value add_fn = fn_value(sum.type->__add);                                                  \
-  for (int i = 1; i < items.count; i++) {                                                    \
-    vm_push(sum);             /* receiver (arg a) */                                         \
-    vm_push(items.values[i]); /* arg b */                                                    \
-    sum = vm_exec_callable(add_fn, 1);                                                       \
-    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                    \
-      return nil_value();                                                                    \
-    }                                                                                        \
-  }                                                                                          \
-                                                                                             \
+#define NATIVE_LISTLIKE_SUM_BODY(class)                  \
+  UNUSED(argc);                                          \
+  NATIVE_CHECK_RECEIVER(class)                           \
+                                                         \
+  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]); \
+  if (items.count == 0) {                                \
+    return nil_value();                                  \
+  }                                                      \
+                                                         \
+  Value sum    = items.values[0];                        \
+  Value add_fn = fn_value(sum.type->__add);              \
+  for (int i = 1; i < items.count; i++) {                \
+    vm_push(sum);             /* receiver (arg a) */     \
+    vm_push(items.values[i]); /* arg b */                \
+    sum = vm_exec_callable(add_fn, 1);                   \
+    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                \
+      return nil_value();                                \
+    }                                                    \
+  }                                                      \
+                                                         \
   return sum;
 
 #endif  // NATIVE_H

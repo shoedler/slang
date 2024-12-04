@@ -24,7 +24,7 @@ print try [Y(), Y(), Y()].sort() else error // [expect] Method "Y.lt" must retur
 
 // ...even broader: it must be implemented at all
 cls Z {}
-print try [Z(), Z(), Z()].sort() else error // [expect] Method "Z.lt" does not exist.
+print try [Z(), Z(), Z()].sort() else error // [expect] Type Z does not support "lt".
 
 // Works for large arrays
 const a = []

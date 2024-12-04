@@ -1,14 +1,9 @@
 cls Class{}
-fn function -> 1
-let bool = true
-let nil_ = nil
-let num = 1
-let obj = {1: 1}
 
-let types = [Class, function, bool, num, nil_, obj]
-
-types.each(fn (type) {
-  let result = try (type[..]) else error
-  if !result is Str throw "Expected a string error"
-  if !result.has("does not support slicing. It must implement 'slice'") throw "Expected a slice error"
+[Class, fn -> 1, true, nil, 1, 1.5, {}].each(fn (value) {
+  const result = try (value[..]) else error
+  if !(result is Str) throw "Expected a "+Str+" error"
+  if !result.has("does not support \"slice\"") throw "Wrong error message for type " + typeof(value) + " Got: " + result
 })
+
+print true // [expect] true

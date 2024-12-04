@@ -25,7 +25,7 @@ print [Vec(1,1),Vec(2,2),Vec(3,3)].sum() // [expect] <Instance of Vec>
 print [Vec(1,1),Vec(2,2),Vec(3,3)].sum().pos // [expect] (6, 6)
 
 // First type must have a SP_METHOD_ADD method
-print try [nil,2,3].sum() else error // [expect] Method "Nil.add" does not exist.
+print try [nil,2,3].sum() else error // [expect] Type Nil does not support "add".
 
 // Works for empty lists
 print [].sum() // [expect] nil

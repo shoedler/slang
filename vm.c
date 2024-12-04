@@ -945,17 +945,13 @@ static Value run() {
 // Read a string from the constant pool.
 #define READ_STRING() AS_STR(READ_CONSTANT())
 
-#define MAKE_OP(sp_name, op)                                                                                                    \
-  Value left = peek(1);                                                                                                         \
-  if (left.type->PASTE(__, sp_name) == NULL) {                                                                                  \
-    vm_error("Type %s does not support the '%s' operator. It must implement '" STR(sp_name) "'.", left.type->name->chars, #op); \
-    goto FINISH_ERROR;                                                                                                          \
-  }                                                                                                                             \
-  Value result = vm_exec_callable(fn_value(left.type->PASTE(__, sp_name)), 1);                                                  \
-  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                                         \
-    goto FINISH_ERROR;                                                                                                          \
-  }                                                                                                                             \
-  vm_push(result);                                                                                                              \
+#define MAKE_OP(sp_name, op)                                                   \
+  Value left   = peek(1);                                                      \
+  Value result = vm_exec_callable(fn_value(left.type->PASTE(__, sp_name)), 1); \
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                        \
+    goto FINISH_ERROR;                                                         \
+  }                                                                            \
+  vm_push(result);                                                             \
   DISPATCH();
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -1248,12 +1244,7 @@ DO_OP_GET_BASE_METHOD: {
 DO_OP_GET_SLICE: {
   // [receiver][start][end] is on the stack
   ObjClass* type = peek(2).type;
-  if (type->__slice == NULL) {
-    vm_error("Type %s does not support slicing. It must implement '" STR(SP_METHOD_SLICE) "'.", type->name->chars);
-    goto FINISH_ERROR;
-  }
-
-  Value result = vm_exec_callable(fn_value(type->__slice), 2);
+  Value result   = vm_exec_callable(fn_value(type->__slice), 2);
   if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
     goto FINISH_ERROR;
   }

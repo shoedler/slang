@@ -194,11 +194,6 @@ int value_print_safe(FILE* file, Value value) {
 
 int value_array_sort_compare_wrapper_native(Value a, Value b, Value cmp_fn) {
   UNUSED(cmp_fn);
-  if (a.type->__lt == NULL) {
-    vm_error("Method \"%s." STR(SP_METHOD_LT) "\" does not exist.", a.type->name->chars);
-    return 0;
-  }
-
   vm_push(a);
   vm_push(b);
   Value result = vm_exec_callable(fn_value(a.type->__lt), 1);
