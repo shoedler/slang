@@ -81,7 +81,7 @@
 //   for let l = 0; l <= 5; l++; {
 //     if l == 2 
 //       break
-//     print "l = " + l.to_str()
+//     print "l = " + l
 //   }
 
 //   if i % 2 == 0
@@ -315,7 +315,7 @@
 // print [1,2,3].reduce(0, fn(acc,x) -> acc + x) // 6
 // print {1:10, true:10, nil:10, []:10, "9": "10"}
 //   .values()
-//   .reduce("", fn (acc, x) -> acc + x.to_str()) // 101010
+//   .reduce("", fn (acc, x) -> acc + x) // 101010
 
 // //
 // // Seq.count
@@ -347,7 +347,7 @@
 // let sample = "Hello"
 // let bound_native = sample.to_str
 // print typeof(bound_native)
-// print "'" + bound_native() + "' should be the same as '" + (sample.to_str)() +  "', and the same as '" + sample.to_str()
+// print "'" + bound_native() + "' should be the same as '" + (sample.to_str)() +  "', and the same as '" + sample
 
 // print "--------------------------------------------------------------------------------"
 // print "Overriding stuff"
@@ -365,12 +365,12 @@
 //   }
 
 //   fn to_str {
-//     ret "List with " + this.list.len.to_str() + " elements: " + this.list.to_str()
+//     ret "List with " + this.list.len + " elements: " + this.list
 //   }
 // }
 
-// print ListWithoutStrOverride().to_str()
-// print List().to_str()
+// print ListWithoutStrOverride()
+// print List()
 
 // let l = List()
 // log("Hello", [1,2,3], clock(), typeof(nil), l.list.len, typeof(l.list))
@@ -390,7 +390,7 @@
 // for let i = 0 ; i < values.len; i++ ; {
 //   log("---")
 //   log("typeof:   ", typeof(values[i]))
-//   log("to_str:    ", values[i].to_str())
+//   log("to_str:    ", values[i])
 //   log("hash:      ", values[i].hash())
 // }
 
@@ -465,10 +465,10 @@
 // time = Perf.since(start) * 1000
 // let { bytes_allocated } = Gc.stats()
 
-// print "Freed:     " + freed.to_str() + " bytes"
-// print "GC time:   " + time.to_str() + "ms"
-// print "Allocated: " + bytes_allocated.to_str() + " bytes"
-// print "Prev:      " + prev.bytes_allocated.to_str() + " bytes"
+// print "Freed:     " + freed + " bytes"
+// print "GC time:   " + time + "ms"
+// print "Allocated: " + bytes_allocated + " bytes"
+// print "Prev:      " + prev.bytes_allocated + " bytes"
 
 // print "--------------------------------------------------------------------------------"
 // print "Try/Catch, Try/Else and Throw"
@@ -547,16 +547,16 @@
 // print construct()
 // print get_x()
 
-import { Assert, Is, Does } from "/modules/test"
+// import { Assert, Is, Does } from "/modules/test"
 
-Assert.that(true, Is.true_())
-Assert.that(false, Is.false_())
-Assert.that(nil, Is.nil_())
-Assert.that(1, Is.equal_to(1))
-Assert.that(1, Is.not_equal_to(2))
+// Assert.that(true, Is.true_())
+// Assert.that(false, Is.false_())
+// Assert.that(nil, Is.nil_())
+// Assert.that(1, Is.equal_to(1))
+// Assert.that(1, Is.not_equal_to(2))
 
-Assert.that(fn {throw "Error"}, Does.throw_("Error"))
-Assert.that(fn {}, Does.not_throw())
+// Assert.that(fn {throw "Error"}, Does.throw_("Error"))
+// Assert.that(fn {}, Does.not_throw())
 // Assert.that(fn {throw "Error"}, Does.not_throw())
 
 // // cls A {

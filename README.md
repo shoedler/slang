@@ -104,6 +104,8 @@ You can, for example, easily cache stuff:
 
 ## Optimizations
 
+- [ ] Add `OP_CALL_SP` and use a lookup table similar to `finalize_new_class` to call the method. Would make sense now that we have so many SP methods. We could also remove all arithmetic and comparison operations.
+- [ ] The features I want to implement for this language kinda require a more complex compilation process. Specifically, ditching the single-pass approach for a two-pass compiler and an actual AST.
 - [ ] Maybe delete `NATIVE_CHECK_RECEIVER` as most of the time the method is called from the receiver.
 - [ ] Use `memcpy` for concat and such (See `Seq(Tuple)` ctor for an example). Check for for-loops in the native methods. Need to test if this copies values by reference or by value. Needs a decision on on how we want to handle that.
 - [ ] Implement a string builder and use it everywhere. This is a must-have.
