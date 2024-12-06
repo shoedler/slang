@@ -12,10 +12,13 @@ cls TypeErr {
 cls Set {
   ctor(seq) {
     this.data = {}
+    if !seq ret
     for let i = 0; i < seq.len; i++; {
       this.data[seq[i]] = true
     }
   }
+
+  fn size -> this.data.keys().len
 
   fn values -> this.data.keys()
 
@@ -38,7 +41,7 @@ cls Set {
   }
 
   fn union(other) {
-    const out = Set()
+    const out = Set([])
 
     const these_vals = this.values()
     const other_vals = other.values()
@@ -59,7 +62,7 @@ cls Set {
   }
 
   fn intersection(other) {
-    const out = Set()
+    const out = Set([])
 
     const these_vals = this.values()
     const other_vals = other.values()
@@ -74,7 +77,7 @@ cls Set {
   }
 
   fn difference(other) {
-    const out = Set()
+    const out = Set([])
 
     const these_vals = this.values()
     const other_vals = other.values()
@@ -110,7 +113,7 @@ cls Set {
   // }
 
   fn symmetric_difference(other) {
-    const out = Set()
+    const out = Set([])
 
     const these_vals = this.values()
     const other_vals = other.values()
