@@ -102,4 +102,9 @@ void chunk_write(Chunk* chunk, uint16_t data, Token error_start, Token error_end
 // Returns the index of the value in the constant pool.
 int chunk_add_constant(Chunk* chunk, Value value);
 
+SourceView chunk_make_source_view(Token error_start, Token error_end);
+
+// Report an error at the given source location. Squiggles the line where the error occurred.
+void report_error_location(SourceView source);
+
 #endif

@@ -12,6 +12,9 @@
 #define HEAP_GROW_THRESHOLD 0x4000000  // 64 MB
 #define HEAP_DEFAULT_THRESHOLD 1024 * 1024 * 2
 
+// Max load factor for tables.
+#define TABLE_MAX_LOAD 0.75
+
 // Allocate memory for an array. Might trigger gc.
 #define ALLOCATE_ARRAY(type, count) (type*)reallocate(NULL, 0, sizeof(type) * (count))
 

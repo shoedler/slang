@@ -70,61 +70,6 @@ static void reset_stack() {
   vm_clear_error();
 }
 
-static void dump_location() {
-  CallFrame* frame      = current_frame();
-  ObjFunction* function = frame->closure->function;
-  size_t instruction    = frame->ip - function->chunk.code - 1;
-
-  SourceView source = function->chunk.source_views[instruction];
-
-  const char* error_end   = source.start + source.error_end_ofs;
-  const char* error_start = source.start + source.error_start_ofs;
-
-  fprintf(stderr, "\n %5d | ", source.line);
-
-  // Print the source code line
-  for (const char* chr = source.start; chr < error_end || (chr >= error_end && *chr != '\n' && *chr != '\0'); chr++) {
-    if (*chr == '\r') {
-      continue;
-    }
-
-    if (*chr == '\n') {
-      fputs("...", stderr);
-      break;
-    }
-
-    if (*chr == '/' && chr[1] == '/') {
-      break;  // Break if we reach a line comment
-    }
-
-    fputc(*chr, stderr);
-  }
-
-  // Newline and padding
-  fputs("\n         ", stderr);
-  for (const char* chr = source.start; chr < error_start; chr++) {
-    fputc(' ', stderr);
-  }
-
-  // Print the squiggly line
-  fputs(ANSI_COLOR_RED, stderr);
-  for (const char* chr = error_start; chr < error_end; chr++) {
-    if (*chr == '\r') {
-      continue;
-    }
-
-    if (*chr == '\n') {
-      break;
-    }
-
-    fputc('~', stderr);
-  }
-  fputs(ANSI_COLOR_RESET, stderr);
-
-  // Done!
-  fputs("\n\n", stderr);
-}
-
 static void dump_stacktrace() {
   for (int i = vm.frame_count - 1; i >= 0; i--) {
     CallFrame* frame      = &vm.frames[i];
@@ -858,7 +803,12 @@ static bool handle_runtime_error() {
       // Pop the synthetic handler
       vm_pop();
 
-      dump_location();
+      CallFrame* frame      = current_frame();
+      ObjFunction* function = frame->closure->function;
+      size_t instruction    = frame->ip - function->chunk.code - 1;
+
+      SourceView source = function->chunk.source_views[instruction];
+      report_error_location(source);
       dump_stacktrace();
       reset_stack();
       vm.frame_count = 0;
