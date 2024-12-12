@@ -63,7 +63,6 @@ static AstDeclaration* ast_decl_init(Token start, Token end, DeclarationType typ
   decl->fn_type        = FN_TYPE_UNKNOWN;
   decl->is_static      = false;
   decl->is_const       = false;
-  decl->scope          = NULL;
   return decl;
 }
 
@@ -137,7 +136,6 @@ static AstStatement* ast_stmt_init(Token start, Token end, StatementType type) {
   AstStatement* stmt = (AstStatement*)ast_allocate_node(sizeof(AstStatement), NODE_STMT, start, end);
   stmt->type         = type;
   stmt->path         = NULL;
-  stmt->scope        = NULL;
   return stmt;
 }
 
@@ -487,25 +485,15 @@ void ast_free(AstNode* node) {
     return;
   }
 
+  // As always, use DFS - because we want to free the children first
   for (int i = 0; i < node->count; i++) {
     ast_free(node->children[i]);
   }
-  if (node->type == NODE_ROOT) {
-    AstRoot* root = (AstRoot*)node;
-    if (root->globals != NULL) {
-      scope_free(root->globals);
-      free(root->globals);
-    } else {
-      INTERNAL_ERROR("Root node has no globals scope, what is going on?");
-    }
-  } else if (node->type == NODE_STMT) {
-    AstStatement* stmt = (AstStatement*)node;
-    if (stmt->scope != NULL) {
-      scope_free(stmt->scope);
-      free(stmt->scope);
-    }
-  }
 
+  if (node->scope != NULL) {
+    scope_free(node->scope);
+    free(node->scope);
+  }
   free(node->children);
   free(node);
 }

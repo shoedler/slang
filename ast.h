@@ -98,6 +98,7 @@ typedef struct AstNode {
   Token token_start;       // starting Token associated with this node (for error reporting)
   Token token_end;         // ending Token associated with this node (for error reporting) - can be the same as token_start
   struct AstNode* parent;  // Parent node (NULL for the root node)
+  Scope* scope;            // Scope associated with this node. Mostly NULL, except for nodes that introduce a new scope
 
   int count;
   int capacity;
@@ -135,7 +136,6 @@ AstId* ast_id_init(Token id, ObjString* name);
 struct AstDeclaration {
   AstNode base;
   DeclarationType type;
-  Scope* scope;    // DECL_FN, DECL_CLASS
   FnType fn_type;  // DECL_FN
   bool is_static;  // DECL_METHOD
   bool is_const;   // DECL_VARIABLE
@@ -163,7 +163,6 @@ struct AstStatement {
   AstNode base;
   StatementType type;
   ObjString* path;  // STMT_IMPORT
-  Scope* scope;     // STMT_BLOCK, STMT_FOR, STMT_TRY
 };
 
 AstStatement* ast_stmt_import_init(Token start, Token end, ObjString* path, AstId* id);

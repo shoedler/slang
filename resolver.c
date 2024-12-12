@@ -317,7 +317,7 @@ static void resolve_declare_function(Resolver* resolver, AstDeclaration* decl) {
   }
 
   // Resolve. Start by creating a new scope for the function
-  decl->scope = new_scope(resolver, debug_name);
+  decl->base.scope = new_scope(resolver, debug_name);
 
   // Only functions actually declare the function name in the scope
   // - methods and constructors are declared as part of the class scope and accessed via 'this'
@@ -370,7 +370,7 @@ static void resolve_declare_class(Resolver* resolver, AstDeclaration* decl) {
   resolver->current_class.has_baseclass = decl->base.children[1] != NULL;
 
   // Inject 'this' and 'base' variables
-  decl->scope = new_scope(resolver, "class");
+  decl->base.scope = new_scope(resolver, "class");
   inject_synthetic_variable(resolver, KEYWORD_THIS);
   if (resolver->current_class.has_baseclass) {
     inject_synthetic_variable(resolver, KEYWORD_BASE);
@@ -446,7 +446,7 @@ static void resolve_statement_import(Resolver* resolver, AstStatement* stmt) {
 }
 
 static void resolve_statement_block(Resolver* resolver, AstStatement* stmt) {
-  stmt->scope = new_scope(resolver, "block");
+  stmt->base.scope = new_scope(resolver, "block");
   resolve_children(resolver, (AstNode*)stmt);
   end_scope(resolver);
 }
@@ -465,7 +465,7 @@ static void resolve_statement_while(Resolver* resolver, AstStatement* stmt) {
 static void resolve_statement_for(Resolver* resolver, AstStatement* stmt) {
   bool was_in_loop  = resolver->in_loop;
   resolver->in_loop = true;
-  stmt->scope       = new_scope(resolver, "for");
+  stmt->base.scope  = new_scope(resolver, "for");
   resolve_children(resolver, (AstNode*)stmt);
   end_scope(resolver);
   resolver->in_loop = was_in_loop;
@@ -503,7 +503,7 @@ static void resolve_statement_throw(Resolver* resolver, AstStatement* stmt) {
 }
 
 static void resolve_statement_try(Resolver* resolver, AstStatement* stmt) {
-  stmt->scope = new_scope(resolver, "try");
+  stmt->base.scope = new_scope(resolver, "try");
   inject_synthetic_variable(resolver, KEYWORD_ERROR);
   resolve_children(resolver, (AstNode*)stmt);
   end_scope(resolver);
@@ -614,10 +614,10 @@ static void resolve_expr_ternary(Resolver* resolver, AstExpression* expr) {
 }
 
 static void resolve_expr_try(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr try\n");
+  expr->base.scope = new_scope(resolver, "try");
+  inject_synthetic_variable(resolver, KEYWORD_ERROR);
   resolve_children(resolver, (AstNode*)expr);
+  end_scope(resolver);
 }
 
 static void resolve_lit_number(Resolver* resolver, AstLiteral* lit) {
