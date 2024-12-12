@@ -1,6 +1,7 @@
 #include "resolver.h"
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "ast.h"
 #include "chunk.h"
 #include "object.h"
@@ -70,20 +71,35 @@ static void resolver_error(AstNode* offending_node, const char* format, ...) {
   va_end(args);
 }
 
-// Declare a new variable in the current scope
-static void declare_variable(Resolver* resolver, AstId* local_var, bool is_const) {
-  Symbol* declared = scope_get(resolver->current_scope, local_var->name);
-  if (declared != NULL) {
-    resolver_error((AstNode*)local_var, "Already a variable with this name in this scope.");
+static Scope* new_scope(Resolver* resolver) {
+  Scope* new_scope = malloc(sizeof(Scope));
+  if (new_scope == NULL) {
+    INTERNAL_ERROR("Could not allocate memory for new scope.");
+    exit(SLANG_EXIT_MEMORY_ERROR);
+  }
+  scope_init(new_scope, NULL);
+  new_scope->enclosing    = resolver->current_scope;
+  resolver->current_scope = new_scope;
+  return new_scope;
+}
+
+static void end_scope(Resolver* resolver) {
+  if (resolver->current_scope->enclosing == NULL) {
+    INTERNAL_ERROR("Cannot end the root scope.");
     return;
   }
+  Scope* enclosing        = resolver->current_scope->enclosing;
+  resolver->current_scope = enclosing;
+}
 
+// Declare a new variable in the current scope
+static void declare_variable(Resolver* resolver, AstId* local_var, bool is_const) {
   if (resolver->current_scope->count >= MAX_LOCALS) {
     resolver_error((AstNode*)local_var, "Too many local variables in scope.");
     return;
   }
 
-  // Add the new local
+  // Add the variable
   if (!scope_add_new(resolver->current_scope, local_var->name, is_const, false, false)) {
     resolver_error((AstNode*)local_var, "Variable '%s' is already defined.", local_var->name->chars);
   }
@@ -98,6 +114,12 @@ static void define_variable(Resolver* resolver, AstId* local_var) {
     return;
   }
   declaration->is_initialized = true;
+}
+
+static void resolve_root(Resolver* resolver, AstRoot* root) {
+  root->globals = new_scope(resolver);
+  resolve_children(resolver, (AstNode*)root);
+  end_scope(resolver);
 }
 
 static void resolve_declare_function(Resolver* resolver, AstDeclaration* decl) {
@@ -162,9 +184,9 @@ static void resolve_statement_block(Resolver* resolver, AstStatement* stmt) {
   UNUSED(stmt);
   printf("Resolving stmt block\n");
 
-  resolver->current_scope = stmt->scope;
+  stmt->scope = new_scope(resolver);
   resolve_children(resolver, (AstNode*)stmt);
-  resolver->current_scope = stmt->scope->enclosing;
+  end_scope(resolver);
 }
 static void resolve_statement_if(Resolver* resolver, AstStatement* stmt) {
   UNUSED(resolver);
@@ -263,9 +285,8 @@ static void resolve_expr_variable(Resolver* resolver, AstExpression* expr) {
   AstId* id = get_child_as_id((AstNode*)expr, 0, false);
 
   // Look up variable in scope chain
-  Symbol* var = NULL;
   for (Scope* scope = resolver->current_scope; scope != NULL; scope = scope->enclosing) {
-    var = scope_get(scope, id->name);
+    Symbol* var = scope_get(scope, id->name);
     if (var != NULL) {
       id->base.depth       = scope->depth;
       id->base.slot        = var->index;
@@ -275,6 +296,9 @@ static void resolve_expr_variable(Resolver* resolver, AstExpression* expr) {
       return;
     }
   }
+
+  // Not found
+  resolver_error((AstNode*)id, "Undefined variable '%s'.", id->name->chars);
 }
 static void resolve_expr_assign(Resolver* resolver, AstExpression* expr) {
   UNUSED(resolver);
@@ -426,7 +450,7 @@ static void resolve_pattern_rest(Resolver* resolver, AstPattern* pattern) {
 
 static void resolve_node(Resolver* resolver, AstNode* node) {
   switch (node->type) {
-    case NODE_ROOT: resolve_children(resolver, node); break;
+    case NODE_ROOT: resolve_root(resolver, (AstRoot*)node); break;
     case NODE_ID: INTERNAL_ERROR("Should not resolve " STR(NODE_ID) " directly."); break;
     case NODE_DECL: {
       AstDeclaration* decl = (AstDeclaration*)node;

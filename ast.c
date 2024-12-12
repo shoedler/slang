@@ -39,12 +39,7 @@ void ast_node_add_child(AstNode* parent, AstNode* child) {
 
 AstRoot* ast_root_init(Token start) {
   AstRoot* root = (AstRoot*)ast_allocate_node(sizeof(AstRoot), NODE_ROOT, start, start);
-  root->globals = malloc(sizeof(Scope));
-  if (root->globals == NULL) {
-    INTERNAL_ERROR("Could not allocate memory for global scope.");
-    exit(SLANG_EXIT_MEMORY_ERROR);
-  }
-  scope_init(root->globals, NULL);
+  root->globals = NULL;
   return root;
 }
 
@@ -143,12 +138,7 @@ static AstStatement* ast_stmt_init(Token start, Token end, StatementType type) {
   AstStatement* stmt = (AstStatement*)ast_allocate_node(sizeof(AstStatement), NODE_STMT, start, end);
   stmt->type         = type;
   stmt->path         = NULL;
-  stmt->scope        = malloc(sizeof(Scope));
-  if (stmt->scope == NULL) {
-    INTERNAL_ERROR("Could not allocate memory for statement scope.");
-    exit(SLANG_EXIT_MEMORY_ERROR);
-  }
-  scope_init(stmt->scope, NULL);
+  stmt->scope        = NULL;
   return stmt;
 }
 
@@ -499,11 +489,20 @@ void ast_free(AstNode* node) {
   for (int i = 0; i < node->count; i++) {
     ast_free(node->children[i]);
   }
-
-  if (node->type == NODE_STMT) {
+  if (node->type == NODE_ROOT) {
+    AstRoot* root = (AstRoot*)node;
+    if (root->globals != NULL) {
+      scope_free(root->globals);
+      free(root->globals);
+    } else {
+      INTERNAL_ERROR("Root node has no globals scope, what is going on?");
+    }
+  } else if (node->type == NODE_STMT) {
     AstStatement* stmt = (AstStatement*)node;
-    scope_free(stmt->scope);
-    free(stmt->scope);
+    if (stmt->scope != NULL) {
+      scope_free(stmt->scope);
+      free(stmt->scope);
+    }
   }
 
   free(node->children);

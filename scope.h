@@ -34,7 +34,8 @@ void scope_init(Scope* scope, Scope* enclosing);
 // Free resources used by scope
 void scope_free(Scope* scope);
 
-// Add or update a symbol in a scope. Returns true if the symbol was added, false if not.
+// Add or update a symbol in a scope. Returns true if the symbol was added, false if not, indicating that there is already a
+// symbol with the same name. Does NOT update an existing symbol.
 bool scope_add_new(Scope* scope, ObjString* key, bool is_const, bool is_captured, bool is_initialized);
 
 // Check if a symbol is in the scope
