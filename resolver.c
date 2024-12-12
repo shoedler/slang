@@ -2,10 +2,13 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include "ast.h"
 #include "chunk.h"
 #include "object.h"
+#include "scanner.h"
 #include "scope.h"
+#include "vm.h"
 
 typedef struct {
   Scope* current_scope;
@@ -13,13 +16,17 @@ typedef struct {
   bool in_method;
   bool in_constructor;
   bool in_loop;
-  bool had_error;
+  bool in_class;
 
   // Track classes for base/this validation
   struct {
     bool has_baseclass;
-    bool is_static;
   } current_class;
+
+  // Track static methods for base/this validation
+  struct {
+    bool is_static;
+  } current_method;
 } Resolver;
 
 // Forward declarations
@@ -32,21 +39,29 @@ static void resolver_init(Resolver* resolver, Scope* scope) {
   resolver->in_method                   = false;
   resolver->in_constructor              = false;
   resolver->in_loop                     = false;
-  resolver->had_error                   = false;
+  resolver->in_class                    = false;
   resolver->current_class.has_baseclass = false;
-  resolver->current_class.is_static     = false;
+}
+
+static inline bool in_global_scope(Resolver* resolver) {
+  return resolver->current_scope->depth == 0;
 }
 
 #ifdef DEBUG_RESOLVER
 static inline AstId* get_child_as_id(AstNode* parent, int index, bool allow_null) {
   AstNode* child = parent->children[index];
-  if (child == NULL && !allow_null) {
-    INTERNAL_ERROR("Expected " STR(AstId) "child node to be non-null.");
+  if (child == NULL) {
+    if (!allow_null) {
+      INTERNAL_ERROR("Expected " STR(AstId) "child node to be non-null.");
+    }
+    return NULL;
   }
   if (child->type != NODE_ID) {
     INTERNAL_ERROR("Expected child node to be of type " STR(NODE_ID) ", got %d.", child->type);
   }
-  return (AstId*)parent->children[index];
+  AstId* id = (AstId*)child;
+  INTERNAL_ASSERT(id->symbol == NULL, "Symbol should be NULL before resolving.");
+  return id;
 }
 #else
 #define get_child_as_id(parent, index, allow_null) ((AstId*)parent->children[index])
@@ -71,44 +86,59 @@ static void resolver_error(AstNode* offending_node, const char* format, ...) {
   va_end(args);
 }
 
-static Scope* new_scope(Resolver* resolver) {
+static Scope* new_scope(Resolver* resolver, const char* debug_name) {
   Scope* new_scope = malloc(sizeof(Scope));
   if (new_scope == NULL) {
     INTERNAL_ERROR("Could not allocate memory for new scope.");
     exit(SLANG_EXIT_MEMORY_ERROR);
   }
-  scope_init(new_scope, NULL);
-  new_scope->enclosing    = resolver->current_scope;
+  scope_init(new_scope, resolver->current_scope);
   resolver->current_scope = new_scope;
+
+#ifdef DEBUG_RESOLVER
+  for (int i = 0; i < resolver->current_scope->depth; printf("  "), i++)
+    ;
+  printf(ANSI_YELLOW_STR("Entering scope <") "%s" ANSI_YELLOW_STR(">") " depth=%d\n", debug_name, resolver->current_scope->depth);
+#endif
+
   return new_scope;
 }
 
 static void end_scope(Resolver* resolver) {
-  if (resolver->current_scope->enclosing == NULL) {
-    INTERNAL_ERROR("Cannot end the root scope.");
-    return;
-  }
-  Scope* enclosing        = resolver->current_scope->enclosing;
+  Scope* enclosing = resolver->current_scope->enclosing;
+#ifdef DEBUG_RESOLVER
+  for (int i = 0; i < resolver->current_scope->depth; printf("  "), i++)
+    ;
+  printf(ANSI_YELLOW_STR("Leaving scope") " depth=%d\n", resolver->current_scope->depth);
+#endif
   resolver->current_scope = enclosing;
 }
 
 // Declare a new variable in the current scope
-static void declare_variable(Resolver* resolver, AstId* local_var, bool is_const) {
+static void declare_variable(Resolver* resolver, AstId* var, bool is_const) {
   if (resolver->current_scope->count >= MAX_LOCALS) {
-    resolver_error((AstNode*)local_var, "Too many local variables in scope.");
+    resolver_error((AstNode*)var, "Too many variables in scope.");
     return;
   }
 
   // Add the variable
-  if (!scope_add_new(resolver->current_scope, local_var->name, is_const, false, false)) {
-    resolver_error((AstNode*)local_var, "Variable '%s' is already defined.", local_var->name->chars);
+  SymbolType type = in_global_scope(resolver) ? SYMBOL_GLOBAL : SYMBOL_LOCAL;
+  if (!scope_add_new(resolver->current_scope, var->name, type, is_const, false)) {
+    resolver_error((AstNode*)var, "Variable '%s' is already defined.", var->name->chars);
   }
 }
 
-// Define a previously declared variable
-static void define_variable(Resolver* resolver, AstId* local_var) {
+// Declare a new parameter in the current scope
+static void declare_parameter(Resolver* resolver, AstId* param) {
+  if (!scope_add_new(resolver->current_scope, param->name, SYMBOL_PARAM, false, true)) {
+    resolver_error((AstNode*)param, "Parameter '%s' is already defined.", param->name->chars);
+  }
+}
+
+// Define a previously declared variable in the current scope
+static void define_variable(Resolver* resolver, AstId* var) {
   // Find the variable's declaration
-  Symbol* declaration = scope_get(resolver->current_scope, local_var->name);
+  Symbol* declaration = scope_get(resolver->current_scope, var->name);
   if (declaration == NULL) {
     INTERNAL_ERROR("Could not find local variable in current scope.");
     return;
@@ -116,53 +146,260 @@ static void define_variable(Resolver* resolver, AstId* local_var) {
   declaration->is_initialized = true;
 }
 
+// Inject a synthetic variable into the current scope
+static void inject_synthetic_variable(Resolver* resolver, const char* name) {
+  ObjString* name_str = copy_string(name, strlen(name));
+  SymbolType type     = in_global_scope(resolver) ? SYMBOL_GLOBAL : SYMBOL_LOCAL;
+  if (!scope_add_new(resolver->current_scope, name_str, type, false, true)) {
+    INTERNAL_ERROR("Could not inject synthetic variable into scope.");
+  }
+}
+
+// Resolves a variable lookup
+static void resolve_variable(Resolver* resolver, AstId* var) {
+  // Look up variable in scope chain
+  for (Scope* scope = resolver->current_scope; scope != NULL; scope = scope->enclosing) {
+    Symbol* sym = scope_get(scope, var->name);
+    if (sym != NULL) {
+      var->symbol = sym;
+      return;
+    }
+  }
+
+  // Maybe it's a native?
+  Value discard;
+  if (hashtable_get_by_string(&vm.natives, var->name, &discard)) {
+    var->symbol = allocate_symbol(SYMBOL_NATIVE, false, true);
+    return;
+  }
+
+  // Not found
+  resolver_error((AstNode*)var, "Undefined variable '%s'.", var->name->chars);
+}
+
+// Declares a pattern
+static void declare_pattern(Resolver* resolver, AstPattern* pattern, bool is_const) {
+  switch (pattern->type) {
+    case PAT_REST:
+    case PAT_BINDING: {
+      AstId* id = get_child_as_id((AstNode*)pattern, 0, false);
+      declare_variable(resolver, id, is_const);
+      break;
+    }
+    case PAT_SEQ:
+    case PAT_OBJ:
+    case PAT_TUPLE: {
+      for (int i = 0; i < pattern->base.count; i++) {
+        declare_pattern(resolver, (AstPattern*)pattern->base.children[i], is_const);
+      }
+      break;
+    }
+    default: INTERNAL_ERROR("Unhandled pattern type.");
+  }
+}
+
+// Defines a pattern
+static void define_pattern(Resolver* resolver, AstPattern* pattern) {
+  switch (pattern->type) {
+    case PAT_REST:
+    case PAT_BINDING: {
+      AstId* id = get_child_as_id((AstNode*)pattern, 0, false);
+      define_variable(resolver, id);
+      break;
+    }
+    case PAT_SEQ:
+    case PAT_OBJ:
+    case PAT_TUPLE: {
+      for (int i = 0; i < pattern->base.count; i++) {
+        define_pattern(resolver, (AstPattern*)pattern->base.children[i]);
+      }
+      break;
+    }
+    default: INTERNAL_ERROR("Unhandled pattern type.");
+  }
+}
+
+// // Resolves a pattern
+// static void resolve_pattern(Resolver* resolver, AstPattern* pattern) {
+//   switch (pattern->type) {
+//     case PAT_REST:
+//     case PAT_BINDING: {
+//       AstId* id = get_child_as_id((AstNode*)pattern, 0, false);
+//       resolve_variable(resolver, id);
+//       break;
+//     }
+//     case PAT_SEQ:
+//     case PAT_OBJ:
+//     case PAT_TUPLE: {
+//       for (int i = 0; i < pattern->base.count; i++) {
+//         resolve_pattern(resolver, pattern->base.children[i]);
+//       }
+//       break;
+//     }
+//     default: INTERNAL_ERROR("Unhandled pattern type.");
+//   }
+// }
+
+static void resolve_assignment_target(Resolver* resolver, AstExpression* target) {
+  if (target->type == EXPR_VARIABLE) {
+    AstId* id = get_child_as_id((AstNode*)target, 0, false);
+    resolve_variable(resolver, id);
+    INTERNAL_ASSERT(id->symbol != NULL, "Variable symbol should be resolved.");
+
+    if (id->symbol->type == SYMBOL_NATIVE) {
+      resolver_error((AstNode*)target, "Don't reassign natives.", id->name->chars);
+      return;
+    }
+
+    if (id->symbol->is_const) {
+      resolver_error((AstNode*)target, "Cannot assign to constant variable '%s'.", id->name->chars);
+    }
+  } else {
+    // Could be something like a subscript or dot, which we currently can't check for mutability
+    resolve_node(resolver, (AstNode*)target);
+  }
+}
+
 static void resolve_root(Resolver* resolver, AstRoot* root) {
-  root->globals = new_scope(resolver);
+  root->globals = new_scope(resolver, "global");
   resolve_children(resolver, (AstNode*)root);
   end_scope(resolver);
 }
 
-static void resolve_declare_function(Resolver* resolver, AstDeclaration* decl) {
-  UNUSED(resolver);
-  UNUSED(decl);
-  printf("Resolving decl fn\n");
-  resolve_children(resolver, (AstNode*)decl);
-}
-static void resolve_declare_function_params(Resolver* resolver, AstDeclaration* decl) {
-  UNUSED(resolver);
-  UNUSED(decl);
-  printf("Resolving decl fn params\n");
-  resolve_children(resolver, (AstNode*)decl);
-}
-static void resolve_declare_class(Resolver* resolver, AstDeclaration* decl) {
-  UNUSED(resolver);
-  UNUSED(decl);
-  printf("Resolving decl class\n");
-  resolve_children(resolver, (AstNode*)decl);
-}
-static void resolve_declare_method(Resolver* resolver, AstDeclaration* decl) {
-  UNUSED(resolver);
-  UNUSED(decl);
-  printf("Resolving decl method\n");
-  resolve_children(resolver, (AstNode*)decl);
-}
-static void resolve_declare_constructor(Resolver* resolver, AstDeclaration* decl) {
-  UNUSED(resolver);
-  UNUSED(decl);
-  printf("Resolving decl ctor\n");
-  resolve_children(resolver, (AstNode*)decl);
-}
-static void resolve_declare_variable(Resolver* resolver, AstDeclaration* decl) {
-  printf("Resolving decl var\n");
+//
+// Declaration resolution
+//
 
-  if (decl->base.children[0]->type == NODE_PATTERN) {
-    INTERNAL_ERROR("Only simple variable declarations are supported for now.");
-    return;
+static void resolve_declare_function_params(Resolver* resolver, AstDeclaration* decl) {
+  for (int i = 0; i < decl->base.count; i++) {
+    AstId* id = get_child_as_id((AstNode*)decl, i, false);
+    declare_parameter(resolver, id);
+    define_variable(resolver, id);
+  }
+}
+
+static void resolve_declare_function(Resolver* resolver, AstDeclaration* decl) {
+  // Configure resolver state for function type
+  bool was_in_function;
+  const char* debug_name;
+  switch (decl->fn_type) {
+    case FN_TYPE_ANONYMOUS_FUNCTION:
+    case FN_TYPE_FUNCTION: {
+      was_in_function       = resolver->in_function;
+      resolver->in_function = true;
+      debug_name            = "function";
+      break;
+    }
+    case FN_TYPE_METHOD_STATIC:
+    case FN_TYPE_METHOD: {
+      if (!resolver->in_class) {
+        resolver_error((AstNode*)decl, "Can't declare a method outside of a class.");
+      }
+      if (resolver->in_method) {
+        resolver_error((AstNode*)decl, "Can't have nested methods.");
+      }
+      resolver->in_method = true;
+      debug_name          = "method";
+      break;
+    }
+    case FN_TYPE_CONSTRUCTOR: {
+      if (!resolver->in_class) {
+        resolver_error((AstNode*)decl, "Can't declare a constructor outside of a class.");
+      }
+      if (resolver->in_constructor) {
+        resolver_error((AstNode*)decl, "Can't have nested constructors.");
+      }
+      resolver->in_constructor = true;
+      debug_name               = "constructor";
+      break;
+    }
+    default: INTERNAL_ERROR("Unhandled function type.");
   }
 
-  // Declare in current scope
-  AstId* id = get_child_as_id((AstNode*)decl, 0, false);
-  declare_variable(resolver, id, decl->is_const);
+  // Resolve
+  decl->scope    = new_scope(resolver, debug_name);
+  AstId* fn_name = get_child_as_id((AstNode*)decl, 0, false);
+  declare_variable(resolver, fn_name, false);
+  define_variable(resolver, fn_name);
+  AstDeclaration* params = (AstDeclaration*)decl->base.children[1];
+  if (params != NULL) {
+    resolve_declare_function_params(resolver, params);
+  }
+  resolve_node(resolver, decl->base.children[2]);
+  end_scope(resolver);
+
+  // Reset the resolver state
+  switch (decl->fn_type) {
+    case FN_TYPE_ANONYMOUS_FUNCTION:
+    case FN_TYPE_FUNCTION: {
+      resolver->in_function = was_in_function;
+      break;
+    }
+    case FN_TYPE_METHOD_STATIC:
+    case FN_TYPE_METHOD: {
+      resolver->in_method = false;
+      break;
+    }
+    case FN_TYPE_CONSTRUCTOR: {
+      resolver->in_constructor = false;
+      break;
+    }
+    default: INTERNAL_ERROR("Unhandled function type.");
+  }
+}
+
+static void resolve_declare_class(Resolver* resolver, AstDeclaration* decl) {
+  if (resolver->in_class) {
+    resolver_error((AstNode*)decl, "Classes can't be nested.");
+  }
+  resolver->in_class                    = true;
+  resolver->current_class.has_baseclass = decl->base.children[1] != NULL;
+
+  // Inject 'this' and 'base' variables
+  decl->scope = new_scope(resolver, "class");
+  inject_synthetic_variable(resolver, KEYWORD_THIS);
+  if (resolver->current_class.has_baseclass) {
+    inject_synthetic_variable(resolver, KEYWORD_BASE);
+  }
+
+  // Resolve
+  AstId* class_name     = get_child_as_id((AstNode*)decl, 0, false);
+  AstId* baseclass_name = get_child_as_id((AstNode*)decl, 1, true);
+  declare_variable(resolver, class_name, false);
+  define_variable(resolver, class_name);
+  if (baseclass_name != NULL) {
+    declare_variable(resolver, baseclass_name, false);
+    define_variable(resolver, baseclass_name);
+  }
+  for (int i = 2; i < decl->base.count; i++) {
+    resolve_node(resolver, decl->base.children[i]);
+  }
+
+  // End class scope
+  end_scope(resolver);
+  resolver->in_class                    = false;  // Class can't be nested
+  resolver->current_class.has_baseclass = false;
+}
+
+static void resolve_declare_method(Resolver* resolver, AstDeclaration* decl) {
+  resolve_declare_function(resolver, (AstDeclaration*)decl->base.children[0]);
+}
+
+static void resolve_declare_constructor(Resolver* resolver, AstDeclaration* decl) {
+  resolve_declare_function(resolver, (AstDeclaration*)decl->base.children[0]);
+}
+
+static void resolve_declare_variable(Resolver* resolver, AstDeclaration* decl) {
+  NodeType type = decl->base.children[0]->type;
+
+  // Declare the variable in the current scope
+  if (type == NODE_PATTERN) {
+    AstPattern* pattern = (AstPattern*)decl->base.children[0];
+    declare_pattern(resolver, pattern, decl->is_const);
+  } else {
+    AstId* id = get_child_as_id((AstNode*)decl, 0, false);
+    declare_variable(resolver, id, decl->is_const);
+  }
 
   // Resolve initializer if present
   AstNode* initializer = decl->base.children[1];
@@ -171,213 +408,197 @@ static void resolve_declare_variable(Resolver* resolver, AstDeclaration* decl) {
   }
 
   // Define the variable
-  define_variable(resolver, id);
+  if (type == NODE_PATTERN) {
+    AstPattern* pattern = (AstPattern*)decl->base.children[0];
+    define_pattern(resolver, pattern);
+  } else {
+    AstId* id = get_child_as_id((AstNode*)decl, 0, false);
+    define_variable(resolver, id);
+  }
 }
+
+//
+// Statement resolution
+//
 
 static void resolve_statement_import(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(resolver);
-  UNUSED(stmt);
-  printf("Resolving stmt import\n");
-  resolve_children(resolver, (AstNode*)stmt);
+  if (stmt->base.children[0]->type == NODE_ID) {
+    AstId* id = get_child_as_id((AstNode*)stmt, 0, false);
+    declare_variable(resolver, id, false);
+    define_variable(resolver, id);
+  } else {
+    INTERNAL_ERROR("Only simple variable imports are supported for now.");
+  }
 }
-static void resolve_statement_block(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(stmt);
-  printf("Resolving stmt block\n");
 
-  stmt->scope = new_scope(resolver);
+static void resolve_statement_block(Resolver* resolver, AstStatement* stmt) {
+  stmt->scope = new_scope(resolver, "block");
   resolve_children(resolver, (AstNode*)stmt);
   end_scope(resolver);
 }
+
 static void resolve_statement_if(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(resolver);
-  UNUSED(stmt);
-  printf("Resolving stmt if\n");
   resolve_children(resolver, (AstNode*)stmt);
 }
+
 static void resolve_statement_while(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(resolver);
-  UNUSED(stmt);
-  printf("Resolving stmt while\n");
+  bool was_in_loop  = resolver->in_loop;
+  resolver->in_loop = true;
   resolve_children(resolver, (AstNode*)stmt);
+  resolver->in_loop = was_in_loop;
 }
+
 static void resolve_statement_for(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(resolver);
-  UNUSED(stmt);
-  printf("Resolving stmt for\n");
+  bool was_in_loop  = resolver->in_loop;
+  resolver->in_loop = true;
+  stmt->scope       = new_scope(resolver, "for");
   resolve_children(resolver, (AstNode*)stmt);
+  end_scope(resolver);
+  resolver->in_loop = was_in_loop;
 }
+
 static void resolve_statement_return(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(resolver);
-  UNUSED(stmt);
-  printf("Resolving stmt return\n");
+  if (resolver->in_constructor) {
+    resolver_error((AstNode*)stmt, "Can't return a value from a constructor.");
+  }
   resolve_children(resolver, (AstNode*)stmt);
 }
+
 static void resolve_statement_print(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(resolver);
-  UNUSED(stmt);
-  printf("Resolving stmt print\n");
   resolve_children(resolver, (AstNode*)stmt);
 }
+
 static void resolve_statement_expr(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(resolver);
-  UNUSED(stmt);
-  printf("Resolving stmt expr\n");
   resolve_children(resolver, (AstNode*)stmt);
 }
+
 static void resolve_statement_break(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(resolver);
-  UNUSED(stmt);
-  printf("Resolving stmt break\n");
-  resolve_children(resolver, (AstNode*)stmt);
+  if (!resolver->in_loop) {
+    resolver_error((AstNode*)stmt, "Can't break outside of a loop.");
+  }
 }
+
 static void resolve_statement_skip(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(resolver);
-  UNUSED(stmt);
-  printf("Resolving stmt skip\n");
-  resolve_children(resolver, (AstNode*)stmt);
+  if (!resolver->in_loop) {
+    resolver_error((AstNode*)stmt, "Can't skip outside of a loop.");
+  }
 }
+
 static void resolve_statement_throw(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(resolver);
-  UNUSED(stmt);
-  printf("Resolving stmt throw\n");
   resolve_children(resolver, (AstNode*)stmt);
 }
+
 static void resolve_statement_try(Resolver* resolver, AstStatement* stmt) {
-  UNUSED(resolver);
-  UNUSED(stmt);
-  printf("Resolving stmt try\n");
+  stmt->scope = new_scope(resolver, "try");
+  inject_synthetic_variable(resolver, KEYWORD_ERROR);
   resolve_children(resolver, (AstNode*)stmt);
+  end_scope(resolver);
 }
+
+//
+// Expression resolution
+//
 
 static void resolve_expr_binary(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr binary\n");
   resolve_children(resolver, (AstNode*)expr);
 }
+
 static void resolve_expr_postfix(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr postfix\n");
-  resolve_children(resolver, (AstNode*)expr);
-}
-static void resolve_expr_unary(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr unary\n");
-  resolve_children(resolver, (AstNode*)expr);
-}
-static void resolve_expr_grouping(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr grouping\n");
-  resolve_children(resolver, (AstNode*)expr);
-}
-static void resolve_expr_literal(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr literal\n");
-  resolve_children(resolver, (AstNode*)expr);
-}
-static void resolve_expr_variable(Resolver* resolver, AstExpression* expr) {
-  printf("Resolving expr var\n");
-
-  AstId* id = get_child_as_id((AstNode*)expr, 0, false);
-
-  // Look up variable in scope chain
-  for (Scope* scope = resolver->current_scope; scope != NULL; scope = scope->enclosing) {
-    Symbol* var = scope_get(scope, id->name);
-    if (var != NULL) {
-      id->base.depth       = scope->depth;
-      id->base.slot        = var->index;
-      id->base.is_captured = var->is_captured;
-      id->base.is_const    = var->is_const;
-      id->base.is_resolved = true;
-      return;
-    }
+  if (token_is_inc_dec(expr->operator_.type)) {
+    resolve_assignment_target(resolver, (AstExpression*)expr->base.children[0]);
+  } else {
+    resolve_children(resolver, (AstNode*)expr);
   }
+}
 
-  // Not found
-  resolver_error((AstNode*)id, "Undefined variable '%s'.", id->name->chars);
+static void resolve_expr_unary(Resolver* resolver, AstExpression* expr) {
+  if (token_is_inc_dec(expr->operator_.type)) {
+    resolve_assignment_target(resolver, (AstExpression*)expr->base.children[0]);
+  } else {
+    resolve_children(resolver, (AstNode*)expr);
+  }
 }
+
+static void resolve_expr_grouping(Resolver* resolver, AstExpression* expr) {
+  resolve_children(resolver, (AstNode*)expr);
+}
+
+static void resolve_expr_literal(Resolver* resolver, AstExpression* expr) {
+  resolve_children(resolver, (AstNode*)expr);
+}
+
+static void resolve_expr_variable(Resolver* resolver, AstExpression* expr) {
+  AstId* id = get_child_as_id((AstNode*)expr, 0, false);
+  resolve_variable(resolver, id);
+}
+
 static void resolve_expr_assign(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr assign\n");
-  resolve_children(resolver, (AstNode*)expr);
+  AstExpression* left = (AstExpression*)expr->base.children[0];
+  AstNode* right      = expr->base.children[1];
+  resolve_assignment_target(resolver, left);
+  resolve_node(resolver, (AstNode*)right);
 }
+
 static void resolve_expr_and(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr and\n");
   resolve_children(resolver, (AstNode*)expr);
 }
+
 static void resolve_expr_or(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr or\n");
   resolve_children(resolver, (AstNode*)expr);
 }
+
 static void resolve_expr_is(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr is\n");
   resolve_children(resolver, (AstNode*)expr);
 }
+
 static void resolve_expr_in(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr in\n");
   resolve_children(resolver, (AstNode*)expr);
 }
+
 static void resolve_expr_call(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr call\n");
   resolve_children(resolver, (AstNode*)expr);
 }
+
 static void resolve_expr_dot(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr dot\n");
-  resolve_children(resolver, (AstNode*)expr);
+  // Only evaluate the target expression, not the property id
+  AstExpression* target = (AstExpression*)expr->base.children[0];
+  resolve_node(resolver, (AstNode*)target);
 }
+
 static void resolve_expr_subs(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr subs\n");
   resolve_children(resolver, (AstNode*)expr);
 }
+
 static void resolve_expr_slice(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr slice\n");
   resolve_children(resolver, (AstNode*)expr);
 }
+
 static void resolve_expr_this(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr this\n");
-  resolve_children(resolver, (AstNode*)expr);
+  if (!resolver->in_class) {
+    resolver_error((AstNode*)expr, "Can't use '" KEYWORD_THIS "' outside of a class.");
+  } else if (resolver->in_method && resolver->current_method.is_static) {
+    resolver_error((AstNode*)expr, "Can't use '" KEYWORD_THIS "' in a static method.");
+  }
 }
+
 static void resolve_expr_base(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr base\n");
-  resolve_children(resolver, (AstNode*)expr);
+  if (!resolver->in_class) {
+    resolver_error((AstNode*)expr, "Can't use '" KEYWORD_BASE "' outside of a class.");
+  } else if (!resolver->current_class.has_baseclass) {
+    resolver_error((AstNode*)expr, "Can't use '" KEYWORD_BASE "' in a class without a base class.");
+  } else if (resolver->in_method && resolver->current_method.is_static) {
+    resolver_error((AstNode*)expr, "Can't use '" KEYWORD_BASE "' in a static method.");
+  }
 }
+
 static void resolve_expr_lambda(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr lambda\n");
-  resolve_children(resolver, (AstNode*)expr);
+  resolve_declare_function(resolver, (AstDeclaration*)expr->base.children[0]);
 }
+
 static void resolve_expr_ternary(Resolver* resolver, AstExpression* expr) {
-  UNUSED(resolver);
-  UNUSED(expr);
-  printf("Resolving expr ternary\n");
   resolve_children(resolver, (AstNode*)expr);
 }
+
 static void resolve_expr_try(Resolver* resolver, AstExpression* expr) {
   UNUSED(resolver);
   UNUSED(expr);
@@ -388,64 +609,33 @@ static void resolve_expr_try(Resolver* resolver, AstExpression* expr) {
 static void resolve_lit_number(Resolver* resolver, AstLiteral* lit) {
   UNUSED(resolver);
   UNUSED(lit);
-  printf("Resolving lit num\n");
 }
+
 static void resolve_lit_string(Resolver* resolver, AstLiteral* lit) {
   UNUSED(resolver);
   UNUSED(lit);
-  printf("Resolving lit string\n");
 }
+
 static void resolve_lit_bool(Resolver* resolver, AstLiteral* lit) {
   UNUSED(resolver);
   UNUSED(lit);
-  printf("Resolving lit bool\n");
 }
+
 static void resolve_lit_nil(Resolver* resolver, AstLiteral* lit) {
   UNUSED(resolver);
   UNUSED(lit);
-  printf("Resolving lit nil\n");
 }
+
 static void resolve_lit_tuple(Resolver* resolver, AstLiteral* lit) {
-  UNUSED(resolver);
-  UNUSED(lit);
-  printf("Resolving lit tuple\n");
-  resolve_children(resolver, (AstNode*)lit);
-}
-static void resolve_lit_seq(Resolver* resolver, AstLiteral* lit) {
-  UNUSED(resolver);
-  UNUSED(lit);
-  printf("Resolving lit seq\n");
-  resolve_children(resolver, (AstNode*)lit);
-}
-static void resolve_lit_obj(Resolver* resolver, AstLiteral* lit) {
-  UNUSED(resolver);
-  UNUSED(lit);
-  printf("Resolving lit obj\n");
   resolve_children(resolver, (AstNode*)lit);
 }
 
-static void resolve_pattern_tuple(Resolver* resolver, AstPattern* pattern) {
-  UNUSED(resolver);
-  UNUSED(pattern);
-  printf("Resolving pattern tuple\n");
-  resolve_children(resolver, (AstNode*)pattern);
+static void resolve_lit_seq(Resolver* resolver, AstLiteral* lit) {
+  resolve_children(resolver, (AstNode*)lit);
 }
-static void resolve_pattern_seq(Resolver* resolver, AstPattern* pattern) {
-  UNUSED(resolver);
-  UNUSED(pattern);
-  printf("Resolving pattern seq\n");
-  resolve_children(resolver, (AstNode*)pattern);
-}
-static void resolve_pattern_obj(Resolver* resolver, AstPattern* pattern) {
-  UNUSED(resolver);
-  UNUSED(pattern);
-  printf("Resolving pattern obj\n");
-  resolve_children(resolver, (AstNode*)pattern);
-}
-static void resolve_pattern_rest(Resolver* resolver, AstPattern* pattern) {
-  UNUSED(resolver);
-  UNUSED(pattern);
-  printf("Resolving pattern rest\n");
+
+static void resolve_lit_obj(Resolver* resolver, AstLiteral* lit) {
+  resolve_children(resolver, (AstNode*)lit);
 }
 
 static void resolve_node(Resolver* resolver, AstNode* node) {
@@ -456,7 +646,7 @@ static void resolve_node(Resolver* resolver, AstNode* node) {
       AstDeclaration* decl = (AstDeclaration*)node;
       switch (decl->type) {
         case DECL_FN: resolve_declare_function(resolver, decl); break;
-        case DECL_FN_PARAMS: resolve_declare_function_params(resolver, decl); break;
+        case DECL_FN_PARAMS: INTERNAL_ERROR("Should not resolve " STR(DECL_FN_PARAMS) " directly."); break;
         case DECL_CLASS: resolve_declare_class(resolver, decl); break;
         case DECL_METHOD: resolve_declare_method(resolver, decl); break;
         case DECL_CTOR: resolve_declare_constructor(resolver, decl); break;
@@ -525,17 +715,7 @@ static void resolve_node(Resolver* resolver, AstNode* node) {
       }
       break;
     }
-    case NODE_PATTERN: {
-      AstPattern* pattern = (AstPattern*)node;
-      switch (pattern->type) {
-        case PAT_TUPLE: resolve_pattern_tuple(resolver, pattern); break;
-        case PAT_SEQ: resolve_pattern_seq(resolver, pattern); break;
-        case PAT_OBJ: resolve_pattern_obj(resolver, pattern); break;
-        case PAT_REST: resolve_pattern_rest(resolver, pattern); break;
-        default: INTERNAL_ERROR("Unhandled pattern type."); break;
-      }
-      break;
-    }
+    case NODE_PATTERN: INTERNAL_ERROR("Should not resolve " STR(NODE_PATTERN) " directly."); break;
   }
 }
 

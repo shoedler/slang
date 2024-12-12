@@ -662,12 +662,11 @@ static AstExpression* parse_infix(Parser2* parser, Precedence precedence, AstExp
   if (can_assign) {
     if (match(parser, TOKEN_ASSIGN)) {
       parser_error_at_previous(parser, "Invalid assignment target.");
-    } else if (match(parser, TOKEN_PLUS_PLUS)) {
-      parser_error_at_previous(parser, "Invalid increment target.");
-    } else if (match(parser, TOKEN_MINUS_MINUS)) {
-      parser_error_at_previous(parser, "Invalid decrement target.");
-    } else if (match(parser, TOKEN_PLUS_ASSIGN) || match(parser, TOKEN_MINUS_ASSIGN) || match(parser, TOKEN_MULT_ASSIGN) ||
-               match(parser, TOKEN_DIV_ASSIGN) || match(parser, TOKEN_MOD_ASSIGN)) {
+    } else if (token_is_inc_dec(parser->current.type)) {
+      advance(parser);
+      parser_error_at_previous(parser, "Invalid increment/decrement target.");
+    } else if (token_is_compound_assignment(parser->current.type)) {
+      advance(parser);
       parser_error_at_previous(parser, "Invalid compound assignment target.");
     }
   }
@@ -745,12 +744,13 @@ static AstPattern* parse_destructuring(Parser2* parser, DestructureType type) {
       ObjString* rest_name = copy_string(parser->previous.start, parser->previous.length);
       AstId* rest_id       = ast_id_init(parser->previous, rest_name);
       AstPattern* rest     = ast_pattern_rest_init(parser->previous, parser->previous, rest_id);
-      ast_pattern_add_rest(destructure, rest);
+      ast_pattern_add_element(destructure, rest);
     } else {
       consume(parser, TOKEN_ID, "Expecting identifier in destructuring assignment.");
-      ObjString* name = copy_string(parser->previous.start, parser->previous.length);
-      AstId* id       = ast_id_init(parser->previous, name);
-      ast_pattern_add_binding(destructure, id);
+      ObjString* name     = copy_string(parser->previous.start, parser->previous.length);
+      AstId* id           = ast_id_init(parser->previous, name);
+      AstPattern* binding = ast_pattern_binding_init(parser->previous, parser->previous, id);
+      ast_pattern_add_element(destructure, binding);
     }
 
     if (++current_index > MAX_DESTRUCTURING_VARS) {
@@ -849,7 +849,7 @@ static AstStatement* parse_statement_for(Parser2* parser) {
   // Initializer
   if (match(parser, TOKEN_SCOLON)) {
     // No initializer
-  } else if (match(parser, TOKEN_LET)) {
+  } else if (check(parser, TOKEN_LET)) {
     // Let declaration
     initializer = (AstNode*)parse_declaration(parser);
     consume(parser, TOKEN_SCOLON, "Expecting ';' after loop initializer.");
@@ -982,7 +982,7 @@ static AstDeclaration* parse_fn_params(Parser2* parser) {
 
 // Consolidated function for parsing a function declaration. Named, anonymous, method, constructor.
 static AstDeclaration* parse_function(Parser2* parser, Token decl_start, Token name, FnType type) {
-  ObjString* fn_name = copy_string(name.start, name.length);
+  AstId* fn_name = ast_id_init(decl_start, copy_string(name.start, name.length));
 
   AstDeclaration* params = parse_fn_params(parser);
   AstNode* body          = NULL;
@@ -1024,12 +1024,15 @@ static AstDeclaration* parse_constructor(Parser2* parser) {
 static AstDeclaration* parse_declaration_class(Parser2* parser) {
   Token decl_start = parser->previous;  // Previous is CLASS
   consume(parser, TOKEN_ID, "Expecting class name.");
-  ObjString* class_name = copy_string(parser->previous.start, parser->previous.length);
+  AstId* class_name = ast_id_init(parser->previous, copy_string(parser->previous.start, parser->previous.length));
 
-  ObjString* baseclass_name = NULL;
+  AstId* baseclass_name = NULL;
   if (match(parser, TOKEN_COLON)) {
     consume(parser, TOKEN_ID, "Expecting base class name.");
-    baseclass_name = copy_string(parser->previous.start, parser->previous.length);
+    baseclass_name = ast_id_init(parser->previous, copy_string(parser->previous.start, parser->previous.length));
+    if (class_name->name == baseclass_name->name) {
+      parser_error_at_previous(parser, "A class can't inherit from itself.");
+    }
   }
 
   AstDeclaration* class = ast_decl_class_init(decl_start, parser->previous, class_name, baseclass_name);

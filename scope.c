@@ -33,6 +33,16 @@ CLEANUP:
   scope->capacity = 0;
 }
 
+Symbol* allocate_symbol(SymbolType type, bool is_const, bool is_initialized) {
+  Symbol* value         = malloc(sizeof(Symbol));
+  value->type           = type;
+  value->index          = 0;
+  value->is_const       = is_const;
+  value->is_initialized = is_initialized;
+  value->is_captured    = false;
+  return value;
+}
+
 // Find entry for key. Returns a pointer to the entry if found, or a pointer to an empty entry if not found.
 static SymbolEntry* find_entry(SymbolEntry* entries, int capacity, ObjString* key) {
   uint32_t index         = key->obj.hash & (capacity - 1);
@@ -92,8 +102,7 @@ static void adjust_capacity(Scope* scope, int new_capacity) {
   scope->entries  = entries;
   scope->capacity = new_capacity;
 }
-
-bool scope_add_new(Scope* scope, ObjString* key, bool is_const, bool is_captured, bool is_initialized) {
+bool scope_add_new(Scope* scope, ObjString* key, SymbolType type, bool is_const, bool is_initialized) {
   // Grow scope if needed
   if (scope->count + 1 > scope->capacity * TABLE_MAX_LOAD) {
     int capacity = GROW_CAPACITY(scope->capacity);
@@ -110,12 +119,10 @@ bool scope_add_new(Scope* scope, ObjString* key, bool is_const, bool is_captured
   }
 
   // Store entry
-  Symbol* value         = malloc(sizeof(Symbol));
-  value->index          = scope->count;
-  value->is_const       = is_const;
-  value->is_captured    = is_captured;
-  value->is_initialized = is_initialized, entry->key = key;
+  Symbol* value = allocate_symbol(type, is_const, is_initialized);
+  value->index  = scope->count;
 
+  entry->key = key;
   scope->count++;
   entry->value = value;
 

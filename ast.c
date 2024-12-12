@@ -18,7 +18,6 @@ AstNode* ast_allocate_node(size_t size, NodeType type, Token start, Token end) {
   node->count    = 0;
   node->capacity = 0;
 
-  node->is_resolved = false;  // Whether this node has been resolved
   return node;
 }
 
@@ -48,8 +47,9 @@ void ast_root_add_child(AstRoot* root, AstNode* child) {
 }
 
 AstId* ast_id_init(Token id, ObjString* name) {
-  AstId* id_ = (AstId*)ast_allocate_node(sizeof(AstId), NODE_ID, id, id);
-  id_->name  = name;
+  AstId* id_  = (AstId*)ast_allocate_node(sizeof(AstId), NODE_ID, id, id);
+  id_->name   = name;
+  id_->symbol = NULL;
   return id_;
 }
 
@@ -60,11 +60,10 @@ AstId* ast_id_init(Token id, ObjString* name) {
 static AstDeclaration* ast_decl_init(Token start, Token end, DeclarationType type) {
   AstDeclaration* decl = (AstDeclaration*)ast_allocate_node(sizeof(AstDeclaration), NODE_DECL, start, end);
   decl->type           = type;
-  decl->name           = NULL;
-  decl->baseclass_name = NULL;
   decl->fn_type        = FN_TYPE_UNKNOWN;
   decl->is_static      = false;
   decl->is_const       = false;
+  decl->scope          = NULL;
   return decl;
 }
 
@@ -77,10 +76,10 @@ void ast_decl_fn_params_add_param(AstDeclaration* params, AstId* id) {
   ast_node_add_child((AstNode*)params, (AstNode*)id);
 }
 
-AstDeclaration* ast_decl_fn_init(Token start, Token end, ObjString* name, FnType type, AstDeclaration* params, AstNode* body) {
+AstDeclaration* ast_decl_fn_init(Token start, Token end, AstId* name, FnType type, AstDeclaration* params, AstNode* body) {
   AstDeclaration* fn = ast_decl_init(start, end, DECL_FN);
-  fn->name           = name;
   fn->fn_type        = type;
+  ast_node_add_child((AstNode*)fn, (AstNode*)name);
   ast_node_add_child((AstNode*)fn, (AstNode*)params);
   ast_node_add_child((AstNode*)fn, body);
   return fn;
@@ -99,10 +98,10 @@ AstDeclaration* ast_decl_ctor_init(Token start, Token end, AstDeclaration* fn) {
   return ctor;
 }
 
-AstDeclaration* ast_decl_class_init(Token start, Token end, ObjString* name, ObjString* baseclass_name) {
+AstDeclaration* ast_decl_class_init(Token start, Token end, AstId* name, AstId* baseclass_name) {
   AstDeclaration* class_decl = ast_decl_init(start, end, DECL_CLASS);
-  class_decl->name           = name;
-  class_decl->baseclass_name = baseclass_name;
+  ast_node_add_child((AstNode*)class_decl, (AstNode*)name);
+  ast_node_add_child((AstNode*)class_decl, (AstNode*)baseclass_name);
   return class_decl;
 }
 
@@ -467,12 +466,14 @@ AstPattern* ast_pattern_init(Token start, Token end, PatternType type) {
   return pattern;
 }
 
-void ast_pattern_add_binding(AstPattern* pattern, AstId* binding) {
-  ast_node_add_child((AstNode*)pattern, (AstNode*)binding);
+void ast_pattern_add_element(AstPattern* pattern, AstPattern* element) {
+  ast_node_add_child((AstNode*)pattern, (AstNode*)element);
 }
 
-void ast_pattern_add_rest(AstPattern* pattern, AstPattern* rest) {
-  ast_node_add_child((AstNode*)pattern, (AstNode*)rest);
+AstPattern* ast_pattern_binding_init(Token start, Token end, AstId* binding) {
+  AstPattern* pattern = ast_pattern_init(start, end, PAT_BINDING);
+  ast_node_add_child((AstNode*)pattern, (AstNode*)binding);
+  return pattern;
 }
 
 AstPattern* ast_pattern_rest_init(Token start, Token end, AstId* identifier) {
@@ -594,9 +595,9 @@ static void ast_node_print(AstNode* node) {
     }
     case NODE_DECL: {
       switch (((AstDeclaration*)node)->type) {
-        case DECL_FN: printf(STR(DECL_FN) ANSI_MAGENTA_STR(" %s"), ((AstDeclaration*)node)->name->chars); break;
+        case DECL_FN: printf(STR(DECL_FN)); break;
         case DECL_FN_PARAMS: printf(STR(DECL_FN_PARAMS)); break;
-        case DECL_CLASS: printf(STR(DECL_CLASS) ANSI_MAGENTA_STR(" %s"), ((AstDeclaration*)node)->name->chars); break;
+        case DECL_CLASS: printf(STR(DECL_CLASS)); break;
         case DECL_METHOD: printf(STR(DECL_METHOD)); break;
         case DECL_CTOR: printf(STR(DECL_CTOR)); break;
         case DECL_VARIABLE:
@@ -678,6 +679,7 @@ static void ast_node_print(AstNode* node) {
         case PAT_SEQ: printf(STR(PAT_SEQ)); break;
         case PAT_OBJ: printf(STR(PAT_OBJ)); break;
         case PAT_REST: printf(STR(PAT_REST)); break;
+        case PAT_BINDING: printf(STR(PAT_BINDING)); break;
         default: printf(ANSI_RED_STR("PAT_UNKNOWN %d"), node->type); break;
       }
       break;

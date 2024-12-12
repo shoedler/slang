@@ -65,10 +65,11 @@ typedef enum {
 } LiteralType;
 
 typedef enum {
-  PAT_TUPLE,  // Tuple destructuring pattern
-  PAT_SEQ,    // Sequence destructuring pattern
-  PAT_OBJ,    // Object destructuring pattern
-  PAT_REST    // Rest pattern (...rest)
+  PAT_TUPLE,    // Tuple destructuring pattern
+  PAT_SEQ,      // Sequence destructuring pattern
+  PAT_OBJ,      // Object destructuring pattern
+  PAT_BINDING,  // Binding pattern (variable)
+  PAT_REST      // Rest pattern (...rest)
 } PatternType;
 
 typedef enum {
@@ -101,13 +102,6 @@ typedef struct AstNode {
   int count;
   int capacity;
   struct AstNode** children;
-
-  // Resolution data (filled by resolver)
-  bool is_resolved;  // Whether this node has been resolved
-  uint16_t slot;     // Stack slot or constant pool index
-  int depth;         // Scope depth for locals
-  bool is_captured;  // Whether this is captured by a closure
-  bool is_const;     // Whether this is a constant
 } AstNode;
 
 typedef struct AstRoot AstRoot;
@@ -129,6 +123,7 @@ void ast_root_add_child(AstRoot* root, AstNode* child);
 struct AstId {
   AstNode base;
   ObjString* name;
+  Symbol* symbol;  // Symbol data, NULL if not resolved
 };
 
 AstId* ast_id_init(Token id, ObjString* name);
@@ -140,19 +135,18 @@ AstId* ast_id_init(Token id, ObjString* name);
 struct AstDeclaration {
   AstNode base;
   DeclarationType type;
-  ObjString* name;            // DECL_CLASS, DECL_FN,
-  ObjString* baseclass_name;  // DECL_CLASS
-  FnType fn_type;             // DECL_FN
-  bool is_static;             // DECL_METHOD
-  bool is_const;              // DECL_VARIABLE
+  Scope* scope;    // DECL_FN, DECL_CLASS
+  FnType fn_type;  // DECL_FN
+  bool is_static;  // DECL_METHOD
+  bool is_const;   // DECL_VARIABLE
 };
 
 AstDeclaration* ast_decl_fn_params_init(Token start, Token end);
 void ast_decl_fn_params_add_param(AstDeclaration* params, AstId* id);
-AstDeclaration* ast_decl_fn_init(Token start, Token end, ObjString* name, FnType type, AstDeclaration* params, AstNode* body);
+AstDeclaration* ast_decl_fn_init(Token start, Token end, AstId* name, FnType type, AstDeclaration* params, AstNode* body);
 AstDeclaration* ast_decl_method_init(Token start, Token end, bool is_static, AstDeclaration* fn);
 AstDeclaration* ast_decl_ctor_init(Token start, Token end, AstDeclaration* fn);
-AstDeclaration* ast_decl_class_init(Token start, Token end, ObjString* name, ObjString* baseclass_name);
+AstDeclaration* ast_decl_class_init(Token start, Token end, AstId* name, AstId* baseclass_name);
 void ast_decl_class_add_method_or_ctor(AstDeclaration* class_decl, AstDeclaration* method_or_ctor);
 AstDeclaration* ast_decl_variable_init(Token start, Token end, bool is_const, AstId* id, AstExpression* initializer_expr);
 AstDeclaration* ast_decl_variable_init2(Token start,
@@ -169,7 +163,7 @@ struct AstStatement {
   AstNode base;
   StatementType type;
   ObjString* path;  // STMT_IMPORT
-  Scope* scope;     // STMT_BLOCK
+  Scope* scope;     // STMT_BLOCK, STMT_FOR, STMT_TRY
 };
 
 AstStatement* ast_stmt_import_init(Token start, Token end, ObjString* path, AstId* id);
@@ -269,8 +263,8 @@ struct AstPattern {
 };
 
 AstPattern* ast_pattern_init(Token start, Token end, PatternType type);
-void ast_pattern_add_binding(AstPattern* pattern, AstId* binding);
-void ast_pattern_add_rest(AstPattern* pattern, AstPattern* rest);
+void ast_pattern_add_element(AstPattern* pattern, AstPattern* element);
+AstPattern* ast_pattern_binding_init(Token start, Token end, AstId* binding);
 AstPattern* ast_pattern_rest_init(Token start, Token end, AstId* identifier);
 
 // Creates a AST node with the given type and children
