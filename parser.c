@@ -408,8 +408,8 @@ static AstExpression* parse_literal(Parser2* parser, Token expr_start, bool can_
 
 static AstExpression* parse_expr_anon_fn(Parser2* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
-  Token name         = synthetic_token("anon_fn");
-  AstDeclaration* fn = parse_function(parser, expr_start, name, FN_TYPE_FUNCTION);
+  Token name         = synthetic_token("$anon_fn$");
+  AstDeclaration* fn = parse_function(parser, expr_start, name, FN_TYPE_ANONYMOUS_FUNCTION);
   return ast_expr_lambda_init(expr_start, parser->previous, fn);
 }
 

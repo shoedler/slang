@@ -110,6 +110,14 @@ static void end_scope(Resolver* resolver) {
   for (int i = 0; i < resolver->current_scope->depth; printf("  "), i++)
     ;
   printf(ANSI_YELLOW_STR("Leaving scope") " depth=%d\n", resolver->current_scope->depth);
+  for (int i = 0; i < resolver->current_scope->capacity; i++) {
+    SymbolEntry* entry = &resolver->current_scope->entries[i];
+    if (entry->key != NULL) {
+      for (int j = 0; j < resolver->current_scope->depth; printf("  "), j++)
+        ;
+      printf(ANSI_YELLOW_STR("-") " %s\n", entry->key->chars);
+    }
+  }
 #endif
   resolver->current_scope = enclosing;
 }
@@ -270,14 +278,6 @@ static void resolve_root(Resolver* resolver, AstRoot* root) {
 // Declaration resolution
 //
 
-static void resolve_declare_function_params(Resolver* resolver, AstDeclaration* decl) {
-  for (int i = 0; i < decl->base.count; i++) {
-    AstId* id = get_child_as_id((AstNode*)decl, i, false);
-    declare_parameter(resolver, id);
-    define_variable(resolver, id);
-  }
-}
-
 static void resolve_declare_function(Resolver* resolver, AstDeclaration* decl) {
   // Configure resolver state for function type
   bool was_in_function;
@@ -316,19 +316,33 @@ static void resolve_declare_function(Resolver* resolver, AstDeclaration* decl) {
     default: INTERNAL_ERROR("Unhandled function type.");
   }
 
-  // Resolve
-  decl->scope    = new_scope(resolver, debug_name);
-  AstId* fn_name = get_child_as_id((AstNode*)decl, 0, false);
-  declare_variable(resolver, fn_name, false);
-  define_variable(resolver, fn_name);
+  // Resolve. Start by creating a new scope for the function
+  decl->scope = new_scope(resolver, debug_name);
+
+  // Only functions actually declare the function name in the scope
+  // - methods and constructors are declared as part of the class scope and accessed via 'this'
+  // - anonymous functions are not accessible by name - that's wy they're anonymous. duh.
+  if (decl->fn_type == FN_TYPE_FUNCTION) {
+    AstId* fn_name = get_child_as_id((AstNode*)decl, 0, false);
+    declare_variable(resolver, fn_name, false);
+    define_variable(resolver, fn_name);
+  }
+
+  // Parameters
   AstDeclaration* params = (AstDeclaration*)decl->base.children[1];
   if (params != NULL) {
-    resolve_declare_function_params(resolver, params);
+    for (int i = 0; i < params->base.count; i++) {
+      AstId* id = get_child_as_id((AstNode*)params, i, false);
+      declare_parameter(resolver, id);
+      define_variable(resolver, id);
+    }
   }
+
+  // Body / expression
   resolve_node(resolver, decl->base.children[2]);
   end_scope(resolver);
 
-  // Reset the resolver state
+  // Done! Now reset the resolver state
   switch (decl->fn_type) {
     case FN_TYPE_ANONYMOUS_FUNCTION:
     case FN_TYPE_FUNCTION: {
