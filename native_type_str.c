@@ -18,6 +18,7 @@ static Value str_add(int argc, Value argv[]);
 
 static Value str_split(int argc, Value argv[]);
 static Value str_trim(int argc, Value argv[]);
+static Value str_ints(int argc, Value argv[]);
 
 ObjClass* native_str_class_partial_init() {
   ObjClass* str_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
@@ -49,6 +50,7 @@ void native_str_class_finalize() {
 
   define_native(&vm.str_class->methods, "split", str_split, 1);
   define_native(&vm.str_class->methods, "trim", str_trim, 0);
+  define_native(&vm.str_class->methods, "ints", str_ints, 0);
   finalize_new_class(vm.str_class);
 }
 
@@ -301,4 +303,50 @@ static Value str_add(int argc, Value argv[]) {
   vm_push(other);    // GC Protection
   vm_concatenate();
   return vm_pop();  // The new string
+}
+
+static bool is_digit(char c) {
+  return c >= '0' && c <= '9';
+}
+
+/**
+ * TYPENAME_STRING.ints() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ containing the integers found in the TYPENAME_STRING.
+ * Everything except a digit is considered a separator. Leading and trailing separators are ignored.
+ * E.g. "12a34" -> [12, 34], "1.2" -> [1, 2], "hello1234 " -> [1234]
+ */
+static Value str_ints(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.str_class)
+
+  ObjString* str = AS_STR(argv[0]);
+  ObjSeq* seq    = new_seq();
+  vm_push(seq_value(seq));  // GC Protection
+
+  int i = 0;
+  char* num;
+  while (i < str->length) {
+    while (i < str->length && !is_digit(str->chars[i])) {
+      i++;
+    }
+
+    if (i == str->length) {
+      break;
+    }
+
+    num = str->chars + i;
+    while (i < str->length && is_digit(str->chars[i])) {
+      i++;
+    }
+
+    char c        = str->chars[i];
+    str->chars[i] = '\0';
+    int value     = atoi(num);
+    str->chars[i] = c;
+
+    value_array_write(&seq->items, int_value(value));
+  }
+
+  vm_pop();  // The seq
+  return seq_value(seq);
 }

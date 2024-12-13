@@ -72,6 +72,7 @@ You can, for example, easily cache stuff:
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
 - [ ] Add a mimalloc segfault handler.
+- [ ] Add test for `Str.ints() -> Seq`
 - [ ] Maybe check for `NULL` functions in `vm_exec_callable` instead of before calling it - would add some overhead though.
 - [x] ~~Add `Tuple.order` test.~~
 - [x] ~~Remove `"" + value.to_str()` throughout the codebase, `"" + value` should now work.~~
