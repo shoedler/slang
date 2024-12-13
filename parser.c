@@ -809,13 +809,13 @@ static AstStatement* parse_statement_throw(Parser2* parser) {
 
 static AstStatement* parse_statement_try(Parser2* parser) {
   Token stmt_start           = parser->previous;  // Previous is TRY
-  AstStatement* block        = parse_block(parser);
+  AstStatement* try_stmt     = parse_statement(parser);
   AstStatement* catch_branch = NULL;
 
   if (match(parser, TOKEN_CATCH)) {
     catch_branch = parse_statement(parser);
   }
-  return ast_stmt_try_init(stmt_start, parser->previous, block, catch_branch);
+  return ast_stmt_try_init(stmt_start, parser->previous, try_stmt, catch_branch);
 }
 
 static AstStatement* parse_statement_while(Parser2* parser) {

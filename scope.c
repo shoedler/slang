@@ -33,13 +33,13 @@ CLEANUP:
   scope->capacity = 0;
 }
 
-Symbol* allocate_symbol(SymbolType type, bool is_const, bool is_initialized) {
-  Symbol* value         = malloc(sizeof(Symbol));
-  value->type           = type;
-  value->index          = 0;
-  value->is_const       = is_const;
-  value->is_initialized = is_initialized;
-  value->is_captured    = false;
+Symbol* allocate_symbol(struct AstNode* source, SymbolType type, SymbolState state, bool is_const) {
+  Symbol* value   = malloc(sizeof(Symbol));
+  value->source   = source;
+  value->type     = type;
+  value->state    = state;
+  value->index    = 0;
+  value->is_const = is_const;
   return value;
 }
 
@@ -102,7 +102,7 @@ static void adjust_capacity(Scope* scope, int new_capacity) {
   scope->entries  = entries;
   scope->capacity = new_capacity;
 }
-bool scope_add_new(Scope* scope, ObjString* key, SymbolType type, bool is_const, bool is_initialized) {
+bool scope_add_new(Scope* scope, ObjString* key, struct AstNode* source, SymbolType type, SymbolState state, bool is_const) {
   // Grow scope if needed
   if (scope->count + 1 > scope->capacity * TABLE_MAX_LOAD) {
     int capacity = GROW_CAPACITY(scope->capacity);
@@ -119,7 +119,7 @@ bool scope_add_new(Scope* scope, ObjString* key, SymbolType type, bool is_const,
   }
 
   // Store entry
-  Symbol* value = allocate_symbol(type, is_const, is_initialized);
+  Symbol* value = allocate_symbol(source, type, state, is_const);
   value->index  = scope->count;
 
   entry->key = key;

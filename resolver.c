@@ -47,6 +47,10 @@ static inline bool in_global_scope(Resolver* resolver) {
   return resolver->current_scope->depth == 0;
 }
 
+static inline bool in_closure_env(Resolver* resolver) {
+  return resolver->in_constructor || resolver->in_method || resolver->in_function;
+}
+
 #ifdef DEBUG_RESOLVER
 static inline AstId* get_child_as_id(AstNode* parent, int index, bool allow_null) {
   AstNode* child = parent->children[index];
@@ -67,23 +71,32 @@ static inline AstId* get_child_as_id(AstNode* parent, int index, bool allow_null
 #define get_child_as_id(parent, index, allow_null) ((AstId*)parent->children[index])
 #endif
 
-// Report a resolver error.
-static void handle_resolver_error(AstNode* offending_node, const char* format, va_list args) {
+// Prints an error message at the offending node.
+static void resolver_error(AstNode* offending_node, const char* format, ...) {
   fprintf(stderr, "Resolver Error at line %d", offending_node->token_start.line);
   fprintf(stderr, ": " ANSI_COLOR_RED);
+  va_list args;
+  va_start(args, format);
   vfprintf(stderr, format, args);
   fprintf(stderr, ANSI_COLOR_RESET "\n");
+  va_end(args);
 
   SourceView source = chunk_make_source_view(offending_node->token_start, offending_node->token_end);
   report_error_location(source);
 }
 
-// Prints an error message at the offending node.
-static void resolver_error(AstNode* offending_node, const char* format, ...) {
+// Prints a warning message at the offending node.
+static void resolver_warning(AstNode* offending_node, const char* format, ...) {
+  fprintf(stderr, "Resolver Warning at line %d", offending_node->token_start.line);
+  fprintf(stderr, ": " ANSI_COLOR_YELLOW);
   va_list args;
   va_start(args, format);
-  handle_resolver_error(offending_node, format, args);
+  vfprintf(stderr, format, args);
   va_end(args);
+  fprintf(stderr, ANSI_COLOR_RESET "\n");
+
+  SourceView source = chunk_make_source_view(offending_node->token_start, offending_node->token_end);
+  report_error_location(source);
 }
 
 static Scope* new_scope(Resolver* resolver, const char* debug_name) {
@@ -115,10 +128,24 @@ static void end_scope(Resolver* resolver) {
     if (entry->key != NULL) {
       for (int j = 0; j < resolver->current_scope->depth; printf("  "), j++)
         ;
-      printf(ANSI_YELLOW_STR("-") " %s\n", entry->key->chars);
+      printf(ANSI_YELLOW_STR("-") " %s %s\n", entry->key->chars, entry->value->is_upvalue ? ANSI_MAGENTA_STR("(upvalue)") : "");
     }
   }
 #endif
+
+  // Warn about unused variables
+  for (int i = 0; i < resolver->current_scope->capacity; i++) {
+    SymbolEntry* entry = &resolver->current_scope->entries[i];
+    if (entry->key == NULL || entry->value->state == SYMSTATE_USED) {
+      continue;
+    }
+    if (entry->value->source == NULL) {
+      INTERNAL_ASSERT(entry->value->type == SYMBOL_NATIVE, "Only natives can be unused without source");
+      continue;
+    }
+    resolver_warning(entry->value->source, "Variable '%s' is declared but never used.", entry->key->chars);
+  }
+
   resolver->current_scope = enclosing;
 }
 
@@ -131,34 +158,37 @@ static void declare_variable(Resolver* resolver, AstId* var, bool is_const) {
 
   // Add the variable
   SymbolType type = in_global_scope(resolver) ? SYMBOL_GLOBAL : SYMBOL_LOCAL;
-  if (!scope_add_new(resolver->current_scope, var->name, type, is_const, false)) {
-    resolver_error((AstNode*)var, "Variable '%s' is already defined.", var->name->chars);
+  if (!scope_add_new(resolver->current_scope, var->name, (AstNode*)var, type, SYMSTATE_DECLARED, is_const)) {
+    resolver_error((AstNode*)var, "Variable '%s' is already declared.", var->name->chars);
   }
 }
 
 // Declare a new parameter in the current scope
-static void declare_parameter(Resolver* resolver, AstId* param) {
-  if (!scope_add_new(resolver->current_scope, param->name, SYMBOL_PARAM, false, true)) {
-    resolver_error((AstNode*)param, "Parameter '%s' is already defined.", param->name->chars);
+static void declare_define_parameter(Resolver* resolver, AstId* param) {
+  // Params are always locals and start their life as initialized, because currently there's no mechanism to assign them default
+  // values.
+  if (!scope_add_new(resolver->current_scope, param->name, (AstNode*)param, SYMBOL_PARAM, SYMSTATE_INITIALIZED, false)) {
+    resolver_error((AstNode*)param, "Parameter '%s' is already declared.", param->name->chars);
   }
 }
 
 // Define a previously declared variable in the current scope
 static void define_variable(Resolver* resolver, AstId* var) {
   // Find the variable's declaration
-  Symbol* declaration = scope_get(resolver->current_scope, var->name);
-  if (declaration == NULL) {
+  Symbol* decl = scope_get(resolver->current_scope, var->name);
+  if (decl == NULL) {
     INTERNAL_ERROR("Could not find local variable in current scope.");
     return;
   }
-  declaration->is_initialized = true;
+  INTERNAL_ASSERT(decl->state == SYMSTATE_DECLARED, "Variable should be declared before defining");
+  decl->state = SYMSTATE_INITIALIZED;
 }
 
-// Inject a synthetic variable into the current scope
+// Inject a synthetic variable into the current scope. Is injected as USED, GLOBAL (if in global scope) and mutable.
 static void inject_synthetic_variable(Resolver* resolver, const char* name) {
   ObjString* name_str = copy_string(name, strlen(name));
   SymbolType type     = in_global_scope(resolver) ? SYMBOL_GLOBAL : SYMBOL_LOCAL;
-  if (!scope_add_new(resolver->current_scope, name_str, type, false, true)) {
+  if (!scope_add_new(resolver->current_scope, name_str, NULL, type, SYMSTATE_USED, false)) {
     INTERNAL_ERROR("Could not inject synthetic variable into scope.");
   }
 }
@@ -170,6 +200,17 @@ static void resolve_variable(Resolver* resolver, AstId* var) {
     Symbol* sym = scope_get(scope, var->name);
     if (sym != NULL) {
       var->symbol = sym;
+
+      if (sym->state == SYMSTATE_DECLARED) {
+        resolver_error((AstNode*)var, "Cannot read local variable in its own initializer.");
+      } else if (sym->state == SYMSTATE_INITIALIZED) {
+        sym->state = SYMSTATE_USED;
+      }
+
+      if (in_closure_env(resolver) && resolver->current_scope->depth > scope->depth) {
+        sym->is_upvalue = true;
+      }
+
       return;
     }
   }
@@ -177,7 +218,9 @@ static void resolve_variable(Resolver* resolver, AstId* var) {
   // Maybe it's a native?
   Value discard;
   if (hashtable_get_by_string(&vm.natives, var->name, &discard)) {
-    var->symbol = allocate_symbol(SYMBOL_NATIVE, false, true);
+    // Natives are always global and marked here as used as well as mutable.
+    // Natives are checked during assigment to prevent reassignment.
+    var->symbol = allocate_symbol(NULL, SYMBOL_NATIVE, SYMSTATE_USED, false);
     return;
   }
 
@@ -316,9 +359,7 @@ static void resolve_declare_function(Resolver* resolver, AstDeclaration* decl) {
     default: INTERNAL_ERROR("Unhandled function type.");
   }
 
-  // Resolve. Start by creating a new scope for the function
-  decl->base.scope = new_scope(resolver, debug_name);
-
+  // Resolve
   // Only functions actually declare the function name in the scope
   // - methods and constructors are declared as part of the class scope and accessed via 'this'
   // - anonymous functions are not accessible by name - that's wy they're anonymous. duh.
@@ -328,13 +369,14 @@ static void resolve_declare_function(Resolver* resolver, AstDeclaration* decl) {
     define_variable(resolver, fn_name);
   }
 
+  decl->base.scope = new_scope(resolver, debug_name);
+
   // Parameters
   AstDeclaration* params = (AstDeclaration*)decl->base.children[1];
   if (params != NULL) {
     for (int i = 0; i < params->base.count; i++) {
       AstId* id = get_child_as_id((AstNode*)params, i, false);
-      declare_parameter(resolver, id);
-      define_variable(resolver, id);
+      declare_define_parameter(resolver, id);
     }
   }
 
@@ -369,22 +411,22 @@ static void resolve_declare_class(Resolver* resolver, AstDeclaration* decl) {
   resolver->in_class                    = true;
   resolver->current_class.has_baseclass = decl->base.children[1] != NULL;
 
-  // Inject 'this' and 'base' variables
+  // Declare and define the class name
+  AstId* class_name     = get_child_as_id((AstNode*)decl, 0, false);
+  AstId* baseclass_name = get_child_as_id((AstNode*)decl, 1, true);
+  declare_variable(resolver, class_name, false);
+  define_variable(resolver, class_name);
+  if (baseclass_name != NULL) {
+    resolve_variable(resolver, baseclass_name);
+  }
+
+  // Create the class scope and Inject 'this' and 'base' variables
   decl->base.scope = new_scope(resolver, "class");
   inject_synthetic_variable(resolver, KEYWORD_THIS);
   if (resolver->current_class.has_baseclass) {
     inject_synthetic_variable(resolver, KEYWORD_BASE);
   }
 
-  // Resolve
-  AstId* class_name     = get_child_as_id((AstNode*)decl, 0, false);
-  AstId* baseclass_name = get_child_as_id((AstNode*)decl, 1, true);
-  declare_variable(resolver, class_name, false);
-  define_variable(resolver, class_name);
-  if (baseclass_name != NULL) {
-    declare_variable(resolver, baseclass_name, false);
-    define_variable(resolver, baseclass_name);
-  }
   for (int i = 2; i < decl->base.count; i++) {
     resolve_node(resolver, decl->base.children[i]);
   }
@@ -436,12 +478,16 @@ static void resolve_declare_variable(Resolver* resolver, AstDeclaration* decl) {
 //
 
 static void resolve_statement_import(Resolver* resolver, AstStatement* stmt) {
+  // We can already define the variables, since there's no expression to initialize them where they
+  // could be used.
   if (stmt->base.children[0]->type == NODE_ID) {
     AstId* id = get_child_as_id((AstNode*)stmt, 0, false);
     declare_variable(resolver, id, false);
     define_variable(resolver, id);
   } else {
-    INTERNAL_ERROR("Only simple variable imports are supported for now.");
+    AstPattern* pattern = (AstPattern*)stmt->base.children[0];
+    declare_pattern(resolver, pattern, false);
+    define_pattern(resolver, pattern);
   }
 }
 
