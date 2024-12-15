@@ -9,6 +9,7 @@
 static Value native_debug_stack(int argc, Value argv[]);
 static Value native_debug_version(int argc, Value argv[]);
 static Value native_debug_modules(int argc, Value argv[]);
+static Value native_debug_heap(int argc, Value argv[]);
 
 #define MODULE_NAME Debug
 
@@ -19,6 +20,7 @@ void native_register_debug_module() {
   define_native(&debug_module->fields, "stack", native_debug_stack, 0);
   define_native(&debug_module->fields, "version", native_debug_version, 0);
   define_native(&debug_module->fields, "modules", native_debug_modules, 0);
+  define_native(&debug_module->fields, "heap", native_debug_heap, 0);
 }
 
 /**
@@ -67,4 +69,34 @@ static Value native_debug_modules(int argc, Value argv[]) {
   ObjObject* copy_obj = take_object(&copy);
 
   return obj_value(copy_obj);
+}
+
+/**
+ * MODULE_NAME.heap() -> nil
+ * @brief Prints the heap linked list to the console.
+ */
+static Value native_debug_heap(int argc, Value argv[]) {
+  UNUSED(argc);
+  UNUSED(argv);
+
+  Obj* object = vm.objects;
+  while (object != NULL) {
+    switch (object->type) {
+      case OBJ_GC_BOUND_METHOD: printf(STR(TYPENAME_BOUND_METHOD)); break;
+      case OBJ_GC_CLASS: printf(STR(TYPENAME_CLASS) " %s", ((ObjClass*)object)->name->chars); break;
+      case OBJ_GC_CLOSURE: printf(STR(TYPENAME_CLOSURE) " %s", ((ObjClosure*)object)->function->name->chars); break;
+      case OBJ_GC_FUNCTION: printf(STR(TYPENAME_FUNCTION) " %s", ((ObjFunction*)object)->name->chars); break;
+      case OBJ_GC_NATIVE: printf(STR(TYPENAME_NATIVE) " %s", ((ObjNative*)object)->name->chars); break;
+      case OBJ_GC_OBJECT: printf(STR(TYPENAME_OBJ)); break;
+      case OBJ_GC_STRING: printf(STR(TYPENAME_STRING) " \"%s\"", ((ObjString*)object)->chars); break;
+      case OBJ_GC_UPVALUE: printf(STR(TYPENAME_UPVALUE)); break;
+      case OBJ_GC_SEQ: printf(STR(TYPENAME_SEQ)); break;
+      case OBJ_GC_TUPLE: printf(STR(TYPENAME_TUPLE)); break;
+      default: INTERNAL_ERROR("Unknown object type"); break;
+    }
+    printf("\n");
+    object = object->next;
+  }
+
+  return nil_value();
 }

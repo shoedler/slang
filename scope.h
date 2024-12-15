@@ -10,7 +10,8 @@ struct AstNode;  // Forward declaration for circular dependency
 typedef enum {
   SYMBOL_GLOBAL,
   SYMBOL_LOCAL,
-  SYMBOL_PARAM,
+  SYMBOL_UPVALUE,        // Whether the symbol is an upvalue (e.g. a var referencing a var in an outer scope)
+  SYMBOL_UPVALUE_OUTER,  // Whether the symbol is an upvalue that is an upvalue of another upvalue
   SYMBOL_NATIVE,
 } SymbolType;
 
@@ -25,9 +26,10 @@ typedef struct {
   struct AstNode* source;  // Source node where the symbol was declared
   SymbolType type;         // Type of the symbol
   SymbolState state;       // State of the symbol
-  uint16_t index;          // Index/slot of the symbol, used for locals and upvalues
-  bool is_const;           // Whether the symbol represents a constant
-  bool is_upvalue;         // Whether the symbol is an upvalue
+  int index;         // Index of the symbol the scope's locals, or the index in the functions upvalue list. -1 if not applicable
+  bool is_const;     // Whether the symbol represents a constant
+  bool is_captured;  // Whether the symbol is captured by an upvalue
+  bool is_param;     // Whether the symbol is a function parameter
 } Symbol;
 
 // Entry in the scope's hashtable
@@ -41,6 +43,7 @@ typedef struct Scope {
   int count;                // Number of entries in use
   int capacity;             // Total size of entries array
   int depth;                // Depth of the this scope (scope depth)
+  int local_count;          // Number of local variables in this scope
   struct Scope* enclosing;  // Enclosing scope
   SymbolEntry* entries;
 } Scope;
@@ -51,9 +54,17 @@ void scope_init(Scope* scope, Scope* enclosing);
 // Free resources used by scope
 void scope_free(Scope* scope);
 
-// Add or update a symbol in a scope. Returns true if the symbol was added, false if not, indicating that there is already a
+// Add a symbol in a scope. Returns true if the symbol was added, false if not, indicating that there is already a
 // symbol with the same name. Does NOT update an existing symbol.
-bool scope_add_new(Scope* scope, ObjString* key, struct AstNode* source, SymbolType type, SymbolState state, bool is_const);
+// [symbol] in an out parameter that will be set to the symbol entry in the scope.
+bool scope_add_new(Scope* scope,
+                   ObjString* key,
+                   struct AstNode* source,
+                   SymbolType type,
+                   SymbolState state,
+                   bool is_const,
+                   bool is_param,
+                   Symbol** symbol);
 
 // Check if a symbol is in the scope
 bool scope_has(Scope* scope, ObjString* key);
@@ -62,7 +73,7 @@ bool scope_has(Scope* scope, ObjString* key);
 Symbol* scope_get(Scope* scope, ObjString* key);
 
 // Allocates a new symbol
-Symbol* allocate_symbol(struct AstNode* source, SymbolType type, SymbolState state, bool is_const);
+Symbol* allocate_symbol(struct AstNode* source, SymbolType type, SymbolState state, bool is_const, bool is_param);
 
 // Delete a symbol from the scope. Returns true if found and deleted.
 bool scope_delete(Scope* scope, ObjString* key);

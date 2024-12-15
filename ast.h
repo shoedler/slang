@@ -7,12 +7,13 @@
 #include "scope.h"
 #include "value.h"
 
+#define MAX_LOCALS (1024 * 3)    // Arbitrary, could to UINT32_MAX theoretically, but gl with an array of that size on the stack.
+#define MAX_UPVALUES (1024 * 3)  // Arbitrary, could to UINT32_MAX theoretically, but gl with an array of that size on the stack.
+
 typedef enum {
   DECL_FN,         // Function declaration
   DECL_FN_PARAMS,  // Function parameters
   DECL_CLASS,      // Class declaration
-  DECL_METHOD,     // Method declaration inside class
-  DECL_CTOR,       // Constructor declaration
   DECL_VARIABLE    // Variable declaration (let/const)
 } DeclarationType;
 
@@ -74,12 +75,13 @@ typedef enum {
 
 typedef enum {
   NODE_ID,
+  NODE_FN,
+  NODE_BLOCK,
   NODE_DECL,
   NODE_STMT,
   NODE_EXPR,
   NODE_LIT,
   NODE_PATTERN,
-  NODE_ROOT,
 } NodeType;
 
 typedef enum {
@@ -105,21 +107,37 @@ typedef struct AstNode {
   struct AstNode** children;
 } AstNode;
 
-typedef struct AstRoot AstRoot;
 typedef struct AstId AstId;
+typedef struct AstFn AstFn;
+typedef struct AstBlock AstBlock;
 typedef struct AstDeclaration AstDeclaration;
 typedef struct AstStatement AstStatement;
 typedef struct AstExpression AstExpression;
 typedef struct AstLiteral AstLiteral;
 typedef struct AstPattern AstPattern;
 
-struct AstRoot {
+typedef struct {
+  uint16_t index;
+  bool is_local;
+} Upvalue;
+
+// Scopless, as opposed to a statement-block
+struct AstBlock {
   AstNode base;
-  Scope* globals;
 };
 
-AstRoot* ast_root_init(Token start);
-void ast_root_add_child(AstRoot* root, AstNode* child);
+AstBlock* ast_block_init(Token start);
+void ast_block_add(AstBlock* block, AstNode* decl_or_stmt);
+
+struct AstFn {
+  AstNode base;
+  Upvalue upvalues[MAX_UPVALUES];
+  int upvalue_count;  // Number of upvalues in the function, including sub-scopes
+  FnType type;
+};
+
+AstFn* ast_fn_init(Token start, Token end, FnType type, AstId* name, AstDeclaration* params, AstBlock* body);
+AstFn* ast_fn_init2(Token start, Token end, FnType type, AstId* name, AstDeclaration* params, AstExpression* body);
 
 struct AstId {
   AstNode base;
@@ -136,18 +154,15 @@ AstId* ast_id_init(Token id, ObjString* name);
 struct AstDeclaration {
   AstNode base;
   DeclarationType type;
-  FnType fn_type;  // DECL_FN
   bool is_static;  // DECL_METHOD
   bool is_const;   // DECL_VARIABLE
 };
 
 AstDeclaration* ast_decl_fn_params_init(Token start, Token end);
 void ast_decl_fn_params_add_param(AstDeclaration* params, AstId* id);
-AstDeclaration* ast_decl_fn_init(Token start, Token end, AstId* name, FnType type, AstDeclaration* params, AstNode* body);
-AstDeclaration* ast_decl_method_init(Token start, Token end, bool is_static, AstDeclaration* fn);
-AstDeclaration* ast_decl_ctor_init(Token start, Token end, AstDeclaration* fn);
+AstDeclaration* ast_decl_fn_init(Token start, Token end, AstFn* fn);
 AstDeclaration* ast_decl_class_init(Token start, Token end, AstId* name, AstId* baseclass_name);
-void ast_decl_class_add_method_or_ctor(AstDeclaration* class_decl, AstDeclaration* method_or_ctor);
+void ast_decl_class_add_method_or_ctor(AstDeclaration* class_decl, AstFn* method_or_ctor);
 AstDeclaration* ast_decl_variable_init(Token start, Token end, bool is_const, AstId* id, AstExpression* initializer_expr);
 AstDeclaration* ast_decl_variable_init2(Token start,
                                         Token end,
@@ -167,8 +182,7 @@ struct AstStatement {
 
 AstStatement* ast_stmt_import_init(Token start, Token end, ObjString* path, AstId* id);
 AstStatement* ast_stmt_import_init2(Token start, Token end, ObjString* path, AstPattern* pattern);
-AstStatement* ast_stmt_block_init(Token start, Token end);
-void ast_stmt_block_add_statement(AstStatement* block, AstNode* decl_or_stmt);
+AstStatement* ast_stmt_block_init(Token start, Token end, AstBlock* block);
 AstStatement* ast_stmt_if_init(Token start,
                                Token end,
                                AstExpression* condition,
@@ -222,7 +236,7 @@ AstExpression* ast_expr_slice_init(Token start,
                                    AstExpression* end_index);
 AstExpression* ast_expr_this_init(Token start, Token end);
 AstExpression* ast_expr_base_init(Token start, Token end);
-AstExpression* ast_expr_lambda_init(Token start, Token end, AstDeclaration* fn);
+AstExpression* ast_expr_lambda_init(Token start, Token end, AstFn* fn);
 AstExpression* ast_expr_ternary_init(Token start,
                                      Token end,
                                      AstExpression* condition,
@@ -277,5 +291,7 @@ void ast_free(AstNode* node);
 
 // Prints the AST to stdout
 void ast_print(AstNode* node, int indent);
+
+const char* ast_fn_type_to_str(FnType type);
 
 #endif  // AST_H

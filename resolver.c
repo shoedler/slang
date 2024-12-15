@@ -10,11 +10,11 @@
 #include "scope.h"
 #include "vm.h"
 
-typedef struct {
-  Scope* current_scope;
-  bool in_function;
-  bool in_method;
-  bool in_constructor;
+typedef struct FnResolver FnResolver;
+struct FnResolver {
+  struct FnResolver* enclosing;
+  AstFn* function;
+  Scope* current_scope;  // Current scope, can be a child scope of the [function]s scope
   bool in_loop;
   bool in_class;
 
@@ -24,31 +24,31 @@ typedef struct {
   } current_class;
 
   // Track static methods for base/this validation
-  struct {
-    bool is_static;
-  } current_method;
-} Resolver;
+};
 
 // Forward declarations
-void resolve_children(Resolver* resolver, AstNode* node);
-static void resolve_node(Resolver* resolver, AstNode* node);
+static Scope* new_scope(FnResolver* resolver);
+static void end_scope(FnResolver* resolver);
+void resolve_children(FnResolver* resolver, AstNode* node);
+static void resolve_node(FnResolver* resolver, AstNode* node);
 
-static void resolver_init(Resolver* resolver, Scope* scope) {
-  resolver->current_scope               = scope;
-  resolver->in_function                 = false;
-  resolver->in_method                   = false;
-  resolver->in_constructor              = false;
-  resolver->in_loop                     = false;
-  resolver->in_class                    = false;
-  resolver->current_class.has_baseclass = false;
+static void resolver_init(FnResolver* resolver, FnResolver* enclosing, AstFn* fn) {
+  resolver->current_scope               = enclosing != NULL ? enclosing->current_scope : NULL;
+  resolver->enclosing                   = enclosing;
+  resolver->function                    = fn;
+  resolver->in_loop                     = enclosing != NULL ? enclosing->in_loop : false;
+  resolver->in_class                    = enclosing != NULL ? enclosing->in_class : false;
+  resolver->current_class.has_baseclass = enclosing != NULL ? enclosing->current_class.has_baseclass : false;
+
+  fn->base.scope = new_scope(resolver);  // Also sets resolver->current_scope
 }
 
-static inline bool in_global_scope(Resolver* resolver) {
+static void end_resolver(FnResolver* resolver) {
+  end_scope(resolver);
+}
+
+static inline bool in_global_scope(FnResolver* resolver) {
   return resolver->current_scope->depth == 0;
-}
-
-static inline bool in_closure_env(Resolver* resolver) {
-  return resolver->in_constructor || resolver->in_method || resolver->in_function;
 }
 
 #ifdef DEBUG_RESOLVER
@@ -73,7 +73,7 @@ static inline AstId* get_child_as_id(AstNode* parent, int index, bool allow_null
 
 // Prints an error message at the offending node.
 static void resolver_error(AstNode* offending_node, const char* format, ...) {
-  fprintf(stderr, "Resolver Error at line %d", offending_node->token_start.line);
+  fprintf(stderr, "Resolver error at line %d", offending_node->token_start.line);
   fprintf(stderr, ": " ANSI_COLOR_RED);
   va_list args;
   va_start(args, format);
@@ -87,7 +87,7 @@ static void resolver_error(AstNode* offending_node, const char* format, ...) {
 
 // Prints a warning message at the offending node.
 static void resolver_warning(AstNode* offending_node, const char* format, ...) {
-  fprintf(stderr, "Resolver Warning at line %d", offending_node->token_start.line);
+  fprintf(stderr, "Resolver warning at line %d", offending_node->token_start.line);
   fprintf(stderr, ": " ANSI_COLOR_YELLOW);
   va_list args;
   va_start(args, format);
@@ -99,7 +99,7 @@ static void resolver_warning(AstNode* offending_node, const char* format, ...) {
   report_error_location(source);
 }
 
-static Scope* new_scope(Resolver* resolver, const char* debug_name) {
+static Scope* new_scope(FnResolver* resolver) {
   Scope* new_scope = malloc(sizeof(Scope));
   if (new_scope == NULL) {
     INTERNAL_ERROR("Could not allocate memory for new scope.");
@@ -109,26 +109,46 @@ static Scope* new_scope(Resolver* resolver, const char* debug_name) {
   resolver->current_scope = new_scope;
 
 #ifdef DEBUG_RESOLVER
-  for (int i = 0; i < resolver->current_scope->depth; printf("  "), i++)
+  for (int i = 0; i < resolver->current_scope->depth; printf(ANSI_GRAY_STR(":  ")), i++)
     ;
-  printf(ANSI_YELLOW_STR("Entering scope <") "%s" ANSI_YELLOW_STR(">") " depth=%d\n", debug_name, resolver->current_scope->depth);
+  printf("SCOPE_ENTER " ANSI_BLUE_STR("depth=%d") " :\n", resolver->current_scope->depth);
 #endif
 
   return new_scope;
 }
 
-static void end_scope(Resolver* resolver) {
+static void end_scope(FnResolver* resolver) {
   Scope* enclosing = resolver->current_scope->enclosing;
 #ifdef DEBUG_RESOLVER
-  for (int i = 0; i < resolver->current_scope->depth; printf("  "), i++)
+  for (int i = 0; i < resolver->current_scope->depth; printf(ANSI_GRAY_STR(":  ")), i++)
     ;
-  printf(ANSI_YELLOW_STR("Leaving scope") " depth=%d\n", resolver->current_scope->depth);
+  printf("SCOPE_LEAVE " ANSI_BLUE_STR("depth=%d") " \n", resolver->current_scope->depth);
+
+  int count = 0;
   for (int i = 0; i < resolver->current_scope->capacity; i++) {
     SymbolEntry* entry = &resolver->current_scope->entries[i];
     if (entry->key != NULL) {
-      for (int j = 0; j < resolver->current_scope->depth; printf("  "), j++)
+      for (int j = 0; j < resolver->current_scope->depth; printf(ANSI_GRAY_STR(":  ")), j++)
         ;
-      printf(ANSI_YELLOW_STR("-") " %s %s\n", entry->key->chars, entry->value->is_upvalue ? ANSI_MAGENTA_STR("(upvalue)") : "");
+      count++;
+      const char* tree_link = count == resolver->current_scope->count ? "└" : "├";
+
+      if (entry->key->length == 0) {
+        printf("%s " ANSI_MAGENTA_STR("<reserved>") " ", tree_link);
+      } else {
+        printf("%s " ANSI_MAGENTA_STR("%s") " ", tree_link, entry->key->chars);
+      }
+
+      if (entry->value->type == SYMBOL_UPVALUE) {
+        printf(ANSI_GREEN_STR("upvalue") " %d", entry->value->index);
+      } else if (entry->value->type == SYMBOL_UPVALUE_OUTER) {
+        printf(ANSI_GREEN_STR("upvalue_outer") " %d", entry->value->index);
+      } else if (entry->value->type == SYMBOL_GLOBAL) {
+        printf(ANSI_CYAN_STR("global"));
+      } else if (entry->value->type == SYMBOL_LOCAL) {
+        printf(ANSI_CYAN_STR("local") " %d", entry->value->index);
+      }
+      printf("%s\n", entry->value->is_param ? " (param)" : "");
     }
   }
 #endif
@@ -136,11 +156,15 @@ static void end_scope(Resolver* resolver) {
   // Warn about unused variables
   for (int i = 0; i < resolver->current_scope->capacity; i++) {
     SymbolEntry* entry = &resolver->current_scope->entries[i];
-    if (entry->key == NULL || entry->value->state == SYMSTATE_USED) {
+    if (entry->key == NULL || entry->value->state == SYMSTATE_USED || entry->value->is_captured) {
       continue;
     }
     if (entry->value->source == NULL) {
-      INTERNAL_ASSERT(entry->value->type == SYMBOL_NATIVE, "Only natives can be unused without source");
+#ifdef DEBUG_RESOLVER
+      SymbolType type           = entry->value->type;
+      bool ok_to_have_no_source = type == SYMBOL_NATIVE || type == SYMBOL_UPVALUE || type == SYMBOL_UPVALUE_OUTER;
+      INTERNAL_ASSERT(ok_to_have_no_source, "Only natives can be unused without source");
+#endif
       continue;
     }
     resolver_warning(entry->value->source, "Variable '%s' is declared but never used.", entry->key->chars);
@@ -149,31 +173,67 @@ static void end_scope(Resolver* resolver) {
   resolver->current_scope = enclosing;
 }
 
+static Symbol* add_upvalue(FnResolver* resolver,
+                           ObjString* name,
+                           int index,
+                           SymbolState state,
+                           bool is_const,
+                           bool is_param,
+                           bool in_immediate_enclosing_fn) {
+  // Add the upvalue to the current scope
+  SymbolType upvalue_type = in_immediate_enclosing_fn ? SYMBOL_UPVALUE : SYMBOL_UPVALUE_OUTER;
+  // Won't add a new upvalue if it already exists
+  Symbol* upvalue = NULL;
+  if (scope_add_new(resolver->current_scope, name, NULL, upvalue_type, state, is_const, is_param, &upvalue)) {
+    INTERNAL_ASSERT(index >= 0, "Captured symbol should have an index.");
+    // It's a new one, so we add it to the function's upvalue list.
+    upvalue->index = resolver->function->upvalue_count;  // Set the index to the current upvalue count of this function
+    resolver->function->upvalues[resolver->function->upvalue_count].is_local = in_immediate_enclosing_fn;
+    resolver->function->upvalues[resolver->function->upvalue_count].index    = index;
+    resolver->function->upvalue_count++;
+    if (resolver->function->upvalue_count >= MAX_UPVALUES) {
+      resolver_error((AstNode*)resolver->function,
+                     "Can't have more than " STR(MAX_UPVALUES) " closure variables in one function.");
+      return upvalue;
+    }
+  }
+  return upvalue;
+}
+
 // Declare a new variable in the current scope
-static void declare_variable(Resolver* resolver, AstId* var, bool is_const) {
-  if (resolver->current_scope->count >= MAX_LOCALS) {
+static void declare_variable(FnResolver* resolver, AstId* var, bool is_const) {
+  if (resolver->current_scope->local_count >= MAX_LOCALS) {
     resolver_error((AstNode*)var, "Too many variables in scope.");
     return;
   }
 
   // Add the variable
   SymbolType type = in_global_scope(resolver) ? SYMBOL_GLOBAL : SYMBOL_LOCAL;
-  if (!scope_add_new(resolver->current_scope, var->name, (AstNode*)var, type, SYMSTATE_DECLARED, is_const)) {
+  Symbol* local   = NULL;
+  if (!scope_add_new(resolver->current_scope, var->name, (AstNode*)var, type, SYMSTATE_DECLARED, is_const, false /* is param */,
+                     &local)) {
     resolver_error((AstNode*)var, "Variable '%s' is already declared.", var->name->chars);
+  }
+
+  if (in_global_scope(resolver)) {
+    return;  // No need to add globals to the function's locals
   }
 }
 
 // Declare a new parameter in the current scope
-static void declare_define_parameter(Resolver* resolver, AstId* param) {
+static void declare_define_parameter(FnResolver* resolver, AstId* param) {
   // Params are always locals and start their life as initialized, because currently there's no mechanism to assign them default
   // values.
-  if (!scope_add_new(resolver->current_scope, param->name, (AstNode*)param, SYMBOL_PARAM, SYMSTATE_INITIALIZED, false)) {
+  INTERNAL_ASSERT(!in_global_scope(resolver), "Parameters cannot be declared in global scope.");
+  Symbol* param_sym = NULL;
+  if (!scope_add_new(resolver->current_scope, param->name, (AstNode*)param, SYMBOL_LOCAL, SYMSTATE_INITIALIZED, false,
+                     true /* is param */, &param_sym)) {
     resolver_error((AstNode*)param, "Parameter '%s' is already declared.", param->name->chars);
   }
 }
 
 // Define a previously declared variable in the current scope
-static void define_variable(Resolver* resolver, AstId* var) {
+static void define_variable(FnResolver* resolver, AstId* var) {
   // Find the variable's declaration
   Symbol* decl = scope_get(resolver->current_scope, var->name);
   if (decl == NULL) {
@@ -184,35 +244,70 @@ static void define_variable(Resolver* resolver, AstId* var) {
   decl->state = SYMSTATE_INITIALIZED;
 }
 
-// Inject a synthetic variable into the current scope. Is injected as USED, GLOBAL (if in global scope) and mutable.
-static void inject_synthetic_variable(Resolver* resolver, const char* name) {
+// Inject a synthetic local variable into the current scope. Is injected as used, local and mutable.
+// [add_to_fn] determines whether the synthetic variable should be added to the function's local list, which is only false for the
+// synthetic 'this' variable, because that has to be manually inserted into slot 0 of the function's locals.
+static Symbol* inject_local(FnResolver* resolver, const char* name) {
   ObjString* name_str = copy_string(name, strlen(name));
-  SymbolType type     = in_global_scope(resolver) ? SYMBOL_GLOBAL : SYMBOL_LOCAL;
-  if (!scope_add_new(resolver->current_scope, name_str, NULL, type, SYMSTATE_USED, false)) {
+
+  Symbol* local = NULL;
+  if (!scope_add_new(resolver->current_scope, name_str, NULL, SYMBOL_LOCAL, SYMSTATE_USED, false, false /* is param */, &local)) {
     INTERNAL_ERROR("Could not inject synthetic variable into scope.");
   }
+
+  return local;
+}
+
+static Symbol* try_get_local(FnResolver* resolver, ObjString* name) {
+  AstFn* fn    = resolver->function;
+  Scope* scope = resolver->current_scope;  // Not necessarily the function's scope. Could be any nested block scope in the
+                                           // functions body.
+
+  // Stop at function scope, that's upvalue territory
+  while (scope != NULL) {
+    Symbol* sym = scope_get(scope, name);
+    if (sym != NULL) {
+      return sym;
+    }
+    if (scope == fn->base.scope) {
+      break;
+    }
+    scope = scope->enclosing;  // Move up the scope chain, not the function chain!
+  }
+
+  return NULL;
+}
+
+static Symbol* try_get_upvalue(FnResolver* resolver, ObjString* name) {
+  if (resolver->enclosing == NULL) {
+    return NULL;
+  }
+
+  Symbol* sym = try_get_local(resolver->enclosing, name);  // Check if it's a local in the enclosing scope
+  if (sym != NULL) {
+    sym->is_captured = true;
+    return add_upvalue(resolver, name, sym->index, sym->state, sym->is_const, sym->is_param, true);
+  }
+
+  sym = try_get_upvalue(resolver->enclosing, name);
+  if (sym != NULL) {
+    return add_upvalue(resolver, name, sym->index, sym->state, sym->is_const, sym->is_param, false);
+  }
+
+  return NULL;
 }
 
 // Resolves a variable lookup
-static void resolve_variable(Resolver* resolver, AstId* var) {
-  // Look up variable in scope chain
-  for (Scope* scope = resolver->current_scope; scope != NULL; scope = scope->enclosing) {
-    Symbol* sym = scope_get(scope, var->name);
-    if (sym != NULL) {
-      var->symbol = sym;
+static void resolve_variable(FnResolver* resolver, AstId* var) {
+  Symbol* sym = NULL;
 
-      if (sym->state == SYMSTATE_DECLARED) {
-        resolver_error((AstNode*)var, "Cannot read local variable in its own initializer.");
-      } else if (sym->state == SYMSTATE_INITIALIZED) {
-        sym->state = SYMSTATE_USED;
-      }
-
-      if (in_closure_env(resolver) && resolver->current_scope->depth > scope->depth) {
-        sym->is_upvalue = true;
-      }
-
-      return;
-    }
+  sym = try_get_local(resolver, var->name);
+  if (sym != NULL) {
+    goto FOUND;
+  }
+  sym = try_get_upvalue(resolver, var->name);
+  if (sym != NULL) {
+    goto FOUND;
   }
 
   // Maybe it's a native?
@@ -220,16 +315,25 @@ static void resolve_variable(Resolver* resolver, AstId* var) {
   if (hashtable_get_by_string(&vm.natives, var->name, &discard)) {
     // Natives are always global and marked here as used as well as mutable.
     // Natives are checked during assigment to prevent reassignment.
-    var->symbol = allocate_symbol(NULL, SYMBOL_NATIVE, SYMSTATE_USED, false);
+    sym = allocate_symbol(NULL, SYMBOL_NATIVE, SYMSTATE_USED, false, false /* is param */);
     return;
   }
 
   // Not found
   resolver_error((AstNode*)var, "Undefined variable '%s'.", var->name->chars);
+  return;
+
+FOUND:
+  var->symbol = sym;
+  if (sym->state == SYMSTATE_DECLARED) {
+    resolver_error((AstNode*)var, "Cannot read local in its own initializer.");
+  } else if (sym->state == SYMSTATE_INITIALIZED) {
+    sym->state = SYMSTATE_USED;
+  }
 }
 
 // Declares a pattern
-static void declare_pattern(Resolver* resolver, AstPattern* pattern, bool is_const) {
+static void declare_pattern(FnResolver* resolver, AstPattern* pattern, bool is_const) {
   switch (pattern->type) {
     case PAT_REST:
     case PAT_BINDING: {
@@ -250,7 +354,7 @@ static void declare_pattern(Resolver* resolver, AstPattern* pattern, bool is_con
 }
 
 // Defines a pattern
-static void define_pattern(Resolver* resolver, AstPattern* pattern) {
+static void define_pattern(FnResolver* resolver, AstPattern* pattern) {
   switch (pattern->type) {
     case PAT_REST:
     case PAT_BINDING: {
@@ -271,7 +375,7 @@ static void define_pattern(Resolver* resolver, AstPattern* pattern) {
 }
 
 // // Resolves a pattern
-// static void resolve_pattern(Resolver* resolver, AstPattern* pattern) {
+// static void resolve_pattern(FnResolver* resolver, AstPattern* pattern) {
 //   switch (pattern->type) {
 //     case PAT_REST:
 //     case PAT_BINDING: {
@@ -291,11 +395,13 @@ static void define_pattern(Resolver* resolver, AstPattern* pattern) {
 //   }
 // }
 
-static void resolve_assignment_target(Resolver* resolver, AstExpression* target) {
+static void resolve_assignment_target(FnResolver* resolver, AstExpression* target) {
   if (target->type == EXPR_VARIABLE) {
     AstId* id = get_child_as_id((AstNode*)target, 0, false);
     resolve_variable(resolver, id);
-    INTERNAL_ASSERT(id->symbol != NULL, "Variable symbol should be resolved.");
+    if (id->symbol == NULL) {
+      return;  // Undefined variable error already reported
+    }
 
     if (id->symbol->type == SYMBOL_NATIVE) {
       resolver_error((AstNode*)target, "Don't reassign natives.", id->name->chars);
@@ -311,100 +417,75 @@ static void resolve_assignment_target(Resolver* resolver, AstExpression* target)
   }
 }
 
-static void resolve_root(Resolver* resolver, AstRoot* root) {
-  root->globals = new_scope(resolver, "global");
-  resolve_children(resolver, (AstNode*)root);
-  end_scope(resolver);
+static void resolve_function(FnResolver* resolver, AstFn* fn) {
+  // Only functions actually declare their name in the scope they're defined in.
+  // - methods and constructors are declared as part of the class scope and accessed via 'this'
+  // - anonymous functions are not accessible by name - that's wy they're anonymous. duh.
+  if (fn->type == FN_TYPE_FUNCTION) {
+    AstId* fn_name = get_child_as_id((AstNode*)fn, 0, false);
+    declare_variable(resolver, fn_name, false);
+    define_variable(resolver, fn_name);
+  }
+
+  FnResolver subresolver;
+  resolver_init(&subresolver, resolver, fn);
+  if (fn->type == FN_TYPE_METHOD || fn->type == FN_TYPE_CONSTRUCTOR) {
+    inject_local(&subresolver, KEYWORD_THIS);  // Inject 'this' as the first local variable
+  } else if (!in_global_scope(&subresolver)) {
+    inject_local(&subresolver, "");  // Not accessible
+  }
+
+#ifdef DEBUG_RESOLVER
+  switch (fn->type) {
+    case FN_TYPE_ANONYMOUS_FUNCTION:
+    case FN_TYPE_FUNCTION: {
+      break;
+    }
+    case FN_TYPE_METHOD_STATIC:
+    case FN_TYPE_METHOD: {
+      INTERNAL_ASSERT(subresolver.in_class, "Method should be in a class.");
+      INTERNAL_ASSERT(subresolver.function->type == FN_TYPE_METHOD || subresolver.function->type == FN_TYPE_METHOD_STATIC,
+                      "Method should not be nested.");
+      INTERNAL_ASSERT(fn->base.children[0] != NULL, "Method should have a name.");
+      break;
+    }
+    case FN_TYPE_CONSTRUCTOR: {
+      INTERNAL_ASSERT(subresolver.in_class, "Constructor should be in a class.");
+      INTERNAL_ASSERT(subresolver.function->type == FN_TYPE_CONSTRUCTOR, "Constructor should not be nested.");
+      break;
+    }
+    case FN_TYPE_MODULE: {
+      INTERNAL_ASSERT(false, "Module functions are handled at the resolver entry point.");
+      break;
+    }
+    default: INTERNAL_ERROR("Unhandled function type.");
+  }
+#endif
+
+  // Parameters
+  AstDeclaration* params = (AstDeclaration*)fn->base.children[1];
+  if (params != NULL) {
+    for (int i = 0; i < params->base.count; i++) {
+      AstId* id = get_child_as_id((AstNode*)params, i, false);
+      declare_define_parameter(&subresolver, id);
+    }
+  }
+
+  // Body / expression
+  resolve_node(&subresolver, fn->base.children[2]);
+  end_resolver(&subresolver);
 }
 
 //
 // Declaration resolution
 //
 
-static void resolve_declare_function(Resolver* resolver, AstDeclaration* decl) {
-  // Configure resolver state for function type
-  bool was_in_function;
-  const char* debug_name;
-  switch (decl->fn_type) {
-    case FN_TYPE_ANONYMOUS_FUNCTION:
-    case FN_TYPE_FUNCTION: {
-      was_in_function       = resolver->in_function;
-      resolver->in_function = true;
-      debug_name            = "function";
-      break;
-    }
-    case FN_TYPE_METHOD_STATIC:
-    case FN_TYPE_METHOD: {
-      if (!resolver->in_class) {
-        resolver_error((AstNode*)decl, "Can't declare a method outside of a class.");
-      }
-      if (resolver->in_method) {
-        resolver_error((AstNode*)decl, "Can't have nested methods.");
-      }
-      resolver->in_method = true;
-      debug_name          = "method";
-      break;
-    }
-    case FN_TYPE_CONSTRUCTOR: {
-      if (!resolver->in_class) {
-        resolver_error((AstNode*)decl, "Can't declare a constructor outside of a class.");
-      }
-      if (resolver->in_constructor) {
-        resolver_error((AstNode*)decl, "Can't have nested constructors.");
-      }
-      resolver->in_constructor = true;
-      debug_name               = "constructor";
-      break;
-    }
-    default: INTERNAL_ERROR("Unhandled function type.");
-  }
-
-  // Resolve
-  // Only functions actually declare the function name in the scope
-  // - methods and constructors are declared as part of the class scope and accessed via 'this'
-  // - anonymous functions are not accessible by name - that's wy they're anonymous. duh.
-  if (decl->fn_type == FN_TYPE_FUNCTION) {
-    AstId* fn_name = get_child_as_id((AstNode*)decl, 0, false);
-    declare_variable(resolver, fn_name, false);
-    define_variable(resolver, fn_name);
-  }
-
-  decl->base.scope = new_scope(resolver, debug_name);
-
-  // Parameters
-  AstDeclaration* params = (AstDeclaration*)decl->base.children[1];
-  if (params != NULL) {
-    for (int i = 0; i < params->base.count; i++) {
-      AstId* id = get_child_as_id((AstNode*)params, i, false);
-      declare_define_parameter(resolver, id);
-    }
-  }
-
-  // Body / expression
-  resolve_node(resolver, decl->base.children[2]);
-  end_scope(resolver);
-
-  // Done! Now reset the resolver state
-  switch (decl->fn_type) {
-    case FN_TYPE_ANONYMOUS_FUNCTION:
-    case FN_TYPE_FUNCTION: {
-      resolver->in_function = was_in_function;
-      break;
-    }
-    case FN_TYPE_METHOD_STATIC:
-    case FN_TYPE_METHOD: {
-      resolver->in_method = false;
-      break;
-    }
-    case FN_TYPE_CONSTRUCTOR: {
-      resolver->in_constructor = false;
-      break;
-    }
-    default: INTERNAL_ERROR("Unhandled function type.");
-  }
+static void resolve_declare_function(FnResolver* resolver, AstDeclaration* decl) {
+  AstFn* fn = (AstFn*)decl->base.children[0];
+  resolve_function(resolver, fn);
 }
 
-static void resolve_declare_class(Resolver* resolver, AstDeclaration* decl) {
+static void resolve_declare_class(FnResolver* resolver, AstDeclaration* decl) {
   if (resolver->in_class) {
     resolver_error((AstNode*)decl, "Classes can't be nested.");
   }
@@ -420,11 +501,10 @@ static void resolve_declare_class(Resolver* resolver, AstDeclaration* decl) {
     resolve_variable(resolver, baseclass_name);
   }
 
-  // Create the class scope and Inject 'this' and 'base' variables
-  decl->base.scope = new_scope(resolver, "class");
-  inject_synthetic_variable(resolver, KEYWORD_THIS);
+  // Create the class scope
+  decl->base.scope = new_scope(resolver);
   if (resolver->current_class.has_baseclass) {
-    inject_synthetic_variable(resolver, KEYWORD_BASE);
+    inject_local(resolver, KEYWORD_BASE);
   }
 
   for (int i = 2; i < decl->base.count; i++) {
@@ -437,15 +517,7 @@ static void resolve_declare_class(Resolver* resolver, AstDeclaration* decl) {
   resolver->current_class.has_baseclass = false;
 }
 
-static void resolve_declare_method(Resolver* resolver, AstDeclaration* decl) {
-  resolve_declare_function(resolver, (AstDeclaration*)decl->base.children[0]);
-}
-
-static void resolve_declare_constructor(Resolver* resolver, AstDeclaration* decl) {
-  resolve_declare_function(resolver, (AstDeclaration*)decl->base.children[0]);
-}
-
-static void resolve_declare_variable(Resolver* resolver, AstDeclaration* decl) {
+static void resolve_declare_variable(FnResolver* resolver, AstDeclaration* decl) {
   NodeType type = decl->base.children[0]->type;
 
   // Declare the variable in the current scope
@@ -477,7 +549,7 @@ static void resolve_declare_variable(Resolver* resolver, AstDeclaration* decl) {
 // Statement resolution
 //
 
-static void resolve_statement_import(Resolver* resolver, AstStatement* stmt) {
+static void resolve_statement_import(FnResolver* resolver, AstStatement* stmt) {
   // We can already define the variables, since there's no expression to initialize them where they
   // could be used.
   if (stmt->base.children[0]->type == NODE_ID) {
@@ -491,66 +563,66 @@ static void resolve_statement_import(Resolver* resolver, AstStatement* stmt) {
   }
 }
 
-static void resolve_statement_block(Resolver* resolver, AstStatement* stmt) {
-  stmt->base.scope = new_scope(resolver, "block");
+static void resolve_statement_block(FnResolver* resolver, AstStatement* stmt) {
+  stmt->base.scope = new_scope(resolver);
   resolve_children(resolver, (AstNode*)stmt);
   end_scope(resolver);
 }
 
-static void resolve_statement_if(Resolver* resolver, AstStatement* stmt) {
+static void resolve_statement_if(FnResolver* resolver, AstStatement* stmt) {
   resolve_children(resolver, (AstNode*)stmt);
 }
 
-static void resolve_statement_while(Resolver* resolver, AstStatement* stmt) {
+static void resolve_statement_while(FnResolver* resolver, AstStatement* stmt) {
   bool was_in_loop  = resolver->in_loop;
   resolver->in_loop = true;
   resolve_children(resolver, (AstNode*)stmt);
   resolver->in_loop = was_in_loop;
 }
 
-static void resolve_statement_for(Resolver* resolver, AstStatement* stmt) {
+static void resolve_statement_for(FnResolver* resolver, AstStatement* stmt) {
   bool was_in_loop  = resolver->in_loop;
   resolver->in_loop = true;
-  stmt->base.scope  = new_scope(resolver, "for");
+  stmt->base.scope  = new_scope(resolver);
   resolve_children(resolver, (AstNode*)stmt);
   end_scope(resolver);
   resolver->in_loop = was_in_loop;
 }
 
-static void resolve_statement_return(Resolver* resolver, AstStatement* stmt) {
-  if (resolver->in_constructor) {
+static void resolve_statement_return(FnResolver* resolver, AstStatement* stmt) {
+  if (resolver->function->type == FN_TYPE_CONSTRUCTOR) {
     resolver_error((AstNode*)stmt, "Can't return a value from a constructor.");
   }
   resolve_children(resolver, (AstNode*)stmt);
 }
 
-static void resolve_statement_print(Resolver* resolver, AstStatement* stmt) {
+static void resolve_statement_print(FnResolver* resolver, AstStatement* stmt) {
   resolve_children(resolver, (AstNode*)stmt);
 }
 
-static void resolve_statement_expr(Resolver* resolver, AstStatement* stmt) {
+static void resolve_statement_expr(FnResolver* resolver, AstStatement* stmt) {
   resolve_children(resolver, (AstNode*)stmt);
 }
 
-static void resolve_statement_break(Resolver* resolver, AstStatement* stmt) {
+static void resolve_statement_break(FnResolver* resolver, AstStatement* stmt) {
   if (!resolver->in_loop) {
     resolver_error((AstNode*)stmt, "Can't break outside of a loop.");
   }
 }
 
-static void resolve_statement_skip(Resolver* resolver, AstStatement* stmt) {
+static void resolve_statement_skip(FnResolver* resolver, AstStatement* stmt) {
   if (!resolver->in_loop) {
     resolver_error((AstNode*)stmt, "Can't skip outside of a loop.");
   }
 }
 
-static void resolve_statement_throw(Resolver* resolver, AstStatement* stmt) {
+static void resolve_statement_throw(FnResolver* resolver, AstStatement* stmt) {
   resolve_children(resolver, (AstNode*)stmt);
 }
 
-static void resolve_statement_try(Resolver* resolver, AstStatement* stmt) {
-  stmt->base.scope = new_scope(resolver, "try");
-  inject_synthetic_variable(resolver, KEYWORD_ERROR);
+static void resolve_statement_try(FnResolver* resolver, AstStatement* stmt) {
+  stmt->base.scope = new_scope(resolver);
+  inject_local(resolver, KEYWORD_ERROR);
   resolve_children(resolver, (AstNode*)stmt);
   end_scope(resolver);
 }
@@ -559,11 +631,11 @@ static void resolve_statement_try(Resolver* resolver, AstStatement* stmt) {
 // Expression resolution
 //
 
-static void resolve_expr_binary(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_binary(FnResolver* resolver, AstExpression* expr) {
   resolve_children(resolver, (AstNode*)expr);
 }
 
-static void resolve_expr_postfix(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_postfix(FnResolver* resolver, AstExpression* expr) {
   if (token_is_inc_dec(expr->operator_.type)) {
     resolve_assignment_target(resolver, (AstExpression*)expr->base.children[0]);
   } else {
@@ -571,7 +643,7 @@ static void resolve_expr_postfix(Resolver* resolver, AstExpression* expr) {
   }
 }
 
-static void resolve_expr_unary(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_unary(FnResolver* resolver, AstExpression* expr) {
   if (token_is_inc_dec(expr->operator_.type)) {
     resolve_assignment_target(resolver, (AstExpression*)expr->base.children[0]);
   } else {
@@ -579,128 +651,129 @@ static void resolve_expr_unary(Resolver* resolver, AstExpression* expr) {
   }
 }
 
-static void resolve_expr_grouping(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_grouping(FnResolver* resolver, AstExpression* expr) {
   resolve_children(resolver, (AstNode*)expr);
 }
 
-static void resolve_expr_literal(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_literal(FnResolver* resolver, AstExpression* expr) {
   resolve_children(resolver, (AstNode*)expr);
 }
 
-static void resolve_expr_variable(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_variable(FnResolver* resolver, AstExpression* expr) {
   AstId* id = get_child_as_id((AstNode*)expr, 0, false);
   resolve_variable(resolver, id);
 }
 
-static void resolve_expr_assign(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_assign(FnResolver* resolver, AstExpression* expr) {
   AstExpression* left = (AstExpression*)expr->base.children[0];
   AstNode* right      = expr->base.children[1];
   resolve_assignment_target(resolver, left);
   resolve_node(resolver, (AstNode*)right);
 }
 
-static void resolve_expr_and(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_and(FnResolver* resolver, AstExpression* expr) {
   resolve_children(resolver, (AstNode*)expr);
 }
 
-static void resolve_expr_or(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_or(FnResolver* resolver, AstExpression* expr) {
   resolve_children(resolver, (AstNode*)expr);
 }
 
-static void resolve_expr_is(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_is(FnResolver* resolver, AstExpression* expr) {
   resolve_children(resolver, (AstNode*)expr);
 }
 
-static void resolve_expr_in(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_in(FnResolver* resolver, AstExpression* expr) {
   resolve_children(resolver, (AstNode*)expr);
 }
 
-static void resolve_expr_call(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_call(FnResolver* resolver, AstExpression* expr) {
   resolve_children(resolver, (AstNode*)expr);
 }
 
-static void resolve_expr_dot(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_dot(FnResolver* resolver, AstExpression* expr) {
   // Only evaluate the target expression, not the property id
   AstExpression* target = (AstExpression*)expr->base.children[0];
   resolve_node(resolver, (AstNode*)target);
 }
 
-static void resolve_expr_subs(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_subs(FnResolver* resolver, AstExpression* expr) {
   resolve_children(resolver, (AstNode*)expr);
 }
 
-static void resolve_expr_slice(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_slice(FnResolver* resolver, AstExpression* expr) {
   resolve_children(resolver, (AstNode*)expr);
 }
 
-static void resolve_expr_this(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_this(FnResolver* resolver, AstExpression* expr) {
   if (!resolver->in_class) {
     resolver_error((AstNode*)expr, "Can't use '" KEYWORD_THIS "' outside of a class.");
-  } else if (resolver->in_method && resolver->current_method.is_static) {
+  } else if (resolver->function->type == FN_TYPE_METHOD_STATIC) {
     resolver_error((AstNode*)expr, "Can't use '" KEYWORD_THIS "' in a static method.");
   }
 }
 
-static void resolve_expr_base(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_base(FnResolver* resolver, AstExpression* expr) {
   if (!resolver->in_class) {
     resolver_error((AstNode*)expr, "Can't use '" KEYWORD_BASE "' outside of a class.");
   } else if (!resolver->current_class.has_baseclass) {
     resolver_error((AstNode*)expr, "Can't use '" KEYWORD_BASE "' in a class without a base class.");
-  } else if (resolver->in_method && resolver->current_method.is_static) {
+  } else if (resolver->function->type == FN_TYPE_METHOD_STATIC) {
     resolver_error((AstNode*)expr, "Can't use '" KEYWORD_BASE "' in a static method.");
   }
 }
 
-static void resolve_expr_lambda(Resolver* resolver, AstExpression* expr) {
-  resolve_declare_function(resolver, (AstDeclaration*)expr->base.children[0]);
+static void resolve_expr_lambda(FnResolver* resolver, AstExpression* expr) {
+  resolve_function(resolver, (AstFn*)expr->base.children[0]);
 }
 
-static void resolve_expr_ternary(Resolver* resolver, AstExpression* expr) {
+static void resolve_expr_ternary(FnResolver* resolver, AstExpression* expr) {
   resolve_children(resolver, (AstNode*)expr);
 }
 
-static void resolve_expr_try(Resolver* resolver, AstExpression* expr) {
-  expr->base.scope = new_scope(resolver, "try");
-  inject_synthetic_variable(resolver, KEYWORD_ERROR);
+static void resolve_expr_try(FnResolver* resolver, AstExpression* expr) {
+  expr->base.scope = new_scope(resolver);
+  inject_local(resolver, KEYWORD_ERROR);
   resolve_children(resolver, (AstNode*)expr);
   end_scope(resolver);
 }
 
-static void resolve_lit_number(Resolver* resolver, AstLiteral* lit) {
+static void resolve_lit_number(FnResolver* resolver, AstLiteral* lit) {
   UNUSED(resolver);
   UNUSED(lit);
 }
 
-static void resolve_lit_string(Resolver* resolver, AstLiteral* lit) {
+static void resolve_lit_string(FnResolver* resolver, AstLiteral* lit) {
   UNUSED(resolver);
   UNUSED(lit);
 }
 
-static void resolve_lit_bool(Resolver* resolver, AstLiteral* lit) {
+static void resolve_lit_bool(FnResolver* resolver, AstLiteral* lit) {
   UNUSED(resolver);
   UNUSED(lit);
 }
 
-static void resolve_lit_nil(Resolver* resolver, AstLiteral* lit) {
+static void resolve_lit_nil(FnResolver* resolver, AstLiteral* lit) {
   UNUSED(resolver);
   UNUSED(lit);
 }
 
-static void resolve_lit_tuple(Resolver* resolver, AstLiteral* lit) {
+static void resolve_lit_tuple(FnResolver* resolver, AstLiteral* lit) {
   resolve_children(resolver, (AstNode*)lit);
 }
 
-static void resolve_lit_seq(Resolver* resolver, AstLiteral* lit) {
+static void resolve_lit_seq(FnResolver* resolver, AstLiteral* lit) {
   resolve_children(resolver, (AstNode*)lit);
 }
 
-static void resolve_lit_obj(Resolver* resolver, AstLiteral* lit) {
+static void resolve_lit_obj(FnResolver* resolver, AstLiteral* lit) {
   resolve_children(resolver, (AstNode*)lit);
 }
 
-static void resolve_node(Resolver* resolver, AstNode* node) {
+static void resolve_node(FnResolver* resolver, AstNode* node) {
   switch (node->type) {
-    case NODE_ROOT: resolve_root(resolver, (AstRoot*)node); break;
+    case NODE_BLOCK: resolve_children(resolver, node); break;
+    case NODE_FN: resolve_function(resolver, (AstFn*)node); break;
     case NODE_ID: INTERNAL_ERROR("Should not resolve " STR(NODE_ID) " directly."); break;
     case NODE_DECL: {
       AstDeclaration* decl = (AstDeclaration*)node;
@@ -708,8 +781,6 @@ static void resolve_node(Resolver* resolver, AstNode* node) {
         case DECL_FN: resolve_declare_function(resolver, decl); break;
         case DECL_FN_PARAMS: INTERNAL_ERROR("Should not resolve " STR(DECL_FN_PARAMS) " directly."); break;
         case DECL_CLASS: resolve_declare_class(resolver, decl); break;
-        case DECL_METHOD: resolve_declare_method(resolver, decl); break;
-        case DECL_CTOR: resolve_declare_constructor(resolver, decl); break;
         case DECL_VARIABLE: resolve_declare_variable(resolver, decl); break;
         default: INTERNAL_ERROR("Unhandled declaration type."); break;
       }
@@ -779,7 +850,7 @@ static void resolve_node(Resolver* resolver, AstNode* node) {
   }
 }
 
-void resolve_children(Resolver* resolver, AstNode* node) {
+void resolve_children(FnResolver* resolver, AstNode* node) {
   for (int i = 0; i < node->count; i++) {
     AstNode* child = node->children[i];
     if (child != NULL) {
@@ -788,8 +859,16 @@ void resolve_children(Resolver* resolver, AstNode* node) {
   }
 }
 
-void resolve(AstRoot* node) {
-  Resolver resolver;
-  resolver_init(&resolver, node->globals);
-  resolve_node(&resolver, (AstNode*)node);
+void resolve(AstFn* root) {
+  FnResolver resolver;
+#ifdef DEBUG_RESOLVER
+  printf("\n\n\n === RESOLVE ===\n\n");
+#endif
+  resolver_init(&resolver, NULL, root);
+  inject_local(&resolver, "");  // Not accessible
+  // Skip the first and second children, which are the name and parameters
+  INTERNAL_ASSERT(root->base.count == 3, "Function should have exactly 3 children.");
+  resolve_node(&resolver, root->base.children[2]);
+  end_resolver(&resolver);
+  return;
 }

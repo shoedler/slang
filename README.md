@@ -33,6 +33,14 @@ You can, for example, easily cache stuff:
 
 # Roadmap for Version 1.0
 
+## Compiler rebuild
+
+- [ ] Add node for invoke
+- [ ] Can Probably omit OP_FINALIZE for classes?
+- [ ] Verify that the tombstone-mechanism in the symboltable actually works.
+- [ ] Omit non-necessary CLOSURES.
+- [ ] Add resolver warn for vars that could be constant.
+
 ## Features
 
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
@@ -41,6 +49,9 @@ You can, for example, easily cache stuff:
   - [ ] Implement `Json.parse(Str) -> Obj`.
   - [ ] Implement `Json.stringify(Value) -> Str`.
   - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
+- [ ] Implement `Str.ints() -> Seq`. (Split a string into a sequence of integers (also negative ones))
+- [ ] Implement `Str.floats() -> Seq`. (Split a string into a sequence of floats)
+- [ ] Implement `Seq.mapat(Int, Fn) -> Seq`. (Map only the element at the given index but return the whole sequence)
 - [ ] Implement `Seq.cull(Value|Fn) -> Seq`. (Remove all elements that are equal to the argument or satisfy the predicate)
 - [ ] Implement `Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)
 - [ ] Add a variant of `log` (Maybe `tap`/`info`/`dump`/`peek`?) which accepts a single argument and also, return it. That'd be awesome: `const x = a + b + c + tap(d) + e`
@@ -105,6 +116,7 @@ You can, for example, easily cache stuff:
 
 ## Optimizations
 
+- [ ] Exclude the natives from the gc
 - [ ] Add `OP_CALL_SP` and use a lookup table similar to `finalize_new_class` to call the method. Would make sense now that we have so many SP methods. We could also remove all arithmetic and comparison operations.
 - [ ] The features I want to implement for this language kinda require a more complex compilation process. Specifically, ditching the single-pass approach for a two-pass compiler and an actual AST.
 - [ ] Maybe delete `NATIVE_CHECK_RECEIVER` as most of the time the method is called from the receiver.

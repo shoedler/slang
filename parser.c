@@ -9,6 +9,13 @@
 #include "scope.h"
 #include "vm.h"
 
+typedef struct {
+  Token current;    // The current token.
+  Token previous;   // The token before the current.
+  bool had_error;   // True if there was an error during parsing.
+  bool panic_mode;  // True if the parser requires synchronization.
+} Parser2;
+
 typedef enum {
   PREC_NONE,
   PREC_ASSIGN,      // =
@@ -43,9 +50,9 @@ typedef enum {
 
 // Forward declarations
 static AstNode* parse_declaration(Parser2* parser);
-static AstDeclaration* parse_function(Parser2* parser, Token decl_start, Token name, FnType type);
+static AstFn* parse_function(Parser2* parser, Token decl_start, Token name, FnType type);
 static AstStatement* parse_statement(Parser2* parser);
-static AstStatement* parse_block(Parser2* parser);
+static AstBlock* parse_block(Parser2* parser);
 static AstExpression* parse_precedence(Parser2* parser, Precedence precedence);
 static AstExpression* parse_expression(Parser2* parser);
 static ParseRule* get_rule(TokenKind type);
@@ -55,12 +62,11 @@ static void parser_init(Parser2* parser) {
   parser->previous   = (Token){.type = TOKEN_EOF};
   parser->had_error  = false;
   parser->panic_mode = false;
-  parser->root       = NULL;
 }
 
 // Report a parser error.
 static void handle_parser_error(Token* token, const char* format, va_list args) {
-  fprintf(stderr, "Parser Error at line %d", token->line);
+  fprintf(stderr, "Parser error at line %d", token->line);
   if (token->type == TOKEN_EOF) {
     fprintf(stderr, " at end");
   } else if (token->type != TOKEN_ERROR) {
@@ -75,14 +81,14 @@ static void handle_parser_error(Token* token, const char* format, va_list args) 
   report_error_location(source);
 }
 
-// // Prints the given token as an error message. Sets the parser into panic mode to avoid cascading errors.
-// static void parser_error(Parser2* parser, Token* token, const char* format, ...) {
-//   parser->had_error = true;
-//   va_list args;
-//   va_start(args, format);
-//   handle_parser_error(token, format, args);
-//   va_end(args);
-// }
+// Prints the given token as an error message. Sets the parser into panic mode to avoid cascading errors.
+static void parser_error(Parser2* parser, Token* token, const char* format, ...) {
+  parser->had_error = true;
+  va_list args;
+  va_start(args, format);
+  handle_parser_error(token, format, args);
+  va_end(args);
+}
 
 // Prints an error message at the previous token. Sets the parser into panic mode to avoid cascading errors.
 static void parser_error_at_previous(Parser2* parser, const char* format, ...) {
@@ -408,8 +414,8 @@ static AstExpression* parse_literal(Parser2* parser, Token expr_start, bool can_
 
 static AstExpression* parse_expr_anon_fn(Parser2* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
-  Token name         = synthetic_token("$anon_fn$");
-  AstDeclaration* fn = parse_function(parser, expr_start, name, FN_TYPE_ANONYMOUS_FUNCTION);
+  Token name = synthetic_token("$anon_fn$");
+  AstFn* fn  = parse_function(parser, expr_start, name, FN_TYPE_ANONYMOUS_FUNCTION);
   return ast_expr_lambda_init(expr_start, parser->previous, fn);
 }
 
@@ -788,6 +794,12 @@ static AstStatement* parse_statement_expression(Parser2* parser) {
   return ast_stmt_expr_init(stmt_start, parser->previous, expression);
 }
 
+static AstStatement* parse_statement_block(Parser2* parser) {
+  Token stmt_start = parser->previous;  // Previous is OBRACE
+  AstBlock* block  = parse_block(parser);
+  return ast_stmt_block_init(stmt_start, parser->previous, block);
+}
+
 static AstStatement* parse_statement_if(Parser2* parser) {
   Token stmt_start          = parser->previous;  // Previous is FOR
   AstExpression* condition  = parse_expression(parser);
@@ -899,12 +911,12 @@ static AstStatement* parse_statement_import(Parser2* parser) {
   return ast_stmt_import_init(stmt_start, parser->previous, path, id);
 }
 
-static AstStatement* parse_block(Parser2* parser) {
-  Token stmt_start    = parser->previous;  // Previous is OBRACE
-  AstStatement* block = ast_stmt_block_init(stmt_start, parser->previous);
+static AstBlock* parse_block(Parser2* parser) {
+  Token stmt_start = parser->previous;  // Previous is OBRACE
+  AstBlock* block  = ast_block_init(stmt_start);
 
   while (!check(parser, TOKEN_CBRACE) && !check(parser, TOKEN_EOF)) {
-    ast_stmt_block_add_statement(block, parse_declaration(parser));
+    ast_block_add(block, parse_declaration(parser));
   }
 
   consume(parser, TOKEN_CBRACE, "Expecting '}' after block.");
@@ -945,7 +957,7 @@ static AstStatement* parse_statement(Parser2* parser) {
     return ast_stmt_break_init(parser->previous, parser->previous);
   }
   if (match(parser, TOKEN_OBRACE)) {
-    return parse_block(parser);
+    return parse_statement_block(parser);
   }
   return parse_statement_expression(parser);
 }
@@ -981,20 +993,21 @@ static AstDeclaration* parse_fn_params(Parser2* parser) {
 }
 
 // Consolidated function for parsing a function declaration. Named, anonymous, method, constructor.
-static AstDeclaration* parse_function(Parser2* parser, Token decl_start, Token name, FnType type) {
+static AstFn* parse_function(Parser2* parser, Token decl_start, Token name, FnType type) {
   AstId* fn_name = ast_id_init(decl_start, copy_string(name.start, name.length));
 
   AstDeclaration* params = parse_fn_params(parser);
-  AstNode* body          = NULL;
 
   if (match(parser, TOKEN_LAMBDA)) {
     if (type == FN_TYPE_CONSTRUCTOR) {
       parser_error_at_previous(parser, "Constructors can't be lambda functions.");
     } else {
-      body = (AstNode*)parse_expression(parser);
+      AstExpression* body = parse_expression(parser);
+      return ast_fn_init2(decl_start, parser->previous, type, fn_name, params, body);
     }
   } else if (match(parser, TOKEN_OBRACE)) {
-    body = (AstNode*)parse_block(parser);
+    AstBlock* body = parse_block(parser);
+    return ast_fn_init(decl_start, parser->previous, type, fn_name, params, body);
   } else {
     const char* emsg = type == FN_TYPE_CONSTRUCTOR                               ? "Expecting '{' before constructor body."
                        : type == FN_TYPE_METHOD || type == FN_TYPE_METHOD_STATIC ? "Expecting '->' or '{' before method body."
@@ -1002,23 +1015,21 @@ static AstDeclaration* parse_function(Parser2* parser, Token decl_start, Token n
     parser_error_at_current(parser, emsg);
   }
 
-  return ast_decl_fn_init(decl_start, parser->previous, fn_name, type, params, body);
+  return NULL;
 }
 
-static AstDeclaration* parse_method(Parser2* parser) {
+static AstFn* parse_method(Parser2* parser) {
   Token decl_start = parser->current;  // Nothing has been consumed yet.
   FnType type      = match(parser, TOKEN_STATIC) ? FN_TYPE_METHOD_STATIC : FN_TYPE_METHOD;
   consume(parser, TOKEN_FN, "Expecting method initializer.");
   consume(parser, TOKEN_ID, "Expecting method name.");
-  AstDeclaration* method = parse_function(parser, decl_start, parser->previous, type);
-  return ast_decl_method_init(decl_start, parser->previous, type == FN_TYPE_METHOD_STATIC, method);
+  return parse_function(parser, decl_start, parser->previous, type);
 }
 
-static AstDeclaration* parse_constructor(Parser2* parser) {
+static AstFn* parse_constructor(Parser2* parser) {
   Token decl_start = parser->current;  // Nothing has been consumed yet.
   consume(parser, TOKEN_CTOR, "Expecting constructor.");
-  AstDeclaration* ctor = parse_function(parser, decl_start, parser->previous, FN_TYPE_CONSTRUCTOR);
-  return ast_decl_ctor_init(decl_start, parser->previous, ctor);
+  return parse_function(parser, decl_start, parser->previous, FN_TYPE_CONSTRUCTOR);
 }
 
 static AstDeclaration* parse_declaration_class(Parser2* parser) {
@@ -1059,7 +1070,8 @@ static AstDeclaration* parse_declaration_class(Parser2* parser) {
 static AstDeclaration* parse_declaration_function(Parser2* parser) {
   Token decl_start = parser->previous;  // Previous is FN
   consume(parser, TOKEN_ID, "Expecting function name.");
-  return parse_function(parser, decl_start, parser->previous, FN_TYPE_FUNCTION);
+  AstFn* fn = parse_function(parser, decl_start, parser->previous, FN_TYPE_FUNCTION);
+  return ast_decl_fn_init(decl_start, parser->previous, fn);
 }
 
 static AstDeclaration* parse_declaration_variable(Parser2* parser) {
@@ -1083,6 +1095,8 @@ static AstDeclaration* parse_declaration_variable(Parser2* parser) {
   AstExpression* initializer = NULL;
   if (match(parser, TOKEN_ASSIGN)) {
     initializer = parse_expression(parser);
+  } else if (is_const) {
+    parser_error(parser, &decl_start, "Const variable must be initialized.");
   }
   return ast_decl_variable_init(decl_start, parser->previous, is_const, id, initializer);
 }
@@ -1102,32 +1116,33 @@ static AstNode* parse_declaration(Parser2* parser) {
   return (AstNode*)parse_statement(parser);
 }
 
-AstRoot* parse(const char* source) {
+AstFn* parse(const char* source, ObjString* name) {
   Parser2 parser;
 
   scanner_init(source);
   parser_init(&parser);
 
   advance(&parser);
-  parser.root = ast_root_init(parser.current);
+  Token start            = parser.current;
+  AstId* id              = ast_id_init(parser.current, name);
+  AstDeclaration* params = NULL;  // No parameters for the root function. Maybe make some default params for cli by argv/argc?
 
+  AstBlock* body = ast_block_init(start);
   while (!match(&parser, TOKEN_EOF)) {
     AstNode* decl_or_stmt = parse_declaration(&parser);
-    ast_root_add_child(parser.root, decl_or_stmt);
+    ast_block_add(body, decl_or_stmt);
     if (parser.panic_mode) {
       synchronize(&parser);
     }
   }
+  body->base.token_end = parser.previous;
 
-  // Patch the end token of the root node
-  parser.root->base.token_end = parser.current;
+  AstFn* root = ast_fn_init(parser.current, parser.current, FN_TYPE_MODULE, id, params, body);
 
 #ifdef DEBUG_PRINT_AST
-  printf("\n");
-  printf("Parser tree:\n");
-  ast_print((AstNode*)parser.root, 0);
-  printf("\n");
+  printf("\n\n\n === PARSE ===\n\n");
+  ast_print((AstNode*)root, 0);
 #endif
 
-  return parser.root;
+  return root;
 }

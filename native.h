@@ -692,54 +692,54 @@ uint64_t native_default_obj_hash(Value self);
  * TYPENAME_T.join(sep: TYPENAME_STRING) -> TYPENAME_STRING
  * @brief Joins the items of a TYPENAME_T into a single TYPENAME_STRING, separated by 'sep'.
  */
-#define NATIVE_LISTLIKE_JOIN_BODY(class)                                                               \
-  UNUSED(argc);                                                                                        \
-  NATIVE_CHECK_RECEIVER(class)                                                                         \
-  NATIVE_CHECK_ARG_AT(1, vm.str_class)                                                                 \
-                                                                                                       \
-  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                               \
-  ObjString* sep   = AS_STR(argv[1]);                                                                  \
-                                                                                                       \
-  size_t buf_size = 64; /* Start with a reasonable size */                                             \
-  char* chars     = malloc(buf_size);                                                                  \
-  chars[0]        = '\0'; /* Start with an empty string, so we can use strcat */                       \
-                                                                                                       \
-  for (int i = 0; i < items.count; i++) {                                                              \
-    /* Maybe this is faster (checking if the item is a string)  - unsure though */                     \
-    ObjString* item_str = NULL;                                                                        \
-    if (!is_str(items.values[i])) {                                                                    \
-      /* Execute the to_str method on the item */                                                      \
-      vm_push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                     \
-      item_str = AS_STR(vm_exec_callable(fn_value(items.values[i].type->__to_str), 0));                \
-      if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                            \
-        return nil_value();                                                                            \
-      }                                                                                                \
-    } else {                                                                                           \
-      item_str = AS_STR(items.values[i]);                                                              \
-    }                                                                                                  \
-                                                                                                       \
-    /* Expand chars to fit the separator plus the next item */                                         \
-    size_t new_buf_size = strlen(chars) + item_str->length + sep->length; /* Consider the separator */ \
-                                                                                                       \
-    /* Expand if necessary */                                                                          \
-    if (new_buf_size > buf_size) {                                                                     \
-      buf_size        = new_buf_size;                                                                  \
-      size_t old_size = strlen(chars);                                                                 \
-      chars           = realloc(chars, buf_size);                                                      \
-      chars[old_size] = '\0'; /* Ensure null-termination at the end of the old string */               \
-    }                                                                                                  \
-                                                                                                       \
-    /* Append the string */                                                                            \
-    strcat(chars, item_str->chars);                                                                    \
-    if (i < items.count - 1) {                                                                         \
-      strcat(chars, sep->chars);                                                                       \
-    }                                                                                                  \
-  }                                                                                                    \
-                                                                                                       \
-  /* Intuitively, you'd expect to use take_string here, but we don't know where malloc */              \
-  /* allocates the memory - we don't want this block in our own memory pool. */                        \
-  ObjString* str_obj = copy_string(chars, (int)strlen(chars));                                         \
-  free(chars);                                                                                         \
+#define NATIVE_LISTLIKE_JOIN_BODY(class)                                                                   \
+  UNUSED(argc);                                                                                            \
+  NATIVE_CHECK_RECEIVER(class)                                                                             \
+  NATIVE_CHECK_ARG_AT(1, vm.str_class)                                                                     \
+                                                                                                           \
+  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                                   \
+  ObjString* sep   = AS_STR(argv[1]);                                                                      \
+                                                                                                           \
+  size_t buf_size = 64; /* Start with a reasonable size */                                                 \
+  char* chars     = malloc(buf_size);                                                                      \
+  chars[0]        = '\0'; /* Start with an empty string, so we can use strcat */                           \
+                                                                                                           \
+  for (int i = 0; i < items.count; i++) {                                                                  \
+    /* Maybe this is faster (checking if the item is a string)  - unsure though */                         \
+    ObjString* item_str = NULL;                                                                            \
+    if (!is_str(items.values[i])) {                                                                        \
+      /* Execute the to_str method on the item */                                                          \
+      vm_push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                         \
+      item_str = AS_STR(vm_exec_callable(fn_value(items.values[i].type->__to_str), 0));                    \
+      if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                \
+        return nil_value();                                                                                \
+      }                                                                                                    \
+    } else {                                                                                               \
+      item_str = AS_STR(items.values[i]);                                                                  \
+    }                                                                                                      \
+                                                                                                           \
+    /* Expand chars to fit the separator plus the next item and null terminator */                         \
+    size_t new_buf_size = strlen(chars) + item_str->length + sep->length + 1; /* Consider the separator */ \
+                                                                                                           \
+    /* Expand if necessary */                                                                              \
+    if (new_buf_size > buf_size) {                                                                         \
+      buf_size        = new_buf_size;                                                                      \
+      size_t old_size = strlen(chars);                                                                     \
+      chars           = realloc(chars, buf_size);                                                          \
+      chars[old_size] = '\0'; /* Ensure null-termination at the end of the old string */                   \
+    }                                                                                                      \
+                                                                                                           \
+    /* Append the string */                                                                                \
+    strcat(chars, item_str->chars);                                                                        \
+    if (i < items.count - 1) {                                                                             \
+      strcat(chars, sep->chars);                                                                           \
+    }                                                                                                      \
+  }                                                                                                        \
+                                                                                                           \
+  /* Intuitively, you'd expect to use take_string here, but we don't know where malloc */                  \
+  /* allocates the memory - we don't want this block in our own memory pool. */                            \
+  ObjString* str_obj = copy_string(chars, (int)strlen(chars));                                             \
+  free(chars);                                                                                             \
   return str_value(str_obj);
 
 /**

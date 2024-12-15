@@ -7,11 +7,12 @@
 #define TOMBSTONE (Symbol*)1
 
 void scope_init(Scope* scope, Scope* enclosing) {
-  scope->count     = 0;
-  scope->capacity  = 0;
-  scope->entries   = NULL;
-  scope->depth     = enclosing == NULL ? 0 : enclosing->depth + 1;
-  scope->enclosing = enclosing;
+  scope->count       = 0;
+  scope->capacity    = 0;
+  scope->local_count = 0;
+  scope->entries     = NULL;
+  scope->depth       = enclosing == NULL ? 0 : enclosing->depth + 1;
+  scope->enclosing   = enclosing;
 }
 
 void scope_free(Scope* scope) {
@@ -33,13 +34,15 @@ CLEANUP:
   scope->capacity = 0;
 }
 
-Symbol* allocate_symbol(struct AstNode* source, SymbolType type, SymbolState state, bool is_const) {
-  Symbol* value   = malloc(sizeof(Symbol));
-  value->source   = source;
-  value->type     = type;
-  value->state    = state;
-  value->index    = 0;
-  value->is_const = is_const;
+Symbol* allocate_symbol(struct AstNode* source, SymbolType type, SymbolState state, bool is_const, bool is_param) {
+  Symbol* value      = malloc(sizeof(Symbol));
+  value->index       = -1;
+  value->source      = source;
+  value->type        = type;
+  value->state       = state;
+  value->is_const    = is_const;
+  value->is_captured = false;
+  value->is_param    = is_param;
   return value;
 }
 
@@ -102,7 +105,15 @@ static void adjust_capacity(Scope* scope, int new_capacity) {
   scope->entries  = entries;
   scope->capacity = new_capacity;
 }
-bool scope_add_new(Scope* scope, ObjString* key, struct AstNode* source, SymbolType type, SymbolState state, bool is_const) {
+
+bool scope_add_new(Scope* scope,
+                   ObjString* key,
+                   struct AstNode* source,
+                   SymbolType type,
+                   SymbolState state,
+                   bool is_const,
+                   bool is_param,
+                   Symbol** symbol) {
   // Grow scope if needed
   if (scope->count + 1 > scope->capacity * TABLE_MAX_LOAD) {
     int capacity = GROW_CAPACITY(scope->capacity);
@@ -112,20 +123,23 @@ bool scope_add_new(Scope* scope, ObjString* key, struct AstNode* source, SymbolT
   // Find entry
   SymbolEntry* entry = find_entry(scope->entries, scope->capacity, key);
 
-  // Track if this is a new entry
-  bool is_new_key = entry->key == NULL;
-  if (!is_new_key) {
+  // Not new
+  if (entry->key != NULL) {
+    *symbol = entry->value;
     return false;
   }
 
   // Store entry
-  Symbol* value = allocate_symbol(source, type, state, is_const);
-  value->index  = scope->count;
+  Symbol* value = allocate_symbol(source, type, state, is_const, is_param);
+  if (type == SYMBOL_LOCAL) {
+    value->index = scope->local_count++;
+  }
 
-  entry->key = key;
-  scope->count++;
+  scope->count++;  // Increment symbol count, independent of symbol type
+  entry->key   = key;
   entry->value = value;
 
+  *symbol = value;
   return true;
 }
 

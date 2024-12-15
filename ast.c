@@ -36,14 +36,32 @@ void ast_node_add_child(AstNode* parent, AstNode* child) {
   }
 }
 
-AstRoot* ast_root_init(Token start) {
-  AstRoot* root = (AstRoot*)ast_allocate_node(sizeof(AstRoot), NODE_ROOT, start, start);
-  root->globals = NULL;
-  return root;
+AstBlock* ast_block_init(Token start) {
+  AstBlock* block = (AstBlock*)ast_allocate_node(sizeof(AstBlock), NODE_BLOCK, start, start);
+  return block;
 }
 
-void ast_root_add_child(AstRoot* root, AstNode* child) {
-  ast_node_add_child((AstNode*)root, child);
+void ast_block_add(AstBlock* block, AstNode* decl_or_stmt) {
+  ast_node_add_child((AstNode*)block, decl_or_stmt);
+}
+
+static AstFn* ast_fn_init_(Token start, Token end, FnType type, AstId* name, AstDeclaration* params, AstNode* body) {
+  AstFn* fn         = (AstFn*)ast_allocate_node(sizeof(AstFn), NODE_FN, start, end);
+  fn->type          = type;
+  fn->upvalue_count = 0;
+
+  ast_node_add_child((AstNode*)fn, (AstNode*)name);
+  ast_node_add_child((AstNode*)fn, (AstNode*)params);
+  ast_node_add_child((AstNode*)fn, body);
+  return fn;
+}
+
+AstFn* ast_fn_init(Token start, Token end, FnType type, AstId* name, AstDeclaration* params, AstBlock* body) {
+  return ast_fn_init_(start, end, type, name, params, (AstNode*)body);
+}
+
+AstFn* ast_fn_init2(Token start, Token end, FnType type, AstId* name, AstDeclaration* params, AstExpression* body) {
+  return ast_fn_init_(start, end, type, name, params, (AstNode*)body);
 }
 
 AstId* ast_id_init(Token id, ObjString* name) {
@@ -60,7 +78,6 @@ AstId* ast_id_init(Token id, ObjString* name) {
 static AstDeclaration* ast_decl_init(Token start, Token end, DeclarationType type) {
   AstDeclaration* decl = (AstDeclaration*)ast_allocate_node(sizeof(AstDeclaration), NODE_DECL, start, end);
   decl->type           = type;
-  decl->fn_type        = FN_TYPE_UNKNOWN;
   decl->is_static      = false;
   decl->is_const       = false;
   return decl;
@@ -75,26 +92,10 @@ void ast_decl_fn_params_add_param(AstDeclaration* params, AstId* id) {
   ast_node_add_child((AstNode*)params, (AstNode*)id);
 }
 
-AstDeclaration* ast_decl_fn_init(Token start, Token end, AstId* name, FnType type, AstDeclaration* params, AstNode* body) {
-  AstDeclaration* fn = ast_decl_init(start, end, DECL_FN);
-  fn->fn_type        = type;
-  ast_node_add_child((AstNode*)fn, (AstNode*)name);
-  ast_node_add_child((AstNode*)fn, (AstNode*)params);
-  ast_node_add_child((AstNode*)fn, body);
-  return fn;
-}
-
-AstDeclaration* ast_decl_method_init(Token start, Token end, bool is_static, AstDeclaration* fn) {
-  AstDeclaration* method = ast_decl_init(start, end, DECL_METHOD);
-  method->is_static      = is_static;
-  ast_node_add_child((AstNode*)method, (AstNode*)fn);
-  return method;
-}
-
-AstDeclaration* ast_decl_ctor_init(Token start, Token end, AstDeclaration* fn) {
-  AstDeclaration* ctor = ast_decl_init(start, end, DECL_CTOR);
-  ast_node_add_child((AstNode*)ctor, (AstNode*)fn);
-  return ctor;
+AstDeclaration* ast_decl_fn_init(Token start, Token end, AstFn* fn) {
+  AstDeclaration* fn_ = ast_decl_init(start, end, DECL_FN);
+  ast_node_add_child((AstNode*)fn_, (AstNode*)fn);
+  return fn_;
 }
 
 AstDeclaration* ast_decl_class_init(Token start, Token end, AstId* name, AstId* baseclass_name) {
@@ -104,7 +105,7 @@ AstDeclaration* ast_decl_class_init(Token start, Token end, AstId* name, AstId* 
   return class_decl;
 }
 
-void ast_decl_class_add_method_or_ctor(AstDeclaration* class_decl, AstDeclaration* method_or_ctor) {
+void ast_decl_class_add_method_or_ctor(AstDeclaration* class_decl, AstFn* method_or_ctor) {
   ast_node_add_child((AstNode*)class_decl, (AstNode*)method_or_ctor);
 }
 
@@ -153,9 +154,10 @@ AstStatement* ast_stmt_import_init2(Token start, Token end, ObjString* path, Ast
   return stmt;
 }
 
-AstStatement* ast_stmt_block_init(Token start, Token end) {
-  AstStatement* block = ast_stmt_init(start, end, STMT_BLOCK);
-  return block;
+AstStatement* ast_stmt_block_init(Token start, Token end, AstBlock* block) {
+  AstStatement* block_ = ast_stmt_init(start, end, STMT_BLOCK);
+  ast_node_add_child((AstNode*)block_, (AstNode*)block);
+  return block_;
 }
 
 void ast_stmt_block_add_statement(AstStatement* block, AstNode* decl_or_stmt) {
@@ -365,7 +367,7 @@ AstExpression* ast_expr_base_init(Token start, Token end) {
   return ast_expr_init(start, end, EXPR_BASE);
 }
 
-AstExpression* ast_expr_lambda_init(Token start, Token end, AstDeclaration* fn) {
+AstExpression* ast_expr_lambda_init(Token start, Token end, AstFn* fn) {
   AstExpression* expr = ast_expr_init(start, end, EXPR_LAMBDA);
   ast_node_add_child((AstNode*)expr, (AstNode*)fn);
   return expr;
@@ -500,7 +502,7 @@ void ast_free(AstNode* node) {
 
 void ast_print(AstNode* node, int indent) {
   for (int i = 0; i < indent; i++) {
-    printf(":  ");
+    printf(ANSI_GRAY_STR(":  "));
   }
 
   if (node == NULL) {
@@ -573,12 +575,16 @@ void print_string_lit(const char* str, int max_len) {
 
 static void ast_node_print(AstNode* node) {
   switch (node->type) {
-    case NODE_ROOT: {
-      printf(STR(NODE_ROOT));
+    case NODE_BLOCK: {
+      printf(STR(NODE_BLOCK));
       break;
     }
     case NODE_ID: {
       printf(ANSI_MAGENTA_STR("%s"), ((AstId*)node)->name->chars);
+      break;
+    }
+    case NODE_FN: {
+      printf(STR(NODE_FN) ANSI_GREEN_STR(" %s"), ast_fn_type_to_str(((AstFn*)node)->type));
       break;
     }
     case NODE_DECL: {
@@ -586,8 +592,6 @@ static void ast_node_print(AstNode* node) {
         case DECL_FN: printf(STR(DECL_FN)); break;
         case DECL_FN_PARAMS: printf(STR(DECL_FN_PARAMS)); break;
         case DECL_CLASS: printf(STR(DECL_CLASS)); break;
-        case DECL_METHOD: printf(STR(DECL_METHOD)); break;
-        case DECL_CTOR: printf(STR(DECL_CTOR)); break;
         case DECL_VARIABLE:
           printf(STR(DECL_VARIABLE) ANSI_GREEN_STR(" %s"), ((AstDeclaration*)node)->is_const ? "const" : "mutable");
           break;
@@ -677,4 +681,18 @@ static void ast_node_print(AstNode* node) {
       break;
     }
   }
+}
+
+const char* ast_fn_type_to_str(FnType type) {
+  switch (type) {
+    case FN_TYPE_UNKNOWN: return "unknown";
+    case FN_TYPE_FUNCTION: return "function";
+    case FN_TYPE_CONSTRUCTOR: return "constructor";
+    case FN_TYPE_METHOD: return "method";
+    case FN_TYPE_METHOD_STATIC: return "static method";
+    case FN_TYPE_ANONYMOUS_FUNCTION: return "anonymous function";
+    case FN_TYPE_MODULE: return "module";
+    default: INTERNAL_ERROR("Unknown function type.");
+  }
+  return "unknown";
 }
