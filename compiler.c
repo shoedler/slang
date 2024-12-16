@@ -409,6 +409,11 @@ static ObjFunction* end_compiler() {
   if (!parser.had_error) {
     debug_disassemble_chunk(current_chunk(), function->name != NULL ? function->name->chars : "[Toplevel]");
 
+    // Print all locals
+    for (int i = 0; i < current->local_count; i++) {
+      printf("Local %d: %.*s\n", i, current->locals[i].name.length, current->locals[i].name.start);
+    }
+
     if (current->enclosing == NULL) {
       printf("\n== End of compilation ==\n\n");
     }
@@ -1412,8 +1417,7 @@ static void add_const_global(uint16_t global) {
 }
 
 // Adds an upvalue to the current compiler's upvalues array. Checks whether the upvalue is already in the array. If so, it returns
-// its index. Otherwise, it adds it to the array and returns the new index. Logs a compile error if the upvalue count exceeds the
-// maximum and returns 0.
+// its index. Otherwise, it adds it to the array and returns the new index.
 static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
   int upvalue_count = compiler->function->upvalue_count;
 
@@ -1445,7 +1449,7 @@ static void declare_local(Token* name, bool is_const) {
   for (int i = current->local_count - 1; i >= 0; i--) {
     Local* local = &current->locals[i];
     if (local->depth != -1 && local->depth < current->scope_depth) {
-      break;
+      break;  //
     }
 
     if (identifiers_equal(name, &local->name)) {

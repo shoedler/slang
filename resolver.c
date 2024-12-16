@@ -146,7 +146,8 @@ static void end_scope(FnResolver* resolver) {
       } else if (entry->value->type == SYMBOL_GLOBAL) {
         printf(ANSI_CYAN_STR("global"));
       } else if (entry->value->type == SYMBOL_LOCAL) {
-        printf(ANSI_CYAN_STR("local") " %d", entry->value->index);
+        printf(ANSI_CYAN_STR("local") " %d %s", entry->value->index,
+               entry->value->is_captured ? ("(" ANSI_GREEN_STR("captured") ")") : "");
       }
       printf("%s\n", entry->value->is_param ? " (param)" : "");
     }
@@ -163,6 +164,7 @@ static void end_scope(FnResolver* resolver) {
 #ifdef DEBUG_RESOLVER
       SymbolType type           = entry->value->type;
       bool ok_to_have_no_source = type == SYMBOL_NATIVE || type == SYMBOL_UPVALUE || type == SYMBOL_UPVALUE_OUTER;
+      UNUSED(ok_to_have_no_source);
       INTERNAL_ASSERT(ok_to_have_no_source, "Only natives can be unused without source");
 #endif
       continue;
@@ -266,7 +268,7 @@ static Symbol* try_get_local(FnResolver* resolver, ObjString* name) {
   // Stop at function scope, that's upvalue territory
   while (scope != NULL) {
     Symbol* sym = scope_get(scope, name);
-    if (sym != NULL) {
+    if (sym != NULL && sym->type == SYMBOL_LOCAL) {
       return sym;
     }
     if (scope == fn->base.scope) {
@@ -286,6 +288,9 @@ static Symbol* try_get_upvalue(FnResolver* resolver, ObjString* name) {
   Symbol* sym = try_get_local(resolver->enclosing, name);  // Check if it's a local in the enclosing scope
   if (sym != NULL) {
     sym->is_captured = true;
+    if (sym->index == 0) {
+      printf("Captured 'this' in upvalue with name '%s'\n", name->chars);
+    }
     return add_upvalue(resolver, name, sym->index, sym->state, sym->is_const, sym->is_param, true);
   }
 
@@ -418,6 +423,14 @@ static void resolve_assignment_target(FnResolver* resolver, AstExpression* targe
 }
 
 static void resolve_function(FnResolver* resolver, AstFn* fn) {
+  FnResolver subresolver;
+  resolver_init(&subresolver, resolver, fn);
+  if (fn->type == FN_TYPE_METHOD || fn->type == FN_TYPE_CONSTRUCTOR) {
+    inject_local(&subresolver, KEYWORD_THIS);  // Inject 'this' as the first local variable
+  } else if (!in_global_scope(&subresolver)) {
+    inject_local(&subresolver, "");  // Not accessible
+  }
+
   // Only functions actually declare their name in the scope they're defined in.
   // - methods and constructors are declared as part of the class scope and accessed via 'this'
   // - anonymous functions are not accessible by name - that's wy they're anonymous. duh.
@@ -425,14 +438,6 @@ static void resolve_function(FnResolver* resolver, AstFn* fn) {
     AstId* fn_name = get_child_as_id((AstNode*)fn, 0, false);
     declare_variable(resolver, fn_name, false);
     define_variable(resolver, fn_name);
-  }
-
-  FnResolver subresolver;
-  resolver_init(&subresolver, resolver, fn);
-  if (fn->type == FN_TYPE_METHOD || fn->type == FN_TYPE_CONSTRUCTOR) {
-    inject_local(&subresolver, KEYWORD_THIS);  // Inject 'this' as the first local variable
-  } else if (!in_global_scope(&subresolver)) {
-    inject_local(&subresolver, "");  // Not accessible
   }
 
 #ifdef DEBUG_RESOLVER

@@ -14,7 +14,6 @@ typedef struct FnCompiler FnCompiler;
 struct FnCompiler {
   struct FnCompiler* enclosing;
   AstFn* function;
-  Scope* current_scope;  // Current scope, can be a child scope of the [function]s scope
   ObjFunction* result;
 
   // Brake jumps need to be stored because we don't know the offset of the jump when we compile them.
@@ -39,7 +38,6 @@ static void compiler_init(FnCompiler* compiler, FnCompiler* enclosing, AstFn* fu
   compiler->result->upvalue_count   = function->upvalue_count;
   compiler->result->globals_context = globals_context;
   compiler->result->name            = ((AstId*)function->base.children[0])->name;
-  compiler->current_scope           = function->base.scope;
 
   compiler->brakes_count    = 0;
   compiler->brakes_capacity = 0;
@@ -337,12 +335,6 @@ static void compile_lit_obj(FnCompiler* compiler, AstLiteral* lit) {
 }
 
 static void compile_node(FnCompiler* compiler, AstNode* node) {
-  // Use the most recent scope
-  bool has_scope = node->scope != NULL;
-  if (has_scope) {
-    compiler->current_scope = node->scope;
-  }
-
   switch (node->type) {
     case NODE_BLOCK: compile_children(compiler, node); break;
     case NODE_FN: compile_function(compiler, (AstFn*)node); break;
@@ -422,19 +414,18 @@ static void compile_node(FnCompiler* compiler, AstNode* node) {
   }
 
   // Exit the scope, if we entered one.
-  if (has_scope) {
-    INTERNAL_ASSERT(compiler->current_scope == node->scope, "Scope mismatch.");
+  if (node->scope != NULL && node->type != NODE_FN) {
+    // No need to pop locals for functions, since they're popped when the function returns.
     // Since we're exiting a scope, we don't need its local variables anymore.
     // The ones who got captured by closures are still needed, and are going to need to live on the heap.
-    int current_local = compiler->current_scope->local_count - 1;
+    int current_local = node->scope->local_count - 1;
     while (current_local >= 0) {  // Only scopes that have locals are handled here.
-      int check = current_local;
-      for (int i = 0; i < compiler->current_scope->capacity; i++) {
-        SymbolEntry* entry = &compiler->current_scope->entries[i];
+      int before = current_local;
+      for (int i = 0; i < node->scope->capacity; i++) {
+        SymbolEntry* entry = &node->scope->entries[i];
         if (entry->key == NULL || entry->value->type != SYMBOL_LOCAL || entry->value->index != current_local) {
           continue;
         }
-        printf("Popping local %s\n", entry->key->chars);
         if (entry->value->is_captured) {
           emit_one(compiler, OP_CLOSE_UPVALUE, node);
         } else {
@@ -443,20 +434,16 @@ static void compile_node(FnCompiler* compiler, AstNode* node) {
         current_local--;
         break;
       }
-      if (check != current_local) {
-        continue;
-      }
-      INTERNAL_ASSERT(false, "No local variable found to pop.");
+      INTERNAL_ASSERT(before != current_local,
+                      "Could not find local variable. Something's wrong with indexing locals in the scope.");
     }
-
-    compiler->current_scope = compiler->current_scope->enclosing;
+  }
 
 #ifdef DEBUG_COMPILER
-    if (in_global_scope(compiler)) {  // We're at the top-level
-      printf("\n== End of compilation ==\n\n");
-    }
-#endif
+  if (in_global_scope(compiler)) {  // We're at the top-level
+    printf("\n== End of compilation ==\n\n");
   }
+#endif
 }
 
 void compile_children(FnCompiler* compiler, AstNode* node) {
