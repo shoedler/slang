@@ -35,14 +35,15 @@ CLEANUP:
 }
 
 Symbol* allocate_symbol(struct AstNode* source, SymbolType type, SymbolState state, bool is_const, bool is_param) {
-  Symbol* value      = malloc(sizeof(Symbol));
-  value->index       = -1;
-  value->source      = source;
-  value->type        = type;
-  value->state       = state;
-  value->is_const    = is_const;
-  value->is_captured = false;
-  value->is_param    = is_param;
+  Symbol* value         = malloc(sizeof(Symbol));
+  value->index          = -1;
+  value->function_index = -1;
+  value->source         = source;
+  value->type           = type;
+  value->state          = state;
+  value->is_const       = is_const;
+  value->is_captured    = false;
+  value->is_param       = is_param;
   return value;
 }
 

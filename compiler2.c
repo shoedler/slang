@@ -56,7 +56,7 @@ static ObjFunction* end_compiler(FnCompiler* compiler) {
     if (entry->key == NULL || entry->value->type != SYMBOL_LOCAL) {
       continue;
     }
-    printf("Local %d: %s\n", entry->value->index, entry->key->chars);
+    printf("Local %d: %s\n", entry->value->function_index, entry->key->chars);
   }
   printf("\n");
 #endif

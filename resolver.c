@@ -17,6 +17,8 @@ struct FnResolver {
   Scope* current_scope;  // Current scope, can be a child scope of the [function]s scope
   bool in_loop;
   bool in_class;
+  int function_local_count;  // Number of local variables in the current function, including its nested scopes. Used to set
+                             // function_index when resolving variables/upvalues
 
   // Track classes for base/this validation
   struct {
@@ -36,6 +38,7 @@ static void resolver_init(FnResolver* resolver, FnResolver* enclosing, AstFn* fn
   resolver->current_scope               = enclosing != NULL ? enclosing->current_scope : NULL;
   resolver->enclosing                   = enclosing;
   resolver->function                    = fn;
+  resolver->function_local_count        = 0;
   resolver->in_loop                     = enclosing != NULL ? enclosing->in_loop : false;
   resolver->in_class                    = enclosing != NULL ? enclosing->in_class : false;
   resolver->current_class.has_baseclass = enclosing != NULL ? enclosing->current_class.has_baseclass : false;
@@ -140,26 +143,35 @@ static void end_scope(FnResolver* resolver) {
       }
 
       if (entry->value->type == SYMBOL_UPVALUE) {
-        printf(ANSI_GREEN_STR("upvalue") " %d", entry->value->index);
+        printf(ANSI_GREEN_STR("upvalue") " %d", entry->value->function_index);
       } else if (entry->value->type == SYMBOL_UPVALUE_OUTER) {
-        printf(ANSI_GREEN_STR("upvalue_outer") " %d", entry->value->index);
+        printf(ANSI_GREEN_STR("upvalue_outer") " %d", entry->value->function_index);
+      } else if (entry->value->type == SYMBOL_LOCAL) {
+        printf(ANSI_CYAN_STR("local") " ");
+        printf("fn-idx=%d ", entry->value->function_index);
+        printf("local-idx=%d ", entry->value->index);
+        if (entry->value->is_captured) {
+          printf("(" ANSI_GREEN_STR("captured") ") ");
+        }
       } else if (entry->value->type == SYMBOL_GLOBAL) {
         printf(ANSI_CYAN_STR("global"));
-      } else if (entry->value->type == SYMBOL_LOCAL) {
-        printf(ANSI_CYAN_STR("local") " %d %s", entry->value->index,
-               entry->value->is_captured ? ("(" ANSI_GREEN_STR("captured") ")") : "");
       }
       printf("%s\n", entry->value->is_param ? " (param)" : "");
     }
   }
 #endif
 
-  // Warn about unused variables
+  // Reduce the function's local count by the number of locals in this scope
+  resolver->function_local_count -= resolver->current_scope->local_count;
+  INTERNAL_ASSERT(resolver->function_local_count >= 0, "Function local count should never be negative.");
+
+  // Check for unused variables
   for (int i = 0; i < resolver->current_scope->capacity; i++) {
     SymbolEntry* entry = &resolver->current_scope->entries[i];
     if (entry->key == NULL || entry->value->state == SYMSTATE_USED || entry->value->is_captured) {
       continue;
     }
+
     if (entry->value->source == NULL) {
 #ifdef DEBUG_RESOLVER
       SymbolType type           = entry->value->type;
@@ -175,23 +187,18 @@ static void end_scope(FnResolver* resolver) {
   resolver->current_scope = enclosing;
 }
 
-static Symbol* add_upvalue(FnResolver* resolver,
-                           ObjString* name,
-                           int index,
-                           SymbolState state,
-                           bool is_const,
-                           bool is_param,
-                           bool in_immediate_enclosing_fn) {
-  // Add the upvalue to the current scope
+static Symbol* add_upvalue(FnResolver* resolver, ObjString* name, Symbol* captured_symbol, bool in_immediate_enclosing_fn) {
   SymbolType upvalue_type = in_immediate_enclosing_fn ? SYMBOL_UPVALUE : SYMBOL_UPVALUE_OUTER;
+
   // Won't add a new upvalue if it already exists
   Symbol* upvalue = NULL;
-  if (scope_add_new(resolver->current_scope, name, NULL, upvalue_type, state, is_const, is_param, &upvalue)) {
-    INTERNAL_ASSERT(index >= 0, "Captured symbol should have an index.");
+  if (scope_add_new(resolver->current_scope, name, NULL, upvalue_type, captured_symbol->state, captured_symbol->is_const,
+                    captured_symbol->is_param, &upvalue)) {
+    INTERNAL_ASSERT(captured_symbol->function_index >= 0, "Captured symbol should have an index.");
     // It's a new one, so we add it to the function's upvalue list.
-    upvalue->index = resolver->function->upvalue_count;  // Set the index to the current upvalue count of this function
+    upvalue->function_index = resolver->function->upvalue_count;  // Set the index to the current upvalue count of this function
     resolver->function->upvalues[resolver->function->upvalue_count].is_local = in_immediate_enclosing_fn;
-    resolver->function->upvalues[resolver->function->upvalue_count].index    = index;
+    resolver->function->upvalues[resolver->function->upvalue_count].index    = captured_symbol->function_index;
     resolver->function->upvalue_count++;
     if (resolver->function->upvalue_count >= MAX_UPVALUES) {
       resolver_error((AstNode*)resolver->function,
@@ -202,23 +209,42 @@ static Symbol* add_upvalue(FnResolver* resolver,
   return upvalue;
 }
 
-// Declare a new variable in the current scope
-static void declare_variable(FnResolver* resolver, AstId* var, bool is_const) {
-  if (resolver->current_scope->local_count >= MAX_LOCALS) {
-    resolver_error((AstNode*)var, "Too many variables in scope.");
-    return;
+static Symbol* add_local(FnResolver* resolver, ObjString* name, AstId* var, SymbolState state, bool is_const, bool is_param) {
+  Symbol* local  = NULL;
+  ObjString* key = name == NULL ? var->name : name;
+  if (!scope_add_new(resolver->current_scope, key, (AstNode*)var, SYMBOL_LOCAL, state, is_const, is_param, &local)) {
+    if (is_param) {
+      resolver_error((AstNode*)var, "Parameter '%s' is already declared.", var->name->chars);
+    } else {
+      resolver_error((AstNode*)var, "Local variable '%s' is already declared.", var->name->chars);
+    }
+    return NULL;
   }
 
-  // Add the variable
-  SymbolType type = in_global_scope(resolver) ? SYMBOL_GLOBAL : SYMBOL_LOCAL;
-  Symbol* local   = NULL;
-  if (!scope_add_new(resolver->current_scope, var->name, (AstNode*)var, type, SYMSTATE_DECLARED, is_const, false /* is param */,
-                     &local)) {
+  // Set the function index of the local
+  local->function_index = resolver->function_local_count++;
+  if (resolver->function_local_count >= MAX_LOCALS) {
+    resolver_error((AstNode*)var, "Can't have more than " STR(MAX_LOCALS) " local variables total in one function.");
+  }
+  return local;
+}
+
+static Symbol* add_global(FnResolver* resolver, AstId* var, SymbolState state, bool is_const) {
+  Symbol* global = NULL;
+  if (!scope_add_new(resolver->current_scope, var->name, (AstNode*)var, SYMBOL_GLOBAL, state, is_const, false /* is param */,
+                     &global)) {
     resolver_error((AstNode*)var, "Variable '%s' is already declared.", var->name->chars);
   }
+  return global;
+}
 
+// Declare a new variable in the current scope
+static void declare_variable(FnResolver* resolver, AstId* var, bool is_const) {
   if (in_global_scope(resolver)) {
-    return;  // No need to add globals to the function's locals
+    add_global(resolver, var, SYMSTATE_DECLARED, is_const);
+
+  } else {
+    add_local(resolver, NULL, var, SYMSTATE_DECLARED, is_const, false /* is param */);
   }
 }
 
@@ -227,11 +253,7 @@ static void declare_define_parameter(FnResolver* resolver, AstId* param) {
   // Params are always locals and start their life as initialized, because currently there's no mechanism to assign them default
   // values.
   INTERNAL_ASSERT(!in_global_scope(resolver), "Parameters cannot be declared in global scope.");
-  Symbol* param_sym = NULL;
-  if (!scope_add_new(resolver->current_scope, param->name, (AstNode*)param, SYMBOL_LOCAL, SYMSTATE_INITIALIZED, false,
-                     true /* is param */, &param_sym)) {
-    resolver_error((AstNode*)param, "Parameter '%s' is already declared.", param->name->chars);
-  }
+  add_local(resolver, NULL, param, SYMSTATE_INITIALIZED, false, true /* is param */);
 }
 
 // Define a previously declared variable in the current scope
@@ -251,13 +273,12 @@ static void define_variable(FnResolver* resolver, AstId* var) {
 // synthetic 'this' variable, because that has to be manually inserted into slot 0 of the function's locals.
 static Symbol* inject_local(FnResolver* resolver, const char* name) {
   ObjString* name_str = copy_string(name, strlen(name));
-
-  Symbol* local = NULL;
-  if (!scope_add_new(resolver->current_scope, name_str, NULL, SYMBOL_LOCAL, SYMSTATE_USED, false, false /* is param */, &local)) {
+  Symbol* var         = add_local(resolver, name_str, NULL, SYMSTATE_USED, false, false /* is param */);
+  if (var == NULL) {
     INTERNAL_ERROR("Could not inject synthetic variable into scope.");
   }
 
-  return local;
+  return var;
 }
 
 static Symbol* try_get_local(FnResolver* resolver, ObjString* name) {
@@ -288,15 +309,12 @@ static Symbol* try_get_upvalue(FnResolver* resolver, ObjString* name) {
   Symbol* sym = try_get_local(resolver->enclosing, name);  // Check if it's a local in the enclosing scope
   if (sym != NULL) {
     sym->is_captured = true;
-    if (sym->index == 0) {
-      printf("Captured 'this' in upvalue with name '%s'\n", name->chars);
-    }
-    return add_upvalue(resolver, name, sym->index, sym->state, sym->is_const, sym->is_param, true);
+    return add_upvalue(resolver, name, sym, true);
   }
 
   sym = try_get_upvalue(resolver->enclosing, name);
   if (sym != NULL) {
-    return add_upvalue(resolver, name, sym->index, sym->state, sym->is_const, sym->is_param, false);
+    return add_upvalue(resolver, name, sym, false);
   }
 
   return NULL;
@@ -311,6 +329,16 @@ static void resolve_variable(FnResolver* resolver, AstId* var) {
     goto FOUND;
   }
   sym = try_get_upvalue(resolver, var->name);
+  if (sym != NULL) {
+    goto FOUND;
+  }
+
+  // Globals
+  Scope* global_scope = resolver->function->base.scope;
+  while (global_scope->enclosing != NULL) {
+    global_scope = global_scope->enclosing;
+  }
+  sym = scope_get(global_scope, var->name);
   if (sym != NULL) {
     goto FOUND;
   }

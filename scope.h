@@ -26,10 +26,12 @@ typedef struct {
   struct AstNode* source;  // Source node where the symbol was declared
   SymbolType type;         // Type of the symbol
   SymbolState state;       // State of the symbol
-  int index;         // Index of the symbol the scope's locals, or the index in the functions upvalue list. -1 if not applicable
-  bool is_const;     // Whether the symbol represents a constant
-  bool is_captured;  // Whether the symbol is captured by an upvalue
-  bool is_param;     // Whether the symbol is a function parameter
+  int index;               // Internal index of the symbol this scopes locals. -1 if not applicable
+  int function_index;  // Index in the functions locals, including its nested scopes. Or, index in the functions upvalue list. -1
+                       // if not applicable
+  bool is_const;       // Whether the symbol represents a constant
+  bool is_captured;    // Whether the symbol is captured by an upvalue
+  bool is_param;       // Whether the symbol is a function parameter
 } Symbol;
 
 // Entry in the scope's hashtable

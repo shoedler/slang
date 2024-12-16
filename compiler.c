@@ -1375,7 +1375,7 @@ static int resolve_upvalue(Compiler* compiler, Token* name, bool* is_const) {
     return add_upvalue(compiler, (uint16_t)local, true);
   }
 
-  // Recurse on upper scopes (compilers) to maybe find the variable there
+  // Recurse on upper functions (compilers) to maybe find the variable there
   bool is_upvalue_const = false;
   int upvalue           = resolve_upvalue(compiler->enclosing, name, &is_upvalue_const);
   if (upvalue != -1) {
