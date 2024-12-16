@@ -271,9 +271,9 @@ static void define_variable(FnResolver* resolver, AstId* var) {
 // Inject a synthetic local variable into the current scope. Is injected as used, local and mutable.
 // [add_to_fn] determines whether the synthetic variable should be added to the function's local list, which is only false for the
 // synthetic 'this' variable, because that has to be manually inserted into slot 0 of the function's locals.
-static Symbol* inject_local(FnResolver* resolver, const char* name) {
+static Symbol* inject_local(FnResolver* resolver, const char* name, bool is_const) {
   ObjString* name_str = copy_string(name, strlen(name));
-  Symbol* var         = add_local(resolver, name_str, NULL, SYMSTATE_USED, false, false /* is param */);
+  Symbol* var         = add_local(resolver, name_str, NULL, SYMSTATE_USED, is_const, false /* is param */);
   if (var == NULL) {
     INTERNAL_ERROR("Could not inject synthetic variable into scope.");
   }
@@ -454,9 +454,9 @@ static void resolve_function(FnResolver* resolver, AstFn* fn) {
   FnResolver subresolver;
   resolver_init(&subresolver, resolver, fn);
   if (fn->type == FN_TYPE_METHOD || fn->type == FN_TYPE_CONSTRUCTOR) {
-    inject_local(&subresolver, KEYWORD_THIS);  // Inject 'this' as the first local variable
+    inject_local(&subresolver, KEYWORD_THIS, true);  // Inject 'this' as the first local variable
   } else if (!in_global_scope(&subresolver)) {
-    inject_local(&subresolver, "");  // Not accessible
+    inject_local(&subresolver, "", true);  // Not accessible
   }
 
   // Only functions actually declare their name in the scope they're defined in.
@@ -537,7 +537,7 @@ static void resolve_declare_class(FnResolver* resolver, AstDeclaration* decl) {
   // Create the class scope
   decl->base.scope = new_scope(resolver);
   if (resolver->current_class.has_baseclass) {
-    inject_local(resolver, KEYWORD_BASE);
+    inject_local(resolver, KEYWORD_BASE, true);
   }
 
   for (int i = 2; i < decl->base.count; i++) {
@@ -655,7 +655,7 @@ static void resolve_statement_throw(FnResolver* resolver, AstStatement* stmt) {
 
 static void resolve_statement_try(FnResolver* resolver, AstStatement* stmt) {
   stmt->base.scope = new_scope(resolver);
-  inject_local(resolver, KEYWORD_ERROR);
+  inject_local(resolver, KEYWORD_ERROR, false);
   resolve_children(resolver, (AstNode*)stmt);
   end_scope(resolver);
 }
@@ -756,7 +756,7 @@ static void resolve_expr_base(FnResolver* resolver, AstExpression* expr) {
   }
 }
 
-static void resolve_expr_lambda(FnResolver* resolver, AstExpression* expr) {
+static void resolve_expr_anon_fn(FnResolver* resolver, AstExpression* expr) {
   resolve_function(resolver, (AstFn*)expr->base.children[0]);
 }
 
@@ -766,7 +766,7 @@ static void resolve_expr_ternary(FnResolver* resolver, AstExpression* expr) {
 
 static void resolve_expr_try(FnResolver* resolver, AstExpression* expr) {
   expr->base.scope = new_scope(resolver);
-  inject_local(resolver, KEYWORD_ERROR);
+  inject_local(resolver, KEYWORD_ERROR, false);
   resolve_children(resolver, (AstNode*)expr);
   end_scope(resolver);
 }
@@ -858,7 +858,7 @@ static void resolve_node(FnResolver* resolver, AstNode* node) {
         case EXPR_SLICE: resolve_expr_slice(resolver, expr); break;
         case EXPR_THIS: resolve_expr_this(resolver, expr); break;
         case EXPR_BASE: resolve_expr_base(resolver, expr); break;
-        case EXPR_LAMBDA: resolve_expr_lambda(resolver, expr); break;
+        case EXPR_ANONYMOUS_FN: resolve_expr_anon_fn(resolver, expr); break;
         case EXPR_TERNARY: resolve_expr_ternary(resolver, expr); break;
         case EXPR_TRY: resolve_expr_try(resolver, expr); break;
         default: INTERNAL_ERROR("Unhandled expression type."); break;
@@ -898,7 +898,7 @@ void resolve(AstFn* root) {
   printf("\n\n\n === RESOLVE ===\n\n");
 #endif
   resolver_init(&resolver, NULL, root);
-  inject_local(&resolver, "");  // Not accessible
+  inject_local(&resolver, "", true);  // Not accessible
   // Skip the first and second children, which are the name and parameters
   INTERNAL_ASSERT(root->base.count == 3, "Function should have exactly 3 children.");
   resolve_node(&resolver, root->base.children[2]);

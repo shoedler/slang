@@ -33,26 +33,26 @@ typedef enum {
 } StatementType;
 
 typedef enum {
-  EXPR_BINARY,    // Binary operation (+, -, *, /, etc)
-  EXPR_POSTFIX,   // Postfix inc/dec (x++, x--)
-  EXPR_UNARY,     // Unary operation (!, -) and prefix inc/dec (++x, --x)
-  EXPR_GROUPING,  // Parenthesized expression
-  EXPR_LITERAL,   // Literal value
-  EXPR_VARIABLE,  // Variable reference
-  EXPR_ASSIGN,    // Assignment
-  EXPR_AND,       // Logical AND
-  EXPR_OR,        // Logical OR
-  EXPR_IS,        // Type check
-  EXPR_IN,        // Contains check
-  EXPR_CALL,      // Function call
-  EXPR_DOT,       // Property access
-  EXPR_SUBS,      // Subscript access
-  EXPR_SLICE,     // Get slice
-  EXPR_THIS,      // This expression
-  EXPR_BASE,      // Base class reference
-  EXPR_LAMBDA,    // Anonymous function
-  EXPR_TERNARY,   // Ternary operation (?:)
-  EXPR_TRY,       // Try expression
+  EXPR_BINARY,        // Binary operation (+, -, *, /, etc)
+  EXPR_POSTFIX,       // Postfix inc/dec (x++, x--)
+  EXPR_UNARY,         // Unary operation (!, -) and prefix inc/dec (++x, --x)
+  EXPR_GROUPING,      // Parenthesized expression
+  EXPR_LITERAL,       // Literal value
+  EXPR_VARIABLE,      // Variable reference
+  EXPR_ASSIGN,        // Assignment
+  EXPR_AND,           // Logical AND
+  EXPR_OR,            // Logical OR
+  EXPR_IS,            // Type check
+  EXPR_IN,            // Contains check
+  EXPR_CALL,          // Function call
+  EXPR_DOT,           // Property access
+  EXPR_SUBS,          // Subscript access
+  EXPR_SLICE,         // Get slice
+  EXPR_THIS,          // This expression
+  EXPR_BASE,          // Base class reference
+  EXPR_ANONYMOUS_FN,  // Anonymous function
+  EXPR_TERNARY,       // Ternary operation (?:)
+  EXPR_TRY,           // Try expression
 } ExpressionType;
 
 typedef enum {
@@ -134,6 +134,7 @@ struct AstFn {
   Upvalue upvalues[MAX_UPVALUES];
   int upvalue_count;  // Number of upvalues in the function, including sub-scopes
   FnType type;
+  bool is_lambda;  // True if the function is a lambda function
 };
 
 AstFn* ast_fn_init(Token start, Token end, FnType type, AstId* name, AstDeclaration* params, AstBlock* body);
@@ -202,7 +203,7 @@ AstStatement* ast_stmt_expr_init(Token start, Token end, AstExpression* expressi
 AstStatement* ast_stmt_break_init(Token start, Token end);
 AstStatement* ast_stmt_skip_init(Token start, Token end);
 AstStatement* ast_stmt_throw_init(Token start, Token end, AstExpression* expression);
-AstStatement* ast_stmt_try_init(Token start, Token end, AstStatement* try_block, AstStatement* catch_block);
+AstStatement* ast_stmt_try_init(Token start, Token end, AstStatement* try_stmt, AstStatement* catch_stmt);
 
 //
 // Expressions
@@ -236,7 +237,7 @@ AstExpression* ast_expr_slice_init(Token start,
                                    AstExpression* end_index);
 AstExpression* ast_expr_this_init(Token start, Token end);
 AstExpression* ast_expr_base_init(Token start, Token end);
-AstExpression* ast_expr_lambda_init(Token start, Token end, AstFn* fn);
+AstExpression* ast_expr_anon_fn_init(Token start, Token end, AstFn* fn);
 AstExpression* ast_expr_ternary_init(Token start,
                                      Token end,
                                      AstExpression* condition,

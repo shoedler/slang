@@ -49,6 +49,7 @@ static AstFn* ast_fn_init_(Token start, Token end, FnType type, AstId* name, Ast
   AstFn* fn         = (AstFn*)ast_allocate_node(sizeof(AstFn), NODE_FN, start, end);
   fn->type          = type;
   fn->upvalue_count = 0;
+  fn->is_lambda     = false;
 
   ast_node_add_child((AstNode*)fn, (AstNode*)name);
   ast_node_add_child((AstNode*)fn, (AstNode*)params);
@@ -61,7 +62,9 @@ AstFn* ast_fn_init(Token start, Token end, FnType type, AstId* name, AstDeclarat
 }
 
 AstFn* ast_fn_init2(Token start, Token end, FnType type, AstId* name, AstDeclaration* params, AstExpression* body) {
-  return ast_fn_init_(start, end, type, name, params, (AstNode*)body);
+  AstFn* fn     = ast_fn_init_(start, end, type, name, params, (AstNode*)body);
+  fn->is_lambda = true;
+  return fn;
 }
 
 AstId* ast_id_init(Token id, ObjString* name) {
@@ -229,10 +232,10 @@ AstStatement* ast_stmt_throw_init(Token start, Token end, AstExpression* express
   return stmt;
 }
 
-AstStatement* ast_stmt_try_init(Token start, Token end, AstStatement* try_block, AstStatement* catch_block) {
+AstStatement* ast_stmt_try_init(Token start, Token end, AstStatement* try_stmt, AstStatement* catch_stmt) {
   AstStatement* stmt = ast_stmt_init(start, end, STMT_TRY);
-  ast_node_add_child((AstNode*)stmt, (AstNode*)try_block);
-  ast_node_add_child((AstNode*)stmt, (AstNode*)catch_block);
+  ast_node_add_child((AstNode*)stmt, (AstNode*)try_stmt);
+  ast_node_add_child((AstNode*)stmt, (AstNode*)catch_stmt);
   return stmt;
 }
 
@@ -367,8 +370,8 @@ AstExpression* ast_expr_base_init(Token start, Token end) {
   return ast_expr_init(start, end, EXPR_BASE);
 }
 
-AstExpression* ast_expr_lambda_init(Token start, Token end, AstFn* fn) {
-  AstExpression* expr = ast_expr_init(start, end, EXPR_LAMBDA);
+AstExpression* ast_expr_anon_fn_init(Token start, Token end, AstFn* fn) {
+  AstExpression* expr = ast_expr_init(start, end, EXPR_ANONYMOUS_FN);
   ast_node_add_child((AstNode*)expr, (AstNode*)fn);
   return expr;
 }
@@ -636,7 +639,7 @@ static void ast_node_print(AstNode* node) {
         case EXPR_SLICE: printf(STR(EXPR_SLICE)); break;
         case EXPR_THIS: printf(STR(EXPR_THIS)); break;
         case EXPR_BASE: printf(STR(EXPR_BASE)); break;
-        case EXPR_LAMBDA: printf(STR(EXPR_LAMBDA)); break;
+        case EXPR_ANONYMOUS_FN: printf(STR(EXPR_ANONYMOUS_FN)); break;
         case EXPR_TERNARY: printf(STR(EXPR_TERNARY)); break;
         case EXPR_TRY: printf(STR(EXPR_TRY)); break;
         default: printf(ANSI_RED_STR("EXPR_UNKNOWN %d"), node->type); break;

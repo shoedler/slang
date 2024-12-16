@@ -416,7 +416,7 @@ static AstExpression* parse_expr_anon_fn(Parser2* parser, Token expr_start, bool
   UNUSED(can_assign);
   Token name = synthetic_token("$anon_fn$");
   AstFn* fn  = parse_function(parser, expr_start, name, FN_TYPE_ANONYMOUS_FUNCTION);
-  return ast_expr_lambda_init(expr_start, parser->previous, fn);
+  return ast_expr_anon_fn_init(expr_start, parser->previous, fn);
 }
 
 static AstExpression* parse_expr_base(Parser2* parser, Token expr_start, bool can_assign) {
@@ -994,8 +994,7 @@ static AstDeclaration* parse_fn_params(Parser2* parser) {
 
 // Consolidated function for parsing a function declaration. Named, anonymous, method, constructor.
 static AstFn* parse_function(Parser2* parser, Token decl_start, Token name, FnType type) {
-  AstId* fn_name = ast_id_init(decl_start, copy_string(name.start, name.length));
-
+  AstId* fn_name         = ast_id_init(decl_start, copy_string(name.start, name.length));
   AstDeclaration* params = parse_fn_params(parser);
 
   if (match(parser, TOKEN_LAMBDA)) {

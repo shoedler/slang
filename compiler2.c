@@ -128,11 +128,45 @@ static void emit_return(FnCompiler* compiler, AstNode* source) {
   emit_one(compiler, OP_RETURN, source);
 }
 
+static void emit_constant(FnCompiler* compiler, Value value, AstNode* source) {
+  emit_two(compiler, OP_CONSTANT, make_constant(compiler, value, source), source);
+}
+
+// Emits a jump instruction and returns the offset of the jump instruction. Along with the emitted jump instruction, a 16-bit
+// placeholder for the operand is emitted.
+static int emit_jump(FnCompiler* compiler, uint16_t instruction, AstNode* source) {
+  emit_one(compiler, instruction, source);
+  emit_one(compiler, UINT16_MAX, source);
+  return compiler->result->chunk.count - 1;
+}
+
+// Patches a previously emitted jump instruction with the actual jump offset. The offset is calculated by subtracting the current
+// chunk's count from the offset of the jump instruction.
+static void patch_jump(FnCompiler* compiler, int offset) {
+  // -1 to adjust for the bytecode for the jump offset itself.
+  int jump = compiler->result->chunk.count - offset - 1;
+
+  if (jump > MAX_JUMP) {
+    compiler_error((AstNode*)compiler->function, "Too much code to jump over, cannot jump over %d opcodes. Max is " STR(MAX_JUMP),
+                   jump);
+  }
+
+  compiler->result->chunk.code[offset] = (uint16_t)jump;
+}
+
+//
+// Important stuff
+//
+
 // Compiles a function.
 static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
   FnCompiler subcompiler;
   compiler_init(&subcompiler, compiler, fn, compiler->result->globals_context);
+
   compile_children(&subcompiler, (AstNode*)fn);
+  if (fn->is_lambda) {
+    emit_one(&subcompiler, OP_RETURN, (AstNode*)fn);
+  }
 
   ObjFunction* function = end_compiler(&subcompiler);
   emit_two(compiler, OP_CLOSURE, make_constant(compiler, fn_value((Obj*)function), (AstNode*)fn), (AstNode*)fn);
@@ -187,32 +221,53 @@ static void compile_statement_for(FnCompiler* compiler, AstStatement* stmt) {
   compile_children(compiler, (AstNode*)stmt);
 }
 static void compile_statement_return(FnCompiler* compiler, AstStatement* stmt) {
-  printf("compiling statement\n");
-  compile_children(compiler, (AstNode*)stmt);
+  AstNode* expr = stmt->base.children[0];
+  if (expr != NULL) {
+    compile_node(compiler, expr);
+    emit_one(compiler, OP_RETURN, expr);
+  } else {
+    emit_return(compiler, (AstNode*)stmt);
+  }
 }
 static void compile_statement_print(FnCompiler* compiler, AstStatement* stmt) {
-  printf("compiling statement\n");
-  compile_children(compiler, (AstNode*)stmt);
+  AstNode* expr = stmt->base.children[0];
+  compile_node(compiler, expr);
+  emit_one(compiler, OP_PRINT, expr);
 }
 static void compile_statement_expr(FnCompiler* compiler, AstStatement* stmt) {
-  printf("compiling statement\n");
-  compile_children(compiler, (AstNode*)stmt);
+  AstNode* expr = stmt->base.children[0];
+  compile_node(compiler, expr);
+  emit_one(compiler, OP_POP, expr);
 }
 static void compile_statement_break(FnCompiler* compiler, AstStatement* stmt) {
   printf("compiling statement\n");
   compile_children(compiler, (AstNode*)stmt);
 }
 static void compile_statement_skip(FnCompiler* compiler, AstStatement* stmt) {
+  // INTERNAL_ASSERT(compiler->innermost_loop_start != -1, "Skip statement outside of loop. That's resolver business.");
   printf("compiling statement\n");
   compile_children(compiler, (AstNode*)stmt);
 }
 static void compile_statement_throw(FnCompiler* compiler, AstStatement* stmt) {
-  printf("compiling statement\n");
-  compile_children(compiler, (AstNode*)stmt);
+  AstNode* expr = stmt->base.children[0];
+  compile_node(compiler, expr);
+  emit_one(compiler, OP_THROW, expr);
 }
 static void compile_statement_try(FnCompiler* compiler, AstStatement* stmt) {
-  printf("compiling statement\n");
-  compile_children(compiler, (AstNode*)stmt);
+  AstNode* try_stmt   = stmt->base.children[0];
+  AstNode* catch_stmt = stmt->base.children[1];
+
+  int try_jump = emit_jump(compiler, OP_TRY, (AstNode*)stmt);
+  compile_node(compiler, try_stmt);  // Try statement
+
+  // If the try stmt was successful, skip the catch stmt.
+  int success_jump = emit_jump(compiler, OP_JUMP, try_stmt);
+  patch_jump(compiler, try_jump);
+
+  if (catch_stmt != NULL) {
+    compile_node(compiler, catch_stmt);  // Catch statement
+  }
+  patch_jump(compiler, success_jump);  // Skip the catch block if the try block was successful.
 }
 
 //
@@ -220,10 +275,37 @@ static void compile_statement_try(FnCompiler* compiler, AstStatement* stmt) {
 //
 
 static void compile_expr_binary(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstNode* left  = expr->base.children[0];
+  AstNode* right = expr->base.children[1];
+
+  compile_node(compiler, left);
+  compile_node(compiler, right);
+  switch (expr->operator_.type) {
+    case TOKEN_NEQ: emit_one(compiler, OP_NEQ, (AstNode*)expr); break;
+    case TOKEN_EQ: emit_one(compiler, OP_EQ, (AstNode*)expr); break;
+    case TOKEN_GT: emit_one(compiler, OP_GT, (AstNode*)expr); break;
+    case TOKEN_GTEQ: emit_one(compiler, OP_GTEQ, (AstNode*)expr); break;
+    case TOKEN_LT: emit_one(compiler, OP_LT, (AstNode*)expr); break;
+    case TOKEN_LTEQ: emit_one(compiler, OP_LTEQ, (AstNode*)expr); break;
+    case TOKEN_PLUS: emit_one(compiler, OP_ADD, (AstNode*)expr); break;
+    case TOKEN_MINUS: emit_one(compiler, OP_SUBTRACT, (AstNode*)expr); break;
+    case TOKEN_MULT: emit_one(compiler, OP_MULTIPLY, (AstNode*)expr); break;
+    case TOKEN_DIV: emit_one(compiler, OP_DIVIDE, (AstNode*)expr); break;
+    case TOKEN_MOD: emit_one(compiler, OP_MODULO, (AstNode*)expr); break;
+    default: INTERNAL_ERROR("Unhandled binary operator type: %d", expr->operator_.type); break;
+  }
 }
 static void compile_expr_postfix(FnCompiler* compiler, AstExpression* expr) {
+  // AstNode* inner = expr->base.children[0];
+
+  // compile_node(compiler, inner);
+  // emit_constant(compiler, int_value(1), (AstNode*)expr);
+  // switch (expr->operator_.type) {
+  //   case TOKEN_PLUS_PLUS: emit_one(compiler, OP_ADD, (AstNode*)expr); break;
+  //   case TOKEN_MINUS_MINUS: emit_one(compiler, OP_SUBTRACT, (AstNode*)expr); break;
+  //   default: INTERNAL_ERROR("Unhandled postfix operator type: %d", expr->operator_.type); break;
+  // }
+  // TODO: Emit the set instruction.
   printf("compiling expression\n");
   compile_children(compiler, (AstNode*)expr);
 }
@@ -232,11 +314,9 @@ static void compile_expr_unary(FnCompiler* compiler, AstExpression* expr) {
   compile_children(compiler, (AstNode*)expr);
 }
 static void compile_expr_grouping(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
   compile_children(compiler, (AstNode*)expr);
 }
 static void compile_expr_literal(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
   compile_children(compiler, (AstNode*)expr);
 }
 static void compile_expr_variable(FnCompiler* compiler, AstExpression* expr) {
@@ -249,20 +329,45 @@ static void compile_expr_assign(FnCompiler* compiler, AstExpression* expr) {
   compile_children(compiler, (AstNode*)expr);
 }
 static void compile_expr_and(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstNode* left  = expr->base.children[0];
+  AstNode* right = expr->base.children[1];
+
+  compile_node(compiler, left);
+  int end_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, left);
+  emit_one(compiler, OP_POP, left);  // Discard the left value.
+
+  compile_node(compiler, right);
+  patch_jump(compiler, end_jump);
 }
 static void compile_expr_or(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstNode* left  = expr->base.children[0];
+  AstNode* right = expr->base.children[1];
+
+  compile_node(compiler, left);
+  int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, left);
+  int end_jump  = emit_jump(compiler, OP_JUMP, left);
+
+  patch_jump(compiler, else_jump);
+  emit_one(compiler, OP_POP, left);  // Discard the left value.
+
+  compile_node(compiler, right);
+  patch_jump(compiler, end_jump);
 }
 static void compile_expr_is(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstNode* left  = expr->base.children[0];
+  AstNode* right = expr->base.children[1];
+
+  compile_node(compiler, left);
+  compile_node(compiler, right);
+  emit_one(compiler, OP_IS, (AstNode*)expr);
 }
 static void compile_expr_in(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstNode* left  = expr->base.children[0];
+  AstNode* right = expr->base.children[1];
+
+  compile_node(compiler, left);
+  compile_node(compiler, right);
+  emit_one(compiler, OP_IN, (AstNode*)expr);
 }
 static void compile_expr_call(FnCompiler* compiler, AstExpression* expr) {
   printf("compiling expression\n");
@@ -288,17 +393,49 @@ static void compile_expr_base(FnCompiler* compiler, AstExpression* expr) {
   printf("compiling expression\n");
   compile_children(compiler, (AstNode*)expr);
 }
-static void compile_expr_lambda(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+static void compile_expr_anon_fn(FnCompiler* compiler, AstExpression* expr) {
+  compile_function(compiler, (AstFn*)expr->base.children[0]);
 }
 static void compile_expr_ternary(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstNode* condition    = expr->base.children[0];
+  AstNode* true_branch  = expr->base.children[1];
+  AstNode* false_branch = expr->base.children[2];
+
+  compile_node(compiler, condition);  // Condition
+  int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, condition);
+  emit_one(compiler, OP_POP, condition);  // Discard the condition.
+
+  compile_node(compiler, true_branch);  // True branch
+  int end_jump = emit_jump(compiler, OP_JUMP, true_branch);
+
+  patch_jump(compiler, else_jump);
+  emit_one(compiler, OP_POP, true_branch);  // Discard the true branch.
+
+  compile_node(compiler, false_branch);  // False branch
+  patch_jump(compiler, end_jump);
 }
 static void compile_expr_try(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstNode* try_expr   = expr->base.children[0];
+  AstNode* catch_expr = expr->base.children[1];
+
+  int error_index = scope_get(expr->base.scope, copy_string(KEYWORD_ERROR, STR_LEN(KEYWORD_ERROR)))
+                        ->function_index;  // TODO (optimize): Use lookup with cached string.
+
+  int try_jump = emit_jump(compiler, OP_TRY, (AstNode*)expr);
+  compile_node(compiler, try_expr);                         // Try expression
+  emit_two(compiler, OP_SET_LOCAL, error_index, try_expr);  // Set the error variable to the result of the try expression.
+
+  // If the try block was successful, skip the catch block.
+  int success_jump = emit_jump(compiler, OP_JUMP, try_expr);
+  patch_jump(compiler, try_jump);
+
+  if (catch_expr == NULL) {
+    emit_one(compiler, OP_NIL, try_expr);  // Push nil as the "else" value.
+  } else {
+    compile_node(compiler, catch_expr);  // Catch expression
+  }
+  emit_two(compiler, OP_SET_LOCAL, error_index, (AstNode*)expr);  // Set the error variable to the result of the catch expression.
+  patch_jump(compiler, success_jump);                             // Skip the catch block if the try block was successful.
 }
 
 //
@@ -306,32 +443,28 @@ static void compile_expr_try(FnCompiler* compiler, AstExpression* expr) {
 //
 
 static void compile_lit_number(FnCompiler* compiler, AstLiteral* lit) {
-  printf("compiling literal\n");
-  compile_children(compiler, (AstNode*)lit);
+  emit_constant(compiler, lit->value, (AstNode*)lit);
 }
 static void compile_lit_string(FnCompiler* compiler, AstLiteral* lit) {
-  printf("compiling literal\n");
-  compile_children(compiler, (AstNode*)lit);
+  emit_constant(compiler, lit->value, (AstNode*)lit);
 }
 static void compile_lit_bool(FnCompiler* compiler, AstLiteral* lit) {
-  printf("compiling literal\n");
-  compile_children(compiler, (AstNode*)lit);
+  emit_one(compiler, lit->value.as.boolean ? OP_TRUE : OP_FALSE, (AstNode*)lit);
 }
 static void compile_lit_nil(FnCompiler* compiler, AstLiteral* lit) {
-  printf("compiling literal\n");
-  compile_children(compiler, (AstNode*)lit);
+  emit_one(compiler, OP_NIL, (AstNode*)lit);
 }
 static void compile_lit_tuple(FnCompiler* compiler, AstLiteral* lit) {
-  printf("compiling literal\n");
   compile_children(compiler, (AstNode*)lit);
+  emit_two(compiler, OP_TUPLE_LITERAL, (uint16_t)lit->base.count, (AstNode*)lit);
 }
 static void compile_lit_seq(FnCompiler* compiler, AstLiteral* lit) {
-  printf("compiling literal\n");
   compile_children(compiler, (AstNode*)lit);
+  emit_two(compiler, OP_SEQ_LITERAL, (uint16_t)lit->base.count, (AstNode*)lit);
 }
 static void compile_lit_obj(FnCompiler* compiler, AstLiteral* lit) {
-  printf("compiling literal\n");
   compile_children(compiler, (AstNode*)lit);
+  emit_two(compiler, OP_OBJECT_LITERAL, (uint16_t)lit->base.count, (AstNode*)lit);
 }
 
 static void compile_node(FnCompiler* compiler, AstNode* node) {
@@ -389,7 +522,7 @@ static void compile_node(FnCompiler* compiler, AstNode* node) {
         case EXPR_SLICE: compile_expr_slice(compiler, expr); break;
         case EXPR_THIS: compile_expr_this(compiler, expr); break;
         case EXPR_BASE: compile_expr_base(compiler, expr); break;
-        case EXPR_LAMBDA: compile_expr_lambda(compiler, expr); break;
+        case EXPR_ANONYMOUS_FN: compile_expr_anon_fn(compiler, expr); break;
         case EXPR_TERNARY: compile_expr_ternary(compiler, expr); break;
         case EXPR_TRY: compile_expr_try(compiler, expr); break;
         default: INTERNAL_ERROR("Unhandled expression type."); break;
@@ -413,9 +546,9 @@ static void compile_node(FnCompiler* compiler, AstNode* node) {
     case NODE_PATTERN: INTERNAL_ERROR("Should not compile " STR(NODE_PATTERN) " directly."); break;
   }
 
-  // Exit the scope, if we entered one.
+  // Exit the scope, if we entered one - no need to do that for functions though, since their locals are popped when the function
+  // returns.
   if (node->scope != NULL && node->type != NODE_FN) {
-    // No need to pop locals for functions, since they're popped when the function returns.
     // Since we're exiting a scope, we don't need its local variables anymore.
     // The ones who got captured by closures are still needed, and are going to need to live on the heap.
     int current_local = node->scope->local_count - 1;

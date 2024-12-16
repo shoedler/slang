@@ -35,6 +35,8 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
+- [ ] Put all the `copy_string(KEYWORD_ERROR, STR_LEN(KEYWORD_ERROR))` into a lookup table 
+- [ ] Handle roots for garbage collection in the parser, resolver and compiler
 - [ ] Add node for invoke
 - [ ] Can Probably omit OP_FINALIZE for classes?
 - [ ] Verify that the tombstone-mechanism in the symboltable actually works.
