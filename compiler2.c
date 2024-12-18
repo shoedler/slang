@@ -168,14 +168,14 @@ static void patch_jump(FnCompiler* compiler, int offset) {
 // Emits a loop instruction. The operand is a 16-bit offset. It is calculated by subtracting the current chunk's count from the
 // offset of the jump instruction.
 static void emit_loop(FnCompiler* compiler, int loop_start, AstNode* source) {
-  emit_one_here(OP_LOOP);
+  emit_one(compiler, OP_LOOP, source);
 
   int offset = compiler->result->chunk.count - loop_start + 1;
   if (offset > MAX_JUMP) {
     compiler_error(source, "Loop body too large, cannot jump over %d opcodes. Max is " STR(MAX_JUMP), offset);
   }
 
-  emit_one_here((uint16_t)offset);
+  emit_one(compiler, (uint16_t)offset, source);
 }
 
 static void emit_load_symbol(FnCompiler* compiler, Symbol* symbol, ObjString* name, AstNode* source) {
@@ -214,20 +214,6 @@ static void emit_assign_id(FnCompiler* compiler, AstId* node) {
 
 static void emit_load_id(FnCompiler* compiler, AstId* node) {
   emit_load_symbol(compiler, node->symbol, node->name, (AstNode*)node);
-}
-
-static void emit_load_injected(FnCompiler* compiler, Scope* scope, const char* name, AstNode* source) {
-  ObjString* name_str = copy_string(name, strlen(name));
-  Symbol* sym         = scope_get(scope, name_str);
-  INTERNAL_ASSERT(sym != NULL, "Synthetic symbol not found in scope. Forgot to inject it?");
-  emit_load_symbol(compiler, sym, name_str, source);
-}
-
-static void emit_assign_injected(FnCompiler* compiler, Scope* scope, const char* name, AstNode* source) {
-  ObjString* name_str = copy_string(name, strlen(name));
-  Symbol* sym         = scope_get(scope, name_str);
-  INTERNAL_ASSERT(sym != NULL, "Synthetic symbol not found in scope. Forgot to inject it?");
-  emit_assign_symbol(compiler, sym, name_str, source);
 }
 
 static uint16_t emit_assignment_prelude(FnCompiler* compiler, AstExpression* target) {
@@ -480,6 +466,7 @@ static void compile_expr_binary(FnCompiler* compiler, AstExpression* expr) {
     default: INTERNAL_ERROR("Unhandled binary operator type: %d", expr->operator_.type); break;
   }
 }
+
 static void compile_expr_postfix(FnCompiler* compiler, AstExpression* expr) {
   AstExpression* inner = (AstExpression*)expr->base.children[0];
   OpCode op;
@@ -500,6 +487,7 @@ static void compile_expr_postfix(FnCompiler* compiler, AstExpression* expr) {
 
   emit_one(compiler, OP_POP, (AstNode*)expr);  // Discard the result, leaving the original value on the stack.
 }
+
 static void compile_expr_unary(FnCompiler* compiler, AstExpression* expr) {
   if (expr->operator_.type == TOKEN_NOT) {
     compile_node(compiler, expr->base.children[0]);
@@ -524,16 +512,20 @@ static void compile_expr_unary(FnCompiler* compiler, AstExpression* expr) {
     emit_assignment(compiler, inner, name);  // Leaves the result on the stack
   }
 }
+
 static void compile_expr_grouping(FnCompiler* compiler, AstExpression* expr) {
   compile_children(compiler, (AstNode*)expr);
 }
+
 static void compile_expr_literal(FnCompiler* compiler, AstExpression* expr) {
   compile_children(compiler, (AstNode*)expr);
 }
+
 static void compile_expr_variable(FnCompiler* compiler, AstExpression* expr) {
   AstId* var = (AstId*)expr->base.children[0];
   emit_load_id(compiler, var);
 }
+
 static void compile_expr_assign(FnCompiler* compiler, AstExpression* expr) {
   AstExpression* left  = (AstExpression*)expr->base.children[0];
   AstExpression* right = (AstExpression*)expr->base.children[1];
@@ -559,6 +551,7 @@ static void compile_expr_assign(FnCompiler* compiler, AstExpression* expr) {
   emit_one(compiler, op, (AstNode*)expr);
   emit_assignment(compiler, left, name);
 }
+
 static void compile_expr_and(FnCompiler* compiler, AstExpression* expr) {
   AstNode* left  = expr->base.children[0];
   AstNode* right = expr->base.children[1];
@@ -570,6 +563,7 @@ static void compile_expr_and(FnCompiler* compiler, AstExpression* expr) {
   compile_node(compiler, right);
   patch_jump(compiler, end_jump);
 }
+
 static void compile_expr_or(FnCompiler* compiler, AstExpression* expr) {
   AstNode* left  = expr->base.children[0];
   AstNode* right = expr->base.children[1];
@@ -584,6 +578,7 @@ static void compile_expr_or(FnCompiler* compiler, AstExpression* expr) {
   compile_node(compiler, right);
   patch_jump(compiler, end_jump);
 }
+
 static void compile_expr_is(FnCompiler* compiler, AstExpression* expr) {
   AstNode* left  = expr->base.children[0];
   AstNode* right = expr->base.children[1];
@@ -592,6 +587,7 @@ static void compile_expr_is(FnCompiler* compiler, AstExpression* expr) {
   compile_node(compiler, right);
   emit_one(compiler, OP_IS, (AstNode*)expr);
 }
+
 static void compile_expr_in(FnCompiler* compiler, AstExpression* expr) {
   AstNode* left  = expr->base.children[0];
   AstNode* right = expr->base.children[1];
@@ -600,6 +596,7 @@ static void compile_expr_in(FnCompiler* compiler, AstExpression* expr) {
   compile_node(compiler, right);
   emit_one(compiler, OP_IN, (AstNode*)expr);
 }
+
 static void compile_expr_call(FnCompiler* compiler, AstExpression* expr) {
   AstExpression* target = (AstExpression*)expr->base.children[0];
   uint16_t argc         = (uint16_t)expr->base.count - 1;
@@ -615,7 +612,6 @@ static void compile_expr_call(FnCompiler* compiler, AstExpression* expr) {
       compile_node(compiler, expr->base.children[i]);
     }
     emit_load_id(compiler, (AstId*)base_);  // Base
-
     emit_three(compiler, OP_BASE_INVOKE, ctor, argc, (AstNode*)target);
   } else {
     // Could just use compile_children here, but this is more explicit:
@@ -626,6 +622,7 @@ static void compile_expr_call(FnCompiler* compiler, AstExpression* expr) {
     emit_two(compiler, OP_CALL, argc, (AstNode*)expr);
   }
 }
+
 static void compile_expr_dot(FnCompiler* compiler, AstExpression* expr) {
   // If we get here, it's always a property get access.
   AstNode* target = expr->base.children[0];
@@ -645,22 +642,69 @@ static void compile_expr_dot(FnCompiler* compiler, AstExpression* expr) {
     emit_two(compiler, OP_GET_PROPERTY, name, (AstNode*)expr);
   }
 }
+
 static void compile_expr_invoke(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstNode* target = expr->base.children[0];
+  AstId* property = (AstId*)expr->base.children[1];
+  uint16_t name   = id_constant(compiler, property->name, (AstNode*)property);
+  uint16_t argc   = (uint16_t)expr->base.count - 2;
+
+  // Invoking a method on "base" is a special case
+  if (((AstExpression*)target)->type == EXPR_BASE) {
+    AstId* this_  = (AstId*)target->children[0];
+    AstId* base_  = (AstId*)target->children[1];
+    uint16_t ctor = synthetic_constant(compiler, STR(SP_METHOD_CTOR), (AstNode*)target);
+
+    emit_load_id(compiler, this_);  // This
+    for (int i = 2; i < expr->base.count; i++) {
+      compile_node(compiler, expr->base.children[i]);
+    }
+    emit_load_id(compiler, base_);  // Base
+    emit_three(compiler, OP_BASE_INVOKE, ctor, argc, (AstNode*)expr);
+  } else {
+    compile_node(compiler, target);
+    for (int i = 2; i < expr->base.count; i++) {
+      compile_node(compiler, expr->base.children[i]);
+    }
+    emit_three(compiler, OP_INVOKE, name, argc, (AstNode*)expr);
+  }
 }
+
 static void compile_expr_subs(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstExpression* target = (AstExpression*)expr->base.children[0];
+  AstNode* index        = expr->base.children[1];
+
+  compile_node(compiler, (AstNode*)target);
+  compile_node(compiler, index);
+  emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)expr);
 }
+
 static void compile_expr_slice(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstExpression* target = (AstExpression*)expr->base.children[0];
+  AstNode* start        = expr->base.children[1];
+  AstNode* end          = expr->base.children[2];
+
+  compile_node(compiler, (AstNode*)target);
+  if (start == NULL) {
+    emit_constant(compiler, int_value(0), (AstNode*)start);  // Default start index is 0
+  } else {
+    compile_node(compiler, start);
+  }
+
+  if (end == NULL) {
+    emit_one(compiler, OP_NIL, (AstNode*)end);  // Default end index is nil
+  } else {
+    compile_node(compiler, end);
+  }
+
+  emit_one(compiler, OP_GET_SLICE, (AstNode*)expr);
 }
+
 static void compile_expr_this(FnCompiler* compiler, AstExpression* expr) {
   AstId* this_ = (AstId*)expr->base.children[0];
   emit_load_id(compiler, this_);
 }
+
 static void compile_expr_anon_fn(FnCompiler* compiler, AstExpression* expr) {
   compile_function(compiler, (AstFn*)expr->base.children[0]);
 }
@@ -683,13 +727,15 @@ static void compile_expr_ternary(FnCompiler* compiler, AstExpression* expr) {
   compile_node(compiler, false_branch);  // False branch
   patch_jump(compiler, end_jump);
 }
+
 static void compile_expr_try(FnCompiler* compiler, AstExpression* expr) {
-  AstNode* try_expr   = expr->base.children[0];
-  AstNode* catch_expr = expr->base.children[1];
+  AstId* error        = (AstId*)expr->base.children[0];
+  AstNode* try_expr   = expr->base.children[1];
+  AstNode* catch_expr = expr->base.children[2];
 
   int try_jump = emit_jump(compiler, OP_TRY, (AstNode*)expr);
-  compile_node(compiler, try_expr);                                                 // Try expression
-  emit_assign_injected(compiler, expr->base.scope, KEYWORD_ERROR, (AstNode*)expr);  // Assign the error variable.
+  compile_node(compiler, try_expr);  // Try expression
+  emit_assign_id(compiler, error);
 
   // If the try block was successful, skip the catch block.
   int success_jump = emit_jump(compiler, OP_JUMP, try_expr);
@@ -700,7 +746,7 @@ static void compile_expr_try(FnCompiler* compiler, AstExpression* expr) {
   } else {
     compile_node(compiler, catch_expr);  // Catch expression
   }
-  emit_assign_injected(compiler, expr->base.scope, KEYWORD_ERROR, (AstNode*)expr);  // Assign the error variable.
+  emit_assign_id(compiler, error);     // Assign the error variable.
   patch_jump(compiler, success_jump);  // Skip the catch block if the try block was successful.
 }
 
@@ -711,23 +757,29 @@ static void compile_expr_try(FnCompiler* compiler, AstExpression* expr) {
 static void compile_lit_number(FnCompiler* compiler, AstLiteral* lit) {
   emit_constant(compiler, lit->value, (AstNode*)lit);
 }
+
 static void compile_lit_string(FnCompiler* compiler, AstLiteral* lit) {
   emit_constant(compiler, lit->value, (AstNode*)lit);
 }
+
 static void compile_lit_bool(FnCompiler* compiler, AstLiteral* lit) {
   emit_one(compiler, lit->value.as.boolean ? OP_TRUE : OP_FALSE, (AstNode*)lit);
 }
+
 static void compile_lit_nil(FnCompiler* compiler, AstLiteral* lit) {
   emit_one(compiler, OP_NIL, (AstNode*)lit);
 }
+
 static void compile_lit_tuple(FnCompiler* compiler, AstLiteral* lit) {
   compile_children(compiler, (AstNode*)lit);
   emit_two(compiler, OP_TUPLE_LITERAL, (uint16_t)lit->base.count, (AstNode*)lit);
 }
+
 static void compile_lit_seq(FnCompiler* compiler, AstLiteral* lit) {
   compile_children(compiler, (AstNode*)lit);
   emit_two(compiler, OP_SEQ_LITERAL, (uint16_t)lit->base.count, (AstNode*)lit);
 }
+
 static void compile_lit_obj(FnCompiler* compiler, AstLiteral* lit) {
   compile_children(compiler, (AstNode*)lit);
   emit_two(compiler, OP_OBJECT_LITERAL, (uint16_t)lit->base.count, (AstNode*)lit);

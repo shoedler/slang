@@ -404,8 +404,9 @@ AstExpression* ast_expr_ternary_init(Token start,
   return ternary_expr;
 }
 
-AstExpression* ast_expr_try_init(Token start, Token end, AstExpression* expr, AstExpression* else_expr) {
+AstExpression* ast_expr_try_init(Token start, Token end, AstId* error, AstExpression* expr, AstExpression* else_expr) {
   AstExpression* try_expr = ast_expr_init(start, end, EXPR_TRY);
+  ast_node_add_child((AstNode*)try_expr, (AstNode*)error);
   ast_node_add_child((AstNode*)try_expr, (AstNode*)expr);
   ast_node_add_child((AstNode*)try_expr, (AstNode*)else_expr);
   return try_expr;
@@ -556,7 +557,27 @@ void ast_print(AstNode* node, int indent) {
   }
 }
 
-void print_string_lit(const char* str, int max_len) {
+//
+// Print AST
+//
+
+static void print_fn_type(FnType type) {
+  const char* fn_type_str = ANSI_RED_STR("unknown");
+  switch (type) {
+    case FN_TYPE_UNKNOWN: fn_type_str = ANSI_GREEN_STR("unknown"); break;
+    case FN_TYPE_FUNCTION: fn_type_str = ANSI_GREEN_STR("function"); break;
+    case FN_TYPE_CONSTRUCTOR: fn_type_str = ANSI_GREEN_STR("constructor"); break;
+    case FN_TYPE_METHOD: fn_type_str = ANSI_GREEN_STR("method"); break;
+    case FN_TYPE_METHOD_STATIC: fn_type_str = ANSI_GREEN_STR("static method"); break;
+    case FN_TYPE_ANONYMOUS_FUNCTION: fn_type_str = ANSI_GREEN_STR("anonymous function"); break;
+    case FN_TYPE_MODULE: fn_type_str = ANSI_GREEN_STR("module"); break;
+    default: INTERNAL_ERROR("Unknown function type."); break;
+  }
+
+  printf(fn_type_str);
+}
+
+static void print_string_lit(const char* str, int max_len) {
   int count = 0;
   printf(ANSI_COLOR_BLUE "\"");
   for (const char* p = str; *p; p++) {
@@ -603,7 +624,8 @@ static void ast_node_print(AstNode* node) {
       break;
     }
     case NODE_FN: {
-      printf(STR(NODE_FN) ANSI_GREEN_STR(" %s"), ast_fn_type_to_str(((AstFn*)node)->type));
+      printf(STR(NODE_FN) " ");
+      print_fn_type(((AstFn*)node)->type);
       break;
     }
     case NODE_DECL: {
@@ -703,16 +725,112 @@ static void ast_node_print(AstNode* node) {
   }
 }
 
-const char* ast_fn_type_to_str(FnType type) {
-  switch (type) {
-    case FN_TYPE_UNKNOWN: return "unknown";
-    case FN_TYPE_FUNCTION: return "function";
-    case FN_TYPE_CONSTRUCTOR: return "constructor";
-    case FN_TYPE_METHOD: return "method";
-    case FN_TYPE_METHOD_STATIC: return "static method";
-    case FN_TYPE_ANONYMOUS_FUNCTION: return "anonymous function";
-    case FN_TYPE_MODULE: return "module";
-    default: INTERNAL_ERROR("Unknown function type.");
+//
+// Print Scopes
+//
+
+static void print_scope_symbolentry(int depth, SymbolEntry* entry, const char* tree_link) {
+  for (int i = 0; i < depth; i++) {
+    printf(ANSI_GRAY_STR(":  "));
   }
-  return "unknown";
+
+  if (entry->key->length == 0) {
+    printf("%s " ANSI_MAGENTA_STR("<reserved>") " ", tree_link);
+  } else {
+    printf("%s " ANSI_MAGENTA_STR("%s") " ", tree_link, entry->key->chars);
+  }
+
+  if (entry->value->type == SYMBOL_UPVALUE) {
+    printf(ANSI_GREEN_STR("[upvalue]") " fn-upvalue-idx=%d", entry->value->function_index);
+  } else if (entry->value->type == SYMBOL_UPVALUE_OUTER) {
+    printf(ANSI_YELLOW_STR("[upvalue_outer]") " fn-upvalue-idx=%d", entry->value->function_index);
+  } else if (entry->value->type == SYMBOL_LOCAL) {
+    printf(ANSI_CYAN_STR("[local]") " ");
+    printf("fn-local-idx=%d ", entry->value->function_index);
+    printf("local-idx=%d ", entry->value->index);
+    printf(entry->value->is_captured ? (ANSI_GREEN_STR("(captured)")) : "");
+  } else if (entry->value->type == SYMBOL_GLOBAL) {
+    printf(ANSI_BLUE_STR("[global]") " ");
+  }
+  printf("%s\n", entry->value->is_param ? ANSI_YELLOW_STR("(param)") : "");
+}
+
+static void print_scope(Scope* scope) {
+#ifdef DEBUG_RESOLVER
+  for (int i = 0; i < scope->depth; i++) {
+    printf(ANSI_GRAY_STR(":  "));
+  }
+  printf("SCOPE " ANSI_BLUE_STR("depth=%d") " :\n", scope->depth);
+#endif
+  int total_symbols_printed = 0;
+
+  // Empty
+  if (scope->count == 0) {
+    for (int i = 0; i < scope->depth; i++) {
+      printf(ANSI_GRAY_STR(":  "));
+    }
+
+    printf("%s " ANSI_GRAY_STR("empty") "\n", "└");
+    return;
+  }
+
+  // Locals
+  int current_local = 0;
+  while (current_local < scope->local_count) {
+    int before = current_local;
+    for (int i = 0; i < scope->capacity; i++) {
+      SymbolEntry* entry = &scope->entries[i];
+      if (entry->key == NULL || entry->value->type != SYMBOL_LOCAL || entry->value->index != current_local) {
+        continue;
+      }
+      total_symbols_printed++;
+      const char* tree_link = total_symbols_printed == scope->count ? "└" : "├";
+      print_scope_symbolentry(scope->depth, entry, tree_link);
+      current_local++;
+    }
+    INTERNAL_ASSERT(before != current_local, "Infinite loop in locals, current_local=%d", current_local);
+  }
+
+  // Rest
+  for (int i = 0; i < scope->capacity; i++) {
+    SymbolEntry* entry = &scope->entries[i];
+    if (entry->key == NULL) {
+      continue;
+    }
+    if (entry->value->type == SYMBOL_LOCAL) {
+      continue;
+    }
+    total_symbols_printed++;
+    const char* tree_link = total_symbols_printed == scope->count ? "└" : "├";
+    print_scope_symbolentry(scope->depth, entry, tree_link);
+  }
+
+  INTERNAL_ASSERT(total_symbols_printed == scope->count,
+                  "Total symbols printed does not match scope count. Printed: %d, count: %d", total_symbols_printed,
+                  scope->count);
+}
+
+static void print_scope_end(Scope* scope) {
+  for (int i = 0; i < scope->depth; i++) {
+    printf(ANSI_GRAY_STR(":  "));
+  }
+  printf("SCOPE_END " ANSI_BLUE_STR("depth=%d") " \n", scope->depth);
+}
+
+void ast_print_scopes(AstNode* node) {
+  if (node == NULL) {
+    return;
+  }
+
+  if (node->scope != NULL) {
+    print_scope(node->scope);
+  }
+
+  for (int i = 0; i < node->count; i++) {
+    ast_print_scopes(node->children[i]);
+  }
+
+  if (node->scope != NULL) {
+    print_scope_end(node->scope);
+  }
 }

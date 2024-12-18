@@ -111,55 +111,11 @@ static Scope* new_scope(FnResolver* resolver) {
   scope_init(new_scope, resolver->current_scope);
   resolver->current_scope = new_scope;
 
-#ifdef DEBUG_RESOLVER
-  for (int i = 0; i < resolver->current_scope->depth; printf(ANSI_GRAY_STR(":  ")), i++)
-    ;
-  printf("SCOPE_ENTER " ANSI_BLUE_STR("depth=%d") " :\n", resolver->current_scope->depth);
-#endif
-
   return new_scope;
 }
 
 static void end_scope(FnResolver* resolver) {
   Scope* enclosing = resolver->current_scope->enclosing;
-#ifdef DEBUG_RESOLVER
-  for (int i = 0; i < resolver->current_scope->depth; printf(ANSI_GRAY_STR(":  ")), i++)
-    ;
-  printf("SCOPE_LEAVE " ANSI_BLUE_STR("depth=%d") " \n", resolver->current_scope->depth);
-
-  int count = 0;
-  for (int i = 0; i < resolver->current_scope->capacity; i++) {
-    SymbolEntry* entry = &resolver->current_scope->entries[i];
-    if (entry->key != NULL) {
-      for (int j = 0; j < resolver->current_scope->depth; printf(ANSI_GRAY_STR(":  ")), j++)
-        ;
-      count++;
-      const char* tree_link = count == resolver->current_scope->count ? "└" : "├";
-
-      if (entry->key->length == 0) {
-        printf("%s " ANSI_MAGENTA_STR("<reserved>") " ", tree_link);
-      } else {
-        printf("%s " ANSI_MAGENTA_STR("%s") " ", tree_link, entry->key->chars);
-      }
-
-      if (entry->value->type == SYMBOL_UPVALUE) {
-        printf(ANSI_GREEN_STR("upvalue") " %d", entry->value->function_index);
-      } else if (entry->value->type == SYMBOL_UPVALUE_OUTER) {
-        printf(ANSI_GREEN_STR("upvalue_outer") " %d", entry->value->function_index);
-      } else if (entry->value->type == SYMBOL_LOCAL) {
-        printf(ANSI_CYAN_STR("local") " ");
-        printf("fn-idx=%d ", entry->value->function_index);
-        printf("local-idx=%d ", entry->value->index);
-        if (entry->value->is_captured) {
-          printf("(" ANSI_GREEN_STR("captured") ") ");
-        }
-      } else if (entry->value->type == SYMBOL_GLOBAL) {
-        printf(ANSI_CYAN_STR("global"));
-      }
-      printf("%s\n", entry->value->is_param ? " (param)" : "");
-    }
-  }
-#endif
 
   // Reduce the function's local count by the number of locals in this scope
   resolver->function_local_count -= resolver->current_scope->local_count;
@@ -785,7 +741,12 @@ static void resolve_expr_ternary(FnResolver* resolver, AstExpression* expr) {
 static void resolve_expr_try(FnResolver* resolver, AstExpression* expr) {
   expr->base.scope = new_scope(resolver);
   inject_local(resolver, KEYWORD_ERROR, false);
-  resolve_children(resolver, (AstNode*)expr);
+
+  AstId* error = get_child_as_id((AstNode*)expr, 0, false);
+  resolve_variable(resolver, error);
+  for (int i = 1; i < expr->base.count; i++) {
+    resolve_node(resolver, expr->base.children[i]);  // Try-expr and possibly catch-expr
+  }
   end_scope(resolver);
 }
 
@@ -913,14 +874,16 @@ void resolve_children(FnResolver* resolver, AstNode* node) {
 
 void resolve(AstFn* root) {
   FnResolver resolver;
-#ifdef DEBUG_RESOLVER
-  printf("\n\n\n === RESOLVE ===\n\n");
-#endif
+
   resolver_init(&resolver, NULL, root);
   inject_local(&resolver, "", true);  // Not accessible
   // Skip the first and second children, which are the name and parameters
   INTERNAL_ASSERT(root->base.count == 3, "Function should have exactly 3 children.");
   resolve_node(&resolver, root->base.children[2]);
   end_resolver(&resolver);
-  return;
+
+#ifdef DEBUG_PRINT_SCOPES
+  printf("\n\n\n === RESOLVE ===\n\n");
+  ast_print_scopes((AstNode*)root);
+#endif
 }

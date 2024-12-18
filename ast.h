@@ -246,7 +246,7 @@ AstExpression* ast_expr_ternary_init(Token start,
                                      AstExpression* condition,
                                      AstExpression* then_expr,
                                      AstExpression* else_expr);
-AstExpression* ast_expr_try_init(Token start, Token end, AstExpression* expr, AstExpression* else_expr);
+AstExpression* ast_expr_try_init(Token start, Token end, AstId* error, AstExpression* expr, AstExpression* else_expr);
 
 //
 // Literals
@@ -296,6 +296,7 @@ void ast_free(AstNode* node);
 // Prints the AST to stdout
 void ast_print(AstNode* node, int indent);
 
-const char* ast_fn_type_to_str(FnType type);
+// Prints the AST scopes to stdout
+void ast_print_scopes(AstNode* node);
 
 #endif  // AST_H

@@ -434,12 +434,13 @@ static AstExpression* parse_expr_this(Parser2* parser, Token expr_start, bool ca
 
 static AstExpression* parse_expr_try(Parser2* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
+  AstId* error         = ast_id_init(expr_start, copy_string(KEYWORD_ERROR, STR_LEN(KEYWORD_ERROR)));
   AstExpression* expr  = parse_expression(parser);
   AstExpression* else_ = NULL;
   if (match(parser, TOKEN_ELSE)) {
     else_ = parse_expression(parser);
   }
-  return ast_expr_try_init(expr_start, parser->previous, expr, else_);
+  return ast_expr_try_init(expr_start, parser->previous, error, expr, else_);
 }
 
 static AstExpression* parse_expr_unary(Parser2* parser, Token expr_start, bool can_assign) {
