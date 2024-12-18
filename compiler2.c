@@ -1,6 +1,7 @@
 #include "compiler2.h"
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 #include "ast.h"
 #include "common.h"
 #include "debug.h"
@@ -101,6 +102,16 @@ static uint16_t make_constant(FnCompiler* compiler, Value value, AstNode* source
   return (uint16_t)constant;
 }
 
+// Adds the ids name to the constant pool and returns its index.
+static uint16_t id_constant(FnCompiler* compiler, ObjString* id, AstNode* source) {
+  return make_constant(compiler, str_value(id), source);
+}
+
+// Adds the synthetic name to the constant pool and returns its index.
+static uint16_t synthetic_constant(FnCompiler* compiler, const char* name, AstNode* source) {
+  return make_constant(compiler, str_value(copy_string(name, strlen(name))), source);
+}
+
 // Writes an opcode or operand to the current chunk. [source] is the node that generated the instruction and is
 // used for error reporting in the vm via a lightweight source view.
 static void emit_one(FnCompiler* compiler, uint16_t data, AstNode* source) {
@@ -111,12 +122,12 @@ static void emit_two(FnCompiler* compiler, uint16_t data1, uint16_t data2, AstNo
   emit_one(compiler, data1, source);
   emit_one(compiler, data2, source);
 }
-// // See emit_one
-// static void emit_three(FnCompiler* compiler, uint16_t data1, uint16_t data2, uint16_t data3, AstNode* source) {
-//   emit_one(compiler, data1, source);
-//   emit_one(compiler, data2, source);
-//   emit_one(compiler, data3, source);
-// }
+// See emit_one
+static void emit_three(FnCompiler* compiler, uint16_t data1, uint16_t data2, uint16_t data3, AstNode* source) {
+  emit_one(compiler, data1, source);
+  emit_one(compiler, data2, source);
+  emit_one(compiler, data3, source);
+}
 
 static void emit_return(FnCompiler* compiler, AstNode* source) {
   if (compiler->function->type == FN_TYPE_CONSTRUCTOR) {
@@ -154,16 +165,159 @@ static void patch_jump(FnCompiler* compiler, int offset) {
   compiler->result->chunk.code[offset] = (uint16_t)jump;
 }
 
+// Emits a loop instruction. The operand is a 16-bit offset. It is calculated by subtracting the current chunk's count from the
+// offset of the jump instruction.
+static void emit_loop(FnCompiler* compiler, int loop_start, AstNode* source) {
+  emit_one_here(OP_LOOP);
+
+  int offset = compiler->result->chunk.count - loop_start + 1;
+  if (offset > MAX_JUMP) {
+    compiler_error(source, "Loop body too large, cannot jump over %d opcodes. Max is " STR(MAX_JUMP), offset);
+  }
+
+  emit_one_here((uint16_t)offset);
+}
+
+static void emit_load_symbol(FnCompiler* compiler, Symbol* symbol, ObjString* name, AstNode* source) {
+  switch (symbol->type) {
+    case SYMBOL_LOCAL: emit_two(compiler, OP_GET_LOCAL, symbol->function_index, (AstNode*)source); break;
+    case SYMBOL_UPVALUE:
+    case SYMBOL_UPVALUE_OUTER: emit_two(compiler, OP_GET_UPVALUE, symbol->function_index, (AstNode*)source); break;
+    case SYMBOL_NATIVE:
+    case SYMBOL_GLOBAL: {
+      uint16_t name_index = id_constant(compiler, name, (AstNode*)source);
+      emit_two(compiler, OP_GET_GLOBAL, name_index, (AstNode*)source);
+      break;
+    }
+    default: INTERNAL_ERROR("Unknown symbol type.");
+  }
+}
+
+static void emit_assign_symbol(FnCompiler* compiler, Symbol* symbol, ObjString* name, AstNode* source) {
+  switch (symbol->type) {
+    case SYMBOL_LOCAL: emit_two(compiler, OP_SET_LOCAL, symbol->function_index, source); break;
+    case SYMBOL_UPVALUE:
+    case SYMBOL_UPVALUE_OUTER: emit_two(compiler, OP_SET_UPVALUE, symbol->function_index, source); break;
+    case SYMBOL_NATIVE:
+    case SYMBOL_GLOBAL: {
+      uint16_t name_index = id_constant(compiler, name, (AstNode*)source);
+      emit_two(compiler, OP_SET_GLOBAL, name_index, (AstNode*)source);
+      break;
+    }
+    default: INTERNAL_ERROR("Unknown symbol type.");
+  }
+}
+
+static void emit_assign_id(FnCompiler* compiler, AstId* node) {
+  emit_assign_symbol(compiler, node->symbol, node->name, (AstNode*)node);
+}
+
+static void emit_load_id(FnCompiler* compiler, AstId* node) {
+  emit_load_symbol(compiler, node->symbol, node->name, (AstNode*)node);
+}
+
+static void emit_load_injected(FnCompiler* compiler, Scope* scope, const char* name, AstNode* source) {
+  ObjString* name_str = copy_string(name, strlen(name));
+  Symbol* sym         = scope_get(scope, name_str);
+  INTERNAL_ASSERT(sym != NULL, "Synthetic symbol not found in scope. Forgot to inject it?");
+  emit_load_symbol(compiler, sym, name_str, source);
+}
+
+static void emit_assign_injected(FnCompiler* compiler, Scope* scope, const char* name, AstNode* source) {
+  ObjString* name_str = copy_string(name, strlen(name));
+  Symbol* sym         = scope_get(scope, name_str);
+  INTERNAL_ASSERT(sym != NULL, "Synthetic symbol not found in scope. Forgot to inject it?");
+  emit_assign_symbol(compiler, sym, name_str, source);
+}
+
+static uint16_t emit_assignment_prelude(FnCompiler* compiler, AstExpression* target) {
+  if (target->type == EXPR_VARIABLE) {
+    return 0;
+  } else if (target->type == EXPR_DOT) {
+    AstNode* receiver = target->base.children[0];
+    AstId* property   = (AstId*)target->base.children[1];
+    uint16_t name     = id_constant(compiler, property->name, (AstNode*)property);
+    compile_node(compiler, receiver);
+    emit_two(compiler, OP_DUPE, 0, (AstNode*)target);  // Duplicate the receiver
+    emit_two(compiler, OP_GET_PROPERTY, name, (AstNode*)property);
+    return name;
+  } else if (target->type == EXPR_SUBS) {
+    AstNode* receiver = target->base.children[0];
+    AstNode* index    = target->base.children[1];
+    compile_node(compiler, receiver);
+    compile_node(compiler, index);
+    emit_two(compiler, OP_DUPE, 1, (AstNode*)target);  // Duplicate the receiver
+    emit_two(compiler, OP_DUPE, 1, (AstNode*)target);  // Duplicate the index
+    emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)target);
+    return 0;
+  } else {
+    INTERNAL_ERROR("Unknown assignment target.");
+    return 0;
+  }
+}
+
+static void emit_assignment(FnCompiler* compiler, AstExpression* target, uint16_t name) {
+  if (target->type == EXPR_VARIABLE) {
+    AstId* id = (AstId*)target->base.children[0];
+    emit_assign_id(compiler, id);
+  } else if (target->type == EXPR_DOT) {
+    AstId* property = (AstId*)target->base.children[1];
+    emit_two(compiler, OP_SET_PROPERTY, name, (AstNode*)property);
+  } else if (target->type == EXPR_SUBS) {
+    emit_one(compiler, OP_SET_SUBSCRIPT, (AstNode*)target);
+  } else {
+    INTERNAL_ERROR("Unknown assignment target.");
+  }
+}
+
 //
 // Important stuff
 //
+
+// Discards all local variables in the scope. The ones that are captured by closures are closed over.
+// Used for exiting a scope, or for loop control flow when hitting a skip or break.
+static void discard_locals(FnCompiler* compiler, Scope* scope, AstNode* source) {
+  int current_local = scope->local_count - 1;
+  while (current_local >= 0) {  // Only scopes that have locals are handled.
+#ifdef DEBUG_COMPILER
+    int before = current_local;
+#endif
+    for (int i = 0; i < scope->capacity; i++) {
+      SymbolEntry* entry = &scope->entries[i];
+      if (entry->key == NULL || entry->value->type != SYMBOL_LOCAL || entry->value->index != current_local) {
+        continue;
+      }
+      if (entry->value->is_captured) {
+        emit_one(compiler, OP_CLOSE_UPVALUE, source);
+      } else {
+        emit_one(compiler, OP_POP, source);
+      }
+      current_local--;
+      break;
+    }
+#ifdef DEBUG_COMPILER
+    if (before == current_local) {
+      INTERNAL_ERROR("Could not find local variable. Something's wrong with indexing locals in the scope.");
+    }
+#endif
+  }
+}
 
 // Compiles a function.
 static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
   FnCompiler subcompiler;
   compiler_init(&subcompiler, compiler, fn, compiler->result->globals_context);
 
-  compile_children(&subcompiler, (AstNode*)fn);
+  // Compile the function in the subcompiler
+  AstId* name            = (AstId*)fn->base.children[0];
+  AstDeclaration* params = (AstDeclaration*)fn->base.children[1];
+  AstNode* body          = fn->base.children[2];
+
+  if (params != NULL) {
+    compile_node(&subcompiler, (AstNode*)params);
+  }
+  compile_node(&subcompiler, body);
+
   if (fn->is_lambda) {
     emit_one(&subcompiler, OP_RETURN, (AstNode*)fn);
   }
@@ -177,6 +331,20 @@ static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
 
   compiler_free(&subcompiler);
 
+  if (fn->type == FN_TYPE_CONSTRUCTOR) {
+    uint16_t ctor = synthetic_constant(compiler, STR(SP_METHOD_CTOR), (AstNode*)fn);
+    emit_two(compiler, OP_METHOD, ctor, (AstNode*)fn);
+    emit_one(compiler, (uint16_t)FN_TYPE_CONSTRUCTOR, (AstNode*)fn);
+  } else if (fn->type == FN_TYPE_METHOD) {
+    uint16_t method = id_constant(compiler, name->name, (AstNode*)name);
+    emit_two(compiler, OP_METHOD, method, (AstNode*)fn);
+    emit_one(compiler, (uint16_t)FN_TYPE_METHOD, (AstNode*)fn);
+  } else if (fn->type == FN_TYPE_METHOD_STATIC) {
+    uint16_t method = id_constant(compiler, name->name, (AstNode*)name);
+    emit_two(compiler, OP_METHOD, method, (AstNode*)fn);
+    emit_one(compiler, (uint16_t)FN_TYPE_METHOD_STATIC, (AstNode*)fn);
+  }
+
   return function;
 }
 
@@ -189,6 +357,12 @@ static void compile_declare_function(FnCompiler* compiler, AstDeclaration* decl)
   compile_children(compiler, (AstNode*)decl);
 }
 static void compile_declare_class(FnCompiler* compiler, AstDeclaration* decl) {
+  // uint16_t class_name = id_constant(compiler, decl->class_name);
+  // emit_constant(compiler, OBJ_VAL(class_name), (AstNode*)decl);
+  //
+  // if inherit emit_load_variable(compiler, decl->class_name); emit OP_INHERIT
+  // emit_load_variable(compiler, decl->class_name);
+  // Body
   printf("compiling declaration\n");
   compile_children(compiler, (AstNode*)decl);
 }
@@ -202,6 +376,7 @@ static void compile_declare_variable(FnCompiler* compiler, AstDeclaration* decl)
 //
 
 static void compile_statement_import(FnCompiler* compiler, AstStatement* stmt) {
+  // id_constant(compiler, stmt->module_name);
   printf("compiling statement\n");
   compile_children(compiler, (AstNode*)stmt);
 }
@@ -240,13 +415,23 @@ static void compile_statement_expr(FnCompiler* compiler, AstStatement* stmt) {
   emit_one(compiler, OP_POP, expr);
 }
 static void compile_statement_break(FnCompiler* compiler, AstStatement* stmt) {
-  printf("compiling statement\n");
-  compile_children(compiler, (AstNode*)stmt);
+  INTERNAL_ASSERT(compiler->innermost_loop_start != -1, "Should have been caught by the resolver.");
+
+  // Grow the brakes array if necessary
+  if (SHOULD_GROW(compiler->brakes_count + 1, compiler->brakes_capacity)) {
+    int old_capacity          = compiler->brakes_capacity;
+    compiler->brakes_capacity = GROW_CAPACITY(old_capacity);
+    compiler->brake_jumps     = RESIZE_ARRAY(int, compiler->brake_jumps, compiler->brakes_count, compiler->brakes_capacity);
+  }
+
+  // Discard any locals created in the loop body, then jump to the end of the loop.
+  discard_locals(compiler, stmt->base.scope, (AstNode*)stmt);
+  compiler->brake_jumps[compiler->brakes_count++] = emit_jump(compiler, OP_JUMP, (AstNode*)stmt);
 }
 static void compile_statement_skip(FnCompiler* compiler, AstStatement* stmt) {
-  // INTERNAL_ASSERT(compiler->innermost_loop_start != -1, "Skip statement outside of loop. That's resolver business.");
-  printf("compiling statement\n");
-  compile_children(compiler, (AstNode*)stmt);
+  INTERNAL_ASSERT(compiler->innermost_loop_start != -1, "Should have been caught by the resolver.");
+  discard_locals(compiler, stmt->base.scope, (AstNode*)stmt);
+  emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);
 }
 static void compile_statement_throw(FnCompiler* compiler, AstStatement* stmt) {
   AstNode* expr = stmt->base.children[0];
@@ -296,22 +481,48 @@ static void compile_expr_binary(FnCompiler* compiler, AstExpression* expr) {
   }
 }
 static void compile_expr_postfix(FnCompiler* compiler, AstExpression* expr) {
-  // AstNode* inner = expr->base.children[0];
+  AstExpression* inner = (AstExpression*)expr->base.children[0];
+  OpCode op;
 
-  // compile_node(compiler, inner);
-  // emit_constant(compiler, int_value(1), (AstNode*)expr);
-  // switch (expr->operator_.type) {
-  //   case TOKEN_PLUS_PLUS: emit_one(compiler, OP_ADD, (AstNode*)expr); break;
-  //   case TOKEN_MINUS_MINUS: emit_one(compiler, OP_SUBTRACT, (AstNode*)expr); break;
-  //   default: INTERNAL_ERROR("Unhandled postfix operator type: %d", expr->operator_.type); break;
-  // }
-  // TODO: Emit the set instruction.
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  switch (expr->operator_.type) {
+    case TOKEN_PLUS_PLUS: op = OP_ADD; break;
+    case TOKEN_MINUS_MINUS: op = OP_SUBTRACT; break;
+    default: INTERNAL_ERROR("Unhandled postfix operator type: %d", expr->operator_.type); break;
+  }
+
+  // TODO: Optimize. That's a lot of bytecode for a simple operation.
+  compile_node(compiler, (AstNode*)inner);  // Load itself before the operation
+
+  uint16_t name = emit_assignment_prelude(compiler, inner);
+  compile_node(compiler, (AstNode*)inner);  // Load itself
+  emit_one(compiler, op, (AstNode*)inner);
+  emit_assignment(compiler, inner, name);  // Leaves the result on the stack
+
+  emit_one(compiler, OP_POP, (AstNode*)expr);  // Discard the result, leaving the original value on the stack.
 }
 static void compile_expr_unary(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  if (expr->operator_.type == TOKEN_NOT) {
+    compile_node(compiler, expr->base.children[0]);
+    emit_one(compiler, OP_NOT, (AstNode*)expr);
+  } else if (expr->operator_.type == TOKEN_MINUS) {
+    compile_node(compiler, expr->base.children[0]);
+    emit_one(compiler, OP_NEGATE, (AstNode*)expr);
+  } else {
+    AstExpression* inner = (AstExpression*)expr->base.children[0];
+    OpCode op;
+
+    switch (expr->operator_.type) {
+      case TOKEN_PLUS_PLUS: op = OP_ADD; break;
+      case TOKEN_MINUS_MINUS: op = OP_SUBTRACT; break;
+      default: INTERNAL_ERROR("Unhandled unary operator type: %d", expr->operator_.type); break;
+    }
+
+    // TODO: Optimize. That's a lot of bytecode for a simple operation.
+    uint16_t name = emit_assignment_prelude(compiler, inner);
+    compile_node(compiler, (AstNode*)inner);  // Load itself
+    emit_one(compiler, op, (AstNode*)inner);
+    emit_assignment(compiler, inner, name);  // Leaves the result on the stack
+  }
 }
 static void compile_expr_grouping(FnCompiler* compiler, AstExpression* expr) {
   compile_children(compiler, (AstNode*)expr);
@@ -320,13 +531,33 @@ static void compile_expr_literal(FnCompiler* compiler, AstExpression* expr) {
   compile_children(compiler, (AstNode*)expr);
 }
 static void compile_expr_variable(FnCompiler* compiler, AstExpression* expr) {
-  // AstId* var = (AstId*)expr->base.children[0];
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstId* var = (AstId*)expr->base.children[0];
+  emit_load_id(compiler, var);
 }
 static void compile_expr_assign(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstExpression* left  = (AstExpression*)expr->base.children[0];
+  AstExpression* right = (AstExpression*)expr->base.children[1];
+  OpCode op;
+
+  switch (expr->operator_.type) {
+    case TOKEN_ASSIGN: {
+      uint16_t name = emit_assignment_prelude(compiler, left);
+      compile_node(compiler, (AstNode*)right);
+      emit_assignment(compiler, left, name);
+      return;
+    }
+    case TOKEN_PLUS_ASSIGN: op = OP_ADD; break;
+    case TOKEN_MINUS_ASSIGN: op = OP_SUBTRACT; break;
+    case TOKEN_MULT_ASSIGN: op = OP_MULTIPLY; break;
+    case TOKEN_DIV_ASSIGN: op = OP_DIVIDE; break;
+    case TOKEN_MOD_ASSIGN: op = OP_MODULO; break;
+    default: INTERNAL_ERROR("Unhandled compound assignment operator type: %d", expr->operator_.type); break;
+  }
+
+  uint16_t name = emit_assignment_prelude(compiler, left);
+  compile_node(compiler, (AstNode*)right);
+  emit_one(compiler, op, (AstNode*)expr);
+  emit_assignment(compiler, left, name);
 }
 static void compile_expr_and(FnCompiler* compiler, AstExpression* expr) {
   AstNode* left  = expr->base.children[0];
@@ -370,10 +601,51 @@ static void compile_expr_in(FnCompiler* compiler, AstExpression* expr) {
   emit_one(compiler, OP_IN, (AstNode*)expr);
 }
 static void compile_expr_call(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstExpression* target = (AstExpression*)expr->base.children[0];
+  uint16_t argc         = (uint16_t)expr->base.count - 1;
+
+  // Calling "base" is a special case
+  if (target->type == EXPR_BASE) {
+    AstId* this_  = (AstId*)target->base.children[0];
+    AstId* base_  = (AstId*)target->base.children[1];
+    uint16_t ctor = synthetic_constant(compiler, STR(SP_METHOD_CTOR), (AstNode*)target);
+
+    emit_load_id(compiler, (AstId*)this_);  // This
+    for (int i = 1; i < expr->base.count; i++) {
+      compile_node(compiler, expr->base.children[i]);
+    }
+    emit_load_id(compiler, (AstId*)base_);  // Base
+
+    emit_three(compiler, OP_BASE_INVOKE, ctor, argc, (AstNode*)target);
+  } else {
+    // Could just use compile_children here, but this is more explicit:
+    compile_node(compiler, (AstNode*)target);
+    for (int i = 1; i < expr->base.count; i++) {
+      compile_node(compiler, expr->base.children[i]);
+    }
+    emit_two(compiler, OP_CALL, argc, (AstNode*)expr);
+  }
 }
 static void compile_expr_dot(FnCompiler* compiler, AstExpression* expr) {
+  // If we get here, it's always a property get access.
+  AstNode* target = expr->base.children[0];
+  AstId* property = (AstId*)expr->base.children[1];
+  uint16_t name   = id_constant(compiler, property->name, (AstNode*)property);
+
+  // Getting a property from "base" is a special case
+  if (((AstExpression*)target)->type == EXPR_BASE) {
+    AstId* this_ = (AstId*)target->children[0];
+    AstId* base_ = (AstId*)target->children[1];
+
+    emit_load_id(compiler, this_);  // This
+    emit_load_id(compiler, base_);  // Base
+    emit_two(compiler, OP_GET_BASE_METHOD, name, (AstNode*)expr);
+  } else {
+    compile_node(compiler, target);
+    emit_two(compiler, OP_GET_PROPERTY, name, (AstNode*)expr);
+  }
+}
+static void compile_expr_invoke(FnCompiler* compiler, AstExpression* expr) {
   printf("compiling expression\n");
   compile_children(compiler, (AstNode*)expr);
 }
@@ -386,16 +658,13 @@ static void compile_expr_slice(FnCompiler* compiler, AstExpression* expr) {
   compile_children(compiler, (AstNode*)expr);
 }
 static void compile_expr_this(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
-}
-static void compile_expr_base(FnCompiler* compiler, AstExpression* expr) {
-  printf("compiling expression\n");
-  compile_children(compiler, (AstNode*)expr);
+  AstId* this_ = (AstId*)expr->base.children[0];
+  emit_load_id(compiler, this_);
 }
 static void compile_expr_anon_fn(FnCompiler* compiler, AstExpression* expr) {
   compile_function(compiler, (AstFn*)expr->base.children[0]);
 }
+
 static void compile_expr_ternary(FnCompiler* compiler, AstExpression* expr) {
   AstNode* condition    = expr->base.children[0];
   AstNode* true_branch  = expr->base.children[1];
@@ -418,12 +687,9 @@ static void compile_expr_try(FnCompiler* compiler, AstExpression* expr) {
   AstNode* try_expr   = expr->base.children[0];
   AstNode* catch_expr = expr->base.children[1];
 
-  int error_index = scope_get(expr->base.scope, copy_string(KEYWORD_ERROR, STR_LEN(KEYWORD_ERROR)))
-                        ->function_index;  // TODO (optimize): Use lookup with cached string.
-
   int try_jump = emit_jump(compiler, OP_TRY, (AstNode*)expr);
-  compile_node(compiler, try_expr);                         // Try expression
-  emit_two(compiler, OP_SET_LOCAL, error_index, try_expr);  // Set the error variable to the result of the try expression.
+  compile_node(compiler, try_expr);                                                 // Try expression
+  emit_assign_injected(compiler, expr->base.scope, KEYWORD_ERROR, (AstNode*)expr);  // Assign the error variable.
 
   // If the try block was successful, skip the catch block.
   int success_jump = emit_jump(compiler, OP_JUMP, try_expr);
@@ -434,8 +700,8 @@ static void compile_expr_try(FnCompiler* compiler, AstExpression* expr) {
   } else {
     compile_node(compiler, catch_expr);  // Catch expression
   }
-  emit_two(compiler, OP_SET_LOCAL, error_index, (AstNode*)expr);  // Set the error variable to the result of the catch expression.
-  patch_jump(compiler, success_jump);                             // Skip the catch block if the try block was successful.
+  emit_assign_injected(compiler, expr->base.scope, KEYWORD_ERROR, (AstNode*)expr);  // Assign the error variable.
+  patch_jump(compiler, success_jump);  // Skip the catch block if the try block was successful.
 }
 
 //
@@ -518,10 +784,11 @@ static void compile_node(FnCompiler* compiler, AstNode* node) {
         case EXPR_IN: compile_expr_in(compiler, expr); break;
         case EXPR_CALL: compile_expr_call(compiler, expr); break;
         case EXPR_DOT: compile_expr_dot(compiler, expr); break;
+        case EXPR_INVOKE: compile_expr_invoke(compiler, expr); break;
         case EXPR_SUBS: compile_expr_subs(compiler, expr); break;
         case EXPR_SLICE: compile_expr_slice(compiler, expr); break;
         case EXPR_THIS: compile_expr_this(compiler, expr); break;
-        case EXPR_BASE: compile_expr_base(compiler, expr); break;
+        case EXPR_BASE: INTERNAL_ERROR("Should not compile " STR(EXPR_BASE) " directly."); break;
         case EXPR_ANONYMOUS_FN: compile_expr_anon_fn(compiler, expr); break;
         case EXPR_TERNARY: compile_expr_ternary(compiler, expr); break;
         case EXPR_TRY: compile_expr_try(compiler, expr); break;
@@ -549,27 +816,7 @@ static void compile_node(FnCompiler* compiler, AstNode* node) {
   // Exit the scope, if we entered one - no need to do that for functions though, since their locals are popped when the function
   // returns.
   if (node->scope != NULL && node->type != NODE_FN) {
-    // Since we're exiting a scope, we don't need its local variables anymore.
-    // The ones who got captured by closures are still needed, and are going to need to live on the heap.
-    int current_local = node->scope->local_count - 1;
-    while (current_local >= 0) {  // Only scopes that have locals are handled here.
-      int before = current_local;
-      for (int i = 0; i < node->scope->capacity; i++) {
-        SymbolEntry* entry = &node->scope->entries[i];
-        if (entry->key == NULL || entry->value->type != SYMBOL_LOCAL || entry->value->index != current_local) {
-          continue;
-        }
-        if (entry->value->is_captured) {
-          emit_one(compiler, OP_CLOSE_UPVALUE, node);
-        } else {
-          emit_one(compiler, OP_POP, node);
-        }
-        current_local--;
-        break;
-      }
-      INTERNAL_ASSERT(before != current_local,
-                      "Could not find local variable. Something's wrong with indexing locals in the scope.");
-    }
+    discard_locals(compiler, node->scope, node);
   }
 
 #ifdef DEBUG_COMPILER

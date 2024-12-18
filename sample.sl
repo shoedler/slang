@@ -1,134 +1,74 @@
-import File
 
-const [grid_raw, moves_raw] = File
-  .read(cwd() + "/sample.txt")
+import File
+import Math
+
+const [regs, prg] = File
+  .read(cwd() + "sample.txt")
   .split("\r\n\r\n")
 
-fn simulate(bigboxes) {
-  const grid = []
-  grid_raw
-    .split("\r\n")
-    .each(fn (line) {
-      const row = []
-      line.split("").each(fn(c) {
-        if !bigboxes row.push(c)
-        else {
-          if c=="#" row.push("#","#")
-          else if c=="O" row.push("[","]")
-          else if c=="@" row.push("@",".")
-          else row.push(c, ".")
-        }
-      })
-      grid.push(row)
-    })
+const REGS = {}
+regs.split("\r\n").each(fn(line) {
+  let [reg, val] = line.split(": ")
+  reg = reg.split(" ")[1]
+  REGS[reg] = val.ints()[0]
+})
 
-  const moves = moves_raw
-    .split("\r\n")
-    .join("")
+let {A, B, C} = REGS
+const PRG = prg.ints()
 
-  const ROWS = grid.len
-  const COLS = grid[0].len
-  const DIRS = {"^":(-1, 0), ">":(0,1), "v":(1,0), "<":(0,-1)}
-
-  // get start pos
-  fn start_i(r) -> "@" in r
-  fn not_nil(x) -> x != nil
-  let robot = (
-    grid.pos(start_i), 
-    grid.map(fn (r) -> r.pos(start_i)).first(not_nil)
-  )
-
-  grid[robot[0]][robot[1]] = "."
-
-  fn add(a,b) -> (a[0]+b[0], a[1]+b[1])
-  fn at(pos) -> try grid[pos[0]][pos[1]] else nil
-  fn set(pos, val) -> grid[pos[0]][pos[1]] = val
-
-  fn print_grid() {
-    set(robot, "@")
-    print grid.map(fn (r) -> r.join("")).join("\n")
-    set(robot, ".")
-    print "\n"
-  }
-
-  fn build_stack(start, move) {
-    const stack = []
-
-    const Q = [start]
-    while Q.len > 0 {
-      let curr = Q.yank(0)
-      curr = add(curr, DIRS[move])
-
-      if curr in stack skip
-      if at(curr)=="." skip // free
-      if at(curr)=="#" ret [] // blocked
-      if at(curr)=="[" {
-        const other = add(curr, DIRS[">"])
-        stack.push((curr, "["))
-        stack.push((other, "]"))
-        if (move == ">") Q.push(other)
-        else if (move == "<") skip
-        else {
-          Q.push(curr)
-          Q.push(other)
-        }
-      }
-      if at(curr)=="]" {
-        const other = add(curr, DIRS["<"])
-        stack.push((curr, "]"))
-        stack.push((other, "["))
-        if (move == "<") Q.push(other)
-        else if (move == ">") skip
-        else {
-          Q.push(curr)
-          Q.push(other)
-        }
-      }
-    }
-  
-    ret stack
-  }
-
-  for let i = 0; i<moves.len; i++; {
-    const move = DIRS[moves[i]]
-    const next = add(robot, move)
-
-    if at(next)=="#" skip
-    if at(next)=="O" {
-      const stack = [next]
-      let overnext = add(next, move)
-      while at(overnext)=="O" {
-        stack.push(overnext)
-        overnext = add(overnext, move)
-      }
-      if at(overnext)=="." {
-        // move robot and all boxes
-        stack.each(fn (box)-> set(box, "."))
-        stack.each(fn (box)-> set(add(box, move), "O"))
-        robot = next
-      }
-      skip // box is blocked
-    }
-    if at(next) in "[]" {
-      const stack = build_stack(robot, moves[i])
-      if (stack.len > 0) {
-        stack.each(fn (half) -> set(half[0], "."))
-        stack.each(fn (half) -> set(add(half[0], move), half[1]))
-        robot = next
-      }
-      skip // box is blocked
-    }
-    robot = next
-  }
-
-  const boxes = []
-  const chr = bigboxes ? "[" : "O"
-  grid.each(fn(row,y) {
-    row.each(fn(_,x) -> at((y,x))==chr ? boxes.push((y,x)) : nil)
-  })
-
-  ret boxes.map(fn(box) -> box[0]*100+box[1]).sum()
+fn get_combo(op) {
+  if (op>=0 and op<=3) ret op 
+  else if (op==4) ret A 
+  else if (op==5) ret B 
+  else if (op==6) ret C 
+  throw "Reserved"
 }
 
-log("Part 1:", simulate(false)) // Part 1: 1485257
-log("Part 2:", simulate(true)) // Part 2: 
+
+fn dv(b) {
+  ret Math.floor(A / Math.pow(2, b))
+}
+
+fn interpret() {
+  let ip = 0
+  let out = []
+
+
+  while ip < PRG.len {
+    const cmd = PRG[ip]
+    if ip+1 >= PRG.len throw "Unexpected" 
+    const op = PRG[ip+1]
+
+    if (cmd==0) { // adv
+      A = dv(get_combo(op))
+    } else if (cmd==1) { // bxl
+      B = Math.xor(B, op)
+    } else if (cmd==2) { // bst
+      B = get_combo(op)%8    
+    } else if (cmd==3) { // jnz
+      if (A != 0) {
+        ip = op
+        skip
+      }
+    } else if (cmd==4) { // bxc
+      B = Math.xor(B, C)
+    } else if (cmd==5) { // out
+      out.push((get_combo(op)%8))
+    } else if (cmd==6) { // bdv
+      B = dv(get_combo(op))
+    } else if (cmd==7) { // cdv
+      C = dv(get_combo(op))
+    } else {
+      throw "Reserved"
+    }
+    ip+=2
+  }
+
+  print out.join(",")
+}
+
+interpret()
+
+// const p1 = 0s
+// log("Part 1:", p1) // Part 1: 7,4,2,0,5,0,5,3,7
+// log("Part 2:", p2) // Part 2: 

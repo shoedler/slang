@@ -357,7 +357,7 @@ static void resolve_variable(FnResolver* resolver, AstId* var) {
   return;
 
 FOUND:
-  var->symbol = sym;
+  var->symbol = sym;  // Set the symbol on the node for the compiler
   if (sym->state == SYMSTATE_DECLARED) {
     resolver_error((AstNode*)var, "Cannot read local in its own initializer.");
   } else if (sym->state == SYMSTATE_INITIALIZED) {
@@ -641,12 +641,14 @@ static void resolve_statement_break(FnResolver* resolver, AstStatement* stmt) {
   if (!resolver->in_loop) {
     resolver_error((AstNode*)stmt, "Can't break outside of a loop.");
   }
+  stmt->base.scope = resolver->current_scope;  // Add a reference to the current scope for the compiler
 }
 
 static void resolve_statement_skip(FnResolver* resolver, AstStatement* stmt) {
   if (!resolver->in_loop) {
     resolver_error((AstNode*)stmt, "Can't skip outside of a loop.");
   }
+  stmt->base.scope = resolver->current_scope;  // Add a reference to the current scope for the compiler
 }
 
 static void resolve_statement_throw(FnResolver* resolver, AstStatement* stmt) {
@@ -725,9 +727,19 @@ static void resolve_expr_call(FnResolver* resolver, AstExpression* expr) {
 }
 
 static void resolve_expr_dot(FnResolver* resolver, AstExpression* expr) {
-  // Only evaluate the target expression, not the property id
+  // Only evaluate the target expression, not the property id - we don't know if that property exists at compile time. (yet)
   AstExpression* target = (AstExpression*)expr->base.children[0];
   resolve_node(resolver, (AstNode*)target);
+}
+
+static void resolve_expr_invoke(FnResolver* resolver, AstExpression* expr) {
+  // Only resolve the target and arguments, not the method id - we don't know if that method exists at compile time. (yet)
+  AstExpression* target = (AstExpression*)expr->base.children[0];
+  resolve_node(resolver, (AstNode*)target);
+  // Skip the method id, resolve the arguments
+  for (int i = 2; i < expr->base.count; i++) {
+    resolve_node(resolver, expr->base.children[i]);
+  }
 }
 
 static void resolve_expr_subs(FnResolver* resolver, AstExpression* expr) {
@@ -744,6 +756,8 @@ static void resolve_expr_this(FnResolver* resolver, AstExpression* expr) {
   } else if (resolver->function->type == FN_TYPE_METHOD_STATIC) {
     resolver_error((AstNode*)expr, "Can't use '" KEYWORD_THIS "' in a static method.");
   }
+  AstId* this_ = get_child_as_id((AstNode*)expr, 0, false);
+  resolve_variable(resolver, this_);
 }
 
 static void resolve_expr_base(FnResolver* resolver, AstExpression* expr) {
@@ -754,6 +768,10 @@ static void resolve_expr_base(FnResolver* resolver, AstExpression* expr) {
   } else if (resolver->function->type == FN_TYPE_METHOD_STATIC) {
     resolver_error((AstNode*)expr, "Can't use '" KEYWORD_BASE "' in a static method.");
   }
+  AstId* this_ = get_child_as_id((AstNode*)expr, 0, false);
+  AstId* base_ = get_child_as_id((AstNode*)expr, 1, false);
+  resolve_variable(resolver, this_);
+  resolve_variable(resolver, base_);
 }
 
 static void resolve_expr_anon_fn(FnResolver* resolver, AstExpression* expr) {
@@ -854,6 +872,7 @@ static void resolve_node(FnResolver* resolver, AstNode* node) {
         case EXPR_IN: resolve_expr_in(resolver, expr); break;
         case EXPR_CALL: resolve_expr_call(resolver, expr); break;
         case EXPR_DOT: resolve_expr_dot(resolver, expr); break;
+        case EXPR_INVOKE: resolve_expr_invoke(resolver, expr); break;
         case EXPR_SUBS: resolve_expr_subs(resolver, expr); break;
         case EXPR_SLICE: resolve_expr_slice(resolver, expr); break;
         case EXPR_THIS: resolve_expr_this(resolver, expr); break;

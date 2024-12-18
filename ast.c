@@ -343,6 +343,17 @@ AstExpression* ast_expr_dot_init(Token start, Token end, AstExpression* target, 
   return expr;
 }
 
+AstExpression* ast_expr_invoke_init(Token start, Token end, AstExpression* target, AstId* method) {
+  AstExpression* expr = ast_expr_init(start, end, EXPR_INVOKE);
+  ast_node_add_child((AstNode*)expr, (AstNode*)target);
+  ast_node_add_child((AstNode*)expr, (AstNode*)method);
+  return expr;
+}
+
+void ast_expr_invoke_add_argument(AstExpression* invoke, AstExpression* argument) {
+  ast_node_add_child((AstNode*)invoke, (AstNode*)argument);
+}
+
 AstExpression* ast_expr_subs_init(Token start, Token end, AstExpression* target, AstExpression* index) {
   AstExpression* expr = ast_expr_init(start, end, EXPR_SUBS);
   ast_node_add_child((AstNode*)expr, (AstNode*)target);
@@ -362,12 +373,17 @@ AstExpression* ast_expr_slice_init(Token start,
   return expr;
 }
 
-AstExpression* ast_expr_this_init(Token start, Token end) {
-  return ast_expr_init(start, end, EXPR_THIS);
+AstExpression* ast_expr_this_init(Token start, Token end, AstId* this_) {
+  AstExpression* expr = ast_expr_init(start, end, EXPR_THIS);
+  ast_node_add_child((AstNode*)expr, (AstNode*)this_);
+  return expr;
 }
 
-AstExpression* ast_expr_base_init(Token start, Token end) {
-  return ast_expr_init(start, end, EXPR_BASE);
+AstExpression* ast_expr_base_init(Token start, Token end, AstId* this_, AstId* base_) {
+  AstExpression* expr = ast_expr_init(start, end, EXPR_BASE);
+  ast_node_add_child((AstNode*)expr, (AstNode*)this_);
+  ast_node_add_child((AstNode*)expr, (AstNode*)base_);
+  return expr;
 }
 
 AstExpression* ast_expr_anon_fn_init(Token start, Token end, AstFn* fn) {
@@ -635,6 +651,7 @@ static void ast_node_print(AstNode* node) {
         case EXPR_IN: printf(STR(EXPR_IN)); break;
         case EXPR_CALL: printf(STR(EXPR_CALL)); break;
         case EXPR_DOT: printf(STR(EXPR_DOT)); break;
+        case EXPR_INVOKE: printf(STR(EXPR_INVOKE)); break;
         case EXPR_SUBS: printf(STR(EXPR_SUBS)); break;
         case EXPR_SLICE: printf(STR(EXPR_SLICE)); break;
         case EXPR_THIS: printf(STR(EXPR_THIS)); break;

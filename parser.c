@@ -420,15 +420,16 @@ static AstExpression* parse_expr_anon_fn(Parser2* parser, Token expr_start, bool
 }
 
 static AstExpression* parse_expr_base(Parser2* parser, Token expr_start, bool can_assign) {
-  UNUSED(parser);
   UNUSED(can_assign);
-  return ast_expr_base_init(expr_start, parser->previous);
+  AstId* this_ = ast_id_init(expr_start, copy_string(KEYWORD_THIS, STR_LEN(KEYWORD_THIS)));
+  AstId* base_ = ast_id_init(expr_start, copy_string(KEYWORD_BASE, STR_LEN(KEYWORD_BASE)));
+  return ast_expr_base_init(expr_start, parser->previous, this_, base_);
 }
 
 static AstExpression* parse_expr_this(Parser2* parser, Token expr_start, bool can_assign) {
-  UNUSED(parser);
   UNUSED(can_assign);
-  return ast_expr_this_init(expr_start, parser->previous);
+  AstId* this_ = ast_id_init(expr_start, copy_string(KEYWORD_THIS, STR_LEN(KEYWORD_THIS)));
+  return ast_expr_this_init(expr_start, parser->previous, this_);
 }
 
 static AstExpression* parse_expr_try(Parser2* parser, Token expr_start, bool can_assign) {
@@ -473,6 +474,7 @@ static AstExpression* parse_expr_call(Parser2* parser, Token expr_start, AstExpr
   UNUSED(can_assign);
   AstExpression* call = ast_expr_call_init(expr_start, parser->previous, left);
 
+  // Same logic as EXPR_INVOKE
   int arg_count = 0;
   if (!check(parser, TOKEN_CPAR)) {
     do {
@@ -536,7 +538,28 @@ static AstExpression* parse_expr_dot(Parser2* parser, Token expr_start, AstExpre
 
   ObjString* property = copy_string(parser->previous.start, parser->previous.length);
   AstId* id           = ast_id_init(parser->previous, property);
-  return ast_expr_dot_init(expr_start, parser->previous, left, id);
+
+  if (match(parser, TOKEN_OPAR)) {
+    AstExpression* invoke = ast_expr_invoke_init(expr_start, parser->previous, left, id);
+
+    // Same logic as EXPR_CALL
+    int arg_count = 0;
+    if (!check(parser, TOKEN_CPAR)) {
+      do {
+        if (arg_count >= MAX_FN_ARGS) {
+          parser_error_at_current(parser, "Can't have more than " STR(MAX_FN_ARGS) " arguments.");
+        }
+        ast_expr_invoke_add_argument(invoke, parse_expression(parser));
+        arg_count++;
+      } while (match(parser, TOKEN_COMMA));
+    }
+    consume(parser, TOKEN_CPAR, "Expecting ')' after arguments.");
+
+    invoke->base.token_end = parser->previous;
+    return invoke;
+  } else {
+    return ast_expr_dot_init(expr_start, parser->previous, left, id);
+  }
 }
 
 static AstExpression* parse_expr_ternary(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {

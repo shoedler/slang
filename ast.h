@@ -46,6 +46,7 @@ typedef enum {
   EXPR_IN,            // Contains check
   EXPR_CALL,          // Function call
   EXPR_DOT,           // Property access
+  EXPR_INVOKE,        // Property invocation (method call)
   EXPR_SUBS,          // Subscript access
   EXPR_SLICE,         // Get slice
   EXPR_THIS,          // This expression
@@ -229,14 +230,16 @@ AstExpression* ast_expr_in_init(Token start, Token end, AstExpression* left, Ast
 AstExpression* ast_expr_call_init(Token start, Token end, AstExpression* target);
 void ast_expr_call_add_argument(AstExpression* call, AstExpression* argument);
 AstExpression* ast_expr_dot_init(Token start, Token end, AstExpression* target, AstId* property);
+AstExpression* ast_expr_invoke_init(Token start, Token end, AstExpression* target, AstId* method);
+void ast_expr_invoke_add_argument(AstExpression* invoke, AstExpression* argument);
 AstExpression* ast_expr_subs_init(Token start, Token end, AstExpression* target, AstExpression* index);
 AstExpression* ast_expr_slice_init(Token start,
                                    Token end,
                                    AstExpression* target,
                                    AstExpression* start_index,
                                    AstExpression* end_index);
-AstExpression* ast_expr_this_init(Token start, Token end);
-AstExpression* ast_expr_base_init(Token start, Token end);
+AstExpression* ast_expr_this_init(Token start, Token end, AstId* this_);
+AstExpression* ast_expr_base_init(Token start, Token end, AstId* this_, AstId* base_);
 AstExpression* ast_expr_anon_fn_init(Token start, Token end, AstFn* fn);
 AstExpression* ast_expr_ternary_init(Token start,
                                      Token end,
