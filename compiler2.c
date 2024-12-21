@@ -49,6 +49,8 @@ static ObjFunction* end_compiler(FnCompiler* compiler) {
   emit_return(compiler, (AstNode*)compiler->function);
   ObjFunction* function = compiler->result;
 #ifdef DEBUG_PRINT_BYTECODE
+  printf("Function name: %s, arity: %d, declared at line: %d\n", function->name->chars, function->arity,
+         compiler->function->base.token_start.line);
   debug_disassemble_chunk(&function->chunk, function->name->chars);
 #endif
 
@@ -756,7 +758,7 @@ static void compile_expr_postfix(FnCompiler* compiler, AstExpression* expr) {
   compile_node(compiler, (AstNode*)inner);  // Load itself before the operation
 
   uint16_t name = emit_compound_assignment_prelude(compiler, inner);
-  compile_node(compiler, (AstNode*)inner);  // Load itself
+  emit_constant(compiler, int_value(1), (AstNode*)expr);  // Load the increment/decrement value
   emit_one(compiler, op, (AstNode*)inner);
   emit_compound_assignment(compiler, inner, name);  // Leaves the result on the stack
 
@@ -782,9 +784,9 @@ static void compile_expr_unary(FnCompiler* compiler, AstExpression* expr) {
 
     // TODO (optimize): That's a lot of bytecode for a simple operation.
     uint16_t name = emit_compound_assignment_prelude(compiler, inner);
-    compile_node(compiler, (AstNode*)inner);  // Load itself
+    emit_constant(compiler, int_value(1), (AstNode*)expr);  // Load the increment/decrement value
     emit_one(compiler, op, (AstNode*)inner);
-    emit_compound_assignment(compiler, inner, name);  // Leaves the result on the stack
+    emit_compound_assignment(compiler, inner, name);  // Leaves the result on the stack, e.g. itself after the operation.
   }
 }
 
@@ -962,7 +964,7 @@ static void compile_expr_slice(FnCompiler* compiler, AstExpression* expr) {
 
   compile_node(compiler, (AstNode*)target);
   if (start == NULL) {
-    emit_constant(compiler, int_value(0), (AstNode*)start);  // Default start index is 0
+    emit_constant(compiler, int_value(0), (AstNode*)expr);  // Default start index is 0
   } else {
     compile_node(compiler, start);
   }

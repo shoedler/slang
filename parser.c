@@ -492,39 +492,41 @@ static AstExpression* parse_expr_call(Parser2* parser, Token expr_start, AstExpr
 
 static AstExpression* parse_expr_subs_or_slice(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
-  bool slice_started   = false;
   AstExpression* start = NULL;
   AstExpression* end   = NULL;
 
+#define RETURN_SLICE()                                                \
+  if (match(parser, TOKEN_ASSIGN)) {                                  \
+    parser_error_at_previous(parser, "Slices can't be assigned to."); \
+  }                                                                   \
+  return ast_expr_slice_init(expr_start, parser->previous, left, start, end);
+
+  // Handles foo[..] or foo[..e]
   if (match(parser, TOKEN_DOTDOT)) {
-    slice_started = true;
-  }
-
-  if (slice_started && check(parser, TOKEN_CBRACK)) {
-    // Signals that we want to slice until the end.
-  } else {
-    start = parse_expression(parser);
-  }
-
-  if (slice_started || match(parser, TOKEN_DOTDOT)) {
-    if (!slice_started) {
-      if (check(parser, TOKEN_CBRACK)) {
-        // Signals that we want to slice until the end.
-      } else {
-        end = parse_expression(parser);
-      }
+    if (match(parser, TOKEN_CBRACK)) {
+      RETURN_SLICE();
     }
-
+    end = parse_expression(parser);
     consume(parser, TOKEN_CBRACK, "Expecting ']' after slice.");
-    if (match(parser, TOKEN_ASSIGN)) {
-      parser_error_at_previous(parser, "Slices can't be assigned to.");
-    }
-
-    return ast_expr_slice_init(expr_start, parser->previous, left, start, end);
-  } else {
-    consume(parser, TOKEN_CBRACK, "Expecting ']' after index.");
-    return ast_expr_subs_init(expr_start, parser->previous, left, start);
+    RETURN_SLICE();
   }
+
+  // Parse the start index
+  start = parse_expression(parser);
+
+  // Handles foo[e..] or foo[e..e]
+  if (match(parser, TOKEN_DOTDOT)) {
+    if (match(parser, TOKEN_CBRACK)) {
+      RETURN_SLICE();
+    }
+    end = parse_expression(parser);
+    consume(parser, TOKEN_CBRACK, "Expecting ']' after slice.");
+    RETURN_SLICE();
+  }
+
+  // Else, it's a subscripting expression
+  consume(parser, TOKEN_CBRACK, "Expecting ']' after index.");
+  return ast_expr_subs_init(expr_start, parser->previous, left, start);
 }
 
 static AstExpression* parse_expr_dot(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
