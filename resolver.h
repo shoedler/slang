@@ -6,6 +6,7 @@
 #include "object.h"
 #include "scope.h"
 
-void resolve(AstFn* node);
+// Resolves a AST. Returns true if the AST is valid, false otherwise.
+bool resolve(AstFn* node);
 
 #endif  // RESOLVER_H

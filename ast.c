@@ -18,6 +18,9 @@ AstNode* ast_allocate_node(size_t size, NodeType type, Token start, Token end) {
   node->count    = 0;
   node->capacity = 0;
 
+  node->parent = NULL;
+  node->scope  = NULL;
+
   return node;
 }
 

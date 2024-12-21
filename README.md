@@ -35,6 +35,7 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
+- [ ] Test if assignment to patterns works. Declarations work.
 - [ ] Do we really need `fn_index`? Think it through.
 - [ ] Put all the `copy_string(KEYWORD_ERROR, STR_LEN(KEYWORD_ERROR))` into a lookup table 
 - [ ] Handle roots for garbage collection in the parser, resolver and compiler
@@ -56,6 +57,7 @@ You can, for example, easily cache stuff:
   - [ ] Implement `Json.parse(Str) -> Obj`.
   - [ ] Implement `Json.stringify(Value) -> Str`.
   - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
+- [ ] Implement `Seq.min(type: Type) -> Value`. (Get the minimum value of a sequence, should use SP_METHOD_LT of the `type`)
 - [ ] Implement `Str.ints() -> Seq`. (Split a string into a sequence of integers (also negative ones))
 - [ ] Implement `Str.floats() -> Seq`. (Split a string into a sequence of floats)
 - [ ] Implement `Seq.mapat(Int, Fn) -> Seq`. (Map only the element at the given index but return the whole sequence)

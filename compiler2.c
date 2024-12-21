@@ -332,8 +332,8 @@ static void emit_assignment(FnCompiler* compiler, AstExpression* target, uint16_
   }
 }
 
-// Emits bytecode for assignment to a pattern. Assings the value at the top of the stack to the pattern.
-static void emit_assignment_pattern(FnCompiler* compiler, AstPattern* pattern, bool define_else_assign) {
+// Emits bytecode for defining variables using destructuring. Assings the value at the top of the stack to the pattern.
+static void emit_define_pattern(FnCompiler* compiler, AstPattern* pattern) {
   for (int i = 0; i < pattern->base.count; i++) {
     AstPattern* child = (AstPattern*)pattern->base.children[i];
     AstId* child_id   = (AstId*)child->base.children[0];
@@ -352,9 +352,10 @@ static void emit_assignment_pattern(FnCompiler* compiler, AstPattern* pattern, b
       INTERNAL_ERROR("Unsupported pattern child-type: %d", child->type);
     }
 
-    if (define_else_assign) {
+    if (child_id->symbol->type == SYMBOL_GLOBAL) {
       emit_define_id(compiler, child_id);
     } else {
+      // In local scope, we have already emitted a placeholder (OP_NIL) for the value, so we need to use assign, not define.
       emit_assign_id(compiler, child_id);
       if (!in_global_scope(compiler)) {
         emit_one(compiler, OP_POP, (AstNode*)child);  // Discard the value.
@@ -365,13 +366,17 @@ static void emit_assignment_pattern(FnCompiler* compiler, AstPattern* pattern, b
   emit_one(compiler, OP_POP, (AstNode*)pattern);  // Discard the rhs value left on the stack.
 }
 
-static void emit_define_pattern(FnCompiler* compiler, AstPattern* pattern) {
-  emit_assignment_pattern(compiler, pattern, true);
+// Emits preliminary bytecode for defining a pattern. Used in combination with emit_define_pattern.
+static void emit_define_pattern_prelude(FnCompiler* compiler, AstPattern* pattern) {
+  // Emit placeholder values when in local scope. Not needed for globals, as they are declared with OP_DEFINE_GLOBAL.
+  // We only get here when the pattern is preceded by a 'let' or 'const' keyword, so we can safely assume all of the bindings are
+  // locals.
+  if (!in_global_scope(compiler)) {
+    for (int i = 0; i < pattern->base.count; i++) {
+      emit_one(compiler, OP_NIL, (AstNode*)pattern);
+    }
+  }
 }
-
-// static void emit_assign_pattern(FnCompiler* compiler, AstPattern* pattern) {
-//   emit_assignment_pattern(compiler, pattern, false);
-// }
 
 //
 // Important stuff
@@ -418,6 +423,7 @@ static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
 
   // Parameters
   if (params != NULL) {
+    subcompiler.result->arity = params->base.count;
     for (int i = 0; i < params->base.count; i++) {
       AstId* id = (AstId*)params->base.children[i];
       emit_define_id(&subcompiler, id);
@@ -471,6 +477,7 @@ static void compile_declare_function(FnCompiler* compiler, AstDeclaration* decl)
   AstFn* fn = (AstFn*)decl->base.children[0];
   compile_function(compiler, fn);
 }
+
 static void compile_declare_class(FnCompiler* compiler, AstDeclaration* decl) {
   // uint16_t class_name = id_constant(compiler, decl->class_name);
   // emit_constant(compiler, OBJ_VAL(class_name), (AstNode*)decl);
@@ -481,9 +488,14 @@ static void compile_declare_class(FnCompiler* compiler, AstDeclaration* decl) {
   printf("compiling declaration\n");
   compile_children(compiler, (AstNode*)decl);
 }
+
 static void compile_declare_variable(FnCompiler* compiler, AstDeclaration* decl) {
   AstNode* id_or_pattern = decl->base.children[0];
   AstNode* initializer   = decl->base.children[1];
+
+  if (id_or_pattern->type == NODE_PATTERN) {
+    emit_define_pattern_prelude(compiler, (AstPattern*)id_or_pattern);
+  }
 
   if (initializer != NULL) {
     compile_node(compiler, initializer);
@@ -533,6 +545,8 @@ static void compile_statement_import(FnCompiler* compiler, AstStatement* stmt) {
     uint16_t absolute_file_path_constant =
         make_constant(compiler, str_value(copy_string(absolute_path, strlen(absolute_path))), (AstNode*)stmt);
     free(absolute_path);  // since we copied to make sure it's allocated on our managed heap, we need to free it.
+
+    emit_define_pattern_prelude(compiler, pattern);
 
     emit_three(compiler, OP_IMPORT_FROM, absolute_file_path_constant, absolute_file_path_constant,
                (AstNode*)stmt);  // Use the path as the module name.
@@ -1060,7 +1074,7 @@ static void compile_lit_seq(FnCompiler* compiler, AstLiteral* lit) {
 
 static void compile_lit_obj(FnCompiler* compiler, AstLiteral* lit) {
   compile_children(compiler, (AstNode*)lit);
-  emit_two(compiler, OP_OBJECT_LITERAL, (uint16_t)lit->base.count, (AstNode*)lit);
+  emit_two(compiler, OP_OBJECT_LITERAL, (uint16_t)lit->base.count / 2, (AstNode*)lit);
 }
 
 static void compile_node(FnCompiler* compiler, AstNode* node) {

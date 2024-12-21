@@ -17,16 +17,12 @@ struct FnResolver {
   Scope* current_scope;  // Current scope, can be a child scope of the [function]s scope
   bool in_loop;
   bool in_class;
+  bool has_baseclass;
   int function_local_count;  // Number of local variables in the current function, including its nested scopes. Used to set
                              // function_index when resolving variables/upvalues
-
-  // Track classes for base/this validation
-  struct {
-    bool has_baseclass;
-  } current_class;
-
-  // Track static methods for base/this validation
 };
+
+static bool had_error = false;
 
 // Forward declarations
 static Scope* new_scope(FnResolver* resolver);
@@ -35,13 +31,13 @@ void resolve_children(FnResolver* resolver, AstNode* node);
 static void resolve_node(FnResolver* resolver, AstNode* node);
 
 static void resolver_init(FnResolver* resolver, FnResolver* enclosing, AstFn* fn) {
-  resolver->current_scope               = enclosing != NULL ? enclosing->current_scope : NULL;
-  resolver->enclosing                   = enclosing;
-  resolver->function                    = fn;
-  resolver->function_local_count        = 0;
-  resolver->in_loop                     = enclosing != NULL ? enclosing->in_loop : false;
-  resolver->in_class                    = enclosing != NULL ? enclosing->in_class : false;
-  resolver->current_class.has_baseclass = enclosing != NULL ? enclosing->current_class.has_baseclass : false;
+  resolver->current_scope        = enclosing != NULL ? enclosing->current_scope : NULL;
+  resolver->enclosing            = enclosing;
+  resolver->function             = fn;
+  resolver->function_local_count = 0;
+  resolver->in_loop              = enclosing != NULL ? enclosing->in_loop : false;
+  resolver->in_class             = enclosing != NULL ? enclosing->in_class : false;
+  resolver->has_baseclass        = enclosing != NULL ? enclosing->has_baseclass : false;
 
   fn->base.scope = new_scope(resolver);  // Also sets resolver->current_scope
 }
@@ -71,11 +67,13 @@ static inline AstId* get_child_as_id(AstNode* parent, int index, bool allow_null
   return id;
 }
 #else
-#define get_child_as_id(parent, index, allow_null) ((AstId*)parent->children[index])
+#define get_child_as_id(parent, index, allow_null) ((AstId*)parent->base.children[index])
 #endif
 
 // Prints an error message at the offending node.
 static void resolver_error(AstNode* offending_node, const char* format, ...) {
+  had_error = true;
+
   fprintf(stderr, "Resolver error at line %d", offending_node->token_start.line);
   fprintf(stderr, ": " ANSI_COLOR_RED);
   va_list args;
@@ -473,8 +471,8 @@ static void resolve_declare_class(FnResolver* resolver, AstDeclaration* decl) {
   if (resolver->in_class) {
     resolver_error((AstNode*)decl, "Classes can't be nested.");
   }
-  resolver->in_class                    = true;
-  resolver->current_class.has_baseclass = decl->base.children[1] != NULL;
+  resolver->in_class      = true;
+  resolver->has_baseclass = decl->base.children[1] != NULL;
 
   // Declare and define the class name
   AstId* class_name     = get_child_as_id((AstNode*)decl, 0, false);
@@ -487,7 +485,7 @@ static void resolve_declare_class(FnResolver* resolver, AstDeclaration* decl) {
 
   // Create the class scope
   decl->base.scope = new_scope(resolver);
-  if (resolver->current_class.has_baseclass) {
+  if (resolver->has_baseclass) {
     inject_local(resolver, KEYWORD_BASE, true);
   }
 
@@ -497,8 +495,8 @@ static void resolve_declare_class(FnResolver* resolver, AstDeclaration* decl) {
 
   // End class scope
   end_scope(resolver);
-  resolver->in_class                    = false;  // Class can't be nested
-  resolver->current_class.has_baseclass = false;
+  resolver->in_class      = false;  // Class can't be nested
+  resolver->has_baseclass = false;
 }
 
 static void resolve_declare_variable(FnResolver* resolver, AstDeclaration* decl) {
@@ -714,7 +712,7 @@ static void resolve_expr_this(FnResolver* resolver, AstExpression* expr) {
 static void resolve_expr_base(FnResolver* resolver, AstExpression* expr) {
   if (!resolver->in_class) {
     resolver_error((AstNode*)expr, "Can't use '" KEYWORD_BASE "' outside of a class.");
-  } else if (!resolver->current_class.has_baseclass) {
+  } else if (!resolver->has_baseclass) {
     resolver_error((AstNode*)expr, "Can't use '" KEYWORD_BASE "' in a class without a base class.");
   } else if (resolver->function->type == FN_TYPE_METHOD_STATIC) {
     resolver_error((AstNode*)expr, "Can't use '" KEYWORD_BASE "' in a static method.");
@@ -867,8 +865,10 @@ void resolve_children(FnResolver* resolver, AstNode* node) {
   }
 }
 
-void resolve(AstFn* root) {
+bool resolve(AstFn* root) {
   FnResolver resolver;
+
+  had_error = false;
 
   resolver_init(&resolver, NULL, root);
   inject_local(&resolver, "", true);  // Not accessible
@@ -881,4 +881,6 @@ void resolve(AstFn* root) {
   printf("\n\n\n === RESOLVE ===\n\n");
   ast_print_scopes((AstNode*)root);
 #endif
+
+  return !had_error;
 }

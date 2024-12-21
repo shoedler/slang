@@ -238,6 +238,7 @@ static AstExpression* parse_expr_grouping_or_literal_tuple(Parser2* parser, Toke
 
   // Empty tuple
   if (match(parser, TOKEN_COMMA)) {
+    consume(parser, TOKEN_CPAR, "Expecting ')' after empty " STR(TYPENAME_TUPLE) " literal. ");
     AstLiteral* tuple = ast_lit_tuple_init(expr_start, parser->previous);
     return ast_expr_literal_init(expr_start, parser->previous, tuple);
   }
@@ -1166,5 +1167,9 @@ AstFn* parse(const char* source, ObjString* name) {
   ast_print((AstNode*)root, 0);
 #endif
 
+  if (parser.had_error) {
+    ast_free((AstNode*)root);
+    return NULL;
+  }
   return root;
 }
