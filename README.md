@@ -35,16 +35,21 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
+- [ ] Do we really need `fn_index`? Think it through.
 - [ ] Put all the `copy_string(KEYWORD_ERROR, STR_LEN(KEYWORD_ERROR))` into a lookup table 
 - [ ] Handle roots for garbage collection in the parser, resolver and compiler
-- [ ] Add node for invoke
-- [ ] Can Probably omit OP_FINALIZE for classes?
+- [x] Add node for invoke
+- [ ] After testing: Refactor module imports without Module name (imports using "from"). 
+- [ ] After testing: Reorder the operands for `OP_GET_PROPERTY`(and set too) in the VM from `[recv][value] (top)` to `[value][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
+- [ ] After testing: Reorder the operands for `OP_GET_SUBSCRIPT`(and set too) in the VM from `[recv][idx][value] (top)` to `[value][idx][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
 - [ ] Verify that the tombstone-mechanism in the symboltable actually works.
-- [ ] Omit non-necessary CLOSURES.
 - [ ] Add resolver warn for vars that could be constant.
+- [ ] Omit non-necessary CLOSURES.
+- [ ] Can Probably omit OP_FINALIZE for classes?
 
 ## Features
 
+- [ ] Allow `Tuple.inside = fn(this) -> (this[0]>=0 and this[0]<ROWS) and (this[1]>=0 and this[1]<COLS)` 
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] Implement native `Json` module.

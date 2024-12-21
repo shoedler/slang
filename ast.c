@@ -420,13 +420,12 @@ static AstLiteral* ast_lit_init(Token start, Token end, LiteralType type) {
   AstLiteral* lit = (AstLiteral*)ast_allocate_node(sizeof(AstLiteral), NODE_LIT, start, end);
   lit->type       = type;
   lit->value      = nil_value();
-  lit->string     = NULL;
   return lit;
 }
 
 AstLiteral* ast_lit_str_init(Token start, Token end, ObjString* string) {
   AstLiteral* lit = ast_lit_init(start, end, LIT_STRING);
-  lit->string     = string;
+  lit->value      = str_value(string);
   return lit;
 }
 
@@ -436,9 +435,9 @@ AstLiteral* ast_lit_number_init(Token start, Token end, Value number) {
   return lit;
 }
 
-AstLiteral* ast_lit_bool_init(Token start, Token end, Value boolean) {
+AstLiteral* ast_lit_bool_init(Token start, Token end, bool boolean) {
   AstLiteral* lit = ast_lit_init(start, end, LIT_BOOL);
-  lit->value      = boolean;
+  lit->value      = bool_value(boolean);
   return lit;
 }
 
@@ -565,7 +564,7 @@ static void print_fn_type(FnType type) {
   const char* fn_type_str = ANSI_RED_STR("unknown");
   switch (type) {
     case FN_TYPE_UNKNOWN: fn_type_str = ANSI_GREEN_STR("unknown"); break;
-    case FN_TYPE_FUNCTION: fn_type_str = ANSI_GREEN_STR("function"); break;
+    case FN_TYPE_NAMED_FUNCTION: fn_type_str = ANSI_GREEN_STR("function"); break;
     case FN_TYPE_CONSTRUCTOR: fn_type_str = ANSI_GREEN_STR("constructor"); break;
     case FN_TYPE_METHOD: fn_type_str = ANSI_GREEN_STR("method"); break;
     case FN_TYPE_METHOD_STATIC: fn_type_str = ANSI_GREEN_STR("static method"); break;
@@ -695,7 +694,7 @@ static void ast_node_print(AstNode* node) {
           }
           break;
         }
-        case LIT_STRING: print_string_lit(((AstLiteral*)node)->string->chars, 30); break;
+        case LIT_STRING: print_string_lit(AS_STR(((AstLiteral*)node)->value)->chars, 30); break;
         case LIT_BOOL:
           printf(ANSI_BLUE_STR("%s"), (((AstLiteral*)node)->value.as.boolean) ? VALUE_STR_TRUE : VALUE_STR_FALSE);
           break;
@@ -777,7 +776,9 @@ static void print_scope(Scope* scope) {
   // Locals
   int current_local = 0;
   while (current_local < scope->local_count) {
+#ifdef DEBUG_RESOLVER
     int before = current_local;
+#endif
     for (int i = 0; i < scope->capacity; i++) {
       SymbolEntry* entry = &scope->entries[i];
       if (entry->key == NULL || entry->value->type != SYMBOL_LOCAL || entry->value->index != current_local) {
@@ -788,7 +789,12 @@ static void print_scope(Scope* scope) {
       print_scope_symbolentry(scope->depth, entry, tree_link);
       current_local++;
     }
-    INTERNAL_ASSERT(before != current_local, "Infinite loop in locals, current_local=%d", current_local);
+#ifdef DEBUG_RESOLVER
+    if (before == current_local) {
+      INTERNAL_ERROR("Infinite loop in locals, current_local=%d", current_local);
+      exit(SLANG_EXIT_SW_ERROR);
+    }
+#endif
   }
 
   // Rest
@@ -804,10 +810,11 @@ static void print_scope(Scope* scope) {
     const char* tree_link = total_symbols_printed == scope->count ? "└" : "├";
     print_scope_symbolentry(scope->depth, entry, tree_link);
   }
-
+#ifdef DEBUG_RESOLVER
   INTERNAL_ASSERT(total_symbols_printed == scope->count,
                   "Total symbols printed does not match scope count. Printed: %d, count: %d", total_symbols_printed,
                   scope->count);
+#endif
 }
 
 static void print_scope_end(Scope* scope) {

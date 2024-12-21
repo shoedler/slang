@@ -11,10 +11,12 @@
 //
 
 // Scanning & Compilation
-#define DEBUG_PRINT_AST  // Print the parser's AST
+#define DEBUG_PRINT_AST     // Print the parser's AST
+#define DEBUG_PRINT_SCOPES  // Print the scopes the resolver creates
 // #define DEBUG_PRINT_TOKENS  // Print the tokens the scanner produces
-// #define DEBUG_PRINT_CODE  // Print all compiled bytecode chunks
-#define DEBUG_RESOLVER  // Use additional checks and assertions on the provided ASTs shape
+#define DEBUG_PRINT_BYTECODE  // Print all compiled bytecode chunks
+#define DEBUG_RESOLVER        // Use additional checks and assertions on the provided ASTs shape
+#define DEBUG_COMPILER        // Use additional checks and assertions on the compilation/emission of bytecode
 
 // Virtual Machine
 // #define DEBUG_TRACE_EXECUTION  // Print the execution of the Vm, including stack traces. Also checks for leaked error states.
@@ -64,6 +66,7 @@ typedef enum {
 #define ANSI_COLOR_BLUE "\x1b[34m"
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_CYAN "\x1b[36m"
+#define ANSI_COLOR_GRAY "\x1b[90m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 #else
 #define ANSI_COLOR_RED ""
@@ -72,6 +75,7 @@ typedef enum {
 #define ANSI_COLOR_BLUE ""
 #define ANSI_COLOR_MAGENTA ""
 #define ANSI_COLOR_CYAN ""
+#define ANSI_COLOR_GRAY ""
 #define ANSI_COLOR_RESET ""
 #endif
 
@@ -81,13 +85,15 @@ typedef enum {
 #define ANSI_BLUE_STR(str) ANSI_COLOR_BLUE str ANSI_COLOR_RESET
 #define ANSI_MAGENTA_STR(str) ANSI_COLOR_MAGENTA str ANSI_COLOR_RESET
 #define ANSI_CYAN_STR(str) ANSI_COLOR_CYAN str ANSI_COLOR_RESET
+#define ANSI_GRAY_STR(str) ANSI_COLOR_GRAY str ANSI_COLOR_RESET
 
 //
 // Utility macros
 //
 
-#define ___PRINT_INTERNAL_MSG_HEADER(type, ANSI_COLOR) \
-  fprintf(stderr, ANSI_COLOR type ANSI_COLOR_RESET " at " ANSI_MAGENTA_STR("%s(%u): "), __FILE__, __LINE__);
+#define ___PRINT_INTERNAL_MSG_HEADER(type, ANSI_COLOR)                                                                   \
+  fprintf(stderr, ANSI_COLOR type ANSI_COLOR_RESET " at " ANSI_MAGENTA_STR("%s(%u)") " in " ANSI_MAGENTA_STR("%s") ": ", \
+          __FILE__, __LINE__, __FUNCTION__);
 #define INTERNAL_ERROR(format_literal, ...)                         \
   do {                                                              \
     ___PRINT_INTERNAL_MSG_HEADER("INTERNAL ERROR", ANSI_COLOR_RED); \

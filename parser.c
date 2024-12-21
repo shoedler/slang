@@ -396,12 +396,9 @@ static AstExpression* parse_literal(Parser2* parser, Token expr_start, bool can_
   UNUSED(can_assign);
   TokenKind type = parser->previous.type;
   switch (type) {
-    case TOKEN_TRUE: {
-      AstLiteral* bool_lit = ast_lit_bool_init(expr_start, parser->previous, bool_value(true));
-      return ast_expr_literal_init(expr_start, parser->previous, bool_lit);
-    }
+    case TOKEN_TRUE:
     case TOKEN_FALSE: {
-      AstLiteral* bool_lit = ast_lit_bool_init(expr_start, parser->previous, bool_value(false));
+      AstLiteral* bool_lit = ast_lit_bool_init(expr_start, parser->previous, type == TOKEN_TRUE);
       return ast_expr_literal_init(expr_start, parser->previous, bool_lit);
     }
     case TOKEN_NIL: {
@@ -921,16 +918,16 @@ static AstStatement* parse_statement_import(Parser2* parser) {
     AstPattern* pattern = parse_destructuring(parser, DESTRUCTURE_OBJ);
     consume(parser, TOKEN_FROM, "Expecting 'from' after destructuring assignment.");
     consume(parser, TOKEN_STRING, "Expecting file path after 'from'.");
-    path = copy_string(parser->previous.start, parser->previous.length);
+    path = copy_string(parser->previous.start + 1, parser->previous.length - 2);  // Skip the quotes.
     return ast_stmt_import_init2(stmt_start, parser->previous, path, pattern);
   }
 
-  consume(parser, TOKEN_ID, "Expecting identifier after 'import'.");
+  consume(parser, TOKEN_ID, "Expecting identifier or '{' after 'import'.");
   ObjString* name = copy_string(parser->previous.start, parser->previous.length);
   AstId* id       = ast_id_init(parser->previous, name);
   if (match(parser, TOKEN_FROM)) {
     consume(parser, TOKEN_STRING, "Expecting file path after 'from'.");
-    path = copy_string(parser->previous.start, parser->previous.length);
+    path = copy_string(parser->previous.start + 1, parser->previous.length - 2);  // Skip the quotes.
   }
   return ast_stmt_import_init(stmt_start, parser->previous, path, id);
 }
@@ -1093,7 +1090,7 @@ static AstDeclaration* parse_declaration_class(Parser2* parser) {
 static AstDeclaration* parse_declaration_function(Parser2* parser) {
   Token decl_start = parser->previous;  // Previous is FN
   consume(parser, TOKEN_ID, "Expecting function name.");
-  AstFn* fn = parse_function(parser, decl_start, parser->previous, FN_TYPE_FUNCTION);
+  AstFn* fn = parse_function(parser, decl_start, parser->previous, FN_TYPE_NAMED_FUNCTION);
   return ast_decl_fn_init(decl_start, parser->previous, fn);
 }
 

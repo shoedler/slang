@@ -87,7 +87,7 @@ typedef enum {
 
 typedef enum {
   FN_TYPE_UNKNOWN,
-  FN_TYPE_FUNCTION,
+  FN_TYPE_NAMED_FUNCTION,
   FN_TYPE_CONSTRUCTOR,
   FN_TYPE_METHOD,
   FN_TYPE_METHOD_STATIC,
@@ -255,13 +255,12 @@ AstExpression* ast_expr_try_init(Token start, Token end, AstId* error, AstExpres
 struct AstLiteral {
   AstNode base;
   LiteralType type;
-  Value value;        // LIT_NUMBER, LIT_BOOL, LIT_NIL
-  ObjString* string;  // LIT_STRING
+  Value value;  // LIT_NUMBER, LIT_BOOL, LIT_NIL, LIT_STRING
 };
 
 AstLiteral* ast_lit_str_init(Token start, Token end, ObjString* string);
 AstLiteral* ast_lit_number_init(Token start, Token end, Value number);
-AstLiteral* ast_lit_bool_init(Token start, Token end, Value boolean);
+AstLiteral* ast_lit_bool_init(Token start, Token end, bool boolean);
 AstLiteral* ast_lit_nil_init(Token start, Token end);
 AstLiteral* ast_lit_tuple_init(Token start, Token end);
 void ast_lit_tuple_add_item(AstLiteral* tuple, AstExpression* item);

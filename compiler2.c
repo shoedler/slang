@@ -48,18 +48,8 @@ static void compiler_init(FnCompiler* compiler, FnCompiler* enclosing, AstFn* fu
 static ObjFunction* end_compiler(FnCompiler* compiler) {
   emit_return(compiler, (AstNode*)compiler->function);
   ObjFunction* function = compiler->result;
-#ifdef DEBUG_COMPILER
+#ifdef DEBUG_PRINT_BYTECODE
   debug_disassemble_chunk(&function->chunk, function->name->chars);
-  // Print all locals
-  Scope* scope = compiler->function->base.scope;
-  for (int i = 0; i < scope->capacity; i++) {
-    SymbolEntry* entry = &scope->entries[i];
-    if (entry->key == NULL || entry->value->type != SYMBOL_LOCAL) {
-      continue;
-    }
-    printf("Local %d: %s\n", entry->value->function_index, entry->key->chars);
-  }
-  printf("\n");
 #endif
 
   return function;
@@ -165,6 +155,14 @@ static void patch_jump(FnCompiler* compiler, int offset) {
   compiler->result->chunk.code[offset] = (uint16_t)jump;
 }
 
+// Patches a previously emitted jump instruction from a break statement.
+static void patch_breaks(FnCompiler* compiler, int jump_start_offset) {
+  while (compiler->brakes_count > 0 && compiler->brake_jumps[compiler->brakes_count - 1] > jump_start_offset) {
+    patch_jump(compiler, compiler->brake_jumps[compiler->brakes_count - 1]);
+    compiler->brakes_count--;
+  }
+}
+
 // Emits a loop instruction. The operand is a 16-bit offset. It is calculated by subtracting the current chunk's count from the
 // offset of the jump instruction.
 static void emit_loop(FnCompiler* compiler, int loop_start, AstNode* source) {
@@ -178,44 +176,120 @@ static void emit_loop(FnCompiler* compiler, int loop_start, AstNode* source) {
   emit_one(compiler, (uint16_t)offset, source);
 }
 
-static void emit_load_symbol(FnCompiler* compiler, Symbol* symbol, ObjString* name, AstNode* source) {
-  switch (symbol->type) {
-    case SYMBOL_LOCAL: emit_two(compiler, OP_GET_LOCAL, symbol->function_index, (AstNode*)source); break;
+// Emits bytecode to assign the value at the top of the stack to the given [id].
+static void emit_assign_id(FnCompiler* compiler, AstId* id) {
+  Symbol* sym = id->symbol;
+  switch (sym->type) {
+    case SYMBOL_LOCAL: emit_two(compiler, OP_SET_LOCAL, sym->function_index, (AstNode*)id); break;
     case SYMBOL_UPVALUE:
-    case SYMBOL_UPVALUE_OUTER: emit_two(compiler, OP_GET_UPVALUE, symbol->function_index, (AstNode*)source); break;
-    case SYMBOL_NATIVE:
+    case SYMBOL_UPVALUE_OUTER: emit_two(compiler, OP_SET_UPVALUE, sym->function_index, (AstNode*)id); break;
+    case SYMBOL_NATIVE: INTERNAL_ASSERT(false, "Fix resolver. Assigning to natives is forbidden."); break;
     case SYMBOL_GLOBAL: {
-      uint16_t name_index = id_constant(compiler, name, (AstNode*)source);
-      emit_two(compiler, OP_GET_GLOBAL, name_index, (AstNode*)source);
+      INTERNAL_ASSERT(sym->function_index >= 0, "Global variable should have an index.");
+      emit_two(compiler, OP_SET_GLOBAL, sym->function_index, (AstNode*)id);
       break;
     }
-    default: INTERNAL_ERROR("Unknown symbol type.");
+    default: INTERNAL_ERROR("Unknown symbol type: %d", sym->type);
   }
 }
 
-static void emit_assign_symbol(FnCompiler* compiler, Symbol* symbol, ObjString* name, AstNode* source) {
-  switch (symbol->type) {
-    case SYMBOL_LOCAL: emit_two(compiler, OP_SET_LOCAL, symbol->function_index, source); break;
+// Emits bytecode to define the given [id] as a variable with the value at the top of the stack.
+// If it's a global, [global_constant] is the index of the global constant in the constant pool.
+static void emit_define_id_explicit(FnCompiler* compiler, AstId* id, uint16_t global_constant) {
+  Symbol* sym = id->symbol;
+  switch (sym->type) {
+    case SYMBOL_LOCAL: break;  // Locals are already defined.
     case SYMBOL_UPVALUE:
-    case SYMBOL_UPVALUE_OUTER: emit_two(compiler, OP_SET_UPVALUE, symbol->function_index, source); break;
-    case SYMBOL_NATIVE:
+    case SYMBOL_UPVALUE_OUTER: INTERNAL_ASSERT(false, "Fix resolver. Cannot define upvalues."); break;
+    case SYMBOL_NATIVE: INTERNAL_ASSERT(false, "Fix resolver. Cannot define natives."); break;
     case SYMBOL_GLOBAL: {
-      uint16_t name_index = id_constant(compiler, name, (AstNode*)source);
-      emit_two(compiler, OP_SET_GLOBAL, name_index, (AstNode*)source);
+      emit_two(compiler, OP_DEFINE_GLOBAL, global_constant, (AstNode*)id);
       break;
     }
-    default: INTERNAL_ERROR("Unknown symbol type.");
+    default: INTERNAL_ERROR("Unknown symbol type: %d", sym->type);
   }
 }
 
-static void emit_assign_id(FnCompiler* compiler, AstId* node) {
-  emit_assign_symbol(compiler, node->symbol, node->name, (AstNode*)node);
+// Emits bytecode to define the given [id] as a variable with the value at the top of the stack.
+static void emit_define_id(FnCompiler* compiler, AstId* id) {
+  if (id->symbol->type == SYMBOL_GLOBAL) {
+    uint16_t global_constant = id_constant(compiler, id->name, (AstNode*)id);
+    emit_define_id_explicit(compiler, id, global_constant);
+  } else {
+    emit_define_id_explicit(compiler, id, 0 /* ignored */);
+  }
 }
 
-static void emit_load_id(FnCompiler* compiler, AstId* node) {
-  emit_load_symbol(compiler, node->symbol, node->name, (AstNode*)node);
+// Emits bytecode to load the value of the given [id] onto the stack.
+static void emit_load_id(FnCompiler* compiler, AstId* id) {
+  Symbol* sym = id->symbol;
+  switch (sym->type) {
+    case SYMBOL_LOCAL: emit_two(compiler, OP_GET_LOCAL, sym->function_index, (AstNode*)id); break;
+    case SYMBOL_UPVALUE:
+    case SYMBOL_UPVALUE_OUTER: emit_two(compiler, OP_GET_UPVALUE, sym->function_index, (AstNode*)id); break;
+    case SYMBOL_NATIVE:
+    case SYMBOL_GLOBAL: {
+      uint16_t global = id_constant(compiler, id->name, (AstNode*)id);
+      emit_two(compiler, OP_GET_GLOBAL, global, (AstNode*)id);
+      break;
+    }
+    default: INTERNAL_ERROR("Unknown symbol type: %d", sym->type);
+  }
 }
 
+// Emits preliminary bytecode for any supported assignment target in a compound assignment case (++,--,%= etc.). These assignments
+// require the target to be loaded onto the stack before the value to be assigned is computed. Used in combination with
+// emit_assignment. Returns the name index if the target is a property access, 0 otherwise.
+static uint16_t emit_compound_assignment_prelude(FnCompiler* compiler, AstExpression* target) {
+  if (target->type == EXPR_VARIABLE) {
+    AstId* id = (AstId*)target->base.children[0];
+    emit_load_id(compiler, id);  // [value]
+    return 0;
+  } else if (target->type == EXPR_DOT) {
+    AstNode* receiver = target->base.children[0];
+    AstId* property   = (AstId*)target->base.children[1];
+    uint16_t name     = id_constant(compiler, property->name, (AstNode*)property);
+    compile_node(compiler, receiver);                               // [target]
+    emit_two(compiler, OP_DUPE, 0, (AstNode*)target);               // Duplicate the receiver: [target][target]
+    emit_two(compiler, OP_GET_PROPERTY, name, (AstNode*)property);  // [target][value]
+    return name;
+  } else if (target->type == EXPR_SUBS) {
+    AstNode* receiver = target->base.children[0];
+    AstNode* index    = target->base.children[1];
+    compile_node(compiler, receiver);                        // [target]
+    compile_node(compiler, index);                           // [target][idx]
+    emit_two(compiler, OP_DUPE, 1, (AstNode*)target);        // Duplicate the receiver: [target][idx][target]
+    emit_two(compiler, OP_DUPE, 1, (AstNode*)target);        // Duplicate the index:  [target][idx][target][idx]
+    emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)target);  // [target][idx][value]
+    return 0;
+  } else {
+    INTERNAL_ERROR("Unsupported compound assignment target: %d", target->type);
+    return 0;
+  }
+}
+
+// Emits final bytecode for any supported assignment target in a compound assignment case (++,--,%= etc.). Used in combination
+// with emit_compound_assignment_prelude. Assigns the value at the top of the stack to [target].
+static void emit_compound_assignment(FnCompiler* compiler, AstExpression* target, uint16_t name) {
+  if (target->type == EXPR_VARIABLE) {
+    // Expects Stack: [value]
+    AstId* id = (AstId*)target->base.children[0];
+    emit_assign_id(compiler, id);
+  } else if (target->type == EXPR_DOT) {
+    // Expects Stack: [target][value]
+    AstId* property = (AstId*)target->base.children[1];
+    emit_two(compiler, OP_SET_PROPERTY, name, (AstNode*)property);
+  } else if (target->type == EXPR_SUBS) {
+    // Expects Stack: [target][idx][value]
+    emit_one(compiler, OP_SET_SUBSCRIPT, (AstNode*)target);
+  } else {
+    INTERNAL_ERROR("Unsupported compound assignment target: %d", target->type);
+  }
+}
+
+// Emits preliminary bytecode for any supported assignment target in a normal assignment case (=). Some targets require the
+// to be emitted before the value to be assigned is computed. Used in combination with emit_assignment. Returns the name index if
+// the target is a property access, 0 otherwise.
 static uint16_t emit_assignment_prelude(FnCompiler* compiler, AstExpression* target) {
   if (target->type == EXPR_VARIABLE) {
     return 0;
@@ -223,38 +297,79 @@ static uint16_t emit_assignment_prelude(FnCompiler* compiler, AstExpression* tar
     AstNode* receiver = target->base.children[0];
     AstId* property   = (AstId*)target->base.children[1];
     uint16_t name     = id_constant(compiler, property->name, (AstNode*)property);
-    compile_node(compiler, receiver);
-    emit_two(compiler, OP_DUPE, 0, (AstNode*)target);  // Duplicate the receiver
-    emit_two(compiler, OP_GET_PROPERTY, name, (AstNode*)property);
+    compile_node(compiler, receiver);  // [target]
     return name;
   } else if (target->type == EXPR_SUBS) {
     AstNode* receiver = target->base.children[0];
     AstNode* index    = target->base.children[1];
-    compile_node(compiler, receiver);
-    compile_node(compiler, index);
-    emit_two(compiler, OP_DUPE, 1, (AstNode*)target);  // Duplicate the receiver
-    emit_two(compiler, OP_DUPE, 1, (AstNode*)target);  // Duplicate the index
-    emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)target);
+    compile_node(compiler, receiver);  // [target]
+    compile_node(compiler, index);     // [target][idx]
     return 0;
   } else {
-    INTERNAL_ERROR("Unknown assignment target.");
+    INTERNAL_ERROR("Unsupported assignment target: %d", target->type);
     return 0;
   }
 }
 
+// Emits final bytecode for any supported assignment target in a normal assignment case (=). Used in combination with
+// emit_assignment_prelude. Assigns the value at the top of the stack to [target].
 static void emit_assignment(FnCompiler* compiler, AstExpression* target, uint16_t name) {
   if (target->type == EXPR_VARIABLE) {
+    // Expects Stack: [value]
     AstId* id = (AstId*)target->base.children[0];
     emit_assign_id(compiler, id);
   } else if (target->type == EXPR_DOT) {
+    // Expects Stack: [target][value]
     AstId* property = (AstId*)target->base.children[1];
     emit_two(compiler, OP_SET_PROPERTY, name, (AstNode*)property);
   } else if (target->type == EXPR_SUBS) {
+    // Expects Stack: [target][idx][value]
     emit_one(compiler, OP_SET_SUBSCRIPT, (AstNode*)target);
   } else {
-    INTERNAL_ERROR("Unknown assignment target.");
+    INTERNAL_ERROR("Unsupported assignment target: %d", target->type);
   }
 }
+
+// Emits bytecode for assignment to a pattern. Assings the value at the top of the stack to the pattern.
+static void emit_assignment_pattern(FnCompiler* compiler, AstPattern* pattern, bool define_else_assign) {
+  for (int i = 0; i < pattern->base.count; i++) {
+    AstPattern* child = (AstPattern*)pattern->base.children[i];
+    AstId* child_id   = (AstId*)child->base.children[0];
+
+    emit_two(compiler, OP_DUPE, 0, (AstNode*)child);  // Duplicate the rhs value: [rhs] -> [rhs][rhs]
+
+    Value payload = pattern->type == PAT_OBJ ? str_value(child_id->name) : int_value(i);
+    if (child->type == PAT_REST) {
+      emit_constant(compiler, payload, (AstNode*)child);  // [rhs][rhs][payload]
+      emit_one(compiler, OP_NIL, (AstNode*)child);        // [rhs][rhs][payload][nil]
+      emit_one(compiler, OP_GET_SLICE, (AstNode*)child);  // [rhs][slice]
+    } else if (child->type == PAT_BINDING) {
+      emit_constant(compiler, payload, (AstNode*)child);      // [rhs][rhs][payload]
+      emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)child);  // [rhs][value]
+    } else {
+      INTERNAL_ERROR("Unsupported pattern child-type: %d", child->type);
+    }
+
+    if (define_else_assign) {
+      emit_define_id(compiler, child_id);
+    } else {
+      emit_assign_id(compiler, child_id);
+      if (!in_global_scope(compiler)) {
+        emit_one(compiler, OP_POP, (AstNode*)child);  // Discard the value.
+      }
+    }
+  }
+
+  emit_one(compiler, OP_POP, (AstNode*)pattern);  // Discard the rhs value left on the stack.
+}
+
+static void emit_define_pattern(FnCompiler* compiler, AstPattern* pattern) {
+  emit_assignment_pattern(compiler, pattern, true);
+}
+
+// static void emit_assign_pattern(FnCompiler* compiler, AstPattern* pattern) {
+//   emit_assignment_pattern(compiler, pattern, false);
+// }
 
 //
 // Important stuff
@@ -299,15 +414,22 @@ static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
   AstDeclaration* params = (AstDeclaration*)fn->base.children[1];
   AstNode* body          = fn->base.children[2];
 
+  // Parameters
   if (params != NULL) {
-    compile_node(&subcompiler, (AstNode*)params);
+    for (int i = 0; i < params->base.count; i++) {
+      AstId* id = (AstId*)params->base.children[i];
+      emit_define_id(&subcompiler, id);
+    }
   }
+
+  // Body / expression
   compile_node(&subcompiler, body);
-
   if (fn->is_lambda) {
-    emit_one(&subcompiler, OP_RETURN, (AstNode*)fn);
+    INTERNAL_ASSERT(body->type == NODE_EXPR, "Lambda body should be an expression.");
+    emit_one(&subcompiler, OP_RETURN, (AstNode*)fn);  // Implicit return for lambdas.
   }
 
+  // Done. Now emit the produced function and its upvalues in the parent compiler.
   ObjFunction* function = end_compiler(&subcompiler);
   emit_two(compiler, OP_CLOSURE, make_constant(compiler, fn_value((Obj*)function), (AstNode*)fn), (AstNode*)fn);
   for (int i = 0; i < function->upvalue_count; i++) {
@@ -317,6 +439,7 @@ static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
 
   compiler_free(&subcompiler);
 
+  // Class functions register themselves in the class scope. Named functions register themselves in enclosing scope.
   if (fn->type == FN_TYPE_CONSTRUCTOR) {
     uint16_t ctor = synthetic_constant(compiler, STR(SP_METHOD_CTOR), (AstNode*)fn);
     emit_two(compiler, OP_METHOD, ctor, (AstNode*)fn);
@@ -329,6 +452,10 @@ static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
     uint16_t method = id_constant(compiler, name->name, (AstNode*)name);
     emit_two(compiler, OP_METHOD, method, (AstNode*)fn);
     emit_one(compiler, (uint16_t)FN_TYPE_METHOD_STATIC, (AstNode*)fn);
+  } else if (fn->type == FN_TYPE_NAMED_FUNCTION) {
+    emit_define_id(compiler, name);
+  } else {
+    INTERNAL_ASSERT(fn->type == FN_TYPE_ANONYMOUS_FUNCTION || fn->type == FN_TYPE_MODULE, "Unknown function type: %d", fn->type);
   }
 
   return function;
@@ -339,8 +466,8 @@ static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
 //
 
 static void compile_declare_function(FnCompiler* compiler, AstDeclaration* decl) {
-  printf("compiling declaration\n");
-  compile_children(compiler, (AstNode*)decl);
+  AstFn* fn = (AstFn*)decl->base.children[0];
+  compile_function(compiler, fn);
 }
 static void compile_declare_class(FnCompiler* compiler, AstDeclaration* decl) {
   // uint16_t class_name = id_constant(compiler, decl->class_name);
@@ -353,8 +480,20 @@ static void compile_declare_class(FnCompiler* compiler, AstDeclaration* decl) {
   compile_children(compiler, (AstNode*)decl);
 }
 static void compile_declare_variable(FnCompiler* compiler, AstDeclaration* decl) {
-  printf("compiling declaration\n");
-  compile_children(compiler, (AstNode*)decl);
+  AstNode* id_or_pattern = decl->base.children[0];
+  AstNode* initializer   = decl->base.children[1];
+
+  if (initializer != NULL) {
+    compile_node(compiler, initializer);
+  }
+
+  if (id_or_pattern->type == NODE_PATTERN) {
+    emit_define_pattern(compiler, (AstPattern*)id_or_pattern);
+  } else if (id_or_pattern->type == NODE_ID) {
+    emit_define_id(compiler, (AstId*)id_or_pattern);
+  } else {
+    INTERNAL_ERROR("Unknown declaration target: %d", id_or_pattern->type);
+  }
 }
 
 //
@@ -362,25 +501,155 @@ static void compile_declare_variable(FnCompiler* compiler, AstDeclaration* decl)
 //
 
 static void compile_statement_import(FnCompiler* compiler, AstStatement* stmt) {
-  // id_constant(compiler, stmt->module_name);
-  printf("compiling statement\n");
-  compile_children(compiler, (AstNode*)stmt);
+  AstNode* name_or_pattern = stmt->base.children[0];
+
+  if (name_or_pattern->type == NODE_ID) {
+    AstId* module_name = (AstId*)name_or_pattern;
+    uint16_t name      = id_constant(compiler, module_name->name, (AstNode*)module_name);
+
+    if (stmt->path != NULL) {
+      uint16_t path = make_constant(compiler, str_value(stmt->path), (AstNode*)stmt);
+      emit_three(compiler, OP_IMPORT_FROM, name, path, (AstNode*)stmt);
+    } else {
+      emit_two(compiler, OP_IMPORT, name, (AstNode*)module_name);
+    }
+
+    emit_define_id_explicit(compiler, module_name, name);
+  } else if (name_or_pattern->type == NODE_PATTERN) {
+    AstPattern* pattern = (AstPattern*)name_or_pattern;
+
+    // Since we don't have a module name, we calculate the absolute path of the module here and use it as the module name.
+    // TODO: When loading a module from cache, we should compare their absolute paths instead of the module name to avoid
+    // loading the same module multiple times.
+    Value cwd;
+    if (!hashtable_get_by_string(&vm.module->fields, vm.special_prop_names[SPECIAL_PROP_FILE_PATH], &cwd)) {
+      INTERNAL_ERROR("Module file path not found in the fields of the active module (module." STR(SP_PROP_FILE_PATH) ").");
+      cwd = str_value(copy_string("?", 1));
+    }
+
+    char* absolute_path = vm_resolve_module_path((ObjString*)cwd.as.obj, NULL, stmt->path);
+    uint16_t absolute_file_path_constant =
+        make_constant(compiler, str_value(copy_string(absolute_path, strlen(absolute_path))), (AstNode*)stmt);
+    free(absolute_path);  // since we copied to make sure it's allocated on our managed heap, we need to free it.
+
+    emit_three(compiler, OP_IMPORT_FROM, absolute_file_path_constant, absolute_file_path_constant,
+               (AstNode*)stmt);  // Use the path as the module name.
+
+    emit_define_pattern(compiler, pattern);
+  } else {
+    INTERNAL_ERROR("Unknown import target.");
+  }
 }
+
 static void compile_statement_block(FnCompiler* compiler, AstStatement* stmt) {
   compile_children(compiler, (AstNode*)stmt);
 }
+
 static void compile_statement_if(FnCompiler* compiler, AstStatement* stmt) {
-  printf("compiling statement\n");
-  compile_children(compiler, (AstNode*)stmt);
+  AstNode* condition   = stmt->base.children[0];
+  AstNode* then_branch = stmt->base.children[1];
+  AstNode* else_branch = stmt->base.children[2];
+
+  compile_node(compiler, condition);
+  int then_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, (AstNode*)stmt);
+  emit_one(compiler, OP_POP, condition);  // Discard the condition value.
+
+  compile_node(compiler, then_branch);
+  int else_jump = emit_jump(compiler, OP_JUMP, (AstNode*)stmt);
+
+  patch_jump(compiler, then_jump);
+  emit_one(compiler, OP_POP, (AstNode*)stmt);
+
+  if (else_branch != NULL) {
+    compile_node(compiler, else_branch);
+  }
+
+  patch_jump(compiler, else_jump);
 }
+
+#define NEW_LOOP()                                                             \
+  int surrounding_loop_start           = compiler->innermost_loop_start;       \
+  int surrounding_loop_scope_depth     = compiler->innermost_loop_scope_depth; \
+  compiler->innermost_loop_start       = compiler->result->chunk.count;        \
+  compiler->innermost_loop_scope_depth = compiler->function->base.scope->depth;
+
+#define END_LOOP()                                               \
+  compiler->innermost_loop_start       = surrounding_loop_start; \
+  compiler->innermost_loop_scope_depth = surrounding_loop_scope_depth;
+
 static void compile_statement_while(FnCompiler* compiler, AstStatement* stmt) {
-  printf("compiling statement\n");
-  compile_children(compiler, (AstNode*)stmt);
+  AstNode* condition = stmt->base.children[0];
+  AstNode* body      = stmt->base.children[1];
+
+  // Save the loop state for continue(skip)/break statements, which might occur in the loop body.
+  NEW_LOOP();
+
+  compile_node(compiler, condition);
+  int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, condition);  // Jump out of the loop if the condition is false.
+  emit_one(compiler, OP_POP, condition);                             // Discard the result of the condition expression.
+
+  compile_node(compiler, body);
+  emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);
+  patch_jump(compiler, exit_jump);
+  emit_one(compiler, OP_POP, condition);
+
+  patch_breaks(compiler, compiler->innermost_loop_start);
+
+  // Restore the surrounding loop state.
+  END_LOOP();
 }
+
 static void compile_statement_for(FnCompiler* compiler, AstStatement* stmt) {
-  printf("compiling statement\n");
-  compile_children(compiler, (AstNode*)stmt);
+  AstNode* initializer = stmt->base.children[0];
+  AstNode* condition   = stmt->base.children[1];
+  AstNode* increment   = stmt->base.children[2];
+  AstNode* body        = stmt->base.children[3];
+
+  // Initializer
+  if (initializer != NULL) {
+    compile_node(compiler, initializer);
+  }
+
+  // Save the loop state for continue(skip)/break statements, which might occur in the loop body.
+  NEW_LOOP();
+
+  // Loop condition
+  int exit_jump = -1;
+  if (condition != NULL) {
+    compile_node(compiler, condition);
+    exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, condition);  // Jump out of the loop if the condition is false.
+    emit_one(compiler, OP_POP, condition);                         // Discard the result of the condition expression.
+  }
+
+  // Loop increment
+  if (increment != NULL) {
+    int body_jump       = emit_jump(compiler, OP_JUMP, increment);
+    int increment_start = compiler->result->chunk.count;
+    compile_node(compiler, increment);
+    emit_one(compiler, OP_POP, increment);  // Discard the result of the increment expression.
+    emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);
+    compiler->innermost_loop_start = increment_start;
+    patch_jump(compiler, body_jump);
+  }
+
+  // Loop body
+  compile_node(compiler, body);
+  emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);
+
+  if (exit_jump != -1) {
+    patch_jump(compiler, exit_jump);
+    emit_one(compiler, OP_POP, condition);  // Discard the result of the condition expression.
+  }
+
+  patch_breaks(compiler, compiler->innermost_loop_start);
+
+  // Restore the surrounding loop state.
+  END_LOOP();
 }
+
+#undef NEW_LOOP
+#undef END_LOOP
+
 static void compile_statement_return(FnCompiler* compiler, AstStatement* stmt) {
   AstNode* expr = stmt->base.children[0];
   if (expr != NULL) {
@@ -390,16 +659,19 @@ static void compile_statement_return(FnCompiler* compiler, AstStatement* stmt) {
     emit_return(compiler, (AstNode*)stmt);
   }
 }
+
 static void compile_statement_print(FnCompiler* compiler, AstStatement* stmt) {
   AstNode* expr = stmt->base.children[0];
   compile_node(compiler, expr);
   emit_one(compiler, OP_PRINT, expr);
 }
+
 static void compile_statement_expr(FnCompiler* compiler, AstStatement* stmt) {
   AstNode* expr = stmt->base.children[0];
   compile_node(compiler, expr);
   emit_one(compiler, OP_POP, expr);
 }
+
 static void compile_statement_break(FnCompiler* compiler, AstStatement* stmt) {
   INTERNAL_ASSERT(compiler->innermost_loop_start != -1, "Should have been caught by the resolver.");
 
@@ -414,16 +686,19 @@ static void compile_statement_break(FnCompiler* compiler, AstStatement* stmt) {
   discard_locals(compiler, stmt->base.scope, (AstNode*)stmt);
   compiler->brake_jumps[compiler->brakes_count++] = emit_jump(compiler, OP_JUMP, (AstNode*)stmt);
 }
+
 static void compile_statement_skip(FnCompiler* compiler, AstStatement* stmt) {
   INTERNAL_ASSERT(compiler->innermost_loop_start != -1, "Should have been caught by the resolver.");
   discard_locals(compiler, stmt->base.scope, (AstNode*)stmt);
   emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);
 }
+
 static void compile_statement_throw(FnCompiler* compiler, AstStatement* stmt) {
   AstNode* expr = stmt->base.children[0];
   compile_node(compiler, expr);
   emit_one(compiler, OP_THROW, expr);
 }
+
 static void compile_statement_try(FnCompiler* compiler, AstStatement* stmt) {
   AstNode* try_stmt   = stmt->base.children[0];
   AstNode* catch_stmt = stmt->base.children[1];
@@ -477,13 +752,13 @@ static void compile_expr_postfix(FnCompiler* compiler, AstExpression* expr) {
     default: INTERNAL_ERROR("Unhandled postfix operator type: %d", expr->operator_.type); break;
   }
 
-  // TODO: Optimize. That's a lot of bytecode for a simple operation.
+  // TODO (optimize): That's a lot of bytecode for a simple operation.
   compile_node(compiler, (AstNode*)inner);  // Load itself before the operation
 
-  uint16_t name = emit_assignment_prelude(compiler, inner);
+  uint16_t name = emit_compound_assignment_prelude(compiler, inner);
   compile_node(compiler, (AstNode*)inner);  // Load itself
   emit_one(compiler, op, (AstNode*)inner);
-  emit_assignment(compiler, inner, name);  // Leaves the result on the stack
+  emit_compound_assignment(compiler, inner, name);  // Leaves the result on the stack
 
   emit_one(compiler, OP_POP, (AstNode*)expr);  // Discard the result, leaving the original value on the stack.
 }
@@ -505,11 +780,11 @@ static void compile_expr_unary(FnCompiler* compiler, AstExpression* expr) {
       default: INTERNAL_ERROR("Unhandled unary operator type: %d", expr->operator_.type); break;
     }
 
-    // TODO: Optimize. That's a lot of bytecode for a simple operation.
-    uint16_t name = emit_assignment_prelude(compiler, inner);
+    // TODO (optimize): That's a lot of bytecode for a simple operation.
+    uint16_t name = emit_compound_assignment_prelude(compiler, inner);
     compile_node(compiler, (AstNode*)inner);  // Load itself
     emit_one(compiler, op, (AstNode*)inner);
-    emit_assignment(compiler, inner, name);  // Leaves the result on the stack
+    emit_compound_assignment(compiler, inner, name);  // Leaves the result on the stack
   }
 }
 
@@ -546,10 +821,11 @@ static void compile_expr_assign(FnCompiler* compiler, AstExpression* expr) {
     default: INTERNAL_ERROR("Unhandled compound assignment operator type: %d", expr->operator_.type); break;
   }
 
-  uint16_t name = emit_assignment_prelude(compiler, left);
+  // TODO (optimize): That's a lot of bytecode for a simple operation.
+  uint16_t name = emit_compound_assignment_prelude(compiler, left);
   compile_node(compiler, (AstNode*)right);
   emit_one(compiler, op, (AstNode*)expr);
-  emit_assignment(compiler, left, name);
+  emit_compound_assignment(compiler, left, name);
 }
 
 static void compile_expr_and(FnCompiler* compiler, AstExpression* expr) {
@@ -692,7 +968,7 @@ static void compile_expr_slice(FnCompiler* compiler, AstExpression* expr) {
   }
 
   if (end == NULL) {
-    emit_one(compiler, OP_NIL, (AstNode*)end);  // Default end index is nil
+    emit_one(compiler, OP_NIL, (AstNode*)expr);  // Default end index is nil
   } else {
     compile_node(compiler, end);
   }

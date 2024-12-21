@@ -14,7 +14,7 @@
 #include "value.h"
 #include "vm.h"
 
-#ifdef DEBUG_PRINT_CODE
+#ifdef DEBUG_PRINT_BYTECODE
 #include "debug.h"
 #endif
 
@@ -375,7 +375,7 @@ static void compiler_init(Compiler* compiler, FunctionType type) {
       current->function->name = copy_string("(Unnamed module)", STR_LEN("(Unnamed module)"));
       break;
     }
-    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("(anon)", STR_LEN("(anon)")); break;
+    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("$anon_fn$", STR_LEN("$anon_fn$")); break;
     case TYPE_CONSTRUCTOR: current->function->name = vm.special_method_names[SPECIAL_METHOD_CTOR]; break;
     default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }
@@ -405,18 +405,9 @@ static ObjFunction* end_compiler() {
   emit_return();
   ObjFunction* function = current->function;
 
-#ifdef DEBUG_PRINT_CODE
+#ifdef DEBUG_PRINT_BYTECODE
   if (!parser.had_error) {
     debug_disassemble_chunk(current_chunk(), function->name != NULL ? function->name->chars : "[Toplevel]");
-
-    // Print all locals
-    for (int i = 0; i < current->local_count; i++) {
-      printf("Local %d: %.*s\n", i, current->locals[i].name.length, current->locals[i].name.start);
-    }
-
-    if (current->enclosing == NULL) {
-      printf("\n== End of compilation ==\n\n");
-    }
   }
 #endif
   current = current->enclosing;
@@ -2172,7 +2163,7 @@ ObjFunction* compiler_compile_module(const char* source) {
 
   compiler_init(&compiler, TYPE_MODULE);
 
-#ifdef DEBUG_PRINT_CODE
+#ifdef DEBUG_PRINT_BYTECODE
   printf("== Begin compilation ==\n");
 #endif
 

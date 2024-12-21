@@ -198,7 +198,6 @@ static Symbol* add_global(FnResolver* resolver, AstId* var, SymbolState state, b
 static void declare_variable(FnResolver* resolver, AstId* var, bool is_const) {
   if (in_global_scope(resolver)) {
     add_global(resolver, var, SYMSTATE_DECLARED, is_const);
-
   } else {
     add_local(resolver, NULL, var, SYMSTATE_DECLARED, is_const, false /* is param */);
   }
@@ -209,19 +208,17 @@ static void declare_define_parameter(FnResolver* resolver, AstId* param) {
   // Params are always locals and start their life as initialized, because currently there's no mechanism to assign them default
   // values.
   INTERNAL_ASSERT(!in_global_scope(resolver), "Parameters cannot be declared in global scope.");
-  add_local(resolver, NULL, param, SYMSTATE_INITIALIZED, false, true /* is param */);
+  param->symbol = add_local(resolver, NULL, param, SYMSTATE_INITIALIZED, false, true /* is param */);
 }
 
 // Define a previously declared variable in the current scope
 static void define_variable(FnResolver* resolver, AstId* var) {
   // Find the variable's declaration
   Symbol* decl = scope_get(resolver->current_scope, var->name);
-  if (decl == NULL) {
-    INTERNAL_ERROR("Could not find local variable in current scope.");
-    return;
-  }
+  INTERNAL_ASSERT(decl != NULL, "Could not find local variable in current scope. Forgot to declare it?");
   INTERNAL_ASSERT(decl->state == SYMSTATE_DECLARED, "Variable should be declared before defining");
   decl->state = SYMSTATE_INITIALIZED;
+  var->symbol = decl;  // Set the symbol on the node for the compiler
 }
 
 // Inject a synthetic local variable into the current scope. Is injected as used, local and mutable.
@@ -230,9 +227,7 @@ static void define_variable(FnResolver* resolver, AstId* var) {
 static Symbol* inject_local(FnResolver* resolver, const char* name, bool is_const) {
   ObjString* name_str = copy_string(name, strlen(name));
   Symbol* var         = add_local(resolver, name_str, NULL, SYMSTATE_USED, is_const, false /* is param */);
-  if (var == NULL) {
-    INTERNAL_ERROR("Could not inject synthetic variable into scope.");
-  }
+  INTERNAL_ASSERT(var != NULL, "Could not inject synthetic local variable. Name: %s", name);
 
   return var;
 }
@@ -305,7 +300,7 @@ static void resolve_variable(FnResolver* resolver, AstId* var) {
     // Natives are always global and marked here as used as well as mutable.
     // Natives are checked during assigment to prevent reassignment.
     sym = allocate_symbol(NULL, SYMBOL_NATIVE, SYMSTATE_USED, false, false /* is param */);
-    return;
+    goto FOUND;
   }
 
   // Not found
@@ -415,10 +410,10 @@ static void resolve_function(FnResolver* resolver, AstFn* fn) {
     inject_local(&subresolver, "", true);  // Not accessible
   }
 
-  // Only functions actually declare their name in the scope they're defined in.
+  // Only named functions actually declare their name in the scope they're defined in.
   // - methods and constructors are declared as part of the class scope and accessed via 'this'
   // - anonymous functions are not accessible by name - that's wy they're anonymous. duh.
-  if (fn->type == FN_TYPE_FUNCTION) {
+  if (fn->type == FN_TYPE_NAMED_FUNCTION) {
     AstId* fn_name = get_child_as_id((AstNode*)fn, 0, false);
     declare_variable(resolver, fn_name, false);
     define_variable(resolver, fn_name);
@@ -427,7 +422,7 @@ static void resolve_function(FnResolver* resolver, AstFn* fn) {
 #ifdef DEBUG_RESOLVER
   switch (fn->type) {
     case FN_TYPE_ANONYMOUS_FUNCTION:
-    case FN_TYPE_FUNCTION: {
+    case FN_TYPE_NAMED_FUNCTION: {
       break;
     }
     case FN_TYPE_METHOD_STATIC:

@@ -1,74 +1,132 @@
-
 import File
-import Math
 
-const [regs, prg] = File
-  .read(cwd() + "sample.txt")
-  .split("\r\n\r\n")
+const NUM_KEYS = [
+  ["7", "8", "9"],
+  ["4", "5", "6"],
+  ["1", "2", "3"],
+  [nil, "0", "A"]
+]
 
-const REGS = {}
-regs.split("\r\n").each(fn(line) {
-  let [reg, val] = line.split(": ")
-  reg = reg.split(" ")[1]
-  REGS[reg] = val.ints()[0]
-})
+const DIR_KEYS = [
+  [nil, "^", "A"],
+  ["<", "v", ">"],
+]
 
-let {A, B, C} = REGS
-const PRG = prg.ints()
+const DIRS = { "^": (0,-1), "v": (0,1), ">": (1,0), "<": (-1,0) }
 
-fn get_combo(op) {
-  if (op>=0 and op<=3) ret op 
-  else if (op==4) ret A 
-  else if (op==5) ret B 
-  else if (op==6) ret C 
-  throw "Reserved"
-}
-
-
-fn dv(b) {
-  ret Math.floor(A / Math.pow(2, b))
-}
-
-fn interpret() {
-  let ip = 0
-  let out = []
-
-
-  while ip < PRG.len {
-    const cmd = PRG[ip]
-    if ip+1 >= PRG.len throw "Unexpected" 
-    const op = PRG[ip+1]
-
-    if (cmd==0) { // adv
-      A = dv(get_combo(op))
-    } else if (cmd==1) { // bxl
-      B = Math.xor(B, op)
-    } else if (cmd==2) { // bst
-      B = get_combo(op)%8    
-    } else if (cmd==3) { // jnz
-      if (A != 0) {
-        ip = op
-        skip
-      }
-    } else if (cmd==4) { // bxc
-      B = Math.xor(B, C)
-    } else if (cmd==5) { // out
-      out.push((get_combo(op)%8))
-    } else if (cmd==6) { // bdv
-      B = dv(get_combo(op))
-    } else if (cmd==7) { // cdv
-      C = dv(get_combo(op))
-    } else {
-      throw "Reserved"
+fn make_pad(pad) {
+  const pos = {}
+  for let y = 0; y < pad.len; y++; {
+    for let x = 0; x < pad[y].len; x++; {
+      if try pad[y][x]
+        pos[pad[y][x]] = (y, x)
     }
-    ip+=2
+  }
+  ret pos
+}
+
+fn reps(str, n) {
+  let res = ""
+  for let i = 0; res.len < n; res += str; {}
+  ret res
+}
+
+fn unique_perms(str) {
+  const perms = {}
+  const chars = str.split("")
+
+  fn swap(i, j) {
+    const tmp = chars[i]
+    chars[i] = chars[j]
+    chars[j] = tmp
   }
 
-  print out.join(",")
+  fn permute(n) {
+    if n == 1 {
+      perms[Tuple(chars)] = true
+    } else {
+      for let i = 0; i < n; i++; {
+        permute(n-1)
+        swap(n % 2 ? 0 : i, n-1)
+      }
+    }
+  }
+
+  permute(chars.len)
+  ret perms
 }
 
-interpret()
+throw unique_perms("").keys()
 
-// const p1 = 0s
-// log("Part 1:", p1) // Part 1: 7,4,2,0,5,0,5,3,7
-// log("Part 2:", p2) // Part 2: 
+const num_keypad = make_pad(NUM_KEYS)
+const dir_keypad = make_pad(DIR_KEYS)
+
+fn calc_presses(seq, depth, dirkey, cur) {
+  const keypad = dirkey? dir_keypad : num_keypad
+  if seq==nil or seq.len == 0 ret 0
+  if cur==nil cur = keypad["A"]
+
+  const (cx, cy) = cur
+  const (px, py) = keypad[seq[0]]
+  const dx = px - cx
+  const dy = py - cy
+
+  let moves = ""
+  if dx>0 moves += reps(">", dx)
+  else if dx<0 moves += reps("<", -dx)
+  if dy>0 moves += reps("v", dy)
+  else if dy<0 moves += reps("^", -dy)
+
+  let min_len = 999999999
+  if depth!=0 {
+    const perm_lens = []
+    const perms = unique_perms(moves).keys()
+    for let i = 0; i<perms.len; i++; {
+      const perm = perms[i]
+      let (cx, cy) = cur
+
+      let no_break = true
+      for let j = 0; j<perm.len; j++; {
+        const move = perm[j]
+        const (mdx, mdy) = DIRS[move]
+        cx += mdx
+        cy += mdy
+        if !((cx, cy) in keypad.values()) {
+          no_break = false
+          break
+        }
+      }
+      if no_break {
+        const new_seq = perm.join("") + "A"
+        perm_lens.push(calc_presses(new_seq, depth-1, true, nil))
+      }
+    }
+    min_len = perm_lens.fold(99999999, fn(a,b) -> a < b ? a : b)
+  }
+  else {
+    min_len = moves.len + 1
+    
+    print moves.len
+  }
+  ret min_len * calc_presses(seq[1..], depth, dirkey, (px, py))
+}
+
+import Perf
+const now = Perf.now()
+
+let p1 = 0
+let p2 = 0
+
+const keypad = File
+  .read(cwd() + "sample2.txt")
+  .split("\r\n")
+  .each(fn(code) {
+    const code_num = Int(code[..-1])
+    p1 += code_num * calc_presses(code, 2, false, nil)
+    // p2 += code_num * calc_presses(code, 25, false, nil)
+  })
+
+print(p1)
+print(p2)
+
+print (Perf.since(now)) // Seconds 
