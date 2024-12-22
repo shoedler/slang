@@ -68,16 +68,7 @@ bool scope_add_new(Scope* scope,
                    bool is_param,
                    Symbol** symbol);
 
-// Check if a symbol is in the scope
-bool scope_has(Scope* scope, ObjString* key);
-
 // Get a symbol from the scope. Returns NULL if not found.
 Symbol* scope_get(Scope* scope, ObjString* key);
-
-// Allocates a new symbol
-Symbol* allocate_symbol(struct AstNode* source, SymbolType type, SymbolState state, bool is_const, bool is_param);
-
-// Delete a symbol from the scope. Returns true if found and deleted.
-bool scope_delete(Scope* scope, ObjString* key);
 
 #endif  // SCOPE_H

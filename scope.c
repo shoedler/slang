@@ -4,8 +4,6 @@
 #include "common.h"
 #include "memory.h"
 
-#define TOMBSTONE (Symbol*)1
-
 void scope_init(Scope* scope, Scope* enclosing) {
   scope->count       = 0;
   scope->capacity    = 0;
@@ -34,7 +32,8 @@ CLEANUP:
   scope->capacity = 0;
 }
 
-Symbol* allocate_symbol(struct AstNode* source, SymbolType type, SymbolState state, bool is_const, bool is_param) {
+// Allocates a new symbol
+static Symbol* allocate_symbol(struct AstNode* source, SymbolType type, SymbolState state, bool is_const, bool is_param) {
   Symbol* value         = malloc(sizeof(Symbol));
   value->index          = -1;
   value->function_index = -1;
@@ -144,10 +143,6 @@ bool scope_add_new(Scope* scope,
   return true;
 }
 
-bool scope_has(Scope* scope, ObjString* key) {
-  return find_entry(scope->entries, scope->capacity, key)->key != NULL;
-}
-
 Symbol* scope_get(Scope* scope, ObjString* key) {
   if (scope->count == 0) {
     return NULL;
@@ -160,19 +155,4 @@ Symbol* scope_get(Scope* scope, ObjString* key) {
   }
 
   return entry->value;
-}
-
-bool scope_delete(Scope* scope, ObjString* key) {
-  if (scope->count == 0)
-    return false;
-
-  // Find entry
-  SymbolEntry* entry = find_entry(scope->entries, scope->capacity, key);
-  if (entry->key == NULL)
-    return false;
-
-  // Place a tombstone
-  entry->key   = NULL;
-  entry->value = TOMBSTONE;  // Marks as tombstone
-  return true;
 }

@@ -283,6 +283,8 @@ static void resolve_variable(FnResolver* resolver, AstId* var) {
   }
 
   // Globals
+
+  // TODO (fix): Keep track of the global scope in the resolver
   Scope* global_scope = resolver->function->base.scope;
   while (global_scope->enclosing != NULL) {
     global_scope = global_scope->enclosing;
@@ -295,9 +297,13 @@ static void resolve_variable(FnResolver* resolver, AstId* var) {
   // Maybe it's a native?
   Value discard;
   if (hashtable_get_by_string(&vm.natives, var->name, &discard)) {
-    // Natives are always global and marked here as used as well as mutable.
-    // Natives are checked during assigment to prevent reassignment.
-    sym = allocate_symbol(NULL, SYMBOL_NATIVE, SYMSTATE_USED, false, false /* is param */);
+    // Natives are always global and marked here as used as well as mutable, they are checked during assigment to prevent
+    // reassignment. This way we can make better error messages.
+    // Native references are added to the global scope for now, just so it looks sensible when printing the scopes.
+
+    if (!scope_add_new(global_scope, var->name, (AstNode*)var, SYMBOL_NATIVE, SYMSTATE_USED, false, false /* is param */, &sym)) {
+      INTERNAL_ERROR("Native should not be redeclared.");
+    }
     goto FOUND;
   }
 
@@ -308,7 +314,7 @@ static void resolve_variable(FnResolver* resolver, AstId* var) {
 FOUND:
   var->symbol = sym;  // Set the symbol on the node for the compiler
   if (sym->state == SYMSTATE_DECLARED) {
-    resolver_error((AstNode*)var, "Cannot read local in its own initializer.");
+    resolver_error((AstNode*)var, "Cannot read variable in its own initializer.");
   } else if (sym->state == SYMSTATE_INITIALIZED) {
     sym->state = SYMSTATE_USED;
   }

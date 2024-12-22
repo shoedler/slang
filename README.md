@@ -35,6 +35,7 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
+- [ ] Keep track of the global scope in the resolver - no need to always drill up to the global scope.
 - [ ] Test if assignment to patterns works. Declarations work.
 - [ ] Do we really need `fn_index`? Think it through.
 - [ ] Put all the `copy_string(KEYWORD_ERROR, STR_LEN(KEYWORD_ERROR))` into a lookup table 
@@ -50,6 +51,8 @@ You can, for example, easily cache stuff:
 
 ## Features
 
+- [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hasing tuples containing negative `Int`s)
+- [ ] Add `not` for `is` and `in`: e.g. `x not in y` and `x is not Int`
 - [ ] Allow `Tuple.inside = fn(this) -> (this[0]>=0 and this[0]<ROWS) and (this[1]>=0 and this[1]<COLS)` 
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`

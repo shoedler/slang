@@ -742,18 +742,36 @@ static void print_scope_symbolentry(int depth, SymbolEntry* entry, const char* t
     printf("%s " ANSI_MAGENTA_STR("%s") " ", tree_link, entry->key->chars);
   }
 
-  if (entry->value->type == SYMBOL_UPVALUE) {
-    printf(ANSI_GREEN_STR("[upvalue]") " fn-upvalue-idx=%d", entry->value->function_index);
-  } else if (entry->value->type == SYMBOL_UPVALUE_OUTER) {
-    printf(ANSI_YELLOW_STR("[upvalue_outer]") " fn-upvalue-idx=%d", entry->value->function_index);
-  } else if (entry->value->type == SYMBOL_LOCAL) {
-    printf(ANSI_CYAN_STR("[local]") " ");
-    printf("fn-local-idx=%d ", entry->value->function_index);
-    printf("local-idx=%d ", entry->value->index);
-    printf(entry->value->is_captured ? (ANSI_GREEN_STR("(captured)")) : "");
-  } else if (entry->value->type == SYMBOL_GLOBAL) {
-    printf(ANSI_BLUE_STR("[global]") " ");
+  switch (entry->value->type) {
+    case (SYMBOL_UPVALUE): {
+      printf(ANSI_GREEN_STR("[upvalue]") " fn-upvalue-idx=%d", entry->value->function_index);
+      break;
+    }
+    case (SYMBOL_UPVALUE_OUTER): {
+      printf(ANSI_YELLOW_STR("[upvalue_outer]") " fn-upvalue-idx=%d", entry->value->function_index);
+      break;
+    }
+    case (SYMBOL_LOCAL): {
+      printf(ANSI_CYAN_STR("[local]") " ");
+      printf("fn-local-idx=%d ", entry->value->function_index);
+      printf("local-idx=%d ", entry->value->index);
+      printf(entry->value->is_captured ? (ANSI_GREEN_STR("(captured)")) : "");
+      break;
+    }
+    case (SYMBOL_GLOBAL): {
+      printf(ANSI_BLUE_STR("[global]") " ");
+      break;
+    }
+    case (SYMBOL_NATIVE): {
+      printf(ANSI_RED_STR("[native]") " ");
+      break;
+    }
+    default: {
+      INTERNAL_ASSERT(false, "Unknown symbol type: %d", entry->value->type);
+      break;
+    }
   }
+
   printf("%s\n", entry->value->is_param ? ANSI_YELLOW_STR("(param)") : "");
 }
 

@@ -49,8 +49,6 @@ static ObjFunction* end_compiler(FnCompiler* compiler) {
   emit_return(compiler, (AstNode*)compiler->function);
   ObjFunction* function = compiler->result;
 #ifdef DEBUG_PRINT_BYTECODE
-  printf("Function name: %s, arity: %d, declared at line: %d\n", function->name->chars, function->arity,
-         compiler->function->base.token_start.line);
   debug_disassemble_chunk(&function->chunk, function->name->chars);
 #endif
 
@@ -187,8 +185,8 @@ static void emit_assign_id(FnCompiler* compiler, AstId* id) {
     case SYMBOL_UPVALUE_OUTER: emit_two(compiler, OP_SET_UPVALUE, sym->function_index, (AstNode*)id); break;
     case SYMBOL_NATIVE: INTERNAL_ASSERT(false, "Fix resolver. Assigning to natives is forbidden."); break;
     case SYMBOL_GLOBAL: {
-      INTERNAL_ASSERT(sym->function_index >= 0, "Global variable should have an index.");
-      emit_two(compiler, OP_SET_GLOBAL, sym->function_index, (AstNode*)id);
+      uint16_t global_constant = id_constant(compiler, id->name, (AstNode*)id);
+      emit_two(compiler, OP_SET_GLOBAL, global_constant, (AstNode*)id);
       break;
     }
     default: INTERNAL_ERROR("Unknown symbol type: %d", sym->type);
@@ -197,6 +195,9 @@ static void emit_assign_id(FnCompiler* compiler, AstId* id) {
 
 // Emits bytecode to define the given [id] as a variable with the value at the top of the stack.
 // If it's a global, [global_constant] is the index of the global constant in the constant pool.
+// Note: This exists for defining globals - they are referenced by their acutal name. In contrast to emit_define_id, this exists
+// because of import and destructuring declarations. In these cases we add a constant for some variable before actually defining
+// any variable. We want to reuse the constant to not add unnecessary duplicate constants to the pool.
 static void emit_define_id_explicit(FnCompiler* compiler, AstId* id, uint16_t global_constant) {
   Symbol* sym = id->symbol;
   switch (sym->type) {
