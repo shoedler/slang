@@ -700,13 +700,13 @@ static void compile_statement_break(FnCompiler* compiler, AstStatement* stmt) {
   }
 
   // Discard any locals created in the loop body, then jump to the end of the loop.
-  discard_locals(compiler, stmt->base.scope, (AstNode*)stmt);
+  discard_locals(compiler, stmt->loop->base.scope, (AstNode*)stmt);
   compiler->brake_jumps[compiler->brakes_count++] = emit_jump(compiler, OP_JUMP, (AstNode*)stmt);
 }
 
 static void compile_statement_skip(FnCompiler* compiler, AstStatement* stmt) {
   INTERNAL_ASSERT(compiler->innermost_loop_start != -1, "Should have been caught by the resolver.");
-  discard_locals(compiler, stmt->base.scope, (AstNode*)stmt);
+  discard_locals(compiler, stmt->loop->base.scope, (AstNode*)stmt);
   emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);
 }
 

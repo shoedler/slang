@@ -15,7 +15,7 @@ struct FnResolver {
   struct FnResolver* enclosing;
   AstFn* function;
   Scope* current_scope;  // Current scope, can be a child scope of the [function]s scope
-  bool in_loop;
+  AstStatement* current_loop;
   bool in_class;
   bool has_baseclass;
   int function_local_count;  // Number of local variables in the current function, including its nested scopes. Used to set
@@ -35,7 +35,7 @@ static void resolver_init(FnResolver* resolver, FnResolver* enclosing, AstFn* fn
   resolver->enclosing            = enclosing;
   resolver->function             = fn;
   resolver->function_local_count = 0;
-  resolver->in_loop              = enclosing != NULL ? enclosing->in_loop : false;
+  resolver->current_loop         = enclosing != NULL ? enclosing->current_loop : NULL;
   resolver->in_class             = enclosing != NULL ? enclosing->in_class : false;
   resolver->has_baseclass        = enclosing != NULL ? enclosing->has_baseclass : false;
 
@@ -562,19 +562,19 @@ static void resolve_statement_if(FnResolver* resolver, AstStatement* stmt) {
 }
 
 static void resolve_statement_while(FnResolver* resolver, AstStatement* stmt) {
-  bool was_in_loop  = resolver->in_loop;
-  resolver->in_loop = true;
+  AstStatement* enclosing_loop = resolver->current_loop;
+  resolver->current_loop       = stmt;
   resolve_children(resolver, (AstNode*)stmt);
-  resolver->in_loop = was_in_loop;
+  resolver->current_loop = enclosing_loop;
 }
 
 static void resolve_statement_for(FnResolver* resolver, AstStatement* stmt) {
-  bool was_in_loop  = resolver->in_loop;
-  resolver->in_loop = true;
-  stmt->base.scope  = new_scope(resolver);
+  AstStatement* enclosing_loop = resolver->current_loop;
+  resolver->current_loop       = stmt;
+  stmt->base.scope             = new_scope(resolver);
   resolve_children(resolver, (AstNode*)stmt);
   end_scope(resolver);
-  resolver->in_loop = was_in_loop;
+  resolver->current_loop = enclosing_loop;
 }
 
 static void resolve_statement_return(FnResolver* resolver, AstStatement* stmt) {
@@ -593,17 +593,17 @@ static void resolve_statement_expr(FnResolver* resolver, AstStatement* stmt) {
 }
 
 static void resolve_statement_break(FnResolver* resolver, AstStatement* stmt) {
-  if (!resolver->in_loop) {
+  if (resolver->current_loop == NULL) {
     resolver_error((AstNode*)stmt, "Can't break outside of a loop.");
   }
-  stmt->base.scope = resolver->current_scope;  // Add a reference to the current scope for the compiler
+  stmt->loop = resolver->current_loop;  // Add a reference to the current scope for the compiler
 }
 
 static void resolve_statement_skip(FnResolver* resolver, AstStatement* stmt) {
-  if (!resolver->in_loop) {
+  if (resolver->current_loop == NULL) {
     resolver_error((AstNode*)stmt, "Can't skip outside of a loop.");
   }
-  stmt->base.scope = resolver->current_scope;  // Add a reference to the current scope for the compiler
+  stmt->loop = resolver->current_loop;  // Add a reference to the current scope for the compiler
 }
 
 static void resolve_statement_throw(FnResolver* resolver, AstStatement* stmt) {

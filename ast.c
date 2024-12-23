@@ -143,6 +143,7 @@ static AstStatement* ast_stmt_init(Token start, Token end, StatementType type) {
   AstStatement* stmt = (AstStatement*)ast_allocate_node(sizeof(AstStatement), NODE_STMT, start, end);
   stmt->type         = type;
   stmt->path         = NULL;
+  stmt->loop         = NULL;
   return stmt;
 }
 
@@ -517,6 +518,7 @@ void ast_free(AstNode* node) {
   if (node->scope != NULL) {
     scope_free(node->scope);
     free(node->scope);
+    node->scope = NULL;  // Prevent double free
   }
   free(node->children);
   free(node);

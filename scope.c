@@ -20,8 +20,9 @@ void scope_free(Scope* scope) {
 
   for (int i = 0; i < scope->capacity; i++) {
     SymbolEntry* entry = &scope->entries[i];
-    if (entry->value != NULL) {
+    if (entry->key != NULL && entry->value != NULL) {
       free(entry->value);
+      entry->value = NULL;  // Prevent double free
     }
   }
   free(scope->entries);
