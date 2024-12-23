@@ -489,9 +489,8 @@ static void resolve_declare_class(FnResolver* resolver, AstDeclaration* decl) {
     resolve_variable(resolver, baseclass_name);
   }
 
-  // Create the class scope
-  decl->base.scope = new_scope(resolver);
   if (resolver->has_baseclass) {
+    decl->base.scope = new_scope(resolver);
     inject_local(resolver, KEYWORD_BASE, true);
   }
 
@@ -499,8 +498,9 @@ static void resolve_declare_class(FnResolver* resolver, AstDeclaration* decl) {
     resolve_node(resolver, decl->base.children[i]);
   }
 
-  // End class scope
-  end_scope(resolver);
+  if (resolver->has_baseclass) {
+    end_scope(resolver);
+  }
   resolver->in_class      = false;  // Class can't be nested
   resolver->has_baseclass = false;
 }

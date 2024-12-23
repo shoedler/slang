@@ -568,7 +568,6 @@ void ast_print(AstNode* node, int indent) {
 static void print_fn_type(FnType type) {
   const char* fn_type_str = ANSI_RED_STR("unknown");
   switch (type) {
-    case FN_TYPE_UNKNOWN: fn_type_str = ANSI_GREEN_STR("unknown"); break;
     case FN_TYPE_NAMED_FUNCTION: fn_type_str = ANSI_GREEN_STR("function"); break;
     case FN_TYPE_CONSTRUCTOR: fn_type_str = ANSI_GREEN_STR("constructor"); break;
     case FN_TYPE_METHOD: fn_type_str = ANSI_GREEN_STR("method"); break;

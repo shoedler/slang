@@ -51,6 +51,7 @@ You can, for example, easily cache stuff:
 
 ## Features
 
+- [ ] `map` and some other array functions should also accept arity=0 functions, not only arity=1 and arity=2.
 - [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hasing tuples containing negative `Int`s)
 - [ ] Add `not` for `is` and `in`: e.g. `x not in y` and `x is not Int`
 - [ ] Allow `Tuple.inside = fn(this) -> (this[0]>=0 and this[0]<ROWS) and (this[1]>=0 and this[1]<COLS)` 
@@ -63,6 +64,7 @@ You can, for example, easily cache stuff:
 - [ ] Implement `Seq.min(type: Type) -> Value`. (Get the minimum value of a sequence, should use SP_METHOD_LT of the `type`)
 - [ ] Implement `Str.ints() -> Seq`. (Split a string into a sequence of integers (also negative ones))
 - [ ] Implement `Str.floats() -> Seq`. (Split a string into a sequence of floats)
+- [ ] Implement `Str.chars() -> Seq`. (Split a string into a sequence of characters, shorthand for `Str.split("")`)
 - [ ] Implement `Seq.mapat(Int, Fn) -> Seq`. (Map only the element at the given index but return the whole sequence)
 - [ ] Implement `Seq.cull(Value|Fn) -> Seq`. (Remove all elements that are equal to the argument or satisfy the predicate)
 - [ ] Implement `Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)

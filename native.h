@@ -888,6 +888,7 @@ uint64_t native_default_obj_hash(Value self);
  * TYPENAME_T.fold(initial: TYPENAME_VALUE, fn: TYPENAME_FUNCTION) -> TYPENAME_VALUE
  * @brief Reduces the items of a TYPENAME_T to a single value by executing 'fn' on each item. 'fn' should take two or three
  * arguments: the accumulator, the item and the index. The latter is optional. The initial value of the accumulator is 'initial'.
+ * The passed function should return the new accumulator value.
  */
 #define NATIVE_LISTLIKE_FOLD_BODY(class)                                                                          \
   UNUSED(argc);                                                                                                   \

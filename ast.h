@@ -86,7 +86,6 @@ typedef enum {
 } NodeType;
 
 typedef enum {
-  FN_TYPE_UNKNOWN,
   FN_TYPE_NAMED_FUNCTION,
   FN_TYPE_CONSTRUCTOR,
   FN_TYPE_METHOD,

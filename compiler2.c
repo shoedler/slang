@@ -480,14 +480,28 @@ static void compile_declare_function(FnCompiler* compiler, AstDeclaration* decl)
 }
 
 static void compile_declare_class(FnCompiler* compiler, AstDeclaration* decl) {
-  // uint16_t class_name = id_constant(compiler, decl->class_name);
-  // emit_constant(compiler, OBJ_VAL(class_name), (AstNode*)decl);
-  //
-  // if inherit emit_load_variable(compiler, decl->class_name); emit OP_INHERIT
-  // emit_load_variable(compiler, decl->class_name);
+  AstId* class          = (AstId*)decl->base.children[0];
+  AstId* baseclass_name = (AstId*)decl->base.children[1];
+
+  // Declare and define the class name
+  uint16_t class_name = id_constant(compiler, class->name, (AstNode*)class);
+  emit_two(compiler, OP_CLASS, class_name, (AstNode*)decl);
+  emit_define_id_explicit(compiler, class, class_name);
+
+  if (baseclass_name != NULL) {
+    emit_load_id(compiler, baseclass_name);
+    emit_load_id(compiler, class);
+    emit_one(compiler, OP_INHERIT, (AstNode*)decl);
+  }
+
+  emit_load_id(compiler, class);
   // Body
-  printf("compiling declaration\n");
-  compile_children(compiler, (AstNode*)decl);
+  for (int i = 2; i < decl->base.count; i++) {
+    AstNode* member = decl->base.children[i];
+    compile_node(compiler, member);
+  }
+
+  emit_one(compiler, OP_FINALIZE, (AstNode*)decl);
 }
 
 static void compile_declare_variable(FnCompiler* compiler, AstDeclaration* decl) {
