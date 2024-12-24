@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include "chunk.h"
 #include "common.h"
-#include "compiler2.h"
+#include "compiler.h"
 #include "gc.h"
 #include "hashtable.h"
 #include "object.h"

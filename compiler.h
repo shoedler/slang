@@ -1,5 +1,5 @@
-#ifndef COMPILER2_H
-#define COMPILER2_H
+#ifndef COMPILER_H
+#define COMPILER_H
 
 #include "ast.h"
 #include "object.h"
@@ -30,4 +30,4 @@ bool compile(AstFn* ast, ObjObject* globals_context, ObjFunction** result);
 // Marks the roots of the compiler.
 void compiler_mark_roots();
 
-#endif  // COMPILER2_H
+#endif  // COMPILER_H

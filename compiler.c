@@ -1,4 +1,4 @@
-#include "compiler2.h"
+#include "compiler.h"
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -509,6 +509,8 @@ static void compile_declare_variable(FnCompiler* compiler, AstDeclaration* decl)
 
   if (initializer != NULL) {
     compile_node(compiler, initializer);
+  } else {
+    emit_one(compiler, OP_NIL, (AstNode*)decl);
   }
 
   if (id_or_pattern->type == NODE_PATTERN) {
