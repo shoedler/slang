@@ -97,7 +97,6 @@ static Scope* new_scope(FnResolver* resolver) {
   }
   scope_init(new_scope, resolver->current_scope);
   resolver->current_scope = new_scope;
-
   return new_scope;
 }
 
@@ -118,9 +117,9 @@ static void end_scope(FnResolver* resolver) {
     if (entry->value->source == NULL) {
 #ifdef DEBUG_RESOLVER
       SymbolType type           = entry->value->type;
-      bool ok_to_have_no_source = type == SYMBOL_NATIVE || type == SYMBOL_UPVALUE || type == SYMBOL_UPVALUE_OUTER;
+      bool ok_to_have_no_source = type == SYMBOL_NATIVE || symbol_is_upvalue(entry->value);
       UNUSED(ok_to_have_no_source);
-      INTERNAL_ASSERT(ok_to_have_no_source, "Only natives can be unused without source");
+      INTERNAL_ASSERT(ok_to_have_no_source, "Only natives or upvalues can be unused without source");
 #endif
       continue;
     }
@@ -156,6 +155,15 @@ static Symbol* add_local(FnResolver* resolver, ObjString* name, AstId* var, Symb
   Symbol* local  = NULL;
   ObjString* key = name == NULL ? var->name : name;
   if (!scope_add_new(resolver->current_scope, key, (AstNode*)var, SYMBOL_LOCAL, state, is_const, is_param, &local)) {
+    // Could be the case that there's already an upvalue with the same name, so we need to shadow it with a new local
+    if (symbol_is_upvalue(local)) {
+      local->source   = (AstNode*)var;
+      local->type     = SYMBOL_LOCAL;
+      local->state    = state;
+      local->is_const = is_const;
+      local->is_param = is_param;
+      return local;
+    }
     if (is_param) {
       resolver_error((AstNode*)var, "Parameter '%s' is already declared.", var->name->chars);
     } else {
@@ -553,7 +561,9 @@ static void resolve_statement_if(FnResolver* resolver, AstStatement* stmt) {
 static void resolve_statement_while(FnResolver* resolver, AstStatement* stmt) {
   AstStatement* enclosing_loop = resolver->current_loop;
   resolver->current_loop       = stmt;
+  stmt->base.scope             = new_scope(resolver);
   resolve_children(resolver, (AstNode*)stmt);
+  end_scope(resolver);
   resolver->current_loop = enclosing_loop;
 }
 
@@ -585,14 +595,12 @@ static void resolve_statement_break(FnResolver* resolver, AstStatement* stmt) {
   if (resolver->current_loop == NULL) {
     resolver_error((AstNode*)stmt, "Can't break outside of a loop.");
   }
-  stmt->loop = resolver->current_loop;  // Add a reference to the current scope for the compiler
 }
 
 static void resolve_statement_skip(FnResolver* resolver, AstStatement* stmt) {
   if (resolver->current_loop == NULL) {
     resolver_error((AstNode*)stmt, "Can't skip outside of a loop.");
   }
-  stmt->loop = resolver->current_loop;  // Add a reference to the current scope for the compiler
 }
 
 static void resolve_statement_throw(FnResolver* resolver, AstStatement* stmt) {
@@ -730,10 +738,14 @@ static void resolve_expr_try(FnResolver* resolver, AstExpression* expr) {
   expr->base.scope = new_scope(resolver);
   inject_local(resolver, KEYWORD_ERROR, false);
 
-  AstId* error = get_child_as_id((AstNode*)expr, 0, false);
+  AstId* error        = get_child_as_id((AstNode*)expr, 0, false);
+  AstNode* try_expr   = expr->base.children[1];
+  AstNode* catch_expr = expr->base.children[2];
+
   resolve_variable(resolver, error);
-  for (int i = 1; i < expr->base.count; i++) {
-    resolve_node(resolver, expr->base.children[i]);  // Try-expr and possibly catch-expr
+  resolve_node(resolver, try_expr);
+  if (catch_expr != NULL) {
+    resolve_node(resolver, catch_expr);
   }
   end_scope(resolver);
 }

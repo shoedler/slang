@@ -68,7 +68,20 @@ bool scope_add_new(Scope* scope,
                    bool is_param,
                    Symbol** symbol);
 
+// Update a symbol in a scope. Returns true if the symbol was updated, false if not, indicating that there is no symbol with the
+// provided [key].
+bool scope_update(Scope* scope,
+                  ObjString* key,
+                  struct AstNode* source,
+                  SymbolState state,
+                  bool is_const,
+                  bool is_param,
+                  Symbol** symbol);
+
 // Get a symbol from the scope. Returns NULL if not found.
 Symbol* scope_get(Scope* scope, ObjString* key);
+
+// Checks whether a symbol is an upvalue
+bool symbol_is_upvalue(Symbol* symbol);
 
 #endif  // SCOPE_H

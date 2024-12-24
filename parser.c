@@ -526,8 +526,7 @@ static AstExpression* parse_expr_subs_or_slice(Parser* parser, Token expr_start,
 static AstExpression* parse_expr_dot(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   if (!match(parser, TOKEN_ID)) {
-    parser_error_at_current(parser, "Expecting property or method name after '.'.");
-    return NULL;
+    consume(parser, TOKEN_CTOR, "Expecting property or method name after '.'.");
   }
 
   ObjString* property = copy_string(parser->previous.start, parser->previous.length);

@@ -1,16 +1,16 @@
 // Basic try-catch
 try {
-  a / 0
+  nil/2
 }
 catch {
-  print error // [expect] Undefined variable 'a'.
+  print error // [expect] Type Nil does not support 'div'.
 }
 print "still running" // [expect] still running
 
 // Catch is optional
-try { a / 0 }
+try { nil/2 }
 print "still running" // [expect] still running
 
 // Doesn't need to be a block
-try a / 0 catch print error // [expect] Undefined variable 'a'.
+try nil/2 catch print error // [expect] Type Nil does not support 'div'.
 print "still running" // [expect] still running

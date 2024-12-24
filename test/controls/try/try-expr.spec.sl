@@ -12,8 +12,8 @@ print c // [expect] Incompatible types for binary operand '+': Int + Bool.
 print "still running" // [expect] still running
 
 // Nested 
-print try try ASLDJKASLDJK else error else error // [expect] Undefined variable 'ASLDJKASLDJK'.
-print try try ASLDJKASLDJK else 1+nil else error // [expect] Incompatible types for binary operand '+': Int + Nil.
+print try try nil/2 else error else error // [expect] Type Nil does not support 'div'.
+print try try nil/2 else 1+nil else error // [expect] Incompatible types for binary operand '+': Int + Nil.
 
 // Fuzzy tests
 let d = (try fn -> 1 else fn -> 2)()

@@ -20,8 +20,8 @@ struct FnCompiler {
   int* brake_jumps;
 
   // Loop state
+  Scope* innermost_loop_scope;
   int innermost_loop_start;
-  int innermost_loop_scope_depth;
 };
 
 // Compiles an AST into a function object. Returns true if emission was successful, false otherwise.

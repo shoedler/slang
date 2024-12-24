@@ -157,3 +157,7 @@ Symbol* scope_get(Scope* scope, ObjString* key) {
 
   return entry->value;
 }
+
+bool symbol_is_upvalue(Symbol* symbol) {
+  return symbol->type == SYMBOL_UPVALUE || symbol->type == SYMBOL_UPVALUE_OUTER;
+}

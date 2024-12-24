@@ -12,6 +12,7 @@ struct FnResolver {
   AstFn* function;
   Scope* current_scope;  // Current scope, can be a child scope of the [function]s scope
   AstStatement* current_loop;
+  Scope* current_loop_scope;
   bool in_class;
   bool has_baseclass;
   int function_local_count;  // Number of local variables in the current function, including its nested scopes. Used to set
