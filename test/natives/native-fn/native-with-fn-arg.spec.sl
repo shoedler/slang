@@ -13,8 +13,8 @@ print ({"a": A(), "b": A() })
 // [expect-error] Uncaught error: true
 // [expect-error]      5 |   fn to_str -> this.check(fn (x) { throw x })
 // [expect-error]                                             ~~~~~~~
-// [expect-error]   at line 5 in "(anon)" in module "main"
-// [expect-error]   at line 7 in "(anon)" in module "main"
+// [expect-error]   at line 5 in "$anon_fn$" in module "main"
+// [expect-error]   at line 7 in "$anon_fn$" in module "main"
 // [expect-error]   at line 7 in "check" in module "main"
 // [expect-error]   at line 5 in "to_str" in module "main"
 // [expect-error]   at line 11 at the toplevel of module "main"
