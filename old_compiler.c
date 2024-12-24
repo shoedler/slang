@@ -1,4 +1,4 @@
-#include "compiler.h"
+#include "old_compiler.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -24,7 +24,7 @@ typedef struct {
   Token previous;   // The token before the current.
   bool had_error;   // True if there was an error during parsing.
   bool panic_mode;  // True if the parser requires synchronization.
-} Parser;
+} OldParser;
 
 // Precedence levels for comparison expressions.
 typedef enum {
@@ -63,17 +63,17 @@ typedef struct {
 typedef struct {
   uint16_t index;
   bool is_local;
-} Upvalue;
+} Upvalue_;  // _ appended bc of conflict with the new compiler
 
-// Compiler state.
-typedef struct Compiler {
-  struct Compiler* enclosing;
+// OldCompiler state.
+typedef struct OldCompiler {
+  struct OldCompiler* enclosing;
   ObjFunction* function;
   FunctionType type;
 
   Local locals[MAX_LOCALS];
   int local_count;
-  Upvalue upvalues[MAX_UPVALUES];
+  Upvalue_ upvalues[MAX_UPVALUES];
   int scope_depth;
 
   // Brake jumps need to be stored because we don't know the offset of the jump when we compile them.
@@ -84,15 +84,15 @@ typedef struct Compiler {
 
   int innermost_loop_start;
   int innermost_loop_scope_depth;
-} Compiler;
+} OldCompiler;
 
 typedef struct ClassCompiler {
   struct ClassCompiler* enclosing;
   bool has_baseclass;
 } ClassCompiler;
 
-Parser parser;
-Compiler* current            = NULL;
+OldParser parser;
+OldCompiler* current         = NULL;
 ClassCompiler* current_class = NULL;
 Chunk* compiling_chunk;
 
@@ -343,7 +343,7 @@ static void emit_return() {
 }
 
 // Initializes a new compiler.
-static void compiler_init(Compiler* compiler, FunctionType type) {
+static void compiler_init(OldCompiler* compiler, FunctionType type) {
   compiler->enclosing = current;
   current             = compiler;
 
@@ -395,7 +395,7 @@ static void compiler_init(Compiler* compiler, FunctionType type) {
 }
 
 // Frees a compiler
-static void compiler_free(Compiler* compiler) {
+static void compiler_free(OldCompiler* compiler) {
   FREE_ARRAY(int, compiler->brake_jumps, compiler->brakes_capacity);
 }
 
@@ -449,9 +449,9 @@ static void try_(bool can_assign);
 static ParseRule* get_rule(TokenKind type);
 static void parse_precedence(Precedence precedence);
 static uint16_t identifier_constant(Token* name);
-static int resolve_local(Compiler* compiler, Token* name, bool* is_const);
-static int resolve_upvalue(Compiler* compiler, Token* name, bool* is_const);
-static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local);
+static int resolve_local(OldCompiler* compiler, Token* name, bool* is_const);
+static int resolve_upvalue(OldCompiler* compiler, Token* name, bool* is_const);
+static int add_upvalue(OldCompiler* compiler, uint16_t index, bool is_local);
 static uint16_t parse_variable(const char* error_message, bool is_const);
 static void define_variable(uint16_t global, bool is_const);
 
@@ -751,7 +751,7 @@ static void object_literal(bool can_assign) {
   }
 }
 
-Value compiler_parse_number(const char* str, size_t length) {
+Value old_compiler_parse_number(const char* str, size_t length) {
   if (length == 0) {
     return int_value(0);
   }
@@ -797,7 +797,7 @@ Value compiler_parse_number(const char* str, size_t length) {
 // The number has already been consumed and is referenced by the previous token.
 static void number(bool can_assign) {
   UNUSED(can_assign);
-  Value value = compiler_parse_number(parser.previous.start, parser.previous.length);
+  Value value = old_compiler_parse_number(parser.previous.start, parser.previous.length);
   emit_constant_here(value);
 }
 
@@ -1039,7 +1039,7 @@ static void base_(bool can_assign) {
 // parameters. This is used for all supported functions types named functions, anonymous functions, constructors and methods.
 static void function(bool can_assign, FunctionType type) {
   UNUSED(can_assign);
-  Compiler compiler;
+  OldCompiler compiler;
   compiler_init(&compiler, type);
   begin_scope();
 
@@ -1327,7 +1327,7 @@ static bool identifiers_equal(Token* id_a, Token* id_b) {
 // local variables. Returns the index of the local variable in the locals array,
 // or -1 if it is not found.
 // [is_const] is set to true if the resolved local is a constant.
-static int resolve_local(Compiler* compiler, Token* name, bool* is_const) {
+static int resolve_local(OldCompiler* compiler, Token* name, bool* is_const) {
   // Walk backwards through the locals to shadow outer variables with the same
   // name.
   for (int i = compiler->local_count - 1; i >= 0; i--) {
@@ -1353,7 +1353,7 @@ static int resolve_local(Compiler* compiler, Token* name, bool* is_const) {
 // Returns the index of the upvalue in the current compiler's upvalues array, or
 // -1 if it is not found.
 // [is_const] is set to true if the resolved upvalue is a constant.
-static int resolve_upvalue(Compiler* compiler, Token* name, bool* is_const) {
+static int resolve_upvalue(OldCompiler* compiler, Token* name, bool* is_const) {
   if (compiler->enclosing == NULL) {
     return -1;
   }
@@ -1409,11 +1409,11 @@ static void add_const_global(uint16_t global) {
 
 // Adds an upvalue to the current compiler's upvalues array. Checks whether the upvalue is already in the array. If so, it returns
 // its index. Otherwise, it adds it to the array and returns the new index.
-static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
+static int add_upvalue(OldCompiler* compiler, uint16_t index, bool is_local) {
   int upvalue_count = compiler->function->upvalue_count;
 
   for (int i = 0; i < upvalue_count; i++) {
-    Upvalue* upvalue = &compiler->upvalues[i];
+    Upvalue_* upvalue = &compiler->upvalues[i];
     if (upvalue->index == index && upvalue->is_local == is_local) {
       return i;
     }
@@ -2156,9 +2156,9 @@ static void declaration() {
   }
 }
 
-ObjFunction* compiler_compile_module(const char* source) {
+ObjFunction* old_compiler_compile_module(const char* source) {
   scanner_init(source);
-  Compiler compiler;
+  OldCompiler compiler;
   const_globals_count = 0;
 
   compiler_init(&compiler, TYPE_MODULE);
@@ -2181,8 +2181,8 @@ ObjFunction* compiler_compile_module(const char* source) {
   return parser.had_error ? NULL : function;
 }
 
-void compiler_mark_roots() {
-  Compiler* compiler = current;
+void old_compiler_mark_roots() {
+  OldCompiler* compiler = current;
   while (compiler != NULL) {
     mark_obj((Obj*)compiler->function);
     compiler = compiler->enclosing;

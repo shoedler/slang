@@ -7,6 +7,27 @@
 #define MAX_CONSTANTS 65535  // UINT16_MAX
 #define MAX_JUMP 65535       // UINT16_MAX
 
-ObjFunction* compile(AstFn* node, ObjObject* globals_context);
+typedef struct FnCompiler FnCompiler;
+
+struct FnCompiler {
+  struct FnCompiler* enclosing;
+  AstFn* function;
+  ObjFunction* result;
+
+  // Brake jumps need to be stored because we don't know the offset of the jump when we compile them.
+  int brakes_count;
+  int brakes_capacity;
+  int* brake_jumps;
+
+  // Loop state
+  int innermost_loop_start;
+  int innermost_loop_scope_depth;
+};
+
+// Compiles an AST into a function object. Returns true if emission was successful, false otherwise.
+bool compile(AstFn* ast, ObjObject* globals_context, ObjFunction** result);
+
+// Marks the roots of the compiler.
+void compiler_mark_roots();
 
 #endif  // COMPILER2_H

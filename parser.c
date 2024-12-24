@@ -9,13 +9,6 @@
 #include "scope.h"
 #include "vm.h"
 
-typedef struct {
-  Token current;    // The current token.
-  Token previous;   // The token before the current.
-  bool had_error;   // True if there was an error during parsing.
-  bool panic_mode;  // True if the parser requires synchronization.
-} Parser2;
-
 typedef enum {
   PREC_NONE,
   PREC_ASSIGN,      // =
@@ -32,8 +25,8 @@ typedef enum {
 } Precedence;
 
 // Signature for a function that parses a prefix or infix expression.
-typedef AstExpression* (*ParsePrefixFn)(Parser2* parser, Token expr_start, bool can_assign);
-typedef AstExpression* (*ParseInfixFn)(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign);
+typedef AstExpression* (*ParsePrefixFn)(Parser* parser, Token expr_start, bool can_assign);
+typedef AstExpression* (*ParseInfixFn)(Parser* parser, Token expr_start, AstExpression* left, bool can_assign);
 
 // Precedence-dependent rule for parsing expressions.
 typedef struct {
@@ -49,15 +42,15 @@ typedef enum {
 } DestructureType;
 
 // Forward declarations
-static AstNode* parse_declaration(Parser2* parser);
-static AstFn* parse_function(Parser2* parser, Token decl_start, Token name, FnType type);
-static AstStatement* parse_statement(Parser2* parser);
-static AstBlock* parse_block(Parser2* parser);
-static AstExpression* parse_precedence(Parser2* parser, Precedence precedence);
-static AstExpression* parse_expression(Parser2* parser);
+static AstNode* parse_declaration(Parser* parser);
+static AstFn* parse_function(Parser* parser, Token decl_start, Token name, FnType type);
+static AstStatement* parse_statement(Parser* parser);
+static AstBlock* parse_block(Parser* parser);
+static AstExpression* parse_precedence(Parser* parser, Precedence precedence);
+static AstExpression* parse_expression(Parser* parser);
 static ParseRule* get_rule(TokenKind type);
 
-static void parser_init(Parser2* parser) {
+static void parser_init(Parser* parser) {
   parser->current    = (Token){.type = TOKEN_EOF};
   parser->previous   = (Token){.type = TOKEN_EOF};
   parser->had_error  = false;
@@ -82,7 +75,7 @@ static void handle_parser_error(Token* token, const char* format, va_list args) 
 }
 
 // Prints the given token as an error message. Sets the parser into panic mode to avoid cascading errors.
-static void parser_error(Parser2* parser, Token* token, const char* format, ...) {
+static void parser_error(Parser* parser, Token* token, const char* format, ...) {
   parser->had_error = true;
   va_list args;
   va_start(args, format);
@@ -91,7 +84,7 @@ static void parser_error(Parser2* parser, Token* token, const char* format, ...)
 }
 
 // Prints an error message at the previous token. Sets the parser into panic mode to avoid cascading errors.
-static void parser_error_at_previous(Parser2* parser, const char* format, ...) {
+static void parser_error_at_previous(Parser* parser, const char* format, ...) {
   parser->had_error = true;
   va_list args;
   va_start(args, format);
@@ -100,7 +93,7 @@ static void parser_error_at_previous(Parser2* parser, const char* format, ...) {
 }
 
 // Prints an error message at the current token. Sets the parser into panic mode to avoid cascading errors.
-static void parser_error_at_current(Parser2* parser, const char* format, ...) {
+static void parser_error_at_current(Parser* parser, const char* format, ...) {
   parser->had_error = true;
   va_list args;
   va_start(args, format);
@@ -119,7 +112,7 @@ static Token synthetic_token(const char* text) {
 }
 
 // Get the next token. Consumes error tokens, so that on the next call we have a valid token.
-static void advance(Parser2* parser) {
+static void advance(Parser* parser) {
   parser->previous = parser->current;
 
   for (;;) {
@@ -134,7 +127,7 @@ static void advance(Parser2* parser) {
 }
 
 // Assert the current token according to the provided token type and advance the parser.
-static void consume(Parser2* parser, TokenKind type, const char* format, ...) {
+static void consume(Parser* parser, TokenKind type, const char* format, ...) {
   if (parser->current.type == type) {
     advance(parser);
     return;
@@ -147,13 +140,13 @@ static void consume(Parser2* parser, TokenKind type, const char* format, ...) {
 }
 
 // Compares the current token with the provided token type.
-static bool check(Parser2* parser, TokenKind type) {
+static bool check(Parser* parser, TokenKind type) {
   return parser->current.type == type;
 }
 
 // Checks if the current token is a statement terminator. Mainly used for return statements, because they can be followed an
 // expression
-static bool check_statement_return_end(Parser2* parser) {
+static bool check_statement_return_end(Parser* parser) {
   return parser->current.is_first_on_line ||  // If the current token is the first on the line
          check(parser, TOKEN_CBRACE) ||  // If the current token is a closing brace, indicating the end of a block ({ ret x` })
          check(parser, TOKEN_ELSE) ||    // If the current token is an else keyword (if a ret b` else ret c)
@@ -161,7 +154,7 @@ static bool check_statement_return_end(Parser2* parser) {
 }
 
 // Accept the current token if it matches the provided token type, otherwise do nothing.
-static bool match(Parser2* parser, TokenKind type) {
+static bool match(Parser* parser, TokenKind type) {
   if (!check(parser, type)) {
     return false;
   }
@@ -170,7 +163,7 @@ static bool match(Parser2* parser, TokenKind type) {
 }
 
 // Synchronize the parser after a parsing error.
-static void synchronize(Parser2* parser) {
+static void synchronize(Parser* parser) {
   parser->panic_mode = false;
 
   while (parser->current.type != TOKEN_EOF) {
@@ -233,7 +226,7 @@ Value parse_number(const char* str, size_t length) {
   }
 }
 
-static AstExpression* parse_expr_grouping_or_literal_tuple(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_expr_grouping_or_literal_tuple(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
 
   // Empty tuple
@@ -274,7 +267,7 @@ static AstExpression* parse_expr_grouping_or_literal_tuple(Parser2* parser, Toke
   return ast_expr_literal_init(expr_start, parser->previous, tuple);
 }
 
-static AstExpression* parse_literal_obj(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_literal_obj(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
   AstLiteral* obj = ast_lit_obj_init(expr_start, parser->previous);
   int count       = 0;
@@ -302,7 +295,7 @@ static AstExpression* parse_literal_obj(Parser2* parser, Token expr_start, bool 
   return ast_expr_literal_init(expr_start, parser->previous, obj);
 }
 
-static AstExpression* parse_literal_seq(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_literal_seq(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
   AstLiteral* seq = ast_lit_seq_init(expr_start, parser->previous);
   int count       = 0;
@@ -327,7 +320,7 @@ static AstExpression* parse_literal_seq(Parser2* parser, Token expr_start, bool 
   return ast_expr_literal_init(expr_start, parser->previous, seq);
 }
 
-static AstExpression* parse_literal_string(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_literal_string(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
   // Build the string using a flexible array
   size_t str_capacity = 8;
@@ -386,14 +379,14 @@ FINISH_STR:
 #undef PUSH_CHAR
 }
 
-static AstExpression* parse_literal_number(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_literal_number(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
   Value value             = parse_number(parser->previous.start, parser->previous.length);
   AstLiteral* num_literal = ast_lit_number_init(expr_start, parser->previous, value);
   return ast_expr_literal_init(expr_start, parser->previous, num_literal);
 }
 
-static AstExpression* parse_literal(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_literal(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
   TokenKind type = parser->previous.type;
   switch (type) {
@@ -410,27 +403,27 @@ static AstExpression* parse_literal(Parser2* parser, Token expr_start, bool can_
   }
 }
 
-static AstExpression* parse_expr_anon_fn(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_expr_anon_fn(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
   Token name = synthetic_token("$anon_fn$");
   AstFn* fn  = parse_function(parser, expr_start, name, FN_TYPE_ANONYMOUS_FUNCTION);
   return ast_expr_anon_fn_init(expr_start, parser->previous, fn);
 }
 
-static AstExpression* parse_expr_base(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_expr_base(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
   AstId* this_ = ast_id_init(expr_start, copy_string(KEYWORD_THIS, STR_LEN(KEYWORD_THIS)));
   AstId* base_ = ast_id_init(expr_start, copy_string(KEYWORD_BASE, STR_LEN(KEYWORD_BASE)));
   return ast_expr_base_init(expr_start, parser->previous, this_, base_);
 }
 
-static AstExpression* parse_expr_this(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_expr_this(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
   AstId* this_ = ast_id_init(expr_start, copy_string(KEYWORD_THIS, STR_LEN(KEYWORD_THIS)));
   return ast_expr_this_init(expr_start, parser->previous, this_);
 }
 
-static AstExpression* parse_expr_try(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_expr_try(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
   AstId* error         = ast_id_init(expr_start, copy_string(KEYWORD_ERROR, STR_LEN(KEYWORD_ERROR)));
   AstExpression* expr  = parse_expression(parser);
@@ -441,21 +434,21 @@ static AstExpression* parse_expr_try(Parser2* parser, Token expr_start, bool can
   return ast_expr_try_init(expr_start, parser->previous, error, expr, else_);
 }
 
-static AstExpression* parse_expr_unary(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_expr_unary(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
   Token operator_      = parser->previous;
   AstExpression* inner = parse_precedence(parser, PREC_UNARY);
   return ast_expr_unary_init(expr_start, parser->previous, operator_, inner);
 }
 
-static AstExpression* parse_expr_variable(Parser2* parser, Token expr_start, bool can_assign) {
+static AstExpression* parse_expr_variable(Parser* parser, Token expr_start, bool can_assign) {
   UNUSED(can_assign);
   ObjString* name = copy_string(parser->previous.start, parser->previous.length);
   AstId* id       = ast_id_init(parser->previous, name);
   return ast_expr_variable_init(expr_start, parser->previous, id);
 }
 
-static AstExpression* parse_expr_binary(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
+static AstExpression* parse_expr_binary(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   Token operator_      = parser->previous;
   ParseRule* rule      = get_rule(operator_.type);
@@ -463,13 +456,13 @@ static AstExpression* parse_expr_binary(Parser2* parser, Token expr_start, AstEx
   return ast_expr_binary_init(expr_start, parser->previous, operator_, left, right);
 }
 
-static AstExpression* parse_expr_postfix(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
+static AstExpression* parse_expr_postfix(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   Token operator_ = parser->previous;
   return ast_expr_postfix_init(expr_start, parser->previous, operator_, left);
 }
 
-static AstExpression* parse_expr_call(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
+static AstExpression* parse_expr_call(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   AstExpression* call = ast_expr_call_init(expr_start, parser->previous, left);
 
@@ -491,7 +484,7 @@ static AstExpression* parse_expr_call(Parser2* parser, Token expr_start, AstExpr
   return call;
 }
 
-static AstExpression* parse_expr_subs_or_slice(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
+static AstExpression* parse_expr_subs_or_slice(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   AstExpression* start = NULL;
   AstExpression* end   = NULL;
@@ -530,7 +523,7 @@ static AstExpression* parse_expr_subs_or_slice(Parser2* parser, Token expr_start
   return ast_expr_subs_init(expr_start, parser->previous, left, start);
 }
 
-static AstExpression* parse_expr_dot(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
+static AstExpression* parse_expr_dot(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   if (!match(parser, TOKEN_ID)) {
     parser_error_at_current(parser, "Expecting property or method name after '.'.");
@@ -563,7 +556,7 @@ static AstExpression* parse_expr_dot(Parser2* parser, Token expr_start, AstExpre
   }
 }
 
-static AstExpression* parse_expr_ternary(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
+static AstExpression* parse_expr_ternary(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   AstExpression* true_branch = parse_precedence(parser, PREC_TERNARY);
   consume(parser, TOKEN_COLON, "Expecting ':' after true branch.");
@@ -571,31 +564,31 @@ static AstExpression* parse_expr_ternary(Parser2* parser, Token expr_start, AstE
   return ast_expr_ternary_init(expr_start, parser->previous, left, true_branch, false_branch);
 }
 
-static AstExpression* parse_expr_and(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
+static AstExpression* parse_expr_and(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   AstExpression* right = parse_precedence(parser, PREC_AND);
   return ast_expr_and_init(expr_start, parser->previous, left, right);
 }
 
-static AstExpression* parse_expr_or(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
+static AstExpression* parse_expr_or(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   AstExpression* right = parse_precedence(parser, PREC_OR);
   return ast_expr_or_init(expr_start, parser->previous, left, right);
 }
 
-static AstExpression* parse_expr_is(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
+static AstExpression* parse_expr_is(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   AstExpression* right = parse_precedence(parser, PREC_COMPARISON);
   return ast_expr_is_init(expr_start, parser->previous, left, right);
 }
 
-static AstExpression* parse_expr_in(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
+static AstExpression* parse_expr_in(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   AstExpression* right = parse_precedence(parser, PREC_COMPARISON);
   return ast_expr_in_init(expr_start, parser->previous, left, right);
 }
 
-static AstExpression* parse_expr_assign(Parser2* parser, Token expr_start, AstExpression* left, bool can_assign) {
+static AstExpression* parse_expr_assign(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   if (!can_assign) {
     parser_error_at_previous(parser, "Invalid assignment target.");  // TODO! Is this check necessary?
     return NULL;
@@ -673,7 +666,7 @@ static ParseRule* get_rule(TokenKind type) {
   return &rules2[type];
 }
 
-static AstExpression* parse_prefix(Parser2* parser, bool can_assign) {
+static AstExpression* parse_prefix(Parser* parser, bool can_assign) {
   ParsePrefixFn prefix_rule = get_rule(parser->previous.type)->prefix;
   if (prefix_rule == NULL) {
     parser_error_at_previous(parser, "Expecting expression.");
@@ -682,7 +675,7 @@ static AstExpression* parse_prefix(Parser2* parser, bool can_assign) {
   return prefix_rule(parser, parser->previous, can_assign);
 }
 
-static AstExpression* parse_infix(Parser2* parser, Precedence precedence, AstExpression* left, bool can_assign) {
+static AstExpression* parse_infix(Parser* parser, Precedence precedence, AstExpression* left, bool can_assign) {
   while (precedence <= get_rule(parser->current.type)->precedence) {
     advance(parser);
     ParseInfixFn infix_rule = get_rule(parser->previous.type)->infix;
@@ -706,7 +699,7 @@ static AstExpression* parse_infix(Parser2* parser, Precedence precedence, AstExp
 
 // Parses any expression with a precedence higher or equal to the provided precedence. Handles prefix and infix expressions and
 // determines whether the expression can be assigned to.
-static AstExpression* parse_precedence(Parser2* parser, Precedence precedence) {
+static AstExpression* parse_precedence(Parser* parser, Precedence precedence) {
   advance(parser);
   bool can_assign     = precedence <= PREC_ASSIGN;
   AstExpression* left = parse_prefix(parser, can_assign);
@@ -726,11 +719,11 @@ static AstExpression* parse_precedence(Parser2* parser, Precedence precedence) {
   return parse_infix(parser, precedence, left, can_assign);
 }
 
-static AstExpression* parse_expression(Parser2* parser) {
+static AstExpression* parse_expression(Parser* parser) {
   return parse_precedence(parser, PREC_ASSIGN);
 }
 
-static AstPattern* parse_destructuring(Parser2* parser, DestructureType type) {
+static AstPattern* parse_destructuring(Parser* parser, DestructureType type) {
   Token pattern_start = parser->previous;  // Previous is '[', '{' or '('
 
   TokenKind closing;
@@ -806,25 +799,25 @@ static AstPattern* parse_destructuring(Parser2* parser, DestructureType type) {
   return destructure;
 }
 
-static AstStatement* parse_statement_print(Parser2* parser) {
+static AstStatement* parse_statement_print(Parser* parser) {
   Token stmt_start          = parser->previous;  // Previous is PRINT
   AstExpression* expression = parse_expression(parser);
   return ast_stmt_print_init(stmt_start, parser->previous, expression);
 }
 
-static AstStatement* parse_statement_expression(Parser2* parser) {
+static AstStatement* parse_statement_expression(Parser* parser) {
   Token stmt_start          = parser->previous;  // Previous is the first token of the expression
   AstExpression* expression = parse_expression(parser);
   return ast_stmt_expr_init(stmt_start, parser->previous, expression);
 }
 
-static AstStatement* parse_statement_block(Parser2* parser) {
+static AstStatement* parse_statement_block(Parser* parser) {
   Token stmt_start = parser->previous;  // Previous is OBRACE
   AstBlock* block  = parse_block(parser);
   return ast_stmt_block_init(stmt_start, parser->previous, block);
 }
 
-static AstStatement* parse_statement_if(Parser2* parser) {
+static AstStatement* parse_statement_if(Parser* parser) {
   Token stmt_start          = parser->previous;  // Previous is FOR
   AstExpression* condition  = parse_expression(parser);
   AstStatement* then_branch = parse_statement(parser);
@@ -837,13 +830,13 @@ static AstStatement* parse_statement_if(Parser2* parser) {
   return ast_stmt_if_init(stmt_start, parser->previous, condition, then_branch, else_branch);
 }
 
-static AstStatement* parse_statement_throw(Parser2* parser) {
+static AstStatement* parse_statement_throw(Parser* parser) {
   Token stmt_start          = parser->previous;  // Previous is THROW
   AstExpression* expression = parse_expression(parser);
   return ast_stmt_throw_init(stmt_start, parser->previous, expression);
 }
 
-static AstStatement* parse_statement_try(Parser2* parser) {
+static AstStatement* parse_statement_try(Parser* parser) {
   Token stmt_start           = parser->previous;  // Previous is TRY
   AstStatement* try_stmt     = parse_statement(parser);
   AstStatement* catch_branch = NULL;
@@ -854,14 +847,14 @@ static AstStatement* parse_statement_try(Parser2* parser) {
   return ast_stmt_try_init(stmt_start, parser->previous, try_stmt, catch_branch);
 }
 
-static AstStatement* parse_statement_while(Parser2* parser) {
+static AstStatement* parse_statement_while(Parser* parser) {
   Token stmt_start         = parser->previous;  // Previous is WHILE
   AstExpression* condition = parse_expression(parser);
   AstStatement* body       = parse_statement(parser);
   return ast_stmt_while_init(stmt_start, parser->previous, condition, body);
 }
 
-static AstStatement* parse_statement_return(Parser2* parser) {
+static AstStatement* parse_statement_return(Parser* parser) {
   Token stmt_start          = parser->previous;  // Previous is RETURN
   AstExpression* expression = NULL;
 
@@ -875,7 +868,7 @@ static AstStatement* parse_statement_return(Parser2* parser) {
   return ast_stmt_return_init(stmt_start, parser->previous, expression);
 }
 
-static AstStatement* parse_statement_for(Parser2* parser) {
+static AstStatement* parse_statement_for(Parser* parser) {
   Token stmt_start         = parser->previous;  // Previous is FOR
   AstNode* initializer     = NULL;
   AstExpression* condition = NULL;
@@ -913,7 +906,7 @@ static AstStatement* parse_statement_for(Parser2* parser) {
   return ast_stmt_for_init(stmt_start, parser->previous, initializer, condition, increment, body);
 }
 
-static AstStatement* parse_statement_import(Parser2* parser) {
+static AstStatement* parse_statement_import(Parser* parser) {
   Token stmt_start = parser->previous;  // Previous is IMPORT
   ObjString* path  = NULL;
 
@@ -935,7 +928,7 @@ static AstStatement* parse_statement_import(Parser2* parser) {
   return ast_stmt_import_init(stmt_start, parser->previous, path, id);
 }
 
-static AstBlock* parse_block(Parser2* parser) {
+static AstBlock* parse_block(Parser* parser) {
   Token stmt_start = parser->previous;  // Previous is OBRACE
   AstBlock* block  = ast_block_init(stmt_start);
 
@@ -949,7 +942,7 @@ static AstBlock* parse_block(Parser2* parser) {
 }
 
 // Parse a statement.
-static AstStatement* parse_statement(Parser2* parser) {
+static AstStatement* parse_statement(Parser* parser) {
   if (match(parser, TOKEN_PRINT)) {
     return parse_statement_print(parser);
   }
@@ -986,7 +979,7 @@ static AstStatement* parse_statement(Parser2* parser) {
   return parse_statement_expression(parser);
 }
 
-static AstDeclaration* parse_fn_params(Parser2* parser) {
+static AstDeclaration* parse_fn_params(Parser* parser) {
   Token decl_start = parser->current;  // Nothing has been consumed yet.
 
   AstDeclaration* params = ast_decl_fn_params_init(decl_start, decl_start);
@@ -1017,7 +1010,7 @@ static AstDeclaration* parse_fn_params(Parser2* parser) {
 }
 
 // Consolidated function for parsing a function declaration. Named, anonymous, method, constructor.
-static AstFn* parse_function(Parser2* parser, Token decl_start, Token name, FnType type) {
+static AstFn* parse_function(Parser* parser, Token decl_start, Token name, FnType type) {
   AstId* fn_name         = ast_id_init(decl_start, copy_string(name.start, name.length));
   AstDeclaration* params = parse_fn_params(parser);
 
@@ -1041,7 +1034,7 @@ static AstFn* parse_function(Parser2* parser, Token decl_start, Token name, FnTy
   return NULL;
 }
 
-static AstFn* parse_method(Parser2* parser) {
+static AstFn* parse_method(Parser* parser) {
   Token decl_start = parser->current;  // Nothing has been consumed yet.
   FnType type      = match(parser, TOKEN_STATIC) ? FN_TYPE_METHOD_STATIC : FN_TYPE_METHOD;
   consume(parser, TOKEN_FN, "Expecting method initializer.");
@@ -1049,13 +1042,13 @@ static AstFn* parse_method(Parser2* parser) {
   return parse_function(parser, decl_start, parser->previous, type);
 }
 
-static AstFn* parse_constructor(Parser2* parser) {
+static AstFn* parse_constructor(Parser* parser) {
   Token decl_start = parser->current;  // Nothing has been consumed yet.
   consume(parser, TOKEN_CTOR, "Expecting constructor.");
   return parse_function(parser, decl_start, parser->previous, FN_TYPE_CONSTRUCTOR);
 }
 
-static AstDeclaration* parse_declaration_class(Parser2* parser) {
+static AstDeclaration* parse_declaration_class(Parser* parser) {
   Token decl_start = parser->previous;  // Previous is CLASS
   consume(parser, TOKEN_ID, "Expecting class name.");
   AstId* class_name = ast_id_init(parser->previous, copy_string(parser->previous.start, parser->previous.length));
@@ -1090,14 +1083,14 @@ static AstDeclaration* parse_declaration_class(Parser2* parser) {
   return class;
 }
 
-static AstDeclaration* parse_declaration_function(Parser2* parser) {
+static AstDeclaration* parse_declaration_function(Parser* parser) {
   Token decl_start = parser->previous;  // Previous is FN
   consume(parser, TOKEN_ID, "Expecting function name.");
   AstFn* fn = parse_function(parser, decl_start, parser->previous, FN_TYPE_NAMED_FUNCTION);
   return ast_decl_fn_init(decl_start, parser->previous, fn);
 }
 
-static AstDeclaration* parse_declaration_variable(Parser2* parser) {
+static AstDeclaration* parse_declaration_variable(Parser* parser) {
   bool is_const    = parser->previous.type == TOKEN_CONST;
   Token decl_start = parser->previous;
 
@@ -1125,7 +1118,7 @@ static AstDeclaration* parse_declaration_variable(Parser2* parser) {
 }
 
 // Parse a declaration.
-static AstNode* parse_declaration(Parser2* parser) {
+static AstNode* parse_declaration(Parser* parser) {
   if (match(parser, TOKEN_CLASS)) {
     return (AstNode*)parse_declaration_class(parser);
   }
@@ -1139,8 +1132,8 @@ static AstNode* parse_declaration(Parser2* parser) {
   return (AstNode*)parse_statement(parser);
 }
 
-AstFn* parse(const char* source, ObjString* name) {
-  Parser2 parser;
+bool parse(const char* source, ObjString* name, AstFn** ast) {
+  Parser parser;
 
   scanner_init(source);
   parser_init(&parser);
@@ -1149,8 +1142,8 @@ AstFn* parse(const char* source, ObjString* name) {
   Token start            = parser.current;
   AstId* id              = ast_id_init(parser.current, name);
   AstDeclaration* params = NULL;  // No parameters for the root function. Maybe make some default params for cli by argv/argc?
+  AstBlock* body         = ast_block_init(start);
 
-  AstBlock* body = ast_block_init(start);
   while (!match(&parser, TOKEN_EOF)) {
     AstNode* decl_or_stmt = parse_declaration(&parser);
     ast_block_add(body, decl_or_stmt);
@@ -1159,17 +1152,21 @@ AstFn* parse(const char* source, ObjString* name) {
     }
   }
   body->base.token_end = parser.previous;
-
-  AstFn* root = ast_fn_init(parser.current, parser.current, FN_TYPE_MODULE, id, params, body);
+  *ast                 = ast_fn_init(start, parser.previous, FN_TYPE_MODULE, id, params, body);
 
 #ifdef DEBUG_PRINT_AST
   printf("\n\n\n === PARSE ===\n\n");
-  ast_print((AstNode*)root, 0);
+  ast_print((AstNode*)ast, 0);
 #endif
 
   if (parser.had_error) {
-    ast_free((AstNode*)root);
-    return NULL;
+    ast_free((AstNode*)*ast);
+    return false;
   }
-  return root;
+
+  return true;
+}
+
+void parser_mark_roots() {
+  return;  // Nothing to mark, yet.
 }

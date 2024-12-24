@@ -524,6 +524,33 @@ void ast_free(AstNode* node) {
   free(node);
 }
 
+void ast_mark(AstNode* node) {
+  if (node == NULL) {
+    return;
+  }
+
+  if (node->type == NODE_ID) {
+    AstId* id = (AstId*)node;
+    if (id->name != NULL) {
+      mark_obj((Obj*)id->name);
+    }
+  }
+  if (node->type == NODE_STMT) {
+    AstStatement* stmt = (AstStatement*)node;
+    if (stmt->path != NULL) {
+      mark_obj((Obj*)stmt->path);
+    }
+  }
+  if (node->type == NODE_LIT) {
+    AstLiteral* lit = (AstLiteral*)node;
+    mark_value(lit->value);
+  }
+
+  for (int i = 0; i < node->count; i++) {
+    ast_mark(node->children[i]);
+  }
+}
+
 void ast_print(AstNode* node, int indent) {
   for (int i = 0; i < indent; i++) {
     printf(ANSI_GRAY_STR(":  "));

@@ -1,5 +1,5 @@
-#ifndef compiler_h
-#define compiler_h
+#ifndef OLD_COMPILER_H
+#define OLD_COMPILER_H
 
 #include "object.h"
 
@@ -27,13 +27,13 @@ typedef enum {
 } FunctionType;
 
 // This function is the main entry point of the compiler. It compiles the given source code into bytecode.
-ObjFunction* compiler_compile_module(const char* source);
+ObjFunction* old_compiler_compile_module(const char* source);
 
 // Parses a number literal and returns the corresponding value (int or float).
-Value compiler_parse_number(const char* str, size_t length);
+Value old_compiler_parse_number(const char* str, size_t length);
 
 // Marks all compiler roots. This is necessary because the compiler can run while the GC is running. Marking compiler roots marks
 // all compilers functions.
-void compiler_mark_roots();
+void old_compiler_mark_roots();
 
-#endif
+#endif  // OLD_COMPILER_H

@@ -119,7 +119,6 @@ typedef struct {
   size_t bytes_allocated;  // Number of bytes currently allocated.
   size_t prev_gc_freed;    // Number of bytes freed in the last garbage collection.
   size_t next_gc;          // Number of bytes at which the next garbage collection will occur.
-
 } Vm;
 
 #define VM_FLAG_PAUSE_GC (1 << 0)
@@ -157,6 +156,7 @@ Value vm_interpret(const char* source, const char* source_path, const char* modu
 // Accepts an optional name for the module which should result from calling this function. If NULL is
 // provided, path is used as the name.
 Value vm_run_file(const char* path, const char* module_name);
+Value vm_run_file2(const char* path, const char* module_name);
 
 // Push a value onto the stack.
 void vm_push(Value value);

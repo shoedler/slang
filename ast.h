@@ -292,6 +292,9 @@ void ast_node_add_child(AstNode* parent, AstNode* child);
 // Frees an AST node and all its children
 void ast_free(AstNode* node);
 
+// Marks all Objs in a AST.
+void ast_mark(AstNode* node);
+
 // Prints the AST to stdout
 void ast_print(AstNode* node, int indent);
 

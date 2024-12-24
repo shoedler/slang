@@ -10,22 +10,9 @@
 #include "scope.h"
 #include "vm.h"
 
-typedef struct FnCompiler FnCompiler;
-
-struct FnCompiler {
-  struct FnCompiler* enclosing;
-  AstFn* function;
-  ObjFunction* result;
-
-  // Brake jumps need to be stored because we don't know the offset of the jump when we compile them.
-  int brakes_count;
-  int brakes_capacity;
-  int* brake_jumps;
-
-  // Loop state
-  int innermost_loop_start;
-  int innermost_loop_scope_depth;
-};
+FnCompiler* current_compiler = NULL;
+AstFn* compiler_root         = NULL;
+bool compiler_had_error      = false;
 
 // Forward declarations
 void compile_children(FnCompiler* compiler, AstNode* node);
@@ -33,7 +20,11 @@ static void compile_node(FnCompiler* compiler, AstNode* node);
 static void emit_return(FnCompiler* compiler, AstNode* source);
 
 static void compiler_init(FnCompiler* compiler, FnCompiler* enclosing, AstFn* function, ObjObject* globals_context) {
-  compiler->enclosing               = enclosing;
+  compiler->enclosing = enclosing;
+  current_compiler    = compiler;
+
+  compiler->result = NULL;  // Required, because new_function() can trigger a GC
+
   compiler->function                = function;
   compiler->result                  = new_function();
   compiler->result->upvalue_count   = function->upvalue_count;
@@ -52,6 +43,8 @@ static ObjFunction* end_compiler(FnCompiler* compiler) {
   debug_disassemble_chunk(&function->chunk, function->name->chars);
 #endif
 
+  current_compiler = compiler->enclosing;
+
   return function;
 }
 
@@ -65,6 +58,8 @@ static inline bool in_global_scope(FnCompiler* compiler) {
 
 // Prints an error message at the offending node.
 static void compiler_error(AstNode* offending_node, const char* format, ...) {
+  compiler_had_error = true;
+
   fprintf(stderr, "Compiler error at line %d", offending_node->token_start.line);
   fprintf(stderr, ": " ANSI_COLOR_RED);
   va_list args;
@@ -1194,11 +1189,31 @@ void compile_children(FnCompiler* compiler, AstNode* node) {
   }
 }
 
-ObjFunction* compile(AstFn* root, ObjObject* globals_context) {
+bool compile(AstFn* ast, ObjObject* globals_context, ObjFunction** result) {
+  compiler_had_error = false;
+  compiler_root      = ast;
+
   FnCompiler compiler;
-  compiler_init(&compiler, NULL, root, globals_context);
+  compiler_init(&compiler, NULL, ast, globals_context);
 #ifdef DEBUG_COMPILER
   printf("\n\n\n === COMPILE ===\n\n");
 #endif
-  return compile_function(&compiler, root);
+  *result = compile_function(&compiler, ast);
+
+  compiler_root = NULL;
+  return !compiler_had_error;
+}
+
+void compiler_mark_roots() {
+  if (current_compiler == NULL) {
+    return;
+  }
+
+  ast_mark((AstNode*)compiler_root);
+
+  FnCompiler* compiler = current_compiler;
+  while (compiler != NULL) {
+    mark_obj((Obj*)compiler->result);
+    compiler = compiler->enclosing;
+  }
 }

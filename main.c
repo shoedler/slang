@@ -7,6 +7,7 @@
 
 #define CMD_REPL "repl"
 #define CMD_RUN "run"
+#define CMD_RUN2 "run2"
 #define CMD___VERSION "--version"
 
 #define OPT_STRESS_GC "--stress-gc"
@@ -135,6 +136,24 @@ static SlangExitCode run() {
   return shutdown_vm();
 }
 
+static SlangExitCode run2() {
+  configure_vm();
+
+  const char* path = pop_option();
+  if (path == NULL) {
+    usage("No path provided for " CMD_RUN2);
+    exit(SLANG_EXIT_BAD_USAGE);
+  }
+  if (!validate_options()) {
+    usage("Unknown options for " CMD_RUN2);
+    exit(SLANG_EXIT_BAD_USAGE);
+  }
+
+  vm_run_file2(path, "main");
+
+  return shutdown_vm();
+}
+
 int main(int argc, char* argv[]) {
   if (argc < 2) {
     usage("No arguments provided");
@@ -149,6 +168,8 @@ int main(int argc, char* argv[]) {
     code = repl();
   } else if (consume_option(CMD_RUN)) {
     code = run();
+  } else if (consume_option(CMD_RUN2)) {
+    code = run2();
   } else if (consume_option("--version")) {
     printf("slang %s\n", SLANG_VERSION);
     code = SLANG_EXIT_SUCCESS;

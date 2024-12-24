@@ -4,15 +4,19 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ast.h"
 #include "chunk.h"
 #include "common.h"
-#include "compiler.h"
+#include "compiler2.h"
 #include "file.h"
 #include "gc.h"
 #include "hashtable.h"
 #include "memory.h"
 #include "native.h"
 #include "object.h"
+#include "old_compiler.h"
+#include "parser.h"
+#include "resolver.h"
 #include "sys.h"
 #include "value.h"
 #include "vm.h"
@@ -1743,7 +1747,7 @@ Value vm_interpret(const char* source, const char* source_path, const char* modu
     vm_start_module(source_path, module_name);
   }
 
-  ObjFunction* function = compiler_compile_module(source);
+  ObjFunction* function = old_compiler_compile_module(source);
   if (function == NULL) {
     if (is_module) {
       vm.module = enclosing_module;
@@ -1788,6 +1792,76 @@ Value vm_run_file(const char* path, const char* module_name) {
   printf(ANSI_CYAN_STR("Done running file: %s\n"), path);
   printf("\n");
 #endif
+
+  return result;
+}
+
+Value vm_run_file2(const char* source_path, const char* module_name) {
+  bool is_module = module_name != NULL && source_path != NULL;
+#ifdef DEBUG_TRACE_EXECUTION
+  printf("\n");
+  printf(ANSI_CYAN_STR("Running file: %s\n"), source_path);
+#endif
+  const char* name = module_name == NULL ? source_path : module_name;
+  char* source     = file_read(source_path);
+  if (source == NULL) {
+    free(source);
+    return nil_value();
+  }
+
+  ObjObject* enclosing_module = vm.module;
+  if (is_module) {
+    vm_start_module(source_path, name);
+  }
+
+  // Parse
+  AstFn* ast = NULL;
+  VM_SET_FLAG(VM_FLAG_PAUSE_GC);
+  bool parsed = parse(source, copy_string(name, (int)strlen(name)), &ast);
+  if (!parsed) {
+    free(source);
+    exit(SLANG_EXIT_COMPILE_ERROR);
+  }
+  VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
+
+  // Resolve
+  bool resolved = resolve(ast);
+  if (!resolved) {
+    ast_free((AstNode*)ast);
+    free(source);
+    exit(SLANG_EXIT_COMPILE_ERROR);
+  }
+
+  // Compile
+  ObjFunction* function = NULL;
+  bool compiled         = compile(ast, vm.module, &function);
+  if (!compiled) {
+    ast_free((AstNode*)ast);
+    free(source);
+    exit(SLANG_EXIT_COMPILE_ERROR);
+  }
+  ast_free((AstNode*)ast);  // No longer needed
+
+  // Interpret
+  Value result = nil_value();
+  if (function != NULL) {
+    vm_push(fn_value((Obj*)function));  // Gc protection
+    ObjClosure* closure = new_closure(function);
+    vm_pop();
+    vm_push(fn_value((Obj*)closure));
+    call_value(fn_value((Obj*)closure), 0);
+
+    result = run();
+    if (is_module) {
+      result = instance_value(vm.module);
+    }
+  }
+
+  if (is_module) {
+    vm.module = enclosing_module;
+  }
+
+  free(source);
 
   return result;
 }

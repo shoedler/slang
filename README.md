@@ -35,6 +35,9 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
+- [ ] Cleanup `vm_run2`, `run2` in main.c 
+- [ ] Reenable warnings in the resolver
+- [ ] Replace `old_compiler_parse_number` with the new parsers equivalent.
 - [ ] Keep track of the global scope in the resolver - no need to always drill up to the global scope.
 - [ ] Test if assignment to patterns works. Declarations work.
 - [ ] Do we really need `fn_index`? Think it through.

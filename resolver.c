@@ -10,19 +10,8 @@
 #include "scope.h"
 #include "vm.h"
 
-typedef struct FnResolver FnResolver;
-struct FnResolver {
-  struct FnResolver* enclosing;
-  AstFn* function;
-  Scope* current_scope;  // Current scope, can be a child scope of the [function]s scope
-  AstStatement* current_loop;
-  bool in_class;
-  bool has_baseclass;
-  int function_local_count;  // Number of local variables in the current function, including its nested scopes. Used to set
-                             // function_index when resolving variables/upvalues
-};
-
-static bool had_error = false;
+AstFn* resolver_root    = NULL;
+bool resolver_had_error = false;
 
 // Forward declarations
 static Scope* new_scope(FnResolver* resolver);
@@ -31,10 +20,10 @@ void resolve_children(FnResolver* resolver, AstNode* node);
 static void resolve_node(FnResolver* resolver, AstNode* node);
 
 static void resolver_init(FnResolver* resolver, FnResolver* enclosing, AstFn* fn) {
-  resolver->current_scope        = enclosing != NULL ? enclosing->current_scope : NULL;
   resolver->enclosing            = enclosing;
   resolver->function             = fn;
   resolver->function_local_count = 0;
+  resolver->current_scope        = enclosing != NULL ? enclosing->current_scope : NULL;  // Set in new_scope
   resolver->current_loop         = enclosing != NULL ? enclosing->current_loop : NULL;
   resolver->in_class             = enclosing != NULL ? enclosing->in_class : false;
   resolver->has_baseclass        = enclosing != NULL ? enclosing->has_baseclass : false;
@@ -72,7 +61,7 @@ static inline AstId* get_child_as_id(AstNode* parent, int index, bool allow_null
 
 // Prints an error message at the offending node.
 static void resolver_error(AstNode* offending_node, const char* format, ...) {
-  had_error = true;
+  resolver_had_error = true;
 
   fprintf(stderr, "Resolver error at line %d", offending_node->token_start.line);
   fprintf(stderr, ": " ANSI_COLOR_RED);
@@ -871,22 +860,28 @@ void resolve_children(FnResolver* resolver, AstNode* node) {
   }
 }
 
-bool resolve(AstFn* root) {
+bool resolve(AstFn* ast) {
+  resolver_had_error = false;
+  resolver_root      = ast;
+
   FnResolver resolver;
+  resolver_init(&resolver, NULL, ast);
+  inject_local(&resolver, "", true);  // Local slot 0 is not accessible
 
-  had_error = false;
-
-  resolver_init(&resolver, NULL, root);
-  inject_local(&resolver, "", true);  // Not accessible
   // Skip the first and second children, which are the name and parameters
-  INTERNAL_ASSERT(root->base.count == 3, "Function should have exactly 3 children.");
-  resolve_node(&resolver, root->base.children[2]);
+  INTERNAL_ASSERT(ast->base.count == 3, "Function should have exactly 3 children.");
+  resolve_node(&resolver, ast->base.children[2]);
   end_resolver(&resolver);
 
 #ifdef DEBUG_PRINT_SCOPES
   printf("\n\n\n === RESOLVE ===\n\n");
-  ast_print_scopes((AstNode*)root);
+  ast_print_scopes((AstNode*)ast);
 #endif
 
-  return !had_error;
+  resolver_root = NULL;
+  return !resolver_had_error;
+}
+
+void resolver_mark_roots() {
+  ast_mark((AstNode*)resolver_root);
 }
