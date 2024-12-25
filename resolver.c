@@ -184,7 +184,17 @@ static Symbol* add_global(FnResolver* resolver, AstId* var, SymbolState state, b
   Symbol* global = NULL;
   if (!scope_add_new(resolver->current_scope, var->name, (AstNode*)var, SYMBOL_GLOBAL, state, is_const, false /* is param */,
                      &global)) {
-    resolver_error((AstNode*)var, "Variable '%s' is already declared.", var->name->chars);
+    // Could be the case that there's already a native with the same name, so we need to shadow it with a new global
+    if (global->type == SYMBOL_NATIVE) {
+      global->source   = (AstNode*)var;
+      global->type     = SYMBOL_GLOBAL;
+      global->state    = state;
+      global->is_const = is_const;
+      global->is_param = false;
+      return global;
+    }
+
+    resolver_error((AstNode*)var, "Global variable '%s' is already declared.", var->name->chars);
   }
   return global;
 }

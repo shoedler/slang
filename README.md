@@ -35,7 +35,9 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
+- [ ] Move all the global vars in Parser, Resolver and Compiler into their structs
 - [ ] Cleanup `vm_run2`, `run2` in main.c 
+- [ ] I think much of the new compiler code can be pruned a bit - there's probably a lot of redundancy and even unused code there.
 - [ ] Reenable warnings in the resolver
 - [ ] Replace `old_compiler_parse_number` with the new parsers equivalent.
 - [ ] Keep track of the global scope in the resolver - no need to always drill up to the global scope.
@@ -47,7 +49,6 @@ You can, for example, easily cache stuff:
 - [ ] After testing: Refactor module imports without Module name (imports using "from"). 
 - [ ] After testing: Reorder the operands for `OP_GET_PROPERTY`(and set too) in the VM from `[recv][value] (top)` to `[value][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
 - [ ] After testing: Reorder the operands for `OP_GET_SUBSCRIPT`(and set too) in the VM from `[recv][idx][value] (top)` to `[value][idx][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
-- [ ] Verify that the tombstone-mechanism in the symboltable actually works.
 - [ ] Add resolver warn for vars that could be constant.
 - [ ] Omit non-necessary CLOSURES.
 - [ ] Can Probably omit OP_FINALIZE for classes?
@@ -56,6 +57,7 @@ You can, for example, easily cache stuff:
 
 - [ ] `map` and some other array functions should also accept arity=0 functions, not only arity=1 and arity=2.
 - [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hasing tuples containing negative `Int`s)
+- [ ] 🐛 Fix `Str.split(Str)` for strings which have multiple submatches per match, e.g. `"     0    w  e    r".split("  ")` segfaults. (Encountered in AOC '24 day 25)
 - [ ] Add `not` for `is` and `in`: e.g. `x not in y` and `x is not Int`
 - [ ] Allow `Tuple.inside = fn(this) -> (this[0]>=0 and this[0]<ROWS) and (this[1]>=0 and this[1]<COLS)` 
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
@@ -65,6 +67,7 @@ You can, for example, easily cache stuff:
   - [ ] Implement `Json.stringify(Value) -> Str`.
   - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
 - [ ] Implement `Seq.min(type: Type) -> Value`. (Get the minimum value of a sequence, should use SP_METHOD_LT of the `type`)
+- [ ] Implement `Str.rep(Int) -> Str`. (Repeat a string `n` times)
 - [ ] Implement `Str.ints() -> Seq`. (Split a string into a sequence of integers (also negative ones))
 - [ ] Implement `Str.floats() -> Seq`. (Split a string into a sequence of floats)
 - [ ] Implement `Str.chars() -> Seq`. (Split a string into a sequence of characters, shorthand for `Str.split("")`)
