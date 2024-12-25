@@ -12,7 +12,7 @@ print c // [expect] Incompatible types for binary operand '+': Int + Bool.
 print "still running" // [expect] still running
 
 // Nested 
-print try try nil/2 else error else error // [expect] Type Nil does not support 'div'.
+print try try nil/2 else error else error // [expect] Type Nil does not support "div".
 print try try nil/2 else 1+nil else error // [expect] Incompatible types for binary operand '+': Int + Nil.
 
 // Fuzzy tests

@@ -1,6 +1,6 @@
 fn inner_loop(outer_index) {
   let j = 0
-  while j++ < 3 {
+  while ++j < 3 {
     if j == outer_index
       skip
     print "  Inner loop: " + j
@@ -8,7 +8,7 @@ fn inner_loop(outer_index) {
 }
 
 let i = 0
-while i++ < 3 {
+while ++i < 3 {
   print "Outer loop: " + i
   inner_loop(i)
 }

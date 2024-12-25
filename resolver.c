@@ -595,12 +595,14 @@ static void resolve_statement_break(FnResolver* resolver, AstStatement* stmt) {
   if (resolver->current_loop == NULL) {
     resolver_error((AstNode*)stmt, "Can't break outside of a loop.");
   }
+  stmt->scope_ref = resolver->current_scope;
 }
 
 static void resolve_statement_skip(FnResolver* resolver, AstStatement* stmt) {
   if (resolver->current_loop == NULL) {
     resolver_error((AstNode*)stmt, "Can't skip outside of a loop.");
   }
+  stmt->scope_ref = resolver->current_scope;
 }
 
 static void resolve_statement_throw(FnResolver* resolver, AstStatement* stmt) {

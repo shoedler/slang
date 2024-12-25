@@ -415,7 +415,6 @@ static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
   FnCompiler subcompiler;
   compiler_init(&subcompiler, compiler, fn, compiler->result->globals_context);
 
-  // Compile the function in the subcompiler
   AstId* name            = (AstId*)fn->base.children[0];
   AstDeclaration* params = (AstDeclaration*)fn->base.children[1];
   AstNode* body          = fn->base.children[2];
@@ -714,13 +713,24 @@ static void compile_statement_break(FnCompiler* compiler, AstStatement* stmt) {
   }
 
   // Discard any locals created in the loop body, then jump to the end of the loop.
-  discard_locals(compiler, compiler->innermost_loop_scope, (AstNode*)stmt);
+  Scope* scope = stmt->scope_ref;
+  while (scope != NULL && scope < compiler->innermost_loop_scope) {
+    discard_locals(compiler, scope, (AstNode*)stmt);
+    scope = scope->enclosing;
+  }
+
   compiler->brake_jumps[compiler->brakes_count++] = emit_jump(compiler, OP_JUMP, (AstNode*)stmt);
 }
 
 static void compile_statement_skip(FnCompiler* compiler, AstStatement* stmt) {
   INTERNAL_ASSERT(compiler->innermost_loop_start != -1, "Should have been caught by the resolver.");
-  discard_locals(compiler, compiler->innermost_loop_scope, (AstNode*)stmt);
+
+  Scope* scope = stmt->scope_ref;
+  while (scope != NULL && scope != compiler->innermost_loop_scope) {
+    discard_locals(compiler, scope, (AstNode*)stmt);
+    scope = scope->enclosing;
+  }
+
   emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);
 }
 

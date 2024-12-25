@@ -1,8 +1,8 @@
 let i = 0
-while i++ <= 5 {
+while ++i <= 5 {
   let do_something = fn {
     let j = 0
-    while j++ <= 5 {
+    while ++j <= 5 {
       if j == 3 
         skip
       print "do_something: i = " + i + ", j = " + j
@@ -17,7 +17,7 @@ while i++ <= 5 {
 
   let do_something_else = fn {
     let k = 0
-    while k++ <= 5 {
+    while ++k <= 5 {
       if k == 2 
         skip
       print "do_something_else: i = " + i + ", k = " + k

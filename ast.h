@@ -178,7 +178,8 @@ AstDeclaration* ast_decl_variable_init2(Token start,
 struct AstStatement {
   AstNode base;
   StatementType type;
-  ObjString* path;  // STMT_IMPORT
+  ObjString* path;   // STMT_IMPORT
+  Scope* scope_ref;  // STMT_BREAK, STMT_SKIP
 };
 
 AstStatement* ast_stmt_import_init(Token start, Token end, ObjString* path, AstId* id);
