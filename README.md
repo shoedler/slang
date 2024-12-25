@@ -35,6 +35,7 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
+- [ ] Switch fn ordering in parser to match resolver and compiler (decls on top, exprs last)
 - [ ] Move all the global vars in Parser, Resolver and Compiler into their structs
 - [ ] Cleanup `vm_run2`, `run2` in main.c 
 - [ ] I think much of the new compiler code can be pruned a bit - there's probably a lot of redundancy and even unused code there.

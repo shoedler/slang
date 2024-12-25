@@ -1,4 +1,5 @@
 cls A {
   ctor { this.y = 1 }   // [exit] 2
-  static fn x -> this.y // [expect-error] Compile error at line 3 at 'this': Can't use 'this' in a static method.
-}
+  static fn x -> this.y // [expect-error] Resolver error at line 3: Can't use 'this' in a static method.
+}                       // [expect-error]      3 |   static fn x -> this.y
+                        // [expect-error]                           ~~~~

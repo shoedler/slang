@@ -58,7 +58,13 @@ static void parser_init(Parser* parser) {
 }
 
 // Report a parser error.
-static void handle_parser_error(Token* token, const char* format, va_list args) {
+static void handle_parser_error(Parser* parser, Token* token, const char* format, va_list args) {
+  if (parser->panic_mode) {
+    return;
+  }
+  parser->panic_mode = true;
+  parser->had_error  = true;
+
   fprintf(stderr, "Parser error at line %d", token->line);
   if (token->type == TOKEN_EOF) {
     fprintf(stderr, " at end");
@@ -76,28 +82,25 @@ static void handle_parser_error(Token* token, const char* format, va_list args) 
 
 // Prints the given token as an error message. Sets the parser into panic mode to avoid cascading errors.
 static void parser_error(Parser* parser, Token* token, const char* format, ...) {
-  parser->had_error = true;
   va_list args;
   va_start(args, format);
-  handle_parser_error(token, format, args);
+  handle_parser_error(parser, token, format, args);
   va_end(args);
 }
 
 // Prints an error message at the previous token. Sets the parser into panic mode to avoid cascading errors.
 static void parser_error_at_previous(Parser* parser, const char* format, ...) {
-  parser->had_error = true;
   va_list args;
   va_start(args, format);
-  handle_parser_error(&parser->previous, format, args);
+  handle_parser_error(parser, &parser->previous, format, args);
   va_end(args);
 }
 
 // Prints an error message at the current token. Sets the parser into panic mode to avoid cascading errors.
 static void parser_error_at_current(Parser* parser, const char* format, ...) {
-  parser->had_error = true;
   va_list args;
   va_start(args, format);
-  handle_parser_error(&parser->current, format, args);
+  handle_parser_error(parser, &parser->current, format, args);
   va_end(args);
 }
 
@@ -135,7 +138,7 @@ static void consume(Parser* parser, TokenKind type, const char* format, ...) {
 
   va_list args;
   va_start(args, format);
-  handle_parser_error(&parser->current, format, args);
+  handle_parser_error(parser, &parser->current, format, args);
   va_end(args);
 }
 
@@ -751,7 +754,7 @@ static AstPattern* parse_destructuring(Parser* parser, DestructureType type) {
 
   AstPattern* destructure = ast_pattern_init(pattern_start, parser->previous, pattern_type);
 
-  // Parse the left-hand side of the assignment, e.g. the variables.
+  // Parse the bindings.
   while (!check(parser, closing) && !check(parser, TOKEN_EOF)) {
     if (has_rest) {
       parser_error_at_previous(parser, "Rest parameter must be last in destructuring assignment.");

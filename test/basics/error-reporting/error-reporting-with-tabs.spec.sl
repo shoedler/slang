@@ -13,7 +13,7 @@ fn lol {
 fn main {
 	throw lol()	// [expect-error] Uncaught error: nil
 }							// [expect-error]     14 | 	throw lol()
-							// [expect-error]                    ~~
+							// [expect-error]           ~~~~~~~~~~~
 main()				// [expect-error]   at line 14 at the toplevel of module "main"
 							// [expect-error]   at line 17 at the toplevel of module "main"
 

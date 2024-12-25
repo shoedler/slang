@@ -3,5 +3,6 @@ cls A {
 }
 
 cls B : A {             // [exit] 2
-  static fn x -> base.x // [expect-error] Compile error at line 6 at 'base': Can't use 'base' in a static method.
-}
+  static fn x -> base.x // [expect-error] Resolver error at line 6: Can't use 'base' in a static method.
+}                       // [expect-error]      6 |   static fn x -> base.x
+                        // [expect-error]                           ~~~~

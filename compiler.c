@@ -737,7 +737,7 @@ static void compile_statement_skip(FnCompiler* compiler, AstStatement* stmt) {
 static void compile_statement_throw(FnCompiler* compiler, AstStatement* stmt) {
   AstNode* expr = stmt->base.children[0];
   compile_node(compiler, expr);
-  emit_one(compiler, OP_THROW, expr);
+  emit_one(compiler, OP_THROW, (AstNode*)stmt);
 }
 
 static void compile_statement_try(FnCompiler* compiler, AstStatement* stmt) {
