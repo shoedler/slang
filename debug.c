@@ -118,7 +118,7 @@ static int closure_instruction(const char* name, Chunk* chunk, int offset) {
     int is_local = chunk->code[offset++];
     int index    = chunk->code[offset++];
     char upval_str[VALUE_STR_LEN];
-    sprintf(upval_str, "%s %d", is_local ? "upvalue" : "upvalue_outer", index);
+    sprintf(upval_str, "upvalue to %s %d", is_local ? "local" : "upvalue", index);
 
     printf("\n");
     PRINT_OFFSET(offset - 2);

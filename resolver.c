@@ -155,21 +155,13 @@ static Symbol* add_local(FnResolver* resolver, ObjString* name, AstId* var, Symb
   Symbol* local  = NULL;
   ObjString* key = name == NULL ? var->name : name;
   if (!scope_add_new(resolver->current_scope, key, (AstNode*)var, SYMBOL_LOCAL, state, is_const, is_param, &local)) {
-    // Could be the case that there's already an upvalue with the same name, so we need to shadow it with a new local
-    if (symbol_is_upvalue(local)) {
-      local->source   = (AstNode*)var;
-      local->type     = SYMBOL_LOCAL;
-      local->state    = state;
-      local->is_const = is_const;
-      local->is_param = is_param;
-      return local;
-    }
     if (is_param) {
       resolver_error((AstNode*)var, "Parameter '%s' is already declared.", var->name->chars);
+      return NULL;
     } else {
       resolver_error((AstNode*)var, "Local variable '%s' is already declared.", var->name->chars);
-    }
     return NULL;
+    }
   }
 
   // Set the function index of the local
@@ -191,10 +183,10 @@ static Symbol* add_global(FnResolver* resolver, AstId* var, SymbolState state, b
       global->state    = state;
       global->is_const = is_const;
       global->is_param = false;
-      return global;
-    }
-
+    } else {
     resolver_error((AstNode*)var, "Global variable '%s' is already declared.", var->name->chars);
+      return NULL;
+    }
   }
   return global;
 }
@@ -587,7 +579,7 @@ static void resolve_statement_for(FnResolver* resolver, AstStatement* stmt) {
 }
 
 static void resolve_statement_return(FnResolver* resolver, AstStatement* stmt) {
-  if (resolver->function->type == FN_TYPE_CONSTRUCTOR) {
+  if (resolver->function->type == FN_TYPE_CONSTRUCTOR && stmt->base.children[0] != NULL) {
     resolver_error((AstNode*)stmt, "Can't return a value from a constructor.");
   }
   resolve_children(resolver, (AstNode*)stmt);

@@ -923,11 +923,11 @@ static void compile_expr_call(FnCompiler* compiler, AstExpression* expr) {
     AstId* this_  = (AstId*)target->base.children[0];
     AstId* base_  = (AstId*)target->base.children[1];
     uint16_t ctor = synthetic_constant(compiler, STR(SP_METHOD_CTOR), (AstNode*)target);
-
     emit_load_id(compiler, (AstId*)this_);  // This
     for (int i = 1; i < expr->base.count; i++) {
       compile_node(compiler, expr->base.children[i]);
     }
+
     emit_load_id(compiler, (AstId*)base_);  // Base
     emit_three(compiler, OP_BASE_INVOKE, ctor, argc, (AstNode*)target);
   } else {
@@ -968,16 +968,15 @@ static void compile_expr_invoke(FnCompiler* compiler, AstExpression* expr) {
 
   // Invoking a method on "base" is a special case
   if (((AstExpression*)target)->type == EXPR_BASE) {
-    AstId* this_  = (AstId*)target->children[0];
-    AstId* base_  = (AstId*)target->children[1];
-    uint16_t ctor = synthetic_constant(compiler, STR(SP_METHOD_CTOR), (AstNode*)target);
+    AstId* this_ = (AstId*)target->children[0];
+    AstId* base_ = (AstId*)target->children[1];
 
     emit_load_id(compiler, this_);  // This
     for (int i = 2; i < expr->base.count; i++) {
       compile_node(compiler, expr->base.children[i]);
     }
     emit_load_id(compiler, base_);  // Base
-    emit_three(compiler, OP_BASE_INVOKE, ctor, argc, (AstNode*)expr);
+    emit_three(compiler, OP_BASE_INVOKE, name, argc, (AstNode*)expr);
   } else {
     compile_node(compiler, target);
     for (int i = 2; i < expr->base.count; i++) {
