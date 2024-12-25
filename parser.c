@@ -882,8 +882,8 @@ static AstStatement* parse_statement_for(Parser* parser) {
     initializer = (AstNode*)parse_declaration(parser);
     consume(parser, TOKEN_SCOLON, "Expecting ';' after loop initializer.");
   } else {
-    // Expression
-    initializer = (AstNode*)parse_expression(parser);
+    // Statement expression
+    initializer = (AstNode*)parse_statement_expression(parser);
     consume(parser, TOKEN_SCOLON, "Expecting ';' after loop initializer.");
   }
 
