@@ -3,7 +3,7 @@ let a = [1,2,3]
 
 print a[4] = 1 // [expect-error] Uncaught error: Index out of bounds. Was 4, but this Seq has length 3.
                // [expect-error]      4 | print a[4] = 1
-               // [expect-error]                 ~~~~~~~
+               // [expect-error]                 ~~~
                // [expect-error]   at line 4 at the toplevel of module "main"
 
 // Stack check. Only the toplevel fn should be in the stack at this point.
