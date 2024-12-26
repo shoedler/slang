@@ -483,9 +483,6 @@ static void resolve_declare_function(FnResolver* resolver, AstDeclaration* decl)
 }
 
 static void resolve_declare_class(FnResolver* resolver, AstDeclaration* decl) {
-  if (resolver->in_class) {
-    resolver_error(resolver, (AstNode*)decl, "Classes can't be nested.");
-  }
   resolver->in_class      = true;
   resolver->has_baseclass = decl->base.children[1] != NULL;
 

@@ -1,4 +1,4 @@
-// [exit] 3
+// [exit] 2
 cls Main {
   ctor {
     this.x = 1
@@ -18,8 +18,6 @@ cls Main {
 
 let main = Main()
 main.define_other_class()
-let other = Other() // [expect-error] Uncaught error: Undefined variable 'Other'.
+let other = Other() // [expect-error] Resolver error at line 21: Undefined variable 'Other'.
                     // [expect-error]     21 | let other = Other()
                     // [expect-error]                      ~~~~~
-                    // [expect-error]   at line 21 at the toplevel of module "main"
-                    // [expect] 2
