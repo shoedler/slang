@@ -17,6 +17,9 @@ struct FnResolver {
   bool has_baseclass;
   int function_local_count;  // Number of local variables in the current function, including its nested scopes. Used to set
                              // function_index when resolving variables/upvalues
+
+  bool had_error;
+  bool panic_mode;
 };
 
 // Resolves a AST. Returns true if the AST is valid, false otherwise.
