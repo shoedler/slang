@@ -156,6 +156,16 @@ static bool check_statement_return_end(Parser* parser) {
          check(parser, TOKEN_EOF);       // If the current token is the end of the file
 }
 
+// Checks if an expression is a valid assignment target.
+static bool check_assignment_target(AstExpression* expr) {
+  switch (expr->type) {
+    case EXPR_VARIABLE:
+    case EXPR_SUBS:
+    case EXPR_DOT: return true;
+    default: return false;
+  }
+}
+
 // Accept the current token if it matches the provided token type, otherwise do nothing.
 static bool match(Parser* parser, TokenKind type) {
   if (!check(parser, type)) {
@@ -441,6 +451,12 @@ static AstExpression* parse_expr_unary(Parser* parser, Token expr_start, bool ca
   UNUSED(can_assign);
   Token operator_      = parser->previous;
   AstExpression* inner = parse_precedence(parser, PREC_UNARY);
+
+  if (token_is_inc_dec(operator_.type) && !check_assignment_target(inner)) {
+    parser_error_at_previous(parser, "Invalid increment/decrement target.");
+    return NULL;
+  }
+
   return ast_expr_unary_init(expr_start, parser->previous, operator_, inner);
 }
 
@@ -462,6 +478,12 @@ static AstExpression* parse_expr_binary(Parser* parser, Token expr_start, AstExp
 static AstExpression* parse_expr_postfix(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
   UNUSED(can_assign);
   Token operator_ = parser->previous;
+
+  if (token_is_inc_dec(operator_.type) && !check_assignment_target(left)) {
+    parser_error_at_previous(parser, "Invalid increment/decrement target.");
+    return NULL;
+  }
+
   return ast_expr_postfix_init(expr_start, parser->previous, operator_, left);
 }
 
@@ -591,11 +613,17 @@ static AstExpression* parse_expr_in(Parser* parser, Token expr_start, AstExpress
 }
 
 static AstExpression* parse_expr_assign(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  if (!can_assign) {
-    parser_error_at_previous(parser, "Invalid assignment target.");  // TODO! Is this check necessary?
+  UNUSED(can_assign);
+  Token operator_ = parser->previous;
+
+  if (operator_.type == TOKEN_ASSIGN && !check_assignment_target(left)) {
+    parser_error_at_previous(parser, "Invalid assignment target.");
+    return NULL;
+  } else if (token_is_compound_assignment(operator_.type) && !check_assignment_target(left)) {
+    parser_error_at_previous(parser, "Invalid compound assignment target.");
     return NULL;
   }
-  Token operator_      = parser->previous;
+
   AstExpression* right = parse_precedence(parser, PREC_ASSIGN);
   return ast_expr_assign_init(expr_start, parser->previous, operator_, left, right);
 }
@@ -664,7 +692,7 @@ static ParseRule rules2[] = {
 };
 
 // Returns the rule for the given token type.
-static ParseRule* get_rule(TokenKind type) {
+static inline ParseRule* get_rule(TokenKind type) {
   return &rules2[type];
 }
 
@@ -682,18 +710,6 @@ static AstExpression* parse_infix(Parser* parser, Precedence precedence, AstExpr
     advance(parser);
     ParseInfixFn infix_rule = get_rule(parser->previous.type)->infix;
     left                    = infix_rule(parser, parser->previous, left, can_assign);
-  }
-
-  if (can_assign) {
-    if (match(parser, TOKEN_ASSIGN)) {
-      parser_error_at_previous(parser, "Invalid assignment target.");
-    } else if (token_is_inc_dec(parser->current.type)) {
-      advance(parser);
-      parser_error_at_previous(parser, "Invalid increment/decrement target.");
-    } else if (token_is_compound_assignment(parser->current.type)) {
-      advance(parser);
-      parser_error_at_previous(parser, "Invalid compound assignment target.");
-    }
   }
 
   return left;

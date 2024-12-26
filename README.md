@@ -35,6 +35,7 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
+- [ ] Remove can_assign from the parser. It's not necessary anymore.
 - [ ] Switch fn ordering in parser to match resolver and compiler (decls on top, exprs last)
 - [ ] Move all the global vars in Parser, Resolver and Compiler into their structs
 - [ ] Cleanup `vm_run2`, `run2` in main.c 
