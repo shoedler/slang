@@ -162,7 +162,13 @@ static bool check_statement_return_end(Parser* parser) {
 }
 
 // Checks if an expression is a valid assignment target.
-static bool check_assignment_target(AstExpression* expr) {
+static bool check_assignment_target(Parser* parser, AstExpression* expr) {
+  if (expr == NULL) {
+    INTERNAL_ASSERT(parser->panic_mode == true, "expr should be NULL only in panic mode.");
+    UNUSED(parser);  // Release mode
+    return false;    // Could be the case if we're in panic mode.
+  }
+
   switch (expr->type) {
     case EXPR_VARIABLE:
     case EXPR_SUBS:
@@ -457,7 +463,7 @@ static AstExpression* parse_expr_unary(Parser* parser, Token expr_start, bool ca
   Token operator_      = parser->previous;
   AstExpression* inner = parse_precedence(parser, PREC_UNARY);
 
-  if (token_is_inc_dec(operator_.type) && !check_assignment_target(inner)) {
+  if (token_is_inc_dec(operator_.type) && !check_assignment_target(parser, inner)) {
     parser_error_at_previous(parser, "Invalid increment/decrement target.");
     return NULL;
   }
@@ -484,7 +490,7 @@ static AstExpression* parse_expr_postfix(Parser* parser, Token expr_start, AstEx
   UNUSED(can_assign);
   Token operator_ = parser->previous;
 
-  if (token_is_inc_dec(operator_.type) && !check_assignment_target(left)) {
+  if (token_is_inc_dec(operator_.type) && !check_assignment_target(parser, left)) {
     parser_error_at_previous(parser, "Invalid increment/decrement target.");
     return NULL;
   }
@@ -621,10 +627,10 @@ static AstExpression* parse_expr_assign(Parser* parser, Token expr_start, AstExp
   UNUSED(can_assign);
   Token operator_ = parser->previous;
 
-  if (operator_.type == TOKEN_ASSIGN && !check_assignment_target(left)) {
+  if (operator_.type == TOKEN_ASSIGN && !check_assignment_target(parser, left)) {
     parser_error_at_previous(parser, "Invalid assignment target.");
     return NULL;
-  } else if (token_is_compound_assignment(operator_.type) && !check_assignment_target(left)) {
+  } else if (token_is_compound_assignment(operator_.type) && !check_assignment_target(parser, left)) {
     parser_error_at_previous(parser, "Invalid compound assignment target.");
     return NULL;
   }
@@ -1011,7 +1017,7 @@ static AstDeclaration* parse_fn_params(Parser* parser) {
   if (match(parser, TOKEN_OPAR)) {
     if (!check(parser, TOKEN_CPAR)) {  // It's allowed to have "()" with no parameters.
       do {
-        if (param_count > MAX_FN_ARGS) {
+        if (param_count >= MAX_FN_ARGS) {
           parser_error_at_current(parser, "Can't have more than " STR(MAX_FN_ARGS) " parameters.");
         }
 

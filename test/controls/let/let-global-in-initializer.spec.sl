@@ -1,6 +1,5 @@
-// [exit] 3
+// [exit] 2
 let a = "value"
-let a = a  // [expect-error] Uncaught error: Variable 'a' is already defined.
+let a = a  // [expect-error] Resolver error at line 3: Global variable 'a' is already declared.
 print a    // [expect-error]      3 | let a = a
-           // [expect-error]                  ~
-           // [expect-error]   at line 3 at the toplevel of module "main"
+           // [expect-error]              ~

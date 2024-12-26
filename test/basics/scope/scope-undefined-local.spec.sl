@@ -1,6 +1,5 @@
-// [exit] 3
+// [exit] 2
 {
-  print not_defined  // [expect-error] Uncaught error: Undefined variable 'not_defined'.
+  print not_defined  // [expect-error] Resolver error at line 3: Undefined variable 'not_defined'.
 }                   // [expect-error]      3 |   print not_defined
                     // [expect-error]                  ~~~~~~~~~~~
-                    // [expect-error]   at line 3 at the toplevel of module "main"
