@@ -65,6 +65,11 @@ static void handle_parser_error(Parser* parser, Token* token, const char* format
   parser->panic_mode = true;
   parser->had_error  = true;
 
+  if (token->type == TOKEN_ERROR) {
+    fprintf(stderr, "Scanner error at line %d: " ANSI_RED_STR("%.*s"), token->line, token->length, token->start);
+    return;
+  }
+
   fprintf(stderr, "Parser error at line %d", token->line);
   if (token->type == TOKEN_EOF) {
     fprintf(stderr, " at end");
