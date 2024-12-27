@@ -438,6 +438,13 @@ static AstExpression* parse_expr_base(Parser* parser, Token expr_start, bool can
   UNUSED(can_assign);
   AstId* this_ = ast_id_init(expr_start, copy_string(KEYWORD_THIS, STR_LEN(KEYWORD_THIS)));
   AstId* base_ = ast_id_init(expr_start, copy_string(KEYWORD_BASE, STR_LEN(KEYWORD_BASE)));
+
+  // Since 'base' can only be called or accessed with a dot, we check that this is the case. This makes it easier to emit the
+  // bytecode as we can assume where a base-node can occur in the AST.
+  if (!check(parser, TOKEN_DOT) && !check(parser, TOKEN_OPAR)) {
+    parser_error_at_current(parser, "Expected '.' or '('. after '" KEYWORD_BASE "'.");
+  }
+
   return ast_expr_base_init(expr_start, parser->previous, this_, base_);
 }
 
