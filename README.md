@@ -35,6 +35,7 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
+- [ ] Remove checks for undefined variables in the runtime - it's all caught by the resolver now.
 - [ ] Remove can_assign from the parser. It's not necessary anymore.
 - [ ] Switch fn ordering in parser to match resolver and compiler (decls on top, exprs last)
 - [ ] Move all the global vars in Parser, Resolver and Compiler into their structs
@@ -42,7 +43,7 @@ You can, for example, easily cache stuff:
 - [ ] I think much of the new compiler code can be pruned a bit - there's probably a lot of redundancy and even unused code there.
 - [ ] Reenable warnings in the resolver
 - [ ] Replace `old_compiler_parse_number` with the new parsers equivalent.
-- [ ] Keep track of the global scope in the resolver - no need to always drill up to the global scope.
+- [x] Keep track of the global scope in the resolver - no need to always drill up to the global scope.
 - [ ] Test if assignment to patterns works. Declarations work.
 - [ ] Do we really need `fn_index`? Think it through.
 - [ ] Put all the `copy_string(KEYWORD_ERROR, STR_LEN(KEYWORD_ERROR))` into a lookup table 
