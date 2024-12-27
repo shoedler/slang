@@ -52,6 +52,7 @@ static AstFn* ast_fn_init_(Token start, Token end, FnType type, AstId* name, Ast
   AstFn* fn         = (AstFn*)ast_allocate_node(sizeof(AstFn), NODE_FN, start, end);
   fn->type          = type;
   fn->upvalue_count = 0;
+  fn->local_count   = 0;
   fn->is_lambda     = false;
 
   ast_node_add_child((AstNode*)fn, (AstNode*)name);

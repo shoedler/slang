@@ -19,16 +19,15 @@ void resolve_children(FnResolver* resolver, AstNode* node);
 static void resolve_node(FnResolver* resolver, AstNode* node);
 
 static void resolver_init(FnResolver* resolver, FnResolver* enclosing, AstFn* fn) {
-  resolver->enclosing            = enclosing;
-  resolver->function             = fn;
-  resolver->function_local_count = 0;
-  resolver->global_scope         = enclosing != NULL ? enclosing->global_scope : NULL;
-  resolver->current_scope        = enclosing != NULL ? enclosing->current_scope : NULL;  // Set in new_scope
-  resolver->current_loop         = enclosing != NULL ? enclosing->current_loop : NULL;
-  resolver->in_class             = enclosing != NULL ? enclosing->in_class : false;
-  resolver->has_baseclass        = enclosing != NULL ? enclosing->has_baseclass : false;
-  resolver->had_error            = enclosing != NULL ? enclosing->had_error : false;
-  resolver->panic_mode           = enclosing != NULL ? enclosing->panic_mode : false;
+  resolver->enclosing     = enclosing;
+  resolver->function      = fn;
+  resolver->global_scope  = enclosing != NULL ? enclosing->global_scope : NULL;
+  resolver->current_scope = enclosing != NULL ? enclosing->current_scope : NULL;  // Set in new_scope
+  resolver->current_loop  = enclosing != NULL ? enclosing->current_loop : NULL;
+  resolver->in_class      = enclosing != NULL ? enclosing->in_class : false;
+  resolver->has_baseclass = enclosing != NULL ? enclosing->has_baseclass : false;
+  resolver->had_error     = enclosing != NULL ? enclosing->had_error : false;
+  resolver->panic_mode    = enclosing != NULL ? enclosing->panic_mode : false;
 
   fn->base.scope = new_scope(resolver);  // Also sets resolver->current_scope
 }
@@ -115,8 +114,8 @@ static void end_scope(FnResolver* resolver) {
   Scope* enclosing = resolver->current_scope->enclosing;
 
   // Reduce the function's local count by the number of locals in this scope
-  resolver->function_local_count -= resolver->current_scope->local_count;
-  INTERNAL_ASSERT(resolver->function_local_count >= 0, "Function local count should never be negative.");
+  resolver->function->local_count -= resolver->current_scope->local_count;
+  INTERNAL_ASSERT(resolver->function->local_count >= 0, "Function local count should never be negative.");
 
   // Check for unused variables
   for (int i = 0; i < resolver->current_scope->capacity; i++) {
@@ -176,8 +175,8 @@ static Symbol* add_local(FnResolver* resolver, ObjString* name, AstId* var, Symb
   }
 
   // Set the function index of the local
-  local->function_index = resolver->function_local_count++;
-  if (resolver->function_local_count >= MAX_LOCALS) {
+  local->function_index = resolver->function->local_count++;
+  if (resolver->function->local_count >= MAX_LOCALS) {
     resolver_error(resolver, (AstNode*)var, "Can't have more than " STR(MAX_LOCALS) " local variables total in one function.");
   }
   return local;

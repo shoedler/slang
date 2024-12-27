@@ -133,6 +133,7 @@ struct AstFn {
   AstNode base;
   Upvalue upvalues[MAX_UPVALUES];
   int upvalue_count;  // Number of upvalues in the function, including sub-scopes
+  int local_count;    // Number of local variables in the function, including sub-scopes
   FnType type;
   bool is_lambda;  // True if the function is a lambda function
 };

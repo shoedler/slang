@@ -21,10 +21,6 @@ struct FnResolver {
   bool in_class;
   bool has_baseclass;
 
-  // Function state
-  int function_local_count;  // Number of local variables in the current function, including its nested scopes. Used to set
-                             // function_index when resolving variables/upvalues
-
   bool had_error;
   bool panic_mode;
 };
