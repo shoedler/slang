@@ -19,6 +19,7 @@ static Value str_add(int argc, Value argv[]);
 static Value str_split(int argc, Value argv[]);
 static Value str_trim(int argc, Value argv[]);
 static Value str_ints(int argc, Value argv[]);
+static Value str_ascii(int argc, Value argv[]);
 
 ObjClass* native_str_class_partial_init() {
   ObjClass* str_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
@@ -51,6 +52,7 @@ void native_str_class_finalize() {
   define_native(&vm.str_class->methods, "split", str_split, 1);
   define_native(&vm.str_class->methods, "trim", str_trim, 0);
   define_native(&vm.str_class->methods, "ints", str_ints, 0);
+  define_native(&vm.str_class->methods, "ascii", str_ascii, 0);
   finalize_new_class(vm.str_class);
 }
 
@@ -312,21 +314,21 @@ static bool is_digit(char c) {
 /**
  * TYPENAME_STRING.ints() -> TYPENAME_SEQ
  * @brief Returns a TYPENAME_SEQ containing the integers found in the TYPENAME_STRING.
- * Everything except a digit is considered a separator. Leading and trailing separators are ignored.
- * E.g. "12a34" -> [12, 34], "1.2" -> [1, 2], "hello1234 " -> [1234]
+ * Everything except a digit and a unary minus is considered a separator. Leading and trailing separators are ignored.
+ * E.g. "12a34" -> [12, 34], "1.2" -> [1, 2], "hello1234 " -> [1234], "32-23" -> [32, -23]
  */
 static Value str_ints(int argc, Value argv[]) {
   UNUSED(argc);
-  NATIVE_CHECK_RECEIVER(vm.str_class)
+  NATIVE_CHECK_RECEIVER(vm.str_class);
 
   ObjString* str = AS_STR(argv[0]);
   ObjSeq* seq    = new_seq();
   vm_push(seq_value(seq));  // GC Protection
 
   int i = 0;
-  char* num;
   while (i < str->length) {
-    while (i < str->length && !is_digit(str->chars[i])) {
+    // Skip non-digit and non-minus characters
+    while (i < str->length && !is_digit(str->chars[i]) && str->chars[i] != '-') {
       i++;
     }
 
@@ -334,19 +336,51 @@ static Value str_ints(int argc, Value argv[]) {
       break;
     }
 
-    num = str->chars + i;
+    // Check for unary minus
+    bool is_negative = false;
+    if (str->chars[i] == '-') {
+      is_negative = true;
+      i++;
+    }
+
+    // Collect digits
+    char* num = str->chars + i;
     while (i < str->length && is_digit(str->chars[i])) {
       i++;
     }
 
+    // Null-terminate the number string temporarily
     char c        = str->chars[i];
     str->chars[i] = '\0';
     int value     = atoi(num);
+    if (is_negative) {
+      value = -value;
+    }
     str->chars[i] = c;
 
     value_array_write(&seq->items, int_value(value));
   }
 
   vm_pop();  // The seq
+  return seq_value(seq);
+}
+
+/**
+ * TYPENAME_STRING.ascii() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ containing the ASCII values of the characters in the TYPENAME_STRING.
+ */
+static Value str_ascii(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.str_class);
+
+  ObjString* str   = AS_STR(argv[0]);
+  ValueArray items = value_array_init_of_size(str->length);
+  ObjSeq* seq      = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
+
+  for (int i = 0; i < str->length; i++) {
+    seq->items.values[i] = int_value((int)str->chars[i]);
+  }
+  seq->items.count = str->length;
+
   return seq_value(seq);
 }

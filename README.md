@@ -35,9 +35,8 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
-- [ ] Cleanup `vm_run2`, `run2` in main.c, launch.json, tasks.json and utils.js
-- [ ] Make REPL use the new compiler
-- [ ] Test if assignment to patterns works, because declarations do work.
+
+- [ ] Test if assignment to patterns works, because declarations do.
 - [ ] After testing: Refactor module imports without Module name (imports using "from"). 
 - [ ] After testing: Reorder the operands for `OP_GET_PROPERTY`(and set too) in the VM from `[recv][value] (top)` to `[value][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
 - [ ] After testing: Reorder the operands for `OP_GET_SUBSCRIPT`(and set too) in the VM from `[recv][idx][value] (top)` to `[value][idx][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
@@ -45,6 +44,8 @@ You can, for example, easily cache stuff:
 - [ ] Make parser marking possible and remove disabling the GC during parsing.
 - [ ] Turn globals / natives into an array. Because we can resolve it now at compile time. This would also allow for constant time global variable lookup
 - [ ] Can Probably omit OP_FINALIZE for classes?
+- [ ] Make REPL use the new compiler
+- [ ] Remove `run-old` completely
 
 ## Features
 
@@ -88,6 +89,7 @@ You can, for example, easily cache stuff:
 
 ## Improvements
 
+- [ ] Add AOC24 solutions to the test suite.
 - [ ] Improve destructuring assignment:
   - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
@@ -95,7 +97,14 @@ You can, for example, easily cache stuff:
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
 - [ ] Add a mimalloc segfault handler.
+- [ ] Add test for `Math.pow(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add test for `Math.xor(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add test for `Math.shl(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add test for `Math.shr(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add test for `Math.bor(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add test for `Math.band(Int, Int) -> Int` (Or maybe move to `Int`?)
 - [ ] Add test for `Str.ints() -> Seq`
+- [ ] Add test for `Str.ascii() -> Seq` which includes special characters.
 - [ ] Maybe check for `NULL` functions in `vm_exec_callable` instead of before calling it - would add some overhead though.
 - [x] ~~Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.~~
 - [x] ~~Add `Tuple.order` test.~~
