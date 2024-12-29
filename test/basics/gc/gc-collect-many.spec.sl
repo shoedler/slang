@@ -26,10 +26,10 @@ fn test_garbage_generation {
 
 Gc.collect()
 test_garbage_generation()// [expect] 944
-                         // [expect] 46294
+                         // [expect] 45934
 test_garbage_generation()// [expect] 944
-                         // [expect] 46294
+                         // [expect] 45934
 test_garbage_generation()// [expect] 944
-                         // [expect] 46294
+                         // [expect] 45934
 
 print Gc.collect() // [expect] 0

@@ -9,6 +9,7 @@ struct AstNode;  // Forward declaration for circular dependency
 struct Upvalue;  // Forward declaration for circular dependency
 
 typedef enum {
+  SYMBOL_UNDEFINED,  // For late-bound globals
   SYMBOL_GLOBAL,
   SYMBOL_LOCAL,
   SYMBOL_NATIVE,

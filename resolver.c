@@ -235,6 +235,13 @@ static Symbol* add_global(FnResolver* resolver, AstId* var, SymbolState state, b
       global->state    = state;
       global->is_const = is_const;
       global->is_param = false;
+    } else if (global->type == SYMBOL_UNDEFINED) {
+      // ..or, a late-bound global, which is fine, we just shadow it
+      global->source   = (AstNode*)var;
+      global->type     = SYMBOL_GLOBAL;
+      global->state    = state;
+      global->is_const = is_const;
+      global->is_param = false;
     } else {
       resolver_error(resolver, (AstNode*)var, "Global variable '%s' is already declared.", var->name->chars);
       return NULL;
@@ -373,9 +380,10 @@ static void resolve_variable(FnResolver* resolver, AstId* var) {
     goto FOUND;
   }
 
-  // Not found
-  resolver_error(resolver, (AstNode*)var, "Undefined variable '%s'.", var->name->chars);
-  return;
+  // Not found - could be a late-bound global which we'll resolve later
+  scope_add_new(resolver->root_scope, var->name, (AstNode*)var, SYMBOL_UNDEFINED, SYMSTATE_USED, false, false /* is param */,
+                &global);
+  ref = make_ref(global);
 
 FOUND:
   var->ref = ref;  // Set the reference on the variable
@@ -942,6 +950,20 @@ void resolve_children(FnResolver* resolver, AstNode* node) {
   }
 }
 
+void verify_late_bound(FnResolver* resolver) {
+  // Check for undeclared variables in the root scope - only globals can be late-bound and all of them should be resolved by now.
+  for (int i = 0; i < resolver->root_scope->capacity; i++) {
+    SymbolEntry* entry = &resolver->root_scope->entries[i];
+    if (entry->key == NULL) {
+      continue;
+    }
+    if (entry->value->type == SYMBOL_UNDEFINED) {
+      resolver_error(resolver, entry->value->source, "Undefined variable '%s'.", entry->key->chars);
+      resolver->panic_mode = false;
+    }
+  }
+}
+
 bool resolve(AstFn* ast, HashTable* global_scope, HashTable* native_scope, bool disable_warnings) {
   resolver_root = ast;
 
@@ -958,6 +980,8 @@ bool resolve(AstFn* ast, HashTable* global_scope, HashTable* native_scope, bool 
   INTERNAL_ASSERT(ast->base.count == 3, "Function should have exactly 3 children.");
   resolve_node(&resolver, ast->base.children[2]);
   end_resolver(&resolver);
+
+  verify_late_bound(&resolver);
 
 #ifdef DEBUG_PRINT_SCOPES
   printf("\n\n\n === RESOLVE ===\n\n");
