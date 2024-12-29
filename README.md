@@ -36,14 +36,7 @@ You can, for example, easily cache stuff:
 ## Compiler rebuild
 
 - [ ] Cleanup `vm_run2`, `run2` in main.c, launch.json, tasks.json and utils.js
-- [x] Reenable warnings in the resolver
-- [x] Move all the global vars in Parser, Resolver and Compiler into their structs
-- [x] Remove can_assign from the parser. It's not necessary anymore.
-- [x] Replace `old_compiler_parse_number` with the new parsers equivalent.
-- [x] Handle roots for garbage collection in the parser, resolver and compiler
-- [x] Keep track of the global scope in the resolver - no need to always drill up to the global scope.
-- [x] Add node for invoke
-
+- [ ] Make REPL use the new compiler
 - [ ] Test if assignment to patterns works, because declarations do work.
 - [ ] After testing: Refactor module imports without Module name (imports using "from"). 
 - [ ] After testing: Reorder the operands for `OP_GET_PROPERTY`(and set too) in the VM from `[recv][value] (top)` to `[value][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
@@ -55,7 +48,6 @@ You can, for example, easily cache stuff:
 
 ## Features
 
-- [ ] `map` and some other array functions should also accept arity=0 functions, not only arity=1 and arity=2.
 - [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hasing tuples containing negative `Int`s)
 - [ ] 🐛 Fix `Str.split(Str)` for strings which have multiple submatches per match, e.g. `"     0    w  e    r".split("  ")` segfaults. (Encountered in AOC '24 day 25)
 - [ ] Add `not` for `is` and `in`: e.g. `x not in y` and `x is not Int`
@@ -76,6 +68,7 @@ You can, for example, easily cache stuff:
 - [ ] Implement `Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)
 - [ ] Add a variant of `log` (Maybe `tap`/`info`/`dump`/`peek`?) which accepts a single argument and also, return it. That'd be awesome: `const x = a + b + c + tap(d) + e`
 - [ ] Add more error classes to std. Add a native `Error` base class, from which managed-code errors inherit. Check `vm_inherits(error.type, vm.error_class)` in `handle_runtime_error` and - if true - use `error.type->name` as the prefix instead of `Uncaught error`.
+- [x] ~~`map` and some other array functions should also accept arity=0 functions, not only arity=1 and arity=2.~~
 - [x] ~~Implement `Seq.sum() -> Num`, `Tuple.sum() -> Num`. (Sum all elements. Requires some sort of __add)~~
 - [x] ~~Implement `Seq.sort(sort_fn) -> Seq`. (Sort a sequence in place. Requires some sort of __lt)~~
 - [x] ~~Implement native `Math` module.~~

@@ -78,7 +78,7 @@ fn max_relief(vid, opened, min_left, type) {
   ret max_reliefed
 }
 
-let opened = Tuple(Seq(num_valves + 1).map(fn (x) -> false))
+let opened = Tuple(Seq(num_valves + 1).map(fn -> false))
 
 let start = Perf.now()
 let result = max_relief(valve_labels["AA"], opened, 30, 1)

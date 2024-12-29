@@ -522,6 +522,17 @@ uint64_t native_default_obj_hash(Value self);
                                                                                                                  \
   /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                       \
   switch (fn_arity) {                                                                                            \
+    case 0: {                                                                                                    \
+      for (int i = 0; i < count; i++) {                                                                          \
+        /* Execute the provided function on the item */                                                          \
+        vm_push(argv[1]); /* Push the function */                                                                \
+        vm_exec_callable(argv[1], 0);                                                                            \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
+          return nil_value(); /* Propagate the error */                                                          \
+        }                                                                                                        \
+      }                                                                                                          \
+      break;                                                                                                     \
+    }                                                                                                            \
     case 1: {                                                                                                    \
       for (int i = 0; i < count; i++) {                                                                          \
         /* Execute the provided function on the item */                                                          \
@@ -548,7 +559,7 @@ uint64_t native_default_obj_hash(Value self);
       break;                                                                                                     \
     }                                                                                                            \
     default: {                                                                                                   \
-      vm_error("Function passed to \"" STR(each) "\" must take 1 or 2 arguments, but got %d.", fn_arity);        \
+      vm_error("Function passed to \"" STR(each) "\" must take 0 to 2 arguments, but got %d.", fn_arity);        \
       return nil_value();                                                                                        \
     }                                                                                                            \
   }                                                                                                              \
@@ -572,6 +583,19 @@ uint64_t native_default_obj_hash(Value self);
                                                                                                                   \
   /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                        \
   switch (fn_arity) {                                                                                             \
+    case 0: {                                                                                                     \
+      while (mapped.count < count) {                                                                              \
+        /* Execute the provided function on the item */                                                           \
+        vm_push(argv[1]); /* Push the function */                                                                 \
+        mapped.values[mapped.count] = vm_exec_callable(argv[1], 0);                                               \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
+          return nil_value(); /* Propagate the error */                                                           \
+        }                                                                                                         \
+        vm_push(mapped.values[mapped.count]); /* GC Protection */                                                 \
+        mapped.count++;                                                                                           \
+      }                                                                                                           \
+      break;                                                                                                      \
+    }                                                                                                             \
     case 1: {                                                                                                     \
       while (mapped.count < count) {                                                                              \
         /* Execute the provided function on the item */                                                           \
@@ -602,7 +626,7 @@ uint64_t native_default_obj_hash(Value self);
       break;                                                                                                      \
     }                                                                                                             \
     default: {                                                                                                    \
-      vm_error("Function passed to \"" STR(map) "\" must take 1 or 2 arguments, but got %d.", fn_arity);          \
+      vm_error("Function passed to \"" STR(map) "\" must take 0 to 2 arguments, but got %d.", fn_arity);          \
       return nil_value();                                                                                         \
     }                                                                                                             \
   }                                                                                                               \
