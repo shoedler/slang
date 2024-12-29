@@ -35,25 +35,22 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
-- [ ] Remove checks for undefined variables in the runtime - it's all caught by the resolver now.
 - [ ] Remove can_assign from the parser. It's not necessary anymore.
 - [ ] Switch fn ordering in parser to match resolver and compiler (decls on top, exprs last)
 - [ ] Move all the global vars in Parser, Resolver and Compiler into their structs
 - [ ] Cleanup `vm_run2`, `run2` in main.c 
-- [ ] I think much of the new compiler code can be pruned a bit - there's probably a lot of redundancy and even unused code there.
 - [ ] Reenable warnings in the resolver
-- [ ] Replace `old_compiler_parse_number` with the new parsers equivalent.
+- [x] Replace `old_compiler_parse_number` with the new parsers equivalent.
+- [x] Handle roots for garbage collection in the parser, resolver and compiler
 - [x] Keep track of the global scope in the resolver - no need to always drill up to the global scope.
-- [ ] Test if assignment to patterns works. Declarations work.
-- [ ] Do we really need `fn_index`? Think it through.
-- [ ] Put all the `copy_string(KEYWORD_ERROR, STR_LEN(KEYWORD_ERROR))` into a lookup table 
-- [ ] Handle roots for garbage collection in the parser, resolver and compiler
 - [x] Add node for invoke
+
+- [ ] Turn globals / natives into an array. Because we can resolve it now at compile time. This would also allow for constant time global variable lookup
+- [ ] Test if assignment to patterns works, because declarations do work.
 - [ ] After testing: Refactor module imports without Module name (imports using "from"). 
 - [ ] After testing: Reorder the operands for `OP_GET_PROPERTY`(and set too) in the VM from `[recv][value] (top)` to `[value][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
 - [ ] After testing: Reorder the operands for `OP_GET_SUBSCRIPT`(and set too) in the VM from `[recv][idx][value] (top)` to `[value][idx][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
 - [ ] Add resolver warn for vars that could be constant.
-- [ ] Omit non-necessary CLOSURES.
 - [ ] Can Probably omit OP_FINALIZE for classes?
 
 ## Features
@@ -102,12 +99,12 @@ You can, for example, easily cache stuff:
   - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
 - [ ] Make managed-code callables accept less arguments than it has parameters. There is an inconsistency, since native-callables allow this. Should be easy, just pass `nil` to the missing arguments.
-- [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
 - [ ] Add a mimalloc segfault handler.
 - [ ] Add test for `Str.ints() -> Seq`
 - [ ] Maybe check for `NULL` functions in `vm_exec_callable` instead of before calling it - would add some overhead though.
+- [x] ~~Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.~~
 - [x] ~~Add `Tuple.order` test.~~
 - [x] ~~Remove `"" + value.to_str()` throughout the codebase, `"" + value` should now work.~~
 - [x] ~~Align `DO_OP_IN` with `MAKE_OP()`, there's some unnecessary push/pop-int in there.~~

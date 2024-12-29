@@ -3,7 +3,7 @@
 #include "common.h"
 #include "native.h"
 #include "object.h"
-#include "old_compiler.h"
+#include "parser.h"
 #include "value.h"
 #include "vm.h"
 
@@ -211,7 +211,7 @@ static Value int_ctor(int argc, Value argv[]) {
   }
   if (is_str(argv[1])) {
     ObjString* str = AS_STR(argv[1]);
-    Value num      = old_compiler_parse_number(str->chars, str->length);
+    Value num      = parse_number(str->chars, str->length);
     if (!is_int(num)) {
       // Then it must be a float, which, in this case, we cast to an int.
       double float_val = num.as.float_;
@@ -428,7 +428,7 @@ static Value float_ctor(int argc, Value argv[]) {
   }
   if (is_str(argv[1])) {
     ObjString* str = AS_STR(argv[1]);
-    Value num      = old_compiler_parse_number(str->chars, str->length);
+    Value num      = parse_number(str->chars, str->length);
     if (!is_float(num)) {
       // Then it must be an int, which, in this case, we cast to a float.
       long long int_val = num.as.integer;

@@ -19,6 +19,9 @@ struct Parser {
   bool panic_mode;  // True if the parser requires synchronization.
 };
 
+// Parses any number literal and returns the corresponding value (int or float).
+Value parse_number(const char* str, size_t length);
+
 // Parses a source string into an AST. Returns true if successful, false if there was a syntax error.
 bool parse(const char* source, ObjString* name, AstFn** ast);
 

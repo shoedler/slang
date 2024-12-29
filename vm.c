@@ -1009,6 +1009,7 @@ DO_OP_GET_GLOBAL: {
   Value value;
   if (!hashtable_get_by_string(frame->globals, name, &value)) {
     if (!hashtable_get_by_string(&vm.natives, name, &value)) {
+      INTERNAL_ERROR("This should have been caught in the resolver.");
       vm_error("Undefined variable '%s'.", name->chars);
       goto FINISH_ERROR;
     }
@@ -1069,6 +1070,7 @@ DO_OP_SET_GLOBAL: {
   if (hashtable_set(frame->globals, str_value(name),
                     peek(0))) {  // peek, because assignment is an expression!
     hashtable_delete(frame->globals, str_value(name));
+    INTERNAL_ERROR("This should have been caught in the resolver.");
     vm_error("Undefined variable '%s'.", name->chars);
     goto FINISH_ERROR;
   }
