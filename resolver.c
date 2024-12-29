@@ -21,7 +21,9 @@ static void resolve_node(FnResolver* resolver, AstNode* node);
 static void resolver_init(FnResolver* resolver, FnResolver* enclosing, AstFn* fn) {
   resolver->enclosing     = enclosing;
   resolver->function      = fn;
+  resolver->root_scope    = enclosing != NULL ? enclosing->root_scope : NULL;
   resolver->global_scope  = enclosing != NULL ? enclosing->global_scope : NULL;
+  resolver->native_scope  = enclosing != NULL ? enclosing->native_scope : NULL;
   resolver->current_scope = enclosing != NULL ? enclosing->current_scope : NULL;  // Set in new_scope
   resolver->current_loop  = enclosing != NULL ? enclosing->current_loop : NULL;
   resolver->in_class      = enclosing != NULL ? enclosing->in_class : false;
@@ -220,7 +222,7 @@ static Symbol* add_local(FnResolver* resolver, ObjString* name, AstId* var, Symb
 // Adds a new global variable to the global scope. If the variable is already declared in the global scope, an error is reported.
 static Symbol* add_global(FnResolver* resolver, AstId* var, SymbolState state, bool is_const) {
   Symbol* global = NULL;
-  if (!scope_add_new(resolver->global_scope, var->name, (AstNode*)var, SYMBOL_GLOBAL, state, is_const, false /* is param */,
+  if (!scope_add_new(resolver->root_scope, var->name, (AstNode*)var, SYMBOL_GLOBAL, state, is_const, false /* is param */,
                      &global)) {
     // Could be the case that there's already a native with the same name, so we need to shadow it with a new global
     if (global->type == SYMBOL_NATIVE) {
@@ -337,30 +339,30 @@ static void resolve_variable(FnResolver* resolver, AstId* var) {
 
   // Globals
   // ...can be in the global scope of the ast we're resolving
-  Symbol* global = scope_get(resolver->global_scope, var->name);
+  Symbol* global = scope_get(resolver->root_scope, var->name);
   if (global != NULL) {
     ref = make_ref(global);
     goto FOUND;
   }
 
-  // ...or in the VM's globals
+  // ...or in the globals table
   Value discard;
-  if (hashtable_get_by_string(&vm.module->fields, var->name, &discard)) {
-    if (!scope_add_new(resolver->global_scope, var->name, (AstNode*)var, SYMBOL_GLOBAL, SYMSTATE_USED, false,
-                       false /* is param */, &global)) {
+  if (hashtable_get_by_string(resolver->global_scope, var->name, &discard)) {
+    if (!scope_add_new(resolver->root_scope, var->name, (AstNode*)var, SYMBOL_GLOBAL, SYMSTATE_USED, false, false /* is param */,
+                       &global)) {
       INTERNAL_ERROR("External global should not be redeclared.");
     }
     ref = make_ref(global);
     goto FOUND;
   }
 
-  // ...or in the VM's natives table
-  if (hashtable_get_by_string(&vm.natives, var->name, &discard)) {
+  // ...or in the natives table
+  if (hashtable_get_by_string(resolver->native_scope, var->name, &discard)) {
     // Natives are always global and marked here as used as well as mutable, they are checked during assigment to prevent
     // reassignment. This way we can make better error messages.
     // Native references are added to the global scope for now, just so it looks sensible when printing the scopes.
-    if (!scope_add_new(resolver->global_scope, var->name, (AstNode*)var, SYMBOL_NATIVE, SYMSTATE_USED, false,
-                       false /* is param */, &global)) {
+    if (!scope_add_new(resolver->root_scope, var->name, (AstNode*)var, SYMBOL_NATIVE, SYMSTATE_USED, false, false /* is param */,
+                       &global)) {
       INTERNAL_ERROR("Native should not be redeclared.");
     }
     ref = make_ref(global);
@@ -936,13 +938,16 @@ void resolve_children(FnResolver* resolver, AstNode* node) {
   }
 }
 
-bool resolve(AstFn* ast) {
+bool resolve(AstFn* ast, HashTable* global_scope, HashTable* native_scope) {
   resolver_root = ast;
 
   FnResolver resolver;
   resolver_init(&resolver, NULL, ast);
-  inject_local(&resolver, "", true);               // Local slot 0 is not accessible
-  resolver.global_scope = resolver.current_scope;  // The global scope is the first scope we create
+  inject_local(&resolver, "", true);  // Local slot 0 is not accessible
+
+  resolver.root_scope   = resolver.current_scope;  // The root scope is the first scope we create
+  resolver.global_scope = global_scope;
+  resolver.native_scope = native_scope;
 
   // Skip the first and second children, which are the name and parameters
   INTERNAL_ASSERT(ast->base.count == 3, "Function should have exactly 3 children.");

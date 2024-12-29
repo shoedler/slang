@@ -1827,7 +1827,7 @@ Value vm_run_file2(const char* source_path, const char* module_name) {
   VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
 
   // Resolve
-  bool resolved = resolve(ast);
+  bool resolved = resolve(ast, &vm.module->fields, &vm.natives);
   if (!resolved) {
     ast_free((AstNode*)ast);
     free(source);

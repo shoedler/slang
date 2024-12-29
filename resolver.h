@@ -11,7 +11,11 @@ struct FnResolver {
   struct FnResolver* enclosing;
   AstFn* function;
   Scope* current_scope;  // Current scope, can be a child scope of the [function]s scope
-  Scope* global_scope;   // Global scope, shared between all resolvers
+
+  // Shared state
+  Scope* root_scope;        // Root scope of the AST, shared between all resolvers
+  HashTable* global_scope;  // Global scope of the VM, shared between all resolvers. For stuff that the VM adds, like module_name
+  HashTable* native_scope;  // Scope in which all the native functions are declared, shared between all resolvers
 
   // Loop state
   AstStatement* current_loop;
@@ -26,7 +30,7 @@ struct FnResolver {
 };
 
 // Resolves a AST. Returns true if the AST is valid, false otherwise.
-bool resolve(AstFn* ast);
+bool resolve(AstFn* ast, HashTable* global_scope, HashTable* native_scope);
 
 // Marks the roots of the resolver.
 void resolver_mark_roots();

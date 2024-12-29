@@ -14,14 +14,14 @@ struct FnCompiler {
   AstFn* function;
   ObjFunction* result;
 
-  // Brake jumps need to be stored because we don't know the offset of the jump when we compile them.
+  // Loop state
+  Scope* innermost_loop_scope;
+  int innermost_loop_start;
   int brakes_count;
   int brakes_capacity;
   int* brake_jumps;
 
-  // Loop state
-  Scope* innermost_loop_scope;
-  int innermost_loop_start;
+  bool had_error;
 };
 
 // Compiles an AST into a function object. Returns true if emission was successful, false otherwise.

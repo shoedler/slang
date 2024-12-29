@@ -12,7 +12,6 @@
 
 FnCompiler* current_compiler = NULL;
 AstFn* compiler_root         = NULL;
-bool compiler_had_error      = false;
 
 // Forward declarations
 void compile_children(FnCompiler* compiler, AstNode* node);
@@ -28,7 +27,7 @@ static void compiler_init(FnCompiler* compiler, FnCompiler* enclosing, AstFn* fu
   compiler->function                = function;
   compiler->result                  = new_function();
   compiler->result->upvalue_count   = function->upvalue_count;
-  compiler->result->globals_context = globals_context;
+  compiler->result->globals_context = globals_context == NULL ? enclosing->result->globals_context : globals_context;
   compiler->result->name            = ((AstId*)function->base.children[0])->name;
 
   compiler->brakes_count    = 0;
@@ -37,6 +36,8 @@ static void compiler_init(FnCompiler* compiler, FnCompiler* enclosing, AstFn* fu
 
   compiler->innermost_loop_scope = NULL;
   compiler->innermost_loop_start = -1;
+
+  compiler->had_error = false;
 }
 
 static ObjFunction* end_compiler(FnCompiler* compiler) {
@@ -46,8 +47,11 @@ static ObjFunction* end_compiler(FnCompiler* compiler) {
   debug_disassemble_chunk(&function->chunk, function->name->chars);
 #endif
 
-  current_compiler = compiler->enclosing;
+  if (compiler->enclosing != NULL) {
+    compiler->enclosing->had_error |= compiler->had_error;
+  }
 
+  current_compiler = compiler->enclosing;
   return function;
 }
 
@@ -60,8 +64,8 @@ static inline bool in_global_scope(FnCompiler* compiler) {
 }
 
 // Prints an error message at the offending node.
-static void compiler_error(AstNode* offending_node, const char* format, ...) {
-  compiler_had_error = true;
+static void compiler_error(FnCompiler* compiler, AstNode* offending_node, const char* format, ...) {
+  compiler->had_error = true;
 
   fprintf(stderr, "Compiler error at line %d", offending_node->token_start.line);
   fprintf(stderr, ": " ANSI_COLOR_RED);
@@ -83,7 +87,7 @@ static void compiler_error(AstNode* offending_node, const char* format, ...) {
 static uint16_t make_constant(FnCompiler* compiler, Value value, AstNode* source) {
   int constant = chunk_add_constant(&compiler->result->chunk, value);
   if (constant > MAX_CONSTANTS) {
-    compiler_error(source, "Too many constants in one chunk. Max is " STR(MAX_CONSTANTS));
+    compiler_error(compiler, source, "Too many constants in one chunk. Max is " STR(MAX_CONSTANTS));
     return 0;
   }
 
@@ -146,8 +150,8 @@ static void patch_jump(FnCompiler* compiler, int offset) {
   int jump = compiler->result->chunk.count - offset - 1;
 
   if (jump > MAX_JUMP) {
-    compiler_error((AstNode*)compiler->function, "Too much code to jump over, cannot jump over %d opcodes. Max is " STR(MAX_JUMP),
-                   jump);
+    compiler_error(compiler, (AstNode*)compiler->function,
+                   "Too much code to jump over, cannot jump over %d opcodes. Max is " STR(MAX_JUMP), jump);
   }
 
   compiler->result->chunk.code[offset] = (uint16_t)jump;
@@ -168,7 +172,7 @@ static void emit_loop(FnCompiler* compiler, int loop_start, AstNode* source) {
 
   int offset = compiler->result->chunk.count - loop_start + 1;
   if (offset > MAX_JUMP) {
-    compiler_error(source, "Loop body too large, cannot jump over %d opcodes. Max is " STR(MAX_JUMP), offset);
+    compiler_error(compiler, source, "Loop body too large, cannot jump over %d opcodes. Max is " STR(MAX_JUMP), offset);
   }
 
   emit_one(compiler, (uint16_t)offset, source);
@@ -413,7 +417,7 @@ static void discard_locals(FnCompiler* compiler, Scope* scope, AstNode* source) 
 // Compiles a function.
 static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
   FnCompiler subcompiler;
-  compiler_init(&subcompiler, compiler, fn, compiler->result->globals_context);
+  compiler_init(&subcompiler, compiler, fn, NULL /* inferred */);
 
   AstId* name            = (AstId*)fn->base.children[0];
   AstDeclaration* params = (AstDeclaration*)fn->base.children[1];
@@ -1204,8 +1208,7 @@ void compile_children(FnCompiler* compiler, AstNode* node) {
 }
 
 bool compile(AstFn* ast, ObjObject* globals_context, ObjFunction** result) {
-  compiler_had_error = false;
-  compiler_root      = ast;
+  compiler_root = ast;
 
   FnCompiler compiler;
   compiler_init(&compiler, NULL, ast, globals_context);
@@ -1214,8 +1217,13 @@ bool compile(AstFn* ast, ObjObject* globals_context, ObjFunction** result) {
 #endif
   *result = compile_function(&compiler, ast);
 
-  compiler_root = NULL;
-  return !compiler_had_error;
+  bool success = !compiler.had_error;
+  compiler_free(&compiler);
+
+  compiler_root    = NULL;
+  current_compiler = NULL;
+
+  return success;
 }
 
 void compiler_mark_roots() {
