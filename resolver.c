@@ -139,28 +139,62 @@ static void end_scope(FnResolver* resolver) {
   resolver->current_scope = enclosing;
 }
 
-static Symbol* add_upvalue(FnResolver* resolver, ObjString* name, Symbol* captured_symbol, bool in_immediate_enclosing_fn) {
-  SymbolType upvalue_type = in_immediate_enclosing_fn ? SYMBOL_UPVALUE : SYMBOL_UPVALUE_OUTER;
+static SymbolRef* make_ref(Symbol* symbol) {
+  SymbolRef* ref = malloc(sizeof(SymbolRef));
+  if (ref == NULL) {
+    INTERNAL_ERROR("Could not allocate memory for symbol reference.");
+    exit(SLANG_EXIT_MEMORY_ERROR);
+  }
 
-  // Won't add a new upvalue if it already exists
-  Symbol* upvalue = NULL;
-  if (scope_add_new(resolver->current_scope, name, NULL, upvalue_type, captured_symbol->state, captured_symbol->is_const,
-                    captured_symbol->is_param, &upvalue)) {
-    INTERNAL_ASSERT(captured_symbol->function_index >= 0, "Captured symbol should have an index.");
-    // It's a new one, so we add it to the function's upvalue list.
-    upvalue->function_index = resolver->function->upvalue_count;  // Set the index to the current upvalue count of this function
-    resolver->function->upvalues[resolver->function->upvalue_count].is_local = in_immediate_enclosing_fn;
-    resolver->function->upvalues[resolver->function->upvalue_count].index    = captured_symbol->function_index;
-    resolver->function->upvalue_count++;
-    if (resolver->function->upvalue_count >= MAX_UPVALUES) {
-      resolver_error(resolver, (AstNode*)resolver->function,
-                     "Can't have more than " STR(MAX_UPVALUES) " closure variables in one function.");
+  ref->symbol     = symbol;
+  ref->index      = symbol->function_index;
+  ref->is_upvalue = false;
+  return ref;
+}
+
+static SymbolRef* make_ref_upvalue(Upvalue* upvalue) {
+  SymbolRef* ref = malloc(sizeof(SymbolRef));
+  if (ref == NULL) {
+    INTERNAL_ERROR("Could not allocate memory for symbol reference.");
+    exit(SLANG_EXIT_MEMORY_ERROR);
+  }
+
+  ref->symbol     = upvalue->symbol;
+  ref->index      = upvalue->function_index;
+  ref->is_upvalue = true;
+  return ref;
+}
+
+// Adds or retrieves an upvalue from the functions upvalue list. Won't add duplicates. An upvalue is identical if it points to the
+// same symbol (the local that got captured) and {is_local} is the same. [is_local] is relevant, because it determines how the
+// upvalues [target_index] is interpreted: if it's local, it's the index in the functions locals array, if it's not, it's the
+// index in the functions upvalues array.
+static Upvalue* add_upvalue(FnResolver* resolver, Symbol* captured_symbol, int target_index, bool is_local) {
+  int upvalue_count = resolver->function->upvalue_count;
+
+  // Check if the upvalue already exists
+  for (int i = 0; i < upvalue_count; i++) {
+    Upvalue* upvalue = &resolver->function->upvalues[i];
+    if (upvalue->symbol == captured_symbol && upvalue->is_local == is_local) {
       return upvalue;
     }
   }
-  return upvalue;
+
+  // Nope, then add it
+  if (upvalue_count == MAX_UPVALUES) {
+    resolver_error(resolver, (AstNode*)resolver->function,
+                   "Can't have more than " STR(MAX_UPVALUES) " closure variables in one function.");
+    return NULL;
+  }
+
+  resolver->function->upvalues[upvalue_count].is_local     = is_local;
+  resolver->function->upvalues[upvalue_count].symbol       = captured_symbol;
+  resolver->function->upvalues[upvalue_count].target_index = target_index;  // Where this upvalue points to, depending on is_local
+  resolver->function->upvalues[upvalue_count].function_index = upvalue_count;
+  return &resolver->function->upvalues[resolver->function->upvalue_count++];
 }
 
+// Adds a new local variable to the current scope. If the variable is already declared in this scope, an error is reported.
 static Symbol* add_local(FnResolver* resolver, ObjString* name, AstId* var, SymbolState state, bool is_const, bool is_param) {
   Symbol* local  = NULL;
   ObjString* key = name == NULL ? var->name : name;
@@ -174,7 +208,8 @@ static Symbol* add_local(FnResolver* resolver, ObjString* name, AstId* var, Symb
     }
   }
 
-  // Set the function index of the local
+  // Set the function index of the local, this is the "running total" of locals in the function, including nested scopes, though
+  // nested scopes will decrement this count when they end, see end_scope.
   local->function_index = resolver->function->local_count++;
   if (resolver->function->local_count >= MAX_LOCALS) {
     resolver_error(resolver, (AstNode*)var, "Can't have more than " STR(MAX_LOCALS) " local variables total in one function.");
@@ -182,9 +217,10 @@ static Symbol* add_local(FnResolver* resolver, ObjString* name, AstId* var, Symb
   return local;
 }
 
+// Adds a new global variable to the global scope. If the variable is already declared in the global scope, an error is reported.
 static Symbol* add_global(FnResolver* resolver, AstId* var, SymbolState state, bool is_const) {
   Symbol* global = NULL;
-  if (!scope_add_new(resolver->current_scope, var->name, (AstNode*)var, SYMBOL_GLOBAL, state, is_const, false /* is param */,
+  if (!scope_add_new(resolver->global_scope, var->name, (AstNode*)var, SYMBOL_GLOBAL, state, is_const, false /* is param */,
                      &global)) {
     // Could be the case that there's already a native with the same name, so we need to shadow it with a new global
     if (global->type == SYMBOL_NATIVE) {
@@ -201,7 +237,7 @@ static Symbol* add_global(FnResolver* resolver, AstId* var, SymbolState state, b
   return global;
 }
 
-// Declare a new variable in the current scope
+// Declare a new variable in the current scope.
 static void declare_variable(FnResolver* resolver, AstId* var, bool is_const) {
   if (in_global_scope(resolver)) {
     add_global(resolver, var, SYMSTATE_DECLARED, is_const);
@@ -210,27 +246,29 @@ static void declare_variable(FnResolver* resolver, AstId* var, bool is_const) {
   }
 }
 
-// Declare a new parameter in the current scope
-static void declare_define_parameter(FnResolver* resolver, AstId* param) {
-  // Params are always locals and start their life as initialized, because currently there's no mechanism to assign them default
-  // values.
-  INTERNAL_ASSERT(!in_global_scope(resolver), "Parameters cannot be declared in global scope.");
-  param->symbol = add_local(resolver, NULL, param, SYMSTATE_INITIALIZED, false, true /* is param */);
-}
-
-// Define a previously declared variable in the current scope
+// Define a previously declared variable in the current scope.
 static void define_variable(FnResolver* resolver, AstId* var) {
   // Find the variable's declaration
   Symbol* decl = scope_get(resolver->current_scope, var->name);
   INTERNAL_ASSERT(decl != NULL, "Could not find local variable in current scope. Forgot to declare it?");
-  INTERNAL_ASSERT(decl->state == SYMSTATE_DECLARED, "Variable should be declared before defining");
+  INTERNAL_ASSERT(decl->state == SYMSTATE_DECLARED, "Variable must be declared before defining. Forgot to declare it?");
   decl->state = SYMSTATE_INITIALIZED;
-  var->symbol = decl;  // Set the symbol on the node for the compiler
+
+  var->ref = make_ref(decl);
 }
 
-// Inject a synthetic local variable into the current scope. Is injected as used, local and mutable.
-// [add_to_fn] determines whether the synthetic variable should be added to the function's local list, which is only false for the
-// synthetic 'this' variable, because that has to be manually inserted into slot 0 of the function's locals.
+// Declare and defines a new parameter in the current scope.
+static void add_parameter(FnResolver* resolver, AstId* param) {
+  // Params are locals and start their life as initialized, because currently there's no mechanism to assign them default values.
+  Symbol* sym = add_local(resolver, NULL, param, SYMSTATE_INITIALIZED, false, true /* is param */);
+  if (sym == NULL) {
+    return;  // Error already reported
+  }
+
+  param->ref = make_ref(sym);
+}
+
+// Inject a synthetic local variable into the current scope. It is injected as used, so we don't get unused variable warnings.
 static Symbol* inject_local(FnResolver* resolver, const char* name, bool is_const) {
   ObjString* name_str = copy_string(name, strlen(name));
   Symbol* var         = add_local(resolver, name_str, NULL, SYMSTATE_USED, is_const, false /* is param */);
@@ -239,6 +277,7 @@ static Symbol* inject_local(FnResolver* resolver, const char* name, bool is_cons
   return var;
 }
 
+// Try to find a variable in the current functions scope chain.
 static Symbol* try_get_local(FnResolver* resolver, ObjString* name) {
   AstFn* fn    = resolver->function;
   Scope* scope = resolver->current_scope;  // Not necessarily the function's scope. Could be any nested block scope in the
@@ -259,20 +298,22 @@ static Symbol* try_get_local(FnResolver* resolver, ObjString* name) {
   return NULL;
 }
 
-static Symbol* try_get_upvalue(FnResolver* resolver, ObjString* name) {
+// Try to find an upvalue by looking locals/upvalues it in enclosing functions. This will also add the intermediate upvalues to
+// pipe the upvalue through - from the variable we try to resolve up to the function in which it's captured.
+static Upvalue* try_get_upvalue(FnResolver* resolver, ObjString* name) {
   if (resolver->enclosing == NULL) {
     return NULL;
   }
 
-  Symbol* sym = try_get_local(resolver->enclosing, name);  // Check if it's a local in the enclosing scope
-  if (sym != NULL) {
-    sym->is_captured = true;
-    return add_upvalue(resolver, name, sym, true);
+  Symbol* local = try_get_local(resolver->enclosing, name);  // Check if it's a local in the enclosing scope
+  if (local != NULL) {
+    local->is_captured = true;
+    return add_upvalue(resolver, local, local->function_index, true);
   }
 
-  sym = try_get_upvalue(resolver->enclosing, name);
-  if (sym != NULL) {
-    return add_upvalue(resolver, name, sym, false);
+  Upvalue* upvalue = try_get_upvalue(resolver->enclosing, name);
+  if (upvalue != NULL) {
+    return add_upvalue(resolver, upvalue->symbol, upvalue->function_index, false);
   }
 
   return NULL;
@@ -280,21 +321,25 @@ static Symbol* try_get_upvalue(FnResolver* resolver, ObjString* name) {
 
 // Resolves a variable lookup
 static void resolve_variable(FnResolver* resolver, AstId* var) {
-  Symbol* sym = NULL;
+  SymbolRef* ref = NULL;
 
-  sym = try_get_local(resolver, var->name);
-  if (sym != NULL) {
+  Symbol* local = try_get_local(resolver, var->name);
+  if (local != NULL) {
+    ref = make_ref(local);
     goto FOUND;
   }
-  sym = try_get_upvalue(resolver, var->name);
-  if (sym != NULL) {
+
+  Upvalue* upvalue = try_get_upvalue(resolver, var->name);
+  if (upvalue != NULL) {
+    ref = make_ref_upvalue(upvalue);
     goto FOUND;
   }
 
   // Globals
   // ...can be in the global scope of the ast we're resolving
-  sym = scope_get(resolver->global_scope, var->name);
-  if (sym != NULL) {
+  Symbol* global = scope_get(resolver->global_scope, var->name);
+  if (global != NULL) {
+    ref = make_ref(global);
     goto FOUND;
   }
 
@@ -302,9 +347,10 @@ static void resolve_variable(FnResolver* resolver, AstId* var) {
   Value discard;
   if (hashtable_get_by_string(&vm.module->fields, var->name, &discard)) {
     if (!scope_add_new(resolver->global_scope, var->name, (AstNode*)var, SYMBOL_GLOBAL, SYMSTATE_USED, false,
-                       false /* is param */, &sym)) {
+                       false /* is param */, &global)) {
       INTERNAL_ERROR("External global should not be redeclared.");
     }
+    ref = make_ref(global);
     goto FOUND;
   }
 
@@ -314,9 +360,10 @@ static void resolve_variable(FnResolver* resolver, AstId* var) {
     // reassignment. This way we can make better error messages.
     // Native references are added to the global scope for now, just so it looks sensible when printing the scopes.
     if (!scope_add_new(resolver->global_scope, var->name, (AstNode*)var, SYMBOL_NATIVE, SYMSTATE_USED, false,
-                       false /* is param */, &sym)) {
+                       false /* is param */, &global)) {
       INTERNAL_ERROR("Native should not be redeclared.");
     }
+    ref = make_ref(global);
     goto FOUND;
   }
 
@@ -325,11 +372,11 @@ static void resolve_variable(FnResolver* resolver, AstId* var) {
   return;
 
 FOUND:
-  var->symbol = sym;  // Set the symbol on the node for the compiler
-  if (sym->state == SYMSTATE_DECLARED) {
+  var->ref = ref;  // Set the reference on the variable
+  if (ref->symbol->state == SYMSTATE_DECLARED) {
     resolver_error(resolver, (AstNode*)var, "Cannot read variable in its own initializer.");
-  } else if (sym->state == SYMSTATE_INITIALIZED) {
-    sym->state = SYMSTATE_USED;
+  } else if (ref->symbol->state == SYMSTATE_INITIALIZED) {
+    ref->symbol->state = SYMSTATE_USED;
   }
 }
 
@@ -400,16 +447,16 @@ static void resolve_assignment_target(FnResolver* resolver, AstExpression* targe
   if (target->type == EXPR_VARIABLE) {
     AstId* id = get_child_as_id((AstNode*)target, 0, false);
     resolve_variable(resolver, id);
-    if (id->symbol == NULL) {
+    if (id->ref == NULL) {
       return;  // Undefined variable error already reported
     }
 
-    if (id->symbol->type == SYMBOL_NATIVE) {
+    if (id->ref->symbol->type == SYMBOL_NATIVE) {
       resolver_error(resolver, (AstNode*)target, "Don't reassign natives.", id->name->chars);
       return;
     }
 
-    if (id->symbol->is_const) {
+    if (id->ref->symbol->is_const) {
       resolver_error(resolver, (AstNode*)target, "Cannot assign to constant variable '%s'.", id->name->chars);
     }
   } else {
@@ -468,7 +515,7 @@ static void resolve_function(FnResolver* resolver, AstFn* fn) {
   if (params != NULL) {
     for (int i = 0; i < params->base.count; i++) {
       AstId* id = get_child_as_id((AstNode*)params, i, false);
-      declare_define_parameter(&subresolver, id);
+      add_parameter(&subresolver, id);
     }
   }
 

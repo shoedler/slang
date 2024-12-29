@@ -116,9 +116,12 @@ typedef struct AstExpression AstExpression;
 typedef struct AstLiteral AstLiteral;
 typedef struct AstPattern AstPattern;
 
-typedef struct {
-  uint16_t index;
-  bool is_local;
+typedef struct Upvalue {
+  uint16_t target_index;  // Index of the local variable or upvalue this upvalue refers to
+  int function_index;     // Index of this upvalue in the functions upvalue array
+  bool is_local;          // True if this upvalue points to a local variable of the enclosing function
+  Symbol* symbol;  // The symbol variable this upvalue refers to, even if it's an upvalue to an upvalue, this will be the original
+                   // variable
 } Upvalue;
 
 // Scopless, as opposed to a statement-block
@@ -144,7 +147,7 @@ AstFn* ast_fn_init2(Token start, Token end, FnType type, AstId* name, AstDeclara
 struct AstId {
   AstNode base;
   ObjString* name;
-  Symbol* symbol;  // Symbol data, NULL if not resolved
+  SymbolRef* ref;  // Symbol data, NULL if not resolved
 };
 
 AstId* ast_id_init(Token id, ObjString* name);

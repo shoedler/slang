@@ -176,18 +176,19 @@ static void emit_loop(FnCompiler* compiler, int loop_start, AstNode* source) {
 
 // Emits bytecode to assign the value at the top of the stack to the given [id].
 static void emit_assign_id(FnCompiler* compiler, AstId* id) {
-  Symbol* sym = id->symbol;
-  switch (sym->type) {
-    case SYMBOL_LOCAL: emit_two(compiler, OP_SET_LOCAL, sym->function_index, (AstNode*)id); break;
-    case SYMBOL_UPVALUE:
-    case SYMBOL_UPVALUE_OUTER: emit_two(compiler, OP_SET_UPVALUE, sym->function_index, (AstNode*)id); break;
+  switch (id->ref->symbol->type) {
+    case SYMBOL_LOCAL: {
+      OpCode op = id->ref->is_upvalue ? OP_SET_UPVALUE : OP_SET_LOCAL;
+      emit_two(compiler, op, id->ref->index, (AstNode*)id);
+      break;
+    }
     case SYMBOL_NATIVE: INTERNAL_ASSERT(false, "Fix resolver. Assigning to natives is forbidden."); break;
     case SYMBOL_GLOBAL: {
       uint16_t global_constant = id_constant(compiler, id->name, (AstNode*)id);
       emit_two(compiler, OP_SET_GLOBAL, global_constant, (AstNode*)id);
       break;
     }
-    default: INTERNAL_ERROR("Unknown symbol type: %d", sym->type);
+    default: INTERNAL_ERROR("Unknown symbol type: %d", id->ref->symbol->type);
   }
 }
 
@@ -197,11 +198,9 @@ static void emit_assign_id(FnCompiler* compiler, AstId* id) {
 // because of import and destructuring declarations. In these cases we add a constant for some variable before actually defining
 // any variable. We want to reuse the constant to not add unnecessary duplicate constants to the pool.
 static void emit_define_id_explicit(FnCompiler* compiler, AstId* id, uint16_t global_constant) {
-  Symbol* sym = id->symbol;
+  Symbol* sym = id->ref->symbol;
   switch (sym->type) {
     case SYMBOL_LOCAL: break;  // Locals are already defined.
-    case SYMBOL_UPVALUE:
-    case SYMBOL_UPVALUE_OUTER: INTERNAL_ASSERT(false, "Fix resolver. Cannot define upvalues."); break;
     case SYMBOL_NATIVE: INTERNAL_ASSERT(false, "Fix resolver. Cannot define natives."); break;
     case SYMBOL_GLOBAL: {
       emit_two(compiler, OP_DEFINE_GLOBAL, global_constant, (AstNode*)id);
@@ -213,7 +212,7 @@ static void emit_define_id_explicit(FnCompiler* compiler, AstId* id, uint16_t gl
 
 // Emits bytecode to define the given [id] as a variable with the value at the top of the stack.
 static void emit_define_id(FnCompiler* compiler, AstId* id) {
-  if (id->symbol->type == SYMBOL_GLOBAL) {
+  if (id->ref->symbol->type == SYMBOL_GLOBAL) {
     uint16_t global_constant = id_constant(compiler, id->name, (AstNode*)id);
     emit_define_id_explicit(compiler, id, global_constant);
   } else {
@@ -223,18 +222,19 @@ static void emit_define_id(FnCompiler* compiler, AstId* id) {
 
 // Emits bytecode to load the value of the given [id] onto the stack.
 static void emit_load_id(FnCompiler* compiler, AstId* id) {
-  Symbol* sym = id->symbol;
-  switch (sym->type) {
-    case SYMBOL_LOCAL: emit_two(compiler, OP_GET_LOCAL, sym->function_index, (AstNode*)id); break;
-    case SYMBOL_UPVALUE:
-    case SYMBOL_UPVALUE_OUTER: emit_two(compiler, OP_GET_UPVALUE, sym->function_index, (AstNode*)id); break;
+  switch (id->ref->symbol->type) {
+    case SYMBOL_LOCAL: {
+      OpCode op = id->ref->is_upvalue ? OP_GET_UPVALUE : OP_GET_LOCAL;
+      emit_two(compiler, op, id->ref->index, (AstNode*)id);
+      break;
+    }
     case SYMBOL_NATIVE:
     case SYMBOL_GLOBAL: {
       uint16_t global = id_constant(compiler, id->name, (AstNode*)id);
       emit_two(compiler, OP_GET_GLOBAL, global, (AstNode*)id);
       break;
     }
-    default: INTERNAL_ERROR("Unknown symbol type: %d", sym->type);
+    default: INTERNAL_ERROR("Unknown symbol type: %d", id->ref->symbol->type);
   }
 }
 
@@ -351,7 +351,7 @@ static void emit_define_pattern(FnCompiler* compiler, AstPattern* pattern) {
       INTERNAL_ERROR("Unsupported pattern child-type: %d", child->type);
     }
 
-    if (child_id->symbol->type == SYMBOL_GLOBAL) {
+    if (child_id->ref->symbol->type == SYMBOL_GLOBAL) {
       emit_define_id(compiler, child_id);
     } else {
       // In local scope, we have already emitted a placeholder (OP_NIL) for the value, so we need to use assign, not define.
@@ -440,7 +440,7 @@ static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
   emit_two(compiler, OP_CLOSURE, make_constant(compiler, fn_value((Obj*)function), (AstNode*)fn), (AstNode*)fn);
   for (int i = 0; i < function->upvalue_count; i++) {
     emit_one(compiler, fn->upvalues[i].is_local ? 1 : 0, (AstNode*)fn);
-    emit_one(compiler, fn->upvalues[i].index, (AstNode*)fn);
+    emit_one(compiler, fn->upvalues[i].target_index, (AstNode*)fn);
   }
 
   compiler_free(&subcompiler);

@@ -72,9 +72,9 @@ AstFn* ast_fn_init2(Token start, Token end, FnType type, AstId* name, AstDeclara
 }
 
 AstId* ast_id_init(Token id, ObjString* name) {
-  AstId* id_  = (AstId*)ast_allocate_node(sizeof(AstId), NODE_ID, id, id);
-  id_->name   = name;
-  id_->symbol = NULL;
+  AstId* id_ = (AstId*)ast_allocate_node(sizeof(AstId), NODE_ID, id, id);
+  id_->name  = name;
+  id_->ref   = NULL;
   return id_;
 }
 
@@ -516,6 +516,15 @@ void ast_free(AstNode* node) {
     ast_free(node->children[i]);
   }
 
+  // Ids need their symbol reference to be freed
+  if (node->type == NODE_ID) {
+    AstId* id = (AstId*)node;
+    if (id->ref != NULL) {
+      free(id->ref);
+    }
+  }
+
+  // Some nodes have scopes, free them
   if (node->scope != NULL) {
     scope_free(node->scope);
     free(node->scope);
@@ -772,14 +781,6 @@ static void print_scope_symbolentry(int depth, SymbolEntry* entry, const char* t
   }
 
   switch (entry->value->type) {
-    case (SYMBOL_UPVALUE): {
-      printf(ANSI_GREEN_STR("[upvalue]") " fn-upvalue-idx=%d", entry->value->function_index);
-      break;
-    }
-    case (SYMBOL_UPVALUE_OUTER): {
-      printf(ANSI_YELLOW_STR("[upvalue_outer]") " fn-upvalue-idx=%d", entry->value->function_index);
-      break;
-    }
     case (SYMBOL_LOCAL): {
       printf(ANSI_CYAN_STR("[local]") " ");
       printf("fn-local-idx=%d ", entry->value->function_index);

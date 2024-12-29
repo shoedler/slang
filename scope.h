@@ -6,12 +6,11 @@
 #include "object.h"
 
 struct AstNode;  // Forward declaration for circular dependency
+struct Upvalue;  // Forward declaration for circular dependency
 
 typedef enum {
   SYMBOL_GLOBAL,
   SYMBOL_LOCAL,
-  SYMBOL_UPVALUE,        // Whether the symbol is an upvalue (e.g. a var referencing a var in an outer scope)
-  SYMBOL_UPVALUE_OUTER,  // Whether the symbol is an upvalue that is an upvalue of another upvalue
   SYMBOL_NATIVE,
 } SymbolType;
 
@@ -26,13 +25,21 @@ typedef struct {
   struct AstNode* source;  // Source node where the symbol was declared
   SymbolType type;         // Type of the symbol
   SymbolState state;       // State of the symbol
-  int index;               // Internal index of the symbol this scopes locals. -1 if not applicable
-  int function_index;  // Index in the functions locals, including its nested scopes. Or, index in the functions upvalue list. -1
-                       // if not applicable
-  bool is_const;       // Whether the symbol represents a constant
+  bool is_const;           // Whether the symbol represents a constant
+
+  // State for local variables
+  int index;           // Internal index of the symbol this scopes locals. -1 if not applicable
+  int function_index;  // Index in the functions locals, including its nested scopes. -1 if not applicable
   bool is_captured;    // Whether the symbol is captured by an upvalue
   bool is_param;       // Whether the symbol is a function parameter
 } Symbol;
+
+// Reference to a symbol
+typedef struct {
+  Symbol* symbol;   // The declaration this refers to
+  bool is_upvalue;  // Whether this is an upvalue reference
+  int index;        // Index of either the local, or the upvalue, is [symbol] is captured
+} SymbolRef;
 
 // Entry in the scope's hashtable
 typedef struct {
@@ -80,8 +87,5 @@ bool scope_update(Scope* scope,
 
 // Get a symbol from the scope. Returns NULL if not found.
 Symbol* scope_get(Scope* scope, ObjString* key);
-
-// Checks whether a symbol is an upvalue
-bool symbol_is_upvalue(Symbol* symbol);
 
 #endif  // SCOPE_H
