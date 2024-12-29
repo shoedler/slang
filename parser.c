@@ -690,44 +690,31 @@ static inline ParseRule* get_rule(TokenKind type) {
   return &rules2[type];
 }
 
-static AstExpression* parse_prefix(Parser* parser) {
-  ParsePrefixFn prefix_rule = get_rule(parser->previous.type)->prefix;
-  if (prefix_rule == NULL) {
-    parser_error_at_previous(parser, "Expecting expression.");
-    return NULL;
-  }
-  return prefix_rule(parser, parser->previous);
-}
-
-static AstExpression* parse_infix(Parser* parser, Precedence precedence, AstExpression* left) {
-  while (precedence <= get_rule(parser->current.type)->precedence) {
-    advance(parser);
-    ParseInfixFn infix_rule = get_rule(parser->previous.type)->infix;
-    left                    = infix_rule(parser, parser->previous, left);
-  }
-
-  return left;
+static inline bool is_meaningful_newline(Parser* parser) {
+  // Except if it's a dot, because chaining method calls on newlines is a common pattern and still allowed.
+  return parser->current.is_first_on_line && parser->current.type != TOKEN_DOT;
 }
 
 // Parses any expression with a precedence higher or equal to the provided precedence. Handles prefix and infix expressions and
 // determines whether the expression can be assigned to.
 static AstExpression* parse_precedence(Parser* parser, Precedence precedence) {
   advance(parser);
-  AstExpression* left = parse_prefix(parser);
 
-  // Exit early if we're now at a new line. That's it. Nothing more is needed to make newlines meaningful. This allows us to write
-  // code like this:
-  //   const a = [1,2,3]
-  //   [4].map(fn (x) -> log(x))
-  // Which would've been impossible before. That would've been interpreted as const a = [1,2,3][4].map...
-  if (parser->current.is_first_on_line) {
-    // Except if it's a dot, because chaining method calls on newlines is a common pattern and still allowed.
-    if (parser->current.type != TOKEN_DOT) {
-      return left;
-    }
+  // Prefix
+  ParsePrefixFn prefix_rule = get_rule(parser->previous.type)->prefix;
+  if (prefix_rule == NULL) {
+    parser_error_at_previous(parser, "Expecting expression.");
+    return NULL;
   }
+  AstExpression* left = prefix_rule(parser, parser->previous);
 
-  return parse_infix(parser, precedence, left);
+  // Infix
+  while (!is_meaningful_newline(parser) && precedence <= get_rule(parser->current.type)->precedence) {
+    advance(parser);
+    ParseInfixFn infix_rule = get_rule(parser->previous.type)->infix;
+    left                    = infix_rule(parser, parser->previous, left);
+  }
+  return left;
 }
 
 static AstExpression* parse_expression(Parser* parser) {
