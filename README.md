@@ -88,7 +88,7 @@ You can, for example, easily cache stuff:
 
 ## Improvements
 
-- [ ] Add AOC24 solutions to the test suite.
+- [ ] Add AOC24 solutions to the test suite. (Works in old, fails in new: Day 3, Day 8) COMBAK: Day 8
 - [ ] Improve destructuring assignment:
   - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
