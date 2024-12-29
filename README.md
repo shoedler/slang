@@ -35,11 +35,10 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
-- [ ] Remove can_assign from the parser. It's not necessary anymore.
-- [ ] Switch fn ordering in parser to match resolver and compiler (decls on top, exprs last)
 - [ ] Move all the global vars in Parser, Resolver and Compiler into their structs
 - [ ] Cleanup `vm_run2`, `run2` in main.c 
 - [ ] Reenable warnings in the resolver
+- [x] Remove can_assign from the parser. It's not necessary anymore.
 - [x] Replace `old_compiler_parse_number` with the new parsers equivalent.
 - [x] Handle roots for garbage collection in the parser, resolver and compiler
 - [x] Keep track of the global scope in the resolver - no need to always drill up to the global scope.

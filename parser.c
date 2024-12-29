@@ -25,8 +25,8 @@ typedef enum {
 } Precedence;
 
 // Signature for a function that parses a prefix or infix expression.
-typedef AstExpression* (*ParsePrefixFn)(Parser* parser, Token expr_start, bool can_assign);
-typedef AstExpression* (*ParseInfixFn)(Parser* parser, Token expr_start, AstExpression* left, bool can_assign);
+typedef AstExpression* (*ParsePrefixFn)(Parser* parser, Token expr_start);
+typedef AstExpression* (*ParseInfixFn)(Parser* parser, Token expr_start, AstExpression* left);
 
 // Precedence-dependent rule for parsing expressions.
 typedef struct {
@@ -166,7 +166,7 @@ static bool check_assignment_target(Parser* parser, AstExpression* expr) {
   if (expr == NULL) {
     INTERNAL_ASSERT(parser->panic_mode == true, "expr should be NULL only in panic mode.");
     UNUSED(parser);  // Release mode
-    return false;    // Could be the case if we're in panic mode.
+    return false;
   }
 
   switch (expr->type) {
@@ -250,9 +250,7 @@ Value parse_number(const char* str, size_t length) {
   }
 }
 
-static AstExpression* parse_expr_grouping_or_literal_tuple(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
-
+static AstExpression* parse_expr_grouping_or_literal_tuple(Parser* parser, Token expr_start) {
   // Empty tuple
   if (match(parser, TOKEN_COMMA)) {
     consume(parser, TOKEN_CPAR, "Expecting ')' after empty " STR(TYPENAME_TUPLE) " literal. ");
@@ -291,8 +289,7 @@ static AstExpression* parse_expr_grouping_or_literal_tuple(Parser* parser, Token
   return ast_expr_literal_init(expr_start, parser->previous, tuple);
 }
 
-static AstExpression* parse_literal_obj(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_literal_obj(Parser* parser, Token expr_start) {
   AstLiteral* obj = ast_lit_obj_init(expr_start, parser->previous);
   int count       = 0;
 
@@ -319,8 +316,7 @@ static AstExpression* parse_literal_obj(Parser* parser, Token expr_start, bool c
   return ast_expr_literal_init(expr_start, parser->previous, obj);
 }
 
-static AstExpression* parse_literal_seq(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_literal_seq(Parser* parser, Token expr_start) {
   AstLiteral* seq = ast_lit_seq_init(expr_start, parser->previous);
   int count       = 0;
 
@@ -344,8 +340,7 @@ static AstExpression* parse_literal_seq(Parser* parser, Token expr_start, bool c
   return ast_expr_literal_init(expr_start, parser->previous, seq);
 }
 
-static AstExpression* parse_literal_string(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_literal_string(Parser* parser, Token expr_start) {
   // Build the string using a flexible array
   size_t str_capacity = 8;
   size_t str_length   = 0;
@@ -403,15 +398,13 @@ FINISH_STR:
 #undef PUSH_CHAR
 }
 
-static AstExpression* parse_literal_number(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_literal_number(Parser* parser, Token expr_start) {
   Value value             = parse_number(parser->previous.start, parser->previous.length);
   AstLiteral* num_literal = ast_lit_number_init(expr_start, parser->previous, value);
   return ast_expr_literal_init(expr_start, parser->previous, num_literal);
 }
 
-static AstExpression* parse_literal(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_literal(Parser* parser, Token expr_start) {
   TokenKind type = parser->previous.type;
   switch (type) {
     case TOKEN_TRUE:
@@ -427,15 +420,13 @@ static AstExpression* parse_literal(Parser* parser, Token expr_start, bool can_a
   }
 }
 
-static AstExpression* parse_expr_anon_fn(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_anon_fn(Parser* parser, Token expr_start) {
   Token name = synthetic_token("$anon_fn$");
   AstFn* fn  = parse_function(parser, expr_start, name, FN_TYPE_ANONYMOUS_FUNCTION);
   return ast_expr_anon_fn_init(expr_start, parser->previous, fn);
 }
 
-static AstExpression* parse_expr_base(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_base(Parser* parser, Token expr_start) {
   AstId* this_ = ast_id_init(expr_start, copy_string(KEYWORD_THIS, STR_LEN(KEYWORD_THIS)));
   AstId* base_ = ast_id_init(expr_start, copy_string(KEYWORD_BASE, STR_LEN(KEYWORD_BASE)));
 
@@ -448,14 +439,12 @@ static AstExpression* parse_expr_base(Parser* parser, Token expr_start, bool can
   return ast_expr_base_init(expr_start, parser->previous, this_, base_);
 }
 
-static AstExpression* parse_expr_this(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_this(Parser* parser, Token expr_start) {
   AstId* this_ = ast_id_init(expr_start, copy_string(KEYWORD_THIS, STR_LEN(KEYWORD_THIS)));
   return ast_expr_this_init(expr_start, parser->previous, this_);
 }
 
-static AstExpression* parse_expr_try(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_try(Parser* parser, Token expr_start) {
   AstId* error         = ast_id_init(expr_start, copy_string(KEYWORD_ERROR, STR_LEN(KEYWORD_ERROR)));
   AstExpression* expr  = parse_expression(parser);
   AstExpression* else_ = NULL;
@@ -465,8 +454,7 @@ static AstExpression* parse_expr_try(Parser* parser, Token expr_start, bool can_
   return ast_expr_try_init(expr_start, parser->previous, error, expr, else_);
 }
 
-static AstExpression* parse_expr_unary(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_unary(Parser* parser, Token expr_start) {
   Token operator_      = parser->previous;
   AstExpression* inner = parse_precedence(parser, PREC_UNARY);
 
@@ -478,23 +466,20 @@ static AstExpression* parse_expr_unary(Parser* parser, Token expr_start, bool ca
   return ast_expr_unary_init(expr_start, parser->previous, operator_, inner);
 }
 
-static AstExpression* parse_expr_variable(Parser* parser, Token expr_start, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_variable(Parser* parser, Token expr_start) {
   ObjString* name = copy_string(parser->previous.start, parser->previous.length);
   AstId* id       = ast_id_init(parser->previous, name);
   return ast_expr_variable_init(expr_start, parser->previous, id);
 }
 
-static AstExpression* parse_expr_binary(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_binary(Parser* parser, Token expr_start, AstExpression* left) {
   Token operator_      = parser->previous;
   ParseRule* rule      = get_rule(operator_.type);
   AstExpression* right = parse_precedence(parser, (Precedence)(rule->precedence + 1));
   return ast_expr_binary_init(expr_start, parser->previous, operator_, left, right);
 }
 
-static AstExpression* parse_expr_postfix(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_postfix(Parser* parser, Token expr_start, AstExpression* left) {
   Token operator_ = parser->previous;
 
   if (token_is_inc_dec(operator_.type) && !check_assignment_target(parser, left)) {
@@ -505,8 +490,7 @@ static AstExpression* parse_expr_postfix(Parser* parser, Token expr_start, AstEx
   return ast_expr_postfix_init(expr_start, parser->previous, operator_, left);
 }
 
-static AstExpression* parse_expr_call(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_call(Parser* parser, Token expr_start, AstExpression* left) {
   AstExpression* call = ast_expr_call_init(expr_start, parser->previous, left);
 
   // Same logic as EXPR_INVOKE
@@ -527,8 +511,7 @@ static AstExpression* parse_expr_call(Parser* parser, Token expr_start, AstExpre
   return call;
 }
 
-static AstExpression* parse_expr_subs_or_slice(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_subs_or_slice(Parser* parser, Token expr_start, AstExpression* left) {
   AstExpression* start = NULL;
   AstExpression* end   = NULL;
 
@@ -566,8 +549,7 @@ static AstExpression* parse_expr_subs_or_slice(Parser* parser, Token expr_start,
   return ast_expr_subs_init(expr_start, parser->previous, left, start);
 }
 
-static AstExpression* parse_expr_dot(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_dot(Parser* parser, Token expr_start, AstExpression* left) {
   if (!match(parser, TOKEN_ID)) {
     consume(parser, TOKEN_CTOR, "Expecting property or method name after '.'.");
   }
@@ -598,40 +580,34 @@ static AstExpression* parse_expr_dot(Parser* parser, Token expr_start, AstExpres
   }
 }
 
-static AstExpression* parse_expr_ternary(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_ternary(Parser* parser, Token expr_start, AstExpression* left) {
   AstExpression* true_branch = parse_precedence(parser, PREC_TERNARY);
   consume(parser, TOKEN_COLON, "Expecting ':' after true branch.");
   AstExpression* false_branch = parse_precedence(parser, PREC_TERNARY);
   return ast_expr_ternary_init(expr_start, parser->previous, left, true_branch, false_branch);
 }
 
-static AstExpression* parse_expr_and(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_and(Parser* parser, Token expr_start, AstExpression* left) {
   AstExpression* right = parse_precedence(parser, PREC_AND);
   return ast_expr_and_init(expr_start, parser->previous, left, right);
 }
 
-static AstExpression* parse_expr_or(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_or(Parser* parser, Token expr_start, AstExpression* left) {
   AstExpression* right = parse_precedence(parser, PREC_OR);
   return ast_expr_or_init(expr_start, parser->previous, left, right);
 }
 
-static AstExpression* parse_expr_is(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_is(Parser* parser, Token expr_start, AstExpression* left) {
   AstExpression* right = parse_precedence(parser, PREC_COMPARISON);
   return ast_expr_is_init(expr_start, parser->previous, left, right);
 }
 
-static AstExpression* parse_expr_in(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_in(Parser* parser, Token expr_start, AstExpression* left) {
   AstExpression* right = parse_precedence(parser, PREC_COMPARISON);
   return ast_expr_in_init(expr_start, parser->previous, left, right);
 }
 
-static AstExpression* parse_expr_assign(Parser* parser, Token expr_start, AstExpression* left, bool can_assign) {
-  UNUSED(can_assign);
+static AstExpression* parse_expr_assign(Parser* parser, Token expr_start, AstExpression* left) {
   Token operator_ = parser->previous;
 
   if (operator_.type == TOKEN_ASSIGN && !check_assignment_target(parser, left)) {
@@ -714,20 +690,20 @@ static inline ParseRule* get_rule(TokenKind type) {
   return &rules2[type];
 }
 
-static AstExpression* parse_prefix(Parser* parser, bool can_assign) {
+static AstExpression* parse_prefix(Parser* parser) {
   ParsePrefixFn prefix_rule = get_rule(parser->previous.type)->prefix;
   if (prefix_rule == NULL) {
     parser_error_at_previous(parser, "Expecting expression.");
     return NULL;
   }
-  return prefix_rule(parser, parser->previous, can_assign);
+  return prefix_rule(parser, parser->previous);
 }
 
-static AstExpression* parse_infix(Parser* parser, Precedence precedence, AstExpression* left, bool can_assign) {
+static AstExpression* parse_infix(Parser* parser, Precedence precedence, AstExpression* left) {
   while (precedence <= get_rule(parser->current.type)->precedence) {
     advance(parser);
     ParseInfixFn infix_rule = get_rule(parser->previous.type)->infix;
-    left                    = infix_rule(parser, parser->previous, left, can_assign);
+    left                    = infix_rule(parser, parser->previous, left);
   }
 
   return left;
@@ -737,8 +713,7 @@ static AstExpression* parse_infix(Parser* parser, Precedence precedence, AstExpr
 // determines whether the expression can be assigned to.
 static AstExpression* parse_precedence(Parser* parser, Precedence precedence) {
   advance(parser);
-  bool can_assign     = precedence <= PREC_ASSIGN;
-  AstExpression* left = parse_prefix(parser, can_assign);
+  AstExpression* left = parse_prefix(parser);
 
   // Exit early if we're now at a new line. That's it. Nothing more is needed to make newlines meaningful. This allows us to write
   // code like this:
@@ -752,7 +727,7 @@ static AstExpression* parse_precedence(Parser* parser, Precedence precedence) {
     }
   }
 
-  return parse_infix(parser, precedence, left, can_assign);
+  return parse_infix(parser, precedence, left);
 }
 
 static AstExpression* parse_expression(Parser* parser) {
