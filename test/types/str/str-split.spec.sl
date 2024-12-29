@@ -18,3 +18,7 @@ print "123".split("123") // [expect] [, ]
 // Separator not found
 print "123".split("1234") // [expect] [123]
 print "123".split("4")    // [expect] [123]
+
+// This segfaulted before, because consecutive separators were not handled correctly
+print "     0    w  e    r".split("  ") // [expect] [, ,  0, , w, e, , r]
+print "   1   2   3   4".split("   ") // [expect] [, 1, 2, 3, 4]

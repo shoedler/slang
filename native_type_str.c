@@ -155,16 +155,19 @@ static Value str_split(int argc, Value argv[]) {
   int start = 0;
   for (int i = 0; i < str->length; i++) {
     if (strncmp(str->chars + i, sep->chars, sep->length) == 0) {
-      Value item = str_value(copy_string(str->chars + start, i - start));
-      vm_push(item);  // GC Protection
-      value_array_write(&seq->items, item);
-      vm_pop();  // The item
+      // Only create a new string if we have content between the separators
+      if (i >= start) {
+        Value item = str_value(copy_string(str->chars + start, i - start));
+        vm_push(item);  // GC Protection
+        value_array_write(&seq->items, item);
+        vm_pop();  // The item
+      }
       start = i + sep->length;
+      i     = start - 1;  // -1 because the loop will increment it
     }
   }
 
-  // Add the last part of the string aswell - same behavior as Js.
-  // TODO (optimize): Maybe remove this? "123".split("3") -> ["12", ""], but without this it would be ["12"]
+  // Add the last part of the string aswell - same behavior as Js and Python
   Value item = str_value(copy_string(str->chars + start, str->length - start));
   vm_push(item);  // GC Protection
   value_array_write(&seq->items, item);
