@@ -2,7 +2,7 @@ import Perf
 
 let start = Perf.now()
 
-for let i = 0; i < 10000; i++; {
+for let i = 0; i < 10000; ++i; {
     let a = 1000.to_str()
     let b = 1.1245.to_str()
     let c = "hello".to_str()

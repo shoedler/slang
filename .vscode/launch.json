@@ -34,11 +34,11 @@
       ]
     },
     {
-      "name": "Debug: Run Sample (New Compiler)",
+      "name": "Debug: Run Sample (Old Compiler)",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}\\bin\\x64\\debug\\slang.exe",
-      "args": ["run2", "${workspaceFolder}\\sample.sl"],
+      "args": ["run-old", "${workspaceFolder}\\sample.sl"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [
@@ -118,11 +118,11 @@
       ]
     },
     {
-      "name": "Release: Run Sample (New Compiler)",
+      "name": "Release: Run Sample (Old Compiler)",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}\\bin\\x64\\release\\slang.exe",
-      "args": ["run2", "${workspaceFolder}\\sample.sl"],
+      "args": ["run-old", "${workspaceFolder}\\sample.sl"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],

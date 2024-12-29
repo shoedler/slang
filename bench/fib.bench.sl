@@ -6,7 +6,7 @@ fn fib(n) {
 }
 
 let start = Perf.now()
-for let i = 0; i < 5; i++; {
+for let i = 0; i < 5; ++i; {
     print fib(30)
 }
 
