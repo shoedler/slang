@@ -1798,7 +1798,7 @@ Value vm_run_file(const char* path, const char* module_name) {
   return result;
 }
 
-Value vm_run_file2(const char* source_path, const char* module_name) {
+Value vm_run_file2(const char* source_path, const char* module_name, bool disable_warnings) {
   bool is_module = module_name != NULL && source_path != NULL;
 #ifdef DEBUG_TRACE_EXECUTION
   printf("\n");
@@ -1827,7 +1827,7 @@ Value vm_run_file2(const char* source_path, const char* module_name) {
   VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
 
   // Resolve
-  bool resolved = resolve(ast, &vm.module->fields, &vm.natives);
+  bool resolved = resolve(ast, &vm.module->fields, &vm.natives, disable_warnings);
   if (!resolved) {
     ast_free((AstNode*)ast);
     free(source);

@@ -156,7 +156,7 @@ Value vm_interpret(const char* source, const char* source_path, const char* modu
 // Accepts an optional name for the module which should result from calling this function. If NULL is
 // provided, path is used as the name.
 Value vm_run_file(const char* path, const char* module_name);
-Value vm_run_file2(const char* path, const char* module_name);
+Value vm_run_file2(const char* source_path, const char* module_name, bool disable_warnings);
 
 // Push a value onto the stack.
 void vm_push(Value value);

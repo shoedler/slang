@@ -11,6 +11,7 @@
 #define CMD___VERSION "--version"
 
 #define OPT_STRESS_GC "--stress-gc"
+#define OPT_NO_WARN "--no-warn"  // Enable warnings during compilation
 
 typedef struct {
   char** argv;
@@ -57,6 +58,7 @@ static void usage(const char* error) {
   printf("  " CMD___VERSION "             Print version\n");
   printf("\n");
   printf("  <options>:\n");
+  printf("    " OPT_NO_WARN "                 Disable warnings during compilation\n");
   printf("    " OPT_STRESS_GC "               Enable GC stress testing\n");
 }
 
@@ -139,6 +141,8 @@ static SlangExitCode run() {
 static SlangExitCode run2() {
   configure_vm();
 
+  bool disable_warnings = consume_option(OPT_NO_WARN);
+
   const char* path = pop_option();
   if (path == NULL) {
     usage("No path provided for " CMD_RUN2);
@@ -149,7 +153,7 @@ static SlangExitCode run2() {
     exit(SLANG_EXIT_BAD_USAGE);
   }
 
-  vm_run_file2(path, "main");
+  vm_run_file2(path, "main", disable_warnings);
 
   return shutdown_vm();
 }

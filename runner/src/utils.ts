@@ -87,7 +87,7 @@ export const runSlangFile = (
   runFlags: SlangRunFlags[] = [],
   signal: AbortSignal | null = null,
 ): Promise<{ exitCode: number | null; stdoutOutput: string; stderrOutput: string }> => {
-  const cmd = `${path.join(SlangPaths.BinDir, buildConfig, 'slang.exe')} run ${runFlags.join(' ')} ${file}`;
+  const cmd = `${path.join(SlangPaths.BinDir, buildConfig, 'slang.exe')} run2 ${runFlags.join(' ')} ${file}`;
   const options = signal ? { signal } : {};
   const child = spawn(cmd, { shell: true, ...options });
 

@@ -19,17 +19,19 @@ void resolve_children(FnResolver* resolver, AstNode* node);
 static void resolve_node(FnResolver* resolver, AstNode* node);
 
 static void resolver_init(FnResolver* resolver, FnResolver* enclosing, AstFn* fn) {
-  resolver->enclosing     = enclosing;
-  resolver->function      = fn;
-  resolver->root_scope    = enclosing != NULL ? enclosing->root_scope : NULL;
-  resolver->global_scope  = enclosing != NULL ? enclosing->global_scope : NULL;
-  resolver->native_scope  = enclosing != NULL ? enclosing->native_scope : NULL;
-  resolver->current_scope = enclosing != NULL ? enclosing->current_scope : NULL;  // Set in new_scope
-  resolver->current_loop  = enclosing != NULL ? enclosing->current_loop : NULL;
-  resolver->in_class      = enclosing != NULL ? enclosing->in_class : false;
-  resolver->has_baseclass = enclosing != NULL ? enclosing->has_baseclass : false;
-  resolver->had_error     = enclosing != NULL ? enclosing->had_error : false;
-  resolver->panic_mode    = enclosing != NULL ? enclosing->panic_mode : false;
+  resolver->enclosing = enclosing;
+  resolver->function  = fn;
+
+  resolver->disable_warnings = enclosing != NULL ? enclosing->disable_warnings : false;  // Default to false
+  resolver->root_scope       = enclosing != NULL ? enclosing->root_scope : NULL;
+  resolver->global_scope     = enclosing != NULL ? enclosing->global_scope : NULL;
+  resolver->native_scope     = enclosing != NULL ? enclosing->native_scope : NULL;
+  resolver->current_scope    = enclosing != NULL ? enclosing->current_scope : NULL;  // Set in new_scope
+  resolver->current_loop     = enclosing != NULL ? enclosing->current_loop : NULL;
+  resolver->in_class         = enclosing != NULL ? enclosing->in_class : false;
+  resolver->has_baseclass    = enclosing != NULL ? enclosing->has_baseclass : false;
+  resolver->had_error        = enclosing != NULL ? enclosing->had_error : false;
+  resolver->panic_mode       = enclosing != NULL ? enclosing->panic_mode : false;
 
   fn->base.scope = new_scope(resolver);  // Also sets resolver->current_scope
 }
@@ -86,8 +88,10 @@ static void resolver_error(FnResolver* resolver, AstNode* offending_node, const 
 }
 
 // Prints a warning message at the offending node.
-static void resolver_warning(AstNode* offending_node, const char* format, ...) {
-  return;  // Disable warnings for now
+static void resolver_warning(FnResolver* resolver, AstNode* offending_node, const char* format, ...) {
+  if (resolver->disable_warnings) {
+    return;
+  }
 
   fprintf(stderr, "Resolver warning at line %d", offending_node->token_start.line);
   fprintf(stderr, ": " ANSI_COLOR_YELLOW);
@@ -135,7 +139,7 @@ static void end_scope(FnResolver* resolver) {
 #endif
       continue;
     }
-    resolver_warning(entry->value->source, "Variable '%s' is declared but never used.", entry->key->chars);
+    resolver_warning(resolver, entry->value->source, "Variable '%s' is declared but never used.", entry->key->chars);
   }
 
   resolver->current_scope = enclosing;
@@ -938,16 +942,17 @@ void resolve_children(FnResolver* resolver, AstNode* node) {
   }
 }
 
-bool resolve(AstFn* ast, HashTable* global_scope, HashTable* native_scope) {
+bool resolve(AstFn* ast, HashTable* global_scope, HashTable* native_scope, bool disable_warnings) {
   resolver_root = ast;
 
   FnResolver resolver;
   resolver_init(&resolver, NULL, ast);
   inject_local(&resolver, "", true);  // Local slot 0 is not accessible
 
-  resolver.root_scope   = resolver.current_scope;  // The root scope is the first scope we create
-  resolver.global_scope = global_scope;
-  resolver.native_scope = native_scope;
+  resolver.disable_warnings = disable_warnings;
+  resolver.root_scope       = resolver.current_scope;  // The root scope is the first scope we create
+  resolver.global_scope     = global_scope;
+  resolver.native_scope     = native_scope;
 
   // Skip the first and second children, which are the name and parameters
   INTERNAL_ASSERT(ast->base.count == 3, "Function should have exactly 3 children.");

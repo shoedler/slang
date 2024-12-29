@@ -35,21 +35,22 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
-- [ ] Move all the global vars in Parser, Resolver and Compiler into their structs
-- [ ] Cleanup `vm_run2`, `run2` in main.c 
-- [ ] Reenable warnings in the resolver
+- [ ] Cleanup `vm_run2`, `run2` in main.c, launch.json, tasks.json and utils.js
+- [x] Reenable warnings in the resolver
+- [x] Move all the global vars in Parser, Resolver and Compiler into their structs
 - [x] Remove can_assign from the parser. It's not necessary anymore.
 - [x] Replace `old_compiler_parse_number` with the new parsers equivalent.
 - [x] Handle roots for garbage collection in the parser, resolver and compiler
 - [x] Keep track of the global scope in the resolver - no need to always drill up to the global scope.
 - [x] Add node for invoke
 
-- [ ] Turn globals / natives into an array. Because we can resolve it now at compile time. This would also allow for constant time global variable lookup
 - [ ] Test if assignment to patterns works, because declarations do work.
 - [ ] After testing: Refactor module imports without Module name (imports using "from"). 
 - [ ] After testing: Reorder the operands for `OP_GET_PROPERTY`(and set too) in the VM from `[recv][value] (top)` to `[value][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
 - [ ] After testing: Reorder the operands for `OP_GET_SUBSCRIPT`(and set too) in the VM from `[recv][idx][value] (top)` to `[value][idx][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
 - [ ] Add resolver warn for vars that could be constant.
+- [ ] Make parser marking possible and remove disabling the GC during parsing.
+- [ ] Turn globals / natives into an array. Because we can resolve it now at compile time. This would also allow for constant time global variable lookup
 - [ ] Can Probably omit OP_FINALIZE for classes?
 
 ## Features

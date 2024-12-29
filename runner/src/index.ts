@@ -114,7 +114,14 @@ switch (cmd) {
       warn('Skipping build');
     }
 
-    await runTests(config, testFilepaths, [SlangRunFlags.StressGc], null, doUpdateFiles, !doNoParallel);
+    await runTests(
+      config,
+      testFilepaths,
+      [SlangRunFlags.StressGc, SlangRunFlags.DisableWarnings],
+      null,
+      doUpdateFiles,
+      !doNoParallel,
+    );
     break;
   }
   case 'sample': {
@@ -202,7 +209,14 @@ switch (cmd) {
         }
 
         const testFilepaths = await findTests(testNamePattern);
-        await runTests(config, testFilepaths, [], signal, false, !doNoParallel);
+        await runTests(
+          config,
+          testFilepaths,
+          [SlangRunFlags.DisableWarnings, SlangRunFlags.StressGc],
+          signal,
+          false,
+          !doNoParallel,
+        );
       },
     );
     break;
