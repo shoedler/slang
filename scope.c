@@ -157,3 +157,53 @@ Symbol* scope_get(Scope* scope, ObjString* key) {
 
   return entry->value;
 }
+
+static void sort_symbol_entries(SymbolEntry* array, int count, bool descending) {
+  // Insertion sort
+  for (int i = 1; i < count; i++) {
+    SymbolEntry key = array[i];
+    int j           = i - 1;
+
+    while (j >= 0 && (descending ? array[j].value->index < key.value->index : array[j].value->index > key.value->index)) {
+      array[j + 1] = array[j];
+      j--;
+    }
+    array[j + 1] = key;
+  }
+}
+
+void scope_get_locals(Scope* scope, SymbolEntry* out_locals) {
+  if (scope == NULL || scope->count == 0 || out_locals == NULL) {
+    return;
+  }
+
+  // Copy all local symbols to output array
+  int local_count = 0;
+  for (int i = 0; i < scope->capacity; i++) {
+    SymbolEntry* entry = &scope->entries[i];
+    if (entry->key != NULL && entry->value != NULL && entry->value->type == SYMBOL_LOCAL) {
+      out_locals[local_count] = *entry;
+      local_count++;
+    }
+  }
+
+  sort_symbol_entries(out_locals, local_count, true);
+}
+
+void scope_get_all(Scope* scope, SymbolEntry* out_symbols) {
+  if (scope == NULL || scope->count == 0 || out_symbols == NULL) {
+    return;
+  }
+
+  // Copy all symbols to output array
+  int symbol_count = 0;
+  for (int i = 0; i < scope->capacity; i++) {
+    SymbolEntry* entry = &scope->entries[i];
+    if (entry->key != NULL && entry->value != NULL) {
+      out_symbols[symbol_count] = *entry;
+      symbol_count++;
+    }
+  }
+
+  sort_symbol_entries(out_symbols, symbol_count, false);
+}

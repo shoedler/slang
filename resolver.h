@@ -20,7 +20,7 @@ struct FnResolver {
 
   // Loop state
   AstStatement* current_loop;
-  Scope* current_loop_scope;
+  int current_loop_fn_locals;
 
   // Class state
   bool in_class;

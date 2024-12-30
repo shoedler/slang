@@ -386,31 +386,18 @@ static void emit_define_pattern_prelude(FnCompiler* compiler, AstPattern* patter
 //
 
 // Discards all local variables in the scope. The ones that are captured by closures are closed over.
-// Used for exiting a scope, or for loop control flow when hitting a skip or break.
+// Used for exiting a scope.
 static void discard_locals(FnCompiler* compiler, Scope* scope, AstNode* source) {
-  int current_local = scope->local_count - 1;
-  while (current_local >= 0) {  // Only scopes that have locals are handled.
-#ifdef DEBUG_COMPILER
-    int before = current_local;
-#endif
-    for (int i = 0; i < scope->capacity; i++) {
-      SymbolEntry* entry = &scope->entries[i];
-      if (entry->key == NULL || entry->value->type != SYMBOL_LOCAL || entry->value->index != current_local) {
-        continue;
-      }
-      if (entry->value->is_captured) {
-        emit_one(compiler, OP_CLOSE_UPVALUE, source);
-      } else {
-        emit_one(compiler, OP_POP, source);
-      }
-      current_local--;
-      break;
+  int count = scope->local_count;
+  SymbolEntry locals[count];
+  scope_get_locals(scope, locals);
+
+  for (SymbolEntry* entry = locals; entry < locals + count; entry++) {
+    if (entry->value->is_captured) {
+      emit_one(compiler, OP_CLOSE_UPVALUE, source);
+    } else {
+      emit_one(compiler, OP_POP, source);
     }
-#ifdef DEBUG_COMPILER
-    if (before == current_local) {
-      INTERNAL_ERROR("Could not find local variable. Something's wrong with indexing locals in the scope.");
-    }
-#endif
   }
 }
 

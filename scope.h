@@ -89,4 +89,12 @@ bool scope_update(Scope* scope,
 // Get a symbol from the scope. Returns NULL if not found.
 Symbol* scope_get(Scope* scope, ObjString* key);
 
+// Get all local variables in the scope. [locals] is an out parameter that will be set to the array of local variables in sorted,
+// descending order. The local with the highest [index] will be at index 0.
+void scope_get_locals(Scope* scope, SymbolEntry* locals);
+
+// Get all symbols in the scope. [symbols] is an out parameter that will be set to the array of symbols in the scope.
+// The symbols are sorted by their [index] in ascending order - though only locals have an index.
+void scope_get_all(Scope* scope, SymbolEntry* symbols);
+
 #endif  // SCOPE_H

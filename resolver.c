@@ -120,17 +120,19 @@ static Scope* new_scope(FnResolver* resolver) {
 static void end_scope(FnResolver* resolver) {
   Scope* enclosing = resolver->current_scope->enclosing;
 
-  // Reduce the function's local count by the number of locals in this scope
+  // Reduce the function's local count by the number of locals in this scope, so that the next scope starts at the right index.
   resolver->function->local_count -= resolver->current_scope->local_count;
   INTERNAL_ASSERT(resolver->function->local_count >= 0, "Function local count should never be negative.");
 
   // Check for unused variables
-  for (int i = 0; i < resolver->current_scope->capacity; i++) {
-    SymbolEntry* entry = &resolver->current_scope->entries[i];
-    if (entry->key == NULL || entry->value->state == SYMSTATE_USED || entry->value->is_captured) {
+  int count = resolver->current_scope->count;
+  SymbolEntry entries[count];
+  scope_get_all(resolver->current_scope, entries);
+
+  for (SymbolEntry* entry = entries; entry < entries + count; entry++) {
+    if (entry->value->state == SYMSTATE_USED) {
       continue;
     }
-
     if (entry->value->source == NULL) {
 #ifdef DEBUG_RESOLVER
       INTERNAL_ASSERT(entry->value->type == SYMBOL_NATIVE, "Only natives can be unused without source");

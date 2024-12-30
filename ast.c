@@ -766,12 +766,11 @@ static void print_scope_symbolentry(int depth, SymbolEntry* entry, const char* t
 }
 
 static void print_scope(Scope* scope) {
-#ifdef DEBUG_RESOLVER
   for (int i = 0; i < scope->depth; i++) {
     printf(ANSI_GRAY_STR(":  "));
   }
   printf("SCOPE " ANSI_BLUE_STR("depth=%d") " :\n", scope->depth);
-#endif
+
   int total_symbols_printed = 0;
 
   // Empty
@@ -784,48 +783,14 @@ static void print_scope(Scope* scope) {
     return;
   }
 
-  // Locals
-  int current_local = 0;
-  while (current_local < scope->local_count) {
-#ifdef DEBUG_RESOLVER
-    int before = current_local;
-#endif
-    for (int i = 0; i < scope->capacity; i++) {
-      SymbolEntry* entry = &scope->entries[i];
-      if (entry->key == NULL || entry->value->type != SYMBOL_LOCAL || entry->value->index != current_local) {
-        continue;
-      }
-      total_symbols_printed++;
-      const char* tree_link = total_symbols_printed == scope->count ? "└" : "├";
-      print_scope_symbolentry(scope->depth, entry, tree_link);
-      current_local++;
-    }
-#ifdef DEBUG_RESOLVER
-    if (before == current_local) {
-      INTERNAL_ERROR("Infinite loop in locals, current_local=%d", current_local);
-      exit(SLANG_EXIT_SW_ERROR);
-    }
-#endif
-  }
+  int count = scope->count;
+  SymbolEntry entries[count];
+  scope_get_all(scope, entries);
 
-  // Rest
-  for (int i = 0; i < scope->capacity; i++) {
-    SymbolEntry* entry = &scope->entries[i];
-    if (entry->key == NULL) {
-      continue;
-    }
-    if (entry->value->type == SYMBOL_LOCAL) {
-      continue;
-    }
-    total_symbols_printed++;
-    const char* tree_link = total_symbols_printed == scope->count ? "└" : "├";
+  for (SymbolEntry* entry = entries; entry < entries + count; entry++) {
+    const char* tree_link = ++total_symbols_printed == scope->count ? "└" : "├";
     print_scope_symbolentry(scope->depth, entry, tree_link);
   }
-#ifdef DEBUG_RESOLVER
-  INTERNAL_ASSERT(total_symbols_printed == scope->count,
-                  "Total symbols printed does not match scope count. Printed: %d, count: %d", total_symbols_printed,
-                  scope->count);
-#endif
 }
 
 static void print_scope_end(Scope* scope) {
