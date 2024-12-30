@@ -11,12 +11,12 @@
 //
 
 // Scanning & Compilation
-#define DEBUG_PRINT_AST     // Print the parser's AST
-#define DEBUG_PRINT_SCOPES  // Print the scopes the resolver creates
-// #define DEBUG_PRINT_TOKENS  // Print the tokens the scanner produces
-#define DEBUG_PRINT_BYTECODE  // Print all compiled bytecode chunks
-#define DEBUG_RESOLVER        // Use additional checks and assertions on the provided ASTs shape
-#define DEBUG_COMPILER        // Use additional checks and assertions on the compilation/emission of bytecode
+// #define DEBUG_PRINT_AST  // Print the parser's AST
+// #define DEBUG_PRINT_SCOPES  // Print the scopes the resolver creates
+// #define DEBUG_PRINT_TOKENS    // Print the tokens the scanner produces
+// #define DEBUG_PRINT_BYTECODE  // Print all compiled bytecode chunks
+
+// #define DEBUG_RESOLVER  // Use additional checks and assertions on the provided ASTs shape
 
 // Virtual Machine
 // #define DEBUG_TRACE_EXECUTION  // Print the execution of the Vm, including stack traces. Also checks for leaked error states.

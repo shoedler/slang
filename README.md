@@ -35,8 +35,11 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
+- [ ] Remove `in_global_scope` and `current_scope` from the compiler - that should be handled via the resolver. Currently needed for destructuring, but I think that should be possible without it.
+- [ ] Move path resolution from the compiler to the resolver.
+- [ ] Resolve natives and imports of cached modules in the compiler maybe? We could easily just look the stuff up and emit a value for it (e.g. constant, or some new OP like `OP_PRECOMPILED`) instead of looking it up in the VM.
 - [ ] Test if assignment to patterns works, because declarations do.
-- [ ] After testing: Refactor module imports without Module name (imports using "from"). 
+- [ ] After testing: Refactor module imports without Module name (imports using "from").
 - [ ] After testing: Reorder the operands for `OP_GET_PROPERTY`(and set too) in the VM from `[recv][value] (top)` to `[value][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
 - [ ] After testing: Reorder the operands for `OP_GET_SUBSCRIPT`(and set too) in the VM from `[recv][idx][value] (top)` to `[value][idx][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
 - [ ] Add resolver warn for vars that could be constant.
@@ -50,7 +53,7 @@ You can, for example, easily cache stuff:
 
 - [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hasing tuples containing negative `Int`s)
 - [ ] Add `not` for `is` and `in`: e.g. `x not in y` and `x is not Int`
-- [ ] Allow `Tuple.inside = fn(this) -> (this[0]>=0 and this[0]<ROWS) and (this[1]>=0 and this[1]<COLS)` 
+- [ ] Allow `Tuple.inside = fn(this) -> (this[0]>=0 and this[0]<ROWS) and (this[1]>=0 and this[1]<COLS)`
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] Implement native `Json` module.
@@ -69,8 +72,8 @@ You can, for example, easily cache stuff:
 - [ ] Add more error classes to std. Add a native `Error` base class, from which managed-code errors inherit. Check `vm_inherits(error.type, vm.error_class)` in `handle_runtime_error` and - if true - use `error.type->name` as the prefix instead of `Uncaught error`.
 - [x] ~~🐛 Fix `Str.split(Str)` for strings which have multiple submatches per match, e.g. `"     0    w  e    r".split("  ")` segfaults. (Encountered in AOC '24 day 25)~~
 - [x] ~~`map` and some other array functions should also accept arity=0 functions, not only arity=1 and arity=2.~~
-- [x] ~~Implement `Seq.sum() -> Num`, `Tuple.sum() -> Num`. (Sum all elements. Requires some sort of __add)~~
-- [x] ~~Implement `Seq.sort(sort_fn) -> Seq`. (Sort a sequence in place. Requires some sort of __lt)~~
+- [x] ~~Implement `Seq.sum() -> Num`, `Tuple.sum() -> Num`. (Sum all elements. Requires some sort of \_\_add)~~
+- [x] ~~Implement `Seq.sort(sort_fn) -> Seq`. (Sort a sequence in place. Requires some sort of \_\_lt)~~
 - [x] ~~Implement native `Math` module.~~
   - [x] ~~Implement `Math.abs(Num) -> Num`.~~
   - [x] ~~Implement `Math.ceil(Num) -> Int`.~~
@@ -113,7 +116,7 @@ You can, for example, easily cache stuff:
 - [x] ~~Fix VM finishing a program in error state not exiting with `EXIT_FAILURE`. (Probably, the flags are reset in `vm_free` or `reset_stack` or something).~~
 - [x] ~~Make compiler errors recoverable. Just let it sync, then continue - instead of aborting.~~
 - [x] ~~Use `obj_get_prop` in `obj_has` instead of just checking the hashtable for a value. Otherwise, they behave differently - which sucks.~~
-- [x] ~~Make sure managed code classes do not override internal classes.~~ Not necessary, since we don't update the Vms internalized natives. 
+- [x] ~~Make sure managed code classes do not override internal classes.~~ Not necessary, since we don't update the Vms internalized natives.
 - [x] ~~Add `error` and other contextual keywords to a list of reserved words (Maybe including all natives). Check them when declaring anything.~~ Not necessary, since other ctx keywords have their own TOKEN type. As for errors, we'll just allow redeclaration, even inside a catch-block. The reason being that the error-var gets injected into a scope surrounding the whole try/catch statement, not just in the catch-block.
 - [x] ~~Remove `string_to_double` and use `number` from the compiler instead.~~
 - [x] ~~Generalized calls. This is optional, but could enhance the language.~~

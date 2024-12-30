@@ -25,6 +25,7 @@ static void compiler_init(FnCompiler* compiler, FnCompiler* enclosing, AstFn* fu
   compiler->result = NULL;  // Required, because new_function() can trigger a GC
 
   compiler->function                = function;
+  compiler->current_scope           = function->base.scope;
   compiler->result                  = new_function();
   compiler->result->upvalue_count   = function->upvalue_count;
   compiler->result->globals_context = globals_context == NULL ? enclosing->result->globals_context : globals_context;
@@ -60,7 +61,7 @@ static void compiler_free(FnCompiler* compiler) {
 }
 
 static inline bool in_global_scope(FnCompiler* compiler) {
-  return compiler->enclosing == NULL;
+  return compiler->current_scope->depth == 0;
 }
 
 // Prints an error message at the offending node.
@@ -452,7 +453,7 @@ static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
   } else if (fn->type == FN_TYPE_NAMED_FUNCTION) {
     emit_define_id(compiler, name);
   } else {
-    INTERNAL_ASSERT(fn->type == FN_TYPE_ANONYMOUS_FUNCTION || fn->type == FN_TYPE_MODULE, "Unknown function type: %d", fn->type);
+    INTERNAL_ASSERT(fn->type == FN_TYPE_ANONYMOUS_FUNCTION, "Unknown function type: %d", fn->type);
   }
 
   return function;
@@ -1086,6 +1087,10 @@ static void compile_lit_obj(FnCompiler* compiler, AstLiteral* lit) {
 }
 
 static void compile_node(FnCompiler* compiler, AstNode* node) {
+  if (node->scope != NULL) {
+    compiler->current_scope = node->scope;
+  }
+
   switch (node->type) {
     case NODE_BLOCK: compile_children(compiler, node); break;
     case NODE_FN: compile_function(compiler, (AstFn*)node); break;
@@ -1169,13 +1174,8 @@ static void compile_node(FnCompiler* compiler, AstNode* node) {
   // returns.
   if (node->scope != NULL && node->type != NODE_FN) {
     discard_locals(compiler, node->scope, node);
+    compiler->current_scope = node->scope->enclosing;
   }
-
-#ifdef DEBUG_COMPILER
-  if (in_global_scope(compiler)) {  // We're at the top-level
-    printf("\n== End of compilation ==\n\n");
-  }
-#endif
 }
 
 void compile_children(FnCompiler* compiler, AstNode* node) {
@@ -1192,10 +1192,13 @@ bool compile(AstFn* ast, ObjObject* globals_context, ObjFunction** result) {
 
   FnCompiler compiler;
   compiler_init(&compiler, NULL, ast, globals_context);
-#ifdef DEBUG_COMPILER
-  printf("\n\n\n === COMPILE ===\n\n");
-#endif
-  *result = compile_function(&compiler, ast);
+
+  INTERNAL_ASSERT((AstDeclaration*)ast->base.children[1] == NULL, "Expected no parameters in the root function.");
+  AstNode* body = ast->base.children[2];
+
+  // Compile body
+  compile_node(&compiler, body);
+  *result = end_compiler(&compiler);
 
   bool success = !compiler.had_error;
   compiler_free(&compiler);
