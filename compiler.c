@@ -601,22 +601,18 @@ static void compile_statement_if(FnCompiler* compiler, AstStatement* stmt) {
   patch_jump(compiler, else_jump);
 }
 
-#define NEW_LOOP(scope)                                            \
+#define NEW_LOOP()                                                 \
   int surrounding_loop_start     = compiler->innermost_loop_start; \
-  Scope* surrounding_loop_scope  = compiler->innermost_loop_scope; \
-  compiler->innermost_loop_start = compiler->result->chunk.count;  \
-  compiler->innermost_loop_scope = scope
+  compiler->innermost_loop_start = compiler->result->chunk.count;
 
-#define END_LOOP()                                         \
-  compiler->innermost_loop_start = surrounding_loop_start; \
-  compiler->innermost_loop_scope = surrounding_loop_scope;
+#define END_LOOP() compiler->innermost_loop_start = surrounding_loop_start;
 
 static void compile_statement_while(FnCompiler* compiler, AstStatement* stmt) {
   AstNode* condition = stmt->base.children[0];
   AstNode* body      = stmt->base.children[1];
 
   // Save the loop state for continue(skip)/break statements, which might occur in the loop body.
-  NEW_LOOP(stmt->base.scope);
+  NEW_LOOP();
 
   compile_node(compiler, condition);
   int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, condition);  // Jump out of the loop if the condition is false.
@@ -645,7 +641,7 @@ static void compile_statement_for(FnCompiler* compiler, AstStatement* stmt) {
   }
 
   // Save the loop state for continue(skip)/break statements, which might occur in the loop body.
-  NEW_LOOP(stmt->base.scope);
+  NEW_LOOP();
 
   // Loop condition
   int exit_jump = -1;
@@ -717,10 +713,8 @@ static void compile_statement_break(FnCompiler* compiler, AstStatement* stmt) {
   }
 
   // Discard any locals created in the loop body, then jump to the end of the loop.
-  Scope* scope = stmt->scope_ref;
-  while (scope != NULL && scope < compiler->innermost_loop_scope) {
-    discard_locals(compiler, scope, (AstNode*)stmt);
-    scope = scope->enclosing;
+  for (int i = 0; i < stmt->locals_to_pop; i++) {
+    emit_one(compiler, OP_POP, (AstNode*)stmt);
   }
 
   compiler->brake_jumps[compiler->brakes_count++] = emit_jump(compiler, OP_JUMP, (AstNode*)stmt);
@@ -729,10 +723,9 @@ static void compile_statement_break(FnCompiler* compiler, AstStatement* stmt) {
 static void compile_statement_skip(FnCompiler* compiler, AstStatement* stmt) {
   INTERNAL_ASSERT(compiler->innermost_loop_start != -1, "Should have been caught by the resolver.");
 
-  Scope* scope = stmt->scope_ref;
-  while (scope != NULL && scope != compiler->innermost_loop_scope) {
-    discard_locals(compiler, scope, (AstNode*)stmt);
-    scope = scope->enclosing;
+  // Discard any locals created in the loop body, then jump to the end of the loop.
+  for (int i = 0; i < stmt->locals_to_pop; i++) {
+    emit_one(compiler, OP_POP, (AstNode*)stmt);
   }
 
   emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);

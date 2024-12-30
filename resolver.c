@@ -22,16 +22,17 @@ static void resolver_init(FnResolver* resolver, FnResolver* enclosing, AstFn* fn
   resolver->enclosing = enclosing;
   resolver->function  = fn;
 
-  resolver->disable_warnings = enclosing != NULL ? enclosing->disable_warnings : false;  // Default to false
-  resolver->root_scope       = enclosing != NULL ? enclosing->root_scope : NULL;
-  resolver->global_scope     = enclosing != NULL ? enclosing->global_scope : NULL;
-  resolver->native_scope     = enclosing != NULL ? enclosing->native_scope : NULL;
-  resolver->current_scope    = enclosing != NULL ? enclosing->current_scope : NULL;  // Set in new_scope
-  resolver->current_loop     = enclosing != NULL ? enclosing->current_loop : NULL;
-  resolver->in_class         = enclosing != NULL ? enclosing->in_class : false;
-  resolver->has_baseclass    = enclosing != NULL ? enclosing->has_baseclass : false;
-  resolver->had_error        = enclosing != NULL ? enclosing->had_error : false;
-  resolver->panic_mode       = enclosing != NULL ? enclosing->panic_mode : false;
+  resolver->disable_warnings       = enclosing != NULL ? enclosing->disable_warnings : false;  // Default to false
+  resolver->root_scope             = enclosing != NULL ? enclosing->root_scope : NULL;
+  resolver->global_scope           = enclosing != NULL ? enclosing->global_scope : NULL;
+  resolver->native_scope           = enclosing != NULL ? enclosing->native_scope : NULL;
+  resolver->current_scope          = enclosing != NULL ? enclosing->current_scope : NULL;  // Set in new_scope
+  resolver->current_loop           = enclosing != NULL ? enclosing->current_loop : NULL;
+  resolver->current_loop_fn_locals = enclosing != NULL ? enclosing->current_loop_fn_locals : 0;
+  resolver->in_class               = enclosing != NULL ? enclosing->in_class : false;
+  resolver->has_baseclass          = enclosing != NULL ? enclosing->has_baseclass : false;
+  resolver->had_error              = enclosing != NULL ? enclosing->had_error : false;
+  resolver->panic_mode             = enclosing != NULL ? enclosing->panic_mode : false;
 
   fn->base.scope = new_scope(resolver);  // Also sets resolver->current_scope
 }
@@ -60,7 +61,7 @@ static inline AstId* get_child_as_id(AstNode* parent, int index, bool allow_null
     INTERNAL_ERROR("Expected child node to be of type " STR(NODE_ID) ", got %d.", child->type);
   }
   AstId* id = (AstId*)child;
-  INTERNAL_ASSERT(id->symbol == NULL, "Symbol should be NULL before resolving.");
+  INTERNAL_ASSERT(id->ref == NULL, "Symbol should be NULL before resolving.");
   return id;
 }
 #else
@@ -132,10 +133,7 @@ static void end_scope(FnResolver* resolver) {
 
     if (entry->value->source == NULL) {
 #ifdef DEBUG_RESOLVER
-      SymbolType type           = entry->value->type;
-      bool ok_to_have_no_source = type == SYMBOL_NATIVE || symbol_is_upvalue(entry->value);
-      UNUSED(ok_to_have_no_source);
-      INTERNAL_ASSERT(ok_to_have_no_source, "Only natives or upvalues can be unused without source");
+      INTERNAL_ASSERT(entry->value->type == SYMBOL_NATIVE, "Only natives can be unused without source");
 #endif
       continue;
     }
@@ -633,21 +631,49 @@ static void resolve_statement_if(FnResolver* resolver, AstStatement* stmt) {
 }
 
 static void resolve_statement_while(FnResolver* resolver, AstStatement* stmt) {
-  AstStatement* enclosing_loop = resolver->current_loop;
-  resolver->current_loop       = stmt;
-  stmt->base.scope             = new_scope(resolver);
+  AstStatement* enclosing_loop     = resolver->current_loop;
+  resolver->current_loop           = stmt;
+  int enclosing_loop_fn_locals     = resolver->current_loop_fn_locals;
+  resolver->current_loop_fn_locals = resolver->function->local_count;
+
   resolve_children(resolver, (AstNode*)stmt);
-  end_scope(resolver);
-  resolver->current_loop = enclosing_loop;
+
+  resolver->current_loop           = enclosing_loop;
+  resolver->current_loop_fn_locals = enclosing_loop_fn_locals;
 }
 
 static void resolve_statement_for(FnResolver* resolver, AstStatement* stmt) {
   AstStatement* enclosing_loop = resolver->current_loop;
   resolver->current_loop       = stmt;
-  stmt->base.scope             = new_scope(resolver);
-  resolve_children(resolver, (AstNode*)stmt);
+
+  stmt->base.scope = new_scope(resolver);
+
+  AstNode* initializer = stmt->base.children[0];
+  AstNode* condition   = stmt->base.children[1];
+  AstNode* increment   = stmt->base.children[2];
+  AstNode* body        = stmt->base.children[3];
+
+  if (initializer != NULL) {
+    resolve_node(resolver, initializer);
+  }
+  if (condition != NULL) {
+    resolve_node(resolver, condition);
+  }
+  if (increment != NULL) {
+    resolve_node(resolver, increment);
+  }
+
+  int enclosing_loop_fn_locals     = resolver->current_loop_fn_locals;
+  resolver->current_loop_fn_locals = resolver->function->local_count;
+
+  if (body != NULL) {
+    resolve_node(resolver, body);
+  }
+
   end_scope(resolver);
-  resolver->current_loop = enclosing_loop;
+
+  resolver->current_loop           = enclosing_loop;
+  resolver->current_loop_fn_locals = enclosing_loop_fn_locals;
 }
 
 static void resolve_statement_return(FnResolver* resolver, AstStatement* stmt) {
@@ -669,14 +695,16 @@ static void resolve_statement_break(FnResolver* resolver, AstStatement* stmt) {
   if (resolver->current_loop == NULL) {
     resolver_error(resolver, (AstNode*)stmt, "Can't break outside of a loop.");
   }
-  stmt->scope_ref = resolver->current_scope;
+  // Break needs to pop all locals that were declared in the loop (Before the break statement)
+  stmt->locals_to_pop = resolver->function->local_count - resolver->current_loop_fn_locals;
 }
 
 static void resolve_statement_skip(FnResolver* resolver, AstStatement* stmt) {
   if (resolver->current_loop == NULL) {
     resolver_error(resolver, (AstNode*)stmt, "Can't skip outside of a loop.");
   }
-  stmt->scope_ref = resolver->current_scope;
+  // Skip needs to pop all locals that were declared in the loop (Before the skip statement)
+  stmt->locals_to_pop = resolver->function->local_count - resolver->current_loop_fn_locals;
 }
 
 static void resolve_statement_throw(FnResolver* resolver, AstStatement* stmt) {
