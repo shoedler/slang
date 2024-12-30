@@ -573,21 +573,6 @@ void ast_print(AstNode* node, int indent) {
 
   ast_node_print(node);
 
-  // Print IDs and literals directly
-  if (node->count == 1 && node->children[0] != NULL) {
-    if (node->children[0]->type == NODE_ID) {
-      printf(" -> ");
-      ast_node_print(node->children[0]);
-      printf("\n");
-      return;
-    } else if (node->children[0]->type == NODE_LIT) {
-      printf(" -> ");
-      ast_node_print(node->children[0]);
-      printf("\n");
-      return;
-    }
-  }
-
   if (node->count > 0) {
     printf(" :");
   }
@@ -617,42 +602,6 @@ static void print_fn_type(FnType type) {
   printf(fn_type_str);
 }
 
-static void print_string_lit(const char* str, int max_len) {
-  int count = 0;
-  printf(ANSI_COLOR_BLUE "\"");
-  for (const char* p = str; *p; p++) {
-    if (count++ >= max_len) {
-      printf("...");
-      break;
-    }
-
-    if (*p == '\n') {
-      printf("\\n");
-    } else if (*p == '\t') {
-      printf("\\t");
-    } else if (*p == '\r') {
-      printf("\\r");
-    } else if (*p == '\v') {
-      printf("\\v");
-    } else if (*p == '\b') {
-      printf("\\b");
-    } else if (*p == '\f') {
-      printf("\\f");
-    } else if (*p == '\a') {
-      printf("\\a");
-    } else if (*p == '\\') {
-      printf("\\\\");
-    } else if (*p == '\"') {
-      printf("\\\"");
-    } else if (*p == '\'') {
-      printf("\\\'");
-    } else {
-      printf("%c", *p);
-    }
-  }
-  printf("\"" ANSI_COLOR_RESET);
-}
-
 static void ast_node_print(AstNode* node) {
   switch (node->type) {
     case NODE_BLOCK: {
@@ -660,7 +609,7 @@ static void ast_node_print(AstNode* node) {
       break;
     }
     case NODE_ID: {
-      printf(ANSI_MAGENTA_STR("%s"), ((AstId*)node)->name->chars);
+      printf(STR(NODE_ID) " " ANSI_MAGENTA_STR("%s"), ((AstId*)node)->name->chars);
       break;
     }
     case NODE_FN: {
@@ -729,20 +678,31 @@ static void ast_node_print(AstNode* node) {
       switch (((AstLiteral*)node)->type) {
         case LIT_NUMBER: {
           if (is_float(((AstLiteral*)node)->value)) {
-            printf(ANSI_BLUE_STR("%g"), ((AstLiteral*)node)->value.as.float_);
+            printf(STR(LIT_NUMBER) " " ANSI_BLUE_STR("%g"), ((AstLiteral*)node)->value.as.float_);
           } else {
-            printf(ANSI_BLUE_STR("%llu"), ((AstLiteral*)node)->value.as.integer);
+            printf(STR(LIT_NUMBER) " " ANSI_BLUE_STR("%llu"), ((AstLiteral*)node)->value.as.integer);
           }
           break;
         }
-        case LIT_STRING: print_string_lit(AS_STR(((AstLiteral*)node)->value)->chars, 30); break;
-        case LIT_BOOL:
-          printf(ANSI_BLUE_STR("%s"), (((AstLiteral*)node)->value.as.boolean) ? VALUE_STR_TRUE : VALUE_STR_FALSE);
+        case LIT_STRING: {
+          printf(STR(LIT_STRING) " ");
+#ifdef SLANG_ENABLE_COLOR_OUTPUT
+          printf(ANSI_COLOR_BLUE);
+#endif
+          fprint_string_escaped(stdout, AS_STR(((AstLiteral*)node)->value)->chars, 30, true);
+#ifdef SLANG_ENABLE_COLOR_OUTPUT
+          printf(ANSI_COLOR_RESET);
+#endif
           break;
-        case LIT_NIL: printf(ANSI_BLUE_STR(VALUE_STR_NIL)); break;
-        case LIT_TUPLE: printf(ANSI_BLUE_STR("(" STR(LIT_TUPLE) ")")); break;
-        case LIT_SEQ: printf(ANSI_BLUE_STR("[" STR(LIT_SEQ) "]")); break;
-        case LIT_OBJ: printf(ANSI_BLUE_STR("{" STR(LIT_OBJ) "}")); break;
+        }
+        case LIT_BOOL:
+          printf(STR(LIT_BOOL) " " ANSI_BLUE_STR("%s"),
+                 (((AstLiteral*)node)->value.as.boolean) ? VALUE_STR_TRUE : VALUE_STR_FALSE);
+          break;
+        case LIT_NIL: printf(STR(LIT_NIL) " " ANSI_BLUE_STR(VALUE_STR_NIL)); break;
+        case LIT_TUPLE: printf(STR(LIT_TUPLE) " " ANSI_BLUE_STR("(" STR(LIT_TUPLE) ")")); break;
+        case LIT_SEQ: printf(STR(LIT_SEQ) " " ANSI_BLUE_STR("[" STR(LIT_SEQ) "]")); break;
+        case LIT_OBJ: printf(STR(LIT_OBJ) " " ANSI_BLUE_STR("{" STR(LIT_OBJ) "}")); break;
         default: printf(ANSI_RED_STR("LIT_UNKNOWN %d"), node->type); break;
       }
       break;

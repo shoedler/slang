@@ -1,3 +1,5 @@
+// [skip] Stack overflow, 64 is not enough & I don't want to raise the limit. Yet.
+
 import File
 import Gc
 

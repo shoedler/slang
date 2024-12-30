@@ -120,6 +120,11 @@ Value value_array_remove_at(ValueArray* array, int index);
 // Free a value array.
 void value_array_free(ValueArray* array);
 
+// Print an escaped string to a file. Will print at most [max_len] characters of the string. If the string is longer, it will
+// print
+// "..." at the end. Returns the number of characters printed.
+int fprint_string_escaped(FILE* file, const char* str, int max_len, bool quote);
+
 // Prints a value to a file. Will look different from the values default print representation, but it will
 // guarantee that the gc will not be called.
 // Returns the number of characters printed.

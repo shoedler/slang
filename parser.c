@@ -1154,7 +1154,7 @@ bool parse(const char* source, ObjString* name, AstFn** ast) {
 
 #ifdef DEBUG_PRINT_AST
   printf("\n\n\n === PARSE ===\n\n");
-  ast_print((AstNode*)ast, 0);
+  ast_print((AstNode*)*ast, 0);
 #endif
 
   if (parser.had_error) {
