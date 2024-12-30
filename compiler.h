@@ -14,8 +14,6 @@ struct FnCompiler {
   AstFn* function;
   ObjFunction* result;
 
-  Scope* current_scope;  // Current scope, only used to check if we're in global scope.
-
   // Loop state
   Scope* innermost_loop_scope;
   int innermost_loop_start;

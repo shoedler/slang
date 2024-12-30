@@ -35,7 +35,6 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
-- [ ] Remove `in_global_scope` and `current_scope` from the compiler - that should be handled via the resolver. Currently needed for destructuring, but I think that should be possible without it.
 - [ ] Move path resolution from the compiler to the resolver.
 - [ ] Resolve natives and imports of cached modules in the compiler maybe? We could easily just look the stuff up and emit a value for it (e.g. constant, or some new OP like `OP_PRECOMPILED`) instead of looking it up in the VM.
 - [ ] Test if assignment to patterns works, because declarations do.
@@ -48,6 +47,7 @@ You can, for example, easily cache stuff:
 - [ ] Can Probably omit OP_FINALIZE for classes?
 - [ ] Make REPL use the new compiler
 - [ ] Remove `run-old` completely
+- [x] Remove `in_global_scope` and `current_scope` from the compiler - that should be handled via the resolver. Currently needed for destructuring, but I think that should be possible without it.
 
 ## Features
 
@@ -91,7 +91,6 @@ You can, for example, easily cache stuff:
 
 ## Improvements
 
-- [ ] Add AOC24 solutions to the test suite. (Works in old, fails in new: Day 3, Day 8) COMBAK: Day 8
 - [ ] Improve destructuring assignment:
   - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.

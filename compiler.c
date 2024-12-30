@@ -25,7 +25,6 @@ static void compiler_init(FnCompiler* compiler, FnCompiler* enclosing, AstFn* fu
   compiler->result = NULL;  // Required, because new_function() can trigger a GC
 
   compiler->function                = function;
-  compiler->current_scope           = function->base.scope;
   compiler->result                  = new_function();
   compiler->result->upvalue_count   = function->upvalue_count;
   compiler->result->globals_context = globals_context == NULL ? enclosing->result->globals_context : globals_context;
@@ -58,10 +57,6 @@ static ObjFunction* end_compiler(FnCompiler* compiler) {
 
 static void compiler_free(FnCompiler* compiler) {
   FREE_ARRAY(int, compiler->brake_jumps, compiler->brakes_capacity);
-}
-
-static inline bool in_global_scope(FnCompiler* compiler) {
-  return compiler->current_scope->depth == 0;
 }
 
 // Prints an error message at the offending node.
@@ -359,9 +354,10 @@ static void emit_define_pattern(FnCompiler* compiler, AstPattern* pattern) {
     if (child_id->ref->symbol->type == SYMBOL_GLOBAL) {
       emit_define_id(compiler, child_id);
     } else {
-      // In local scope, we have already emitted a placeholder (OP_NIL) for the value, so we need to use assign, not define.
+        // In local scope, we have already emitted a placeholder (OP_NIL) in the prelude for the value, so we need to use assign,
+        // not define.
       emit_assign_id(compiler, child_id);
-      if (!in_global_scope(compiler)) {
+        if (child_id->ref->symbol->type == SYMBOL_LOCAL) {
         emit_one(compiler, OP_POP, (AstNode*)child);  // Discard the value.
       }
     }
@@ -375,9 +371,15 @@ static void emit_define_pattern_prelude(FnCompiler* compiler, AstPattern* patter
   // Emit placeholder values when in local scope. Not needed for globals, as they are declared with OP_DEFINE_GLOBAL.
   // We only get here when the pattern is preceded by a 'let' or 'const' keyword, so we can safely assume all of the bindings are
   // locals.
-  if (!in_global_scope(compiler)) {
     for (int i = 0; i < pattern->base.count; i++) {
-      emit_one(compiler, OP_NIL, (AstNode*)pattern);
+    AstPattern* child = (AstPattern*)pattern->base.children[i];
+    if (ast_pattern_is_var(child)) {
+      AstId* child_id = (AstId*)child->base.children[0];
+      if (child_id->ref->symbol->type == SYMBOL_LOCAL) {
+        emit_one(compiler, OP_NIL, (AstNode*)child);  // Define the variable.
+      }
+    } else {
+      emit_define_pattern_prelude(compiler, child);
     }
   }
 }
@@ -1087,10 +1089,6 @@ static void compile_lit_obj(FnCompiler* compiler, AstLiteral* lit) {
 }
 
 static void compile_node(FnCompiler* compiler, AstNode* node) {
-  if (node->scope != NULL) {
-    compiler->current_scope = node->scope;
-  }
-
   switch (node->type) {
     case NODE_BLOCK: compile_children(compiler, node); break;
     case NODE_FN: compile_function(compiler, (AstFn*)node); break;
@@ -1174,7 +1172,6 @@ static void compile_node(FnCompiler* compiler, AstNode* node) {
   // returns.
   if (node->scope != NULL && node->type != NODE_FN) {
     discard_locals(compiler, node->scope, node);
-    compiler->current_scope = node->scope->enclosing;
   }
 }
 
