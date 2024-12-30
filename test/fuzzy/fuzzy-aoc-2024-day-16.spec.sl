@@ -1,6 +1,7 @@
-
 import File
-import Math
+import Gc
+
+Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for testing - speeds up execution
 
 const grid = File
   .read(cwd() + "/fuzzy-aoc-2024-day-16.txt")

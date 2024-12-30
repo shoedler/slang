@@ -1,6 +1,7 @@
-// [skip] Too slow
-
 import File
+import Gc
+
+Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for testing - otherwise this will take almost forever to run
 
 const eqs = File
   .read(cwd() + "/fuzzy-aoc-2024-day-07.txt")

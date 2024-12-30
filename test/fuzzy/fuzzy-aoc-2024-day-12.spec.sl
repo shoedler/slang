@@ -1,6 +1,7 @@
-
 import File
-import Math
+import Gc
+
+Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for testing - otherwise this will take almost forever to run
 
 const map = File
   .read(cwd() + "/fuzzy-aoc-2024-day-12.txt")

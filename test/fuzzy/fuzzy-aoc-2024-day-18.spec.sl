@@ -1,13 +1,15 @@
-
 import File
-import Math
+import Gc
+
+Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for testing - otherwise this will take almost forever to run
 
 const bytes = File
   .read(cwd() + "/fuzzy-aoc-2024-day-18.txt")
   .split("\r\n")
   .map(fn(p) -> p.ints())
 
-const SIZE = 71
+const SIZE = 6+1 // Sample input, 70+1 for real input
+const LIM = 12-1 // Sample input, 1024-1 for real input
 const DIRS = [ (-1, 0), (0,1), (1,0), (0,-1) ]
 
 const grid = []
@@ -38,7 +40,7 @@ bytes.some(fn(byte, i) {
 
     if pos == end {
       reachable = true 
-      if i == 1023 p1 = d
+      if i == LIM p1 = d
       break
     }
 
@@ -60,7 +62,10 @@ bytes.some(fn(byte, i) {
   ret false
 })
 
-log("Part 1", p1) // [expect] Part 1 262
-log("Part 2", p2) // [expect] Part 2 22,20
+log("Part 1", p1) // [expect] Part 1 22
+log("Part 2", p2) // [expect] Part 2 6,1
+
+// (⚠️ Runs on example input to make it faster)
+
 
 

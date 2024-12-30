@@ -1,6 +1,4 @@
-
 import File
-import Math
 
 const [inputs, wires] = File
   .read(cwd() + "/fuzzy-aoc-2024-day-24.txt")

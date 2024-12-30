@@ -1,5 +1,7 @@
-
 import File
+import Gc
+
+Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for testing - speeds up execution
 
 const [grid_raw, moves_raw] = File
   .read(cwd() + "/fuzzy-aoc-2024-day-15.txt")

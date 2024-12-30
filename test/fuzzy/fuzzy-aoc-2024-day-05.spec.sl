@@ -1,7 +1,5 @@
-
 import File
 import Math
-import Perf
 
 const [raw_rules, raw_updates] = File
   .read(cwd() + "/fuzzy-aoc-2024-day-05.txt")

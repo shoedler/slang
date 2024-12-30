@@ -1,6 +1,8 @@
-
 import File
 import Math
+import Gc
+
+Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for testing - otherwise this will take almost forever to run 
 
 const secret_nums = File
   .read(cwd() + "/fuzzy-aoc-2024-day-22.txt")
@@ -43,5 +45,7 @@ secret_nums.each(fn(num) {
   })
 })
 
-log("Part 1" + last_secrets) // [expect] Part 1 17005483322
-log("Part 2", SCORE.values().sort()[-1]) // [expect] Part 2 1910
+log("Part 1", last_secrets) // [expect] Part 1 37990510
+log("Part 2", SCORE.values().sort()[-1]) // [expect] Part 2 23
+
+// (⚠️ Runs on example input to make it faster)

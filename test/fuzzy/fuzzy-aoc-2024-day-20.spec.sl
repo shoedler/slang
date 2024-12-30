@@ -1,6 +1,8 @@
-
 import File
 import Math
+import Gc
+
+Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for testing - otherwise this will take almost forever to run
 
 const grid = File
   .read(cwd() + "/fuzzy-aoc-2024-day-20.txt")
@@ -43,6 +45,8 @@ let p2 = 0
 const dists = DIST.entries()
 const n = dists.len 
 
+const MIN_CHEAT = 10 // Sample input, 100 for real input
+
 // Try every combination of pathtiles. Does n(n-1)/2 iterations. n=9457 in my case, so 44'712'696 iterations total.
 for let i=0; i<n-1; i++; {
   for let j=i+1; j<n; j++; {
@@ -50,12 +54,15 @@ for let i=0; i<n-1; i++; {
     const [pos2, path_dist2] = dists[j]
     const cheat_dist = manhattan(pos1, pos2)
     const path_dist = Math.abs(path_dist2-path_dist1) 
-    if path_dist >= cheat_dist+100 {
+    if path_dist >= cheat_dist+MIN_CHEAT {
       if cheat_dist <= 20 p2++
       if cheat_dist <= 2 p1++
     }
   }
 }
 
-log("Part 1", p1) // [expect] Part 1 1502
-log("Part 2", p2) // [expect] Part 2 1028136
+log("Part 1", p1) // [expect] Part 1 10
+log("Part 2", p2) // [expect] Part 2 2268
+
+// (⚠️ Runs on example input to make it faster)
+

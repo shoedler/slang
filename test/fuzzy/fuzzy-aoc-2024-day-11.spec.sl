@@ -1,16 +1,17 @@
-
 import File
-import Math
+import Gc
+
+Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for testing - otherwise this will take almost forever to run
 
 const source = File
   .read(cwd() + "/fuzzy-aoc-2024-day-11.txt")
   .split(" ")
   .map(Int)
 
-const cache = {}
+const DP = {}
 fn blink(stone, blinks) {
   let ans = 0
-  if (stone, blinks) in cache ret cache[(stone, blinks)]
+  if (stone, blinks) in DP ret DP[(stone, blinks)]
 
   if blinks == 0 ans = 1
   else if stone == 0 ans = blink(1, blinks-1)
@@ -22,7 +23,7 @@ fn blink(stone, blinks) {
   }
   else ans = blink(stone * 2024, blinks-1)
 
-  cache[(stone, blinks)] = ans
+  DP[(stone, blinks)] = ans
   ret ans
 }
 

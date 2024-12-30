@@ -64,5 +64,7 @@ fn defrag(bulk) {
   ret total
 }
 
-log("Part 1", defrag(false)) // [expect] Part 1 6262891638328
-log("Part 2", defrag(true))  // [expect] Part 2 6287317016845
+log("Part 1", defrag(false)) // [expect] Part 1 1928
+log("Part 2", defrag(true))  // [expect] Part 2 2858
+
+// (⚠️ Runs on example input to make it faster)

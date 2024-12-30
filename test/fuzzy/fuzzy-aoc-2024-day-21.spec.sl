@@ -1,4 +1,3 @@
-
 import File
 import Math
 
@@ -95,7 +94,7 @@ fn calc_presses(seq, depth, dirkey, cur) {
     // Try all permutations of the moves to find the shortest path
     min_len = unique_perms(moves).map(fn(perm) {
       let (cx, cy) = cur
-      const every = perm.every(fn(move) {
+      const valid = perm.every(fn(move) {
         const (mdx, mdy) = DIRS[move]
         cx += mdx
         cy += mdy
