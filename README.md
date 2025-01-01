@@ -44,7 +44,6 @@ You can, for example, easily cache stuff:
 - [ ] Add resolver warn for vars that could be constant.
 - [ ] Make parser marking possible and remove disabling the GC during parsing.
 - [ ] Turn globals / natives into an array. Because we can resolve it now at compile time. This would also allow for constant time global variable lookup
-- [ ] Can Probably omit OP_FINALIZE for classes?
 - [ ] Make REPL use the new compiler
 - [ ] Remove `run-old` completely
 - [x] Remove `in_global_scope` and `current_scope` from the compiler - that should be handled via the resolver. Currently needed for destructuring, but I think that should be possible without it.
@@ -92,7 +91,6 @@ You can, for example, easily cache stuff:
 ## Improvements
 
 - [ ] Improve destructuring assignment:
-  - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
 - [ ] Make managed-code callables accept less arguments than it has parameters. There is an inconsistency, since native-callables allow this. Should be easy, just pass `nil` to the missing arguments.
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
