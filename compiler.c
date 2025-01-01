@@ -335,30 +335,37 @@ static void emit_assignment(FnCompiler* compiler, AstExpression* target, uint16_
 static void emit_define_pattern(FnCompiler* compiler, AstPattern* pattern) {
   for (int i = 0; i < pattern->base.count; i++) {
     AstPattern* child = (AstPattern*)pattern->base.children[i];
-    AstId* child_id   = (AstId*)child->base.children[0];
-
     emit_two(compiler, OP_DUPE, 0, (AstNode*)child);  // Duplicate the rhs value: [rhs] -> [rhs][rhs]
 
-    Value payload = pattern->type == PAT_OBJ ? str_value(child_id->name) : int_value(i);
-    if (child->type == PAT_REST) {
-      emit_constant(compiler, payload, (AstNode*)child);  // [rhs][rhs][payload]
-      emit_one(compiler, OP_NIL, (AstNode*)child);        // [rhs][rhs][payload][nil]
-      emit_one(compiler, OP_GET_SLICE, (AstNode*)child);  // [rhs][slice]
-    } else if (child->type == PAT_BINDING) {
-      emit_constant(compiler, payload, (AstNode*)child);      // [rhs][rhs][payload]
-      emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)child);  // [rhs][value]
+    if (!ast_pattern_is_var(child)) {
+      // Nested pattern
+      emit_constant(compiler, int_value(i), (AstNode*)child);  // [rhs][rhs][idx]
+      emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)child);   // [rhs][rhs][value]
+      emit_define_pattern(compiler, child);
     } else {
-      INTERNAL_ERROR("Unsupported pattern child-type: %d", child->type);
-    }
+      // Binding or rest
+      AstId* child_id = (AstId*)child->base.children[0];
 
-    if (child_id->ref->symbol->type == SYMBOL_GLOBAL) {
-      emit_define_id(compiler, child_id);
-    } else {
+      Value payload = pattern->type == PAT_OBJ ? str_value(child_id->name) : int_value(i);
+      if (child->type == PAT_REST) {
+        emit_constant(compiler, payload, (AstNode*)child);  // [rhs][rhs][payload]
+        emit_one(compiler, OP_NIL, (AstNode*)child);        // [rhs][rhs][payload][nil]
+        emit_one(compiler, OP_GET_SLICE, (AstNode*)child);  // [rhs][slice]
+      } else {
+        // it's a PAT_BINDING
+        emit_constant(compiler, payload, (AstNode*)child);      // [rhs][rhs][payload]
+        emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)child);  // [rhs][value]
+      }
+
+      if (child_id->ref->symbol->type == SYMBOL_GLOBAL) {
+        emit_define_id(compiler, child_id);
+      } else {
         // In local scope, we have already emitted a placeholder (OP_NIL) in the prelude for the value, so we need to use assign,
         // not define.
-      emit_assign_id(compiler, child_id);
+        emit_assign_id(compiler, child_id);
         if (child_id->ref->symbol->type == SYMBOL_LOCAL) {
-        emit_one(compiler, OP_POP, (AstNode*)child);  // Discard the value.
+          emit_one(compiler, OP_POP, (AstNode*)child);  // Discard the value.
+        }
       }
     }
   }
@@ -371,7 +378,7 @@ static void emit_define_pattern_prelude(FnCompiler* compiler, AstPattern* patter
   // Emit placeholder values when in local scope. Not needed for globals, as they are declared with OP_DEFINE_GLOBAL.
   // We only get here when the pattern is preceded by a 'let' or 'const' keyword, so we can safely assume all of the bindings are
   // locals.
-    for (int i = 0; i < pattern->base.count; i++) {
+  for (int i = 0; i < pattern->base.count; i++) {
     AstPattern* child = (AstPattern*)pattern->base.children[i];
     if (ast_pattern_is_var(child)) {
       AstId* child_id = (AstId*)child->base.children[0];

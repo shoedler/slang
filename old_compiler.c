@@ -1566,7 +1566,7 @@ static void destructuring(DestructureType type, bool rhs_is_import, bool is_cons
     default: INTERNAL_ERROR("Unhandled destructuring type."); break;
   }
 
-  DestructuringVariable variables[MAX_DESTRUCTURING_VARS];
+  DestructuringVariable variables[MAX_DESTRUCTURING_BINDINGS];
   int current_index = 0;
   bool has_rest     = false;
   bool local_scope  = current->scope_depth > 0;
@@ -1605,8 +1605,9 @@ static void destructuring(DestructureType type, bool rhs_is_import, bool is_cons
       emit_one(OP_NIL, error_start);  // Define the variable.
     }
 
-    if (++current_index > MAX_DESTRUCTURING_VARS) {
-      compiler_error_at_previous("Can't have more than " STR(MAX_DESTRUCTURING_VARS) " variables in destructuring assignment.");
+    if (++current_index > MAX_DESTRUCTURING_BINDINGS) {
+      compiler_error_at_previous(
+          "Can't have more than " STR(MAX_DESTRUCTURING_BINDINGS) " variables in destructuring assignment.");
     }
 
     if (has_rest) {

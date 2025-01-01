@@ -286,6 +286,9 @@ AstPattern* ast_pattern_init(Token start, Token end, PatternType type);
 void ast_pattern_add_element(AstPattern* pattern, AstPattern* element);
 AstPattern* ast_pattern_binding_init(Token start, Token end, AstId* binding);
 AstPattern* ast_pattern_rest_init(Token start, Token end, AstId* identifier);
+static inline bool ast_pattern_is_var(AstPattern* pattern) {
+  return pattern->type == PAT_BINDING || pattern->type == PAT_REST;
+}
 
 // Creates a AST node with the given type and children
 AstNode* ast_allocate_node(size_t size, NodeType type, Token start, Token end);

@@ -753,11 +753,11 @@ static AstPattern* parse_destructuring(Parser* parser, DestructureType type) {
   // Parse the bindings.
   while (!check(parser, closing) && !check(parser, TOKEN_EOF)) {
     if (has_rest) {
-      parser_error_at_previous(parser, "Rest parameter must be last in destructuring assignment.");
+      parser_error_at_previous(parser, "Rest binding must be last in destructuring assignment.");
     }
     has_rest = match(parser, TOKEN_DOTDOTDOT);
     if (has_rest && type == DESTRUCTURE_OBJ) {
-      parser_error_at_previous(parser, "Rest parameter is not allowed in " STR(TYPENAME_OBJ) " destructuring assignment.");
+      parser_error_at_previous(parser, "Rest binding is not allowed in " STR(TYPENAME_OBJ) " destructuring assignment.");
     }
 
     if (has_rest) {
@@ -767,16 +767,26 @@ static AstPattern* parse_destructuring(Parser* parser, DestructureType type) {
       AstPattern* rest     = ast_pattern_rest_init(parser->previous, parser->previous, rest_id);
       ast_pattern_add_element(destructure, rest);
     } else {
-      consume(parser, TOKEN_ID, "Expecting identifier in destructuring assignment.");
-      ObjString* name     = copy_string(parser->previous.start, parser->previous.length);
-      AstId* id           = ast_id_init(parser->previous, name);
-      AstPattern* binding = ast_pattern_binding_init(parser->previous, parser->previous, id);
-      ast_pattern_add_element(destructure, binding);
+      // Either a nested destructuring pattern, or a simple binding/rest binding.
+      AstPattern* element = NULL;
+      if (match(parser, TOKEN_OBRACK)) {
+        element = parse_destructuring(parser, DESTRUCTURE_SEQ);
+      } else if (match(parser, TOKEN_OBRACE)) {
+        parser_error_at_previous(parser, "Nested " STR(TYPENAME_OBJ) " destructuring is not allowed.");
+      } else if (match(parser, TOKEN_OPAR)) {
+        element = parse_destructuring(parser, DESTRUCTURE_TUPLE);
+      } else {
+        consume(parser, TOKEN_ID, "Expecting identifier in destructuring assignment.");
+        ObjString* name = copy_string(parser->previous.start, parser->previous.length);
+        AstId* id       = ast_id_init(parser->previous, name);
+        element         = ast_pattern_binding_init(parser->previous, parser->previous, id);
+      }
+      ast_pattern_add_element(destructure, element);
     }
 
-    if (++current_index > MAX_DESTRUCTURING_VARS) {
+    if (++current_index > MAX_DESTRUCTURING_BINDINGS) {
       parser_error_at_previous(parser,
-                               "Can't have more than " STR(MAX_DESTRUCTURING_VARS) " variables in destructuring assignment.");
+                               "Can't have more than " STR(MAX_DESTRUCTURING_BINDINGS) " bindings in destructuring assignment.");
     }
 
     if (has_rest) {
