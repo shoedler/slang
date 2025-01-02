@@ -50,16 +50,11 @@ You can, for example, easily cache stuff:
 
 ## Features
 
-- [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hasing tuples containing negative `Int`s)
+- [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hasing tuples containing negative `Int`s). UPDATE: Found it. It's the hashing of integers thats the issue.
 - [ ] Add `not` for `is` and `in`: e.g. `x not in y` and `x is not Int`
 - [ ] Allow `Tuple.inside = fn(this) -> (this[0]>=0 and this[0]<ROWS) and (this[1]>=0 and this[1]<COLS)`
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
-- [ ] Implement native `Json` module.
-  - [ ] Implement `Json.parse(Str) -> Obj`.
-  - [ ] Implement `Json.stringify(Value) -> Str`.
-  - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
-- [ ] Implement `Seq.min(type: Type) -> Value`. (Get the minimum value of a sequence, should use SP_METHOD_LT of the `type`)
 - [ ] Implement `Seq.mapat(Int, Fn) -> Seq`. (Map only the element at the given index but return the whole sequence)
 - [ ] Implement `Seq.cull(Value|Fn) -> Seq`. (Remove all elements that are equal to the argument or satisfy the predicate)
 - [ ] Implement `Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)
@@ -68,24 +63,25 @@ You can, for example, easily cache stuff:
 - [x] ~~Implement `Str.ints() -> Seq`. (Split a string into a sequence of integers (also negative ones))~~
 - [x] ~~Implement `Str.rep(Int) -> Str`. (Repeat a string `n` times)~~
 - [x] ~~Implement `Str.chars() -> Seq`. (Split a string into a sequence of characters, shorthand for `Str.split("")`)~~
-- [x] ~~🐛 Fix `Str.split(Str)` for strings which have multiple submatches per match, e.g. `"     0    w  e    r".split("  ")` segfaults. (Encountered in AOC '24 day 25)~~
-- [x] ~~`map` and some other array functions should also accept arity=0 functions, not only arity=1 and arity=2.~~
 - [x] ~~Implement `Seq.sum() -> Num`, `Tuple.sum() -> Num`. (Sum all elements. Requires some sort of \_\_add)~~
 - [x] ~~Implement `Seq.sort(sort_fn) -> Seq`. (Sort a sequence in place. Requires some sort of \_\_lt)~~
+- [x] ~~Implement `Seq.min(type: Type) -> Value`. (Get the minimum value of a sequence, should use SP_METHOD_LT of the `type`)~~
+- [x] ~~Implement `Set` class~~ (Part of the `std` module - not a native type)
+  - [x] ~~Implement `Set.add(Obj) -> Nil`.~~
+  - [x] ~~Implement `Set.del(Obj) -> Nil`.~~
+  - [x] ~~Implement ~~`Seq(Set)` constructor~~ `Set.to_seq() -> Seq`~~
 - [x] ~~Implement native `Math` module.~~
   - [x] ~~Implement `Math.abs(Num) -> Num`.~~
   - [x] ~~Implement `Math.ceil(Num) -> Int`.~~
   - [x] ~~Implement `Math.floor(Num) -> Int`.~~
+- [x] ~~Implement `Gc` module~~
+  - [x] ~~Implement `Gc collect() -> Nil`.~~
+  - [x] ~~Implement `Gc stats() -> Obj`.~~
+- [x] ~~🐛 Fix `Str.split(Str)` for strings which have multiple submatches per match, e.g. `"     0    w  e    r".split("  ")` segfaults. (Encountered in AOC '24 day 25)~~
+- [x] ~~`map` and some other array functions should also accept arity=0 functions, not only arity=1 and arity=2.~~
 - [x] ~~Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`~~
 - [x] ~~Add destructuring to module imports.~~
 - [x] ~~Add `const` (**_See Challenge 22.3_**)~~
-- [x] ~~Implement `Set` class~~ (Part of the `std` module - not a native type)
-- [x] ~~Implement `Set.add(Obj) -> Nil`.~~
-- [x] ~~Implement `Set.del(Obj) -> Nil`.~~
-- [x] ~~Implement ~~`Seq(Set)` constructor~~ `Set.to_seq() -> Seq`~~
-- [x] ~~Implement `Gc` module~~
-- [x] ~~Implement `Gc collect() -> Nil`.~~
-- [x] ~~Implement `Gc stats() -> Obj`.~~
 
 ## Improvements
 
@@ -95,13 +91,13 @@ You can, for example, easily cache stuff:
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
 - [ ] Add a mimalloc segfault handler.
+- [ ] Implement `Float.nan` and `Float.inf` constants (Would require static fields).
 - [ ] Add test for `Math.pow(Int, Int) -> Int` (Or maybe move to `Int`?)
 - [ ] Add test for `Math.xor(Int, Int) -> Int` (Or maybe move to `Int`?)
 - [ ] Add test for `Math.shl(Int, Int) -> Int` (Or maybe move to `Int`?)
 - [ ] Add test for `Math.shr(Int, Int) -> Int` (Or maybe move to `Int`?)
 - [ ] Add test for `Math.bor(Int, Int) -> Int` (Or maybe move to `Int`?)
 - [ ] Add test for `Math.band(Int, Int) -> Int` (Or maybe move to `Int`?)
-- [ ] Add test for `Str.ints() -> Seq`
 - [ ] Add test for `Str.ascii() -> Seq` which includes special characters.
 - [ ] Maybe check for `NULL` functions in `vm_exec_callable` instead of before calling it - would add some overhead though.
 - [x] ~~Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.~~
@@ -161,7 +157,11 @@ You can, for example, easily cache stuff:
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
 - [ ] Implement `@memoize` decorator. Would put args into a `Tuple` and use that as a key in a `Obj`.
-- [ ] Implement `Float.nan` and `Float.inf` constants (Would require static fields).
+- [ ] Implement native `Json` module.
+  - [ ] Implement `Json.parse(Str) -> Obj`.
+  - [ ] Implement `Json.stringify(Value) -> Str`.
+  - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
+
 
 ---
 
