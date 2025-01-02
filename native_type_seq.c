@@ -38,6 +38,7 @@ static Value seq_count(int argc, Value argv[]);
 static Value seq_concat(int argc, Value argv[]);
 static Value seq_sort(int argc, Value argv[]);
 static Value seq_order(int argc, Value argv[]);
+static Value seq_min(int argc, Value argv[]);
 static Value seq_sum(int argc, Value argv[]);
 
 ObjClass* native_seq_class_partial_init() {
@@ -91,6 +92,7 @@ void native_seq_class_finalize() {
   define_native(&vm.seq_class->methods, "concat", seq_concat, 1);
   define_native(&vm.seq_class->methods, "sort", seq_sort, 0);
   define_native(&vm.seq_class->methods, "order", seq_order, 1);
+  define_native(&vm.seq_class->methods, "min", seq_min, 0);
   define_native(&vm.seq_class->methods, "sum", seq_sum, 0);
   finalize_new_class(vm.seq_class);
 }
@@ -341,6 +343,9 @@ static Value seq_order(int argc, Value argv[]) {
 }
 static Value seq_sort(int argc, Value argv[]) {
   NATIVE_LISTLIKE_SORT_BODY(vm.seq_class);
+}
+static Value seq_min(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_MIN_BODY(vm.seq_class);
 }
 static Value seq_sum(int argc, Value argv[]) {
   NATIVE_LISTLIKE_SUM_BODY(vm.seq_class);

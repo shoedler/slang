@@ -1,0 +1,5 @@
+print "".chars()     // [expect] []
+print "123".chars()  // [expect] [1, 2, 3]
+print "     0    w  e    r".chars() // [expect] [ ,  ,  ,  ,  , 0,  ,  ,  ,  , w,  ,  , e,  ,  ,  ,  , r]
+print "   1   2   3   4".chars() // [expect] [ ,  ,  , 1,  ,  ,  , 2,  ,  ,  , 3,  ,  ,  , 4]
+print "😀😁".chars() // [expect] [�, �, �, �, �, �, �, �]

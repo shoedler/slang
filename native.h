@@ -1113,6 +1113,30 @@ uint64_t native_default_obj_hash(Value self);
   return NATIVE_LISTLIKE_TAKE_ARRAY(sorted);
 
 /**
+ * TYPENAME_T.min() -> TYPENAME_VALUE
+ * @brief Returns the smallest item of a TYPENAME_T. Returns TYPENAME_NIL if the TYPENAME_T is empty. Uses the default
+ * "SP_METHOD_LT" method of the items type to compare the items.
+ */
+#define NATIVE_LISTLIKE_MIN_BODY(class)                                                                        \
+  UNUSED(argc);                                                                                                \
+  NATIVE_CHECK_RECEIVER(class)                                                                                 \
+                                                                                                               \
+  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                                       \
+  if (items.count == 0) {                                                                                      \
+    return nil_value();                                                                                        \
+  }                                                                                                            \
+                                                                                                               \
+  Value min = items.values[0];                                                                                 \
+  /* We just use value_array_sort_compare_wrapper_native to get the min value, so it's consistent with sort */ \
+  for (int i = 1; i < items.count; i++) {                                                                      \
+    if (value_array_sort_compare_wrapper_native(min, items.values[i], nil_value()) > 0) {                      \
+      min = items.values[i];                                                                                   \
+    }                                                                                                          \
+  }                                                                                                            \
+                                                                                                               \
+  return min;
+
+/**
  * TYPENAME_T.sum() -> TYPENAME_VALUE
  * @brief Sums all the items of a TYPENAME_T using the items "SP_METHOD_ADD". Returns TYPENAME_NIL if the TYPENAME_T is empty.
  * Uses the "SP_METHOD_ADD" method of the items type to add the items.

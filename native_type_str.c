@@ -20,6 +20,8 @@ static Value str_split(int argc, Value argv[]);
 static Value str_trim(int argc, Value argv[]);
 static Value str_ints(int argc, Value argv[]);
 static Value str_ascii(int argc, Value argv[]);
+static Value str_chars(int argc, Value argv[]);
+static Value str_reps(int argc, Value argv[]);
 
 ObjClass* native_str_class_partial_init() {
   ObjClass* str_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
@@ -53,6 +55,8 @@ void native_str_class_finalize() {
   define_native(&vm.str_class->methods, "trim", str_trim, 0);
   define_native(&vm.str_class->methods, "ints", str_ints, 0);
   define_native(&vm.str_class->methods, "ascii", str_ascii, 0);
+  define_native(&vm.str_class->methods, "chars", str_chars, 0);
+  define_native(&vm.str_class->methods, "reps", str_reps, 1);
   finalize_new_class(vm.str_class);
 }
 
@@ -386,4 +390,51 @@ static Value str_ascii(int argc, Value argv[]) {
   seq->items.count = str->length;
 
   return seq_value(seq);
+}
+
+/**
+ * TYPENAME_STRING.chars() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ containing individual characters of the TYPENAME_STRING.
+ */
+static Value str_chars(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.str_class);
+
+  ObjString* str   = AS_STR(argv[0]);
+  ValueArray items = value_array_init_of_size(str->length);
+  ObjSeq* seq      = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
+
+  vm_push(seq_value(seq));  // GC Protection
+  for (int i = 0; i < str->length; i++) {
+    seq->items.values[i] = str_value(copy_string(str->chars + i, 1));
+    seq->items.count++;
+  }
+
+  return vm_pop();  // The seq
+}
+
+/**
+ * TYPENAME_STRING.reps(count: TYPENAME_INT) -> TYPENAME_STRING
+ * @brief Returns a new TYPENAME_STRING containing 'count' repetitions of the original TYPENAME_STRING.
+ */
+static Value str_reps(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.str_class)
+  NATIVE_CHECK_ARG_AT(1, vm.int_class)
+
+  ObjString* str = AS_STR(argv[0]);
+  int count      = (int)argv[1].as.integer;
+
+  if (count <= 0) {
+    return str_value(copy_string("", 0));
+  }
+
+  int new_length = str->length * count;
+  char* new_str  = malloc(new_length + 1);
+  for (int i = 0; i < count; i++) {
+    memcpy(new_str + i * str->length, str->chars, str->length);
+  }
+  new_str[new_length] = '\0';
+
+  return str_value(copy_string(new_str, new_length));
 }

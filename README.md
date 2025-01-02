@@ -60,15 +60,14 @@ You can, for example, easily cache stuff:
   - [ ] Implement `Json.stringify(Value) -> Str`.
   - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
 - [ ] Implement `Seq.min(type: Type) -> Value`. (Get the minimum value of a sequence, should use SP_METHOD_LT of the `type`)
-- [ ] Implement `Str.rep(Int) -> Str`. (Repeat a string `n` times)
-- [ ] Implement `Str.ints() -> Seq`. (Split a string into a sequence of integers (also negative ones))
-- [ ] Implement `Str.floats() -> Seq`. (Split a string into a sequence of floats)
-- [ ] Implement `Str.chars() -> Seq`. (Split a string into a sequence of characters, shorthand for `Str.split("")`)
 - [ ] Implement `Seq.mapat(Int, Fn) -> Seq`. (Map only the element at the given index but return the whole sequence)
 - [ ] Implement `Seq.cull(Value|Fn) -> Seq`. (Remove all elements that are equal to the argument or satisfy the predicate)
 - [ ] Implement `Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)
 - [ ] Add a variant of `log` (Maybe `tap`/`info`/`dump`/`peek`?) which accepts a single argument and also, return it. That'd be awesome: `const x = a + b + c + tap(d) + e`
 - [ ] Add more error classes to std. Add a native `Error` base class, from which managed-code errors inherit. Check `vm_inherits(error.type, vm.error_class)` in `handle_runtime_error` and - if true - use `error.type->name` as the prefix instead of `Uncaught error`.
+- [x] ~~Implement `Str.ints() -> Seq`. (Split a string into a sequence of integers (also negative ones))~~
+- [x] ~~Implement `Str.rep(Int) -> Str`. (Repeat a string `n` times)~~
+- [x] ~~Implement `Str.chars() -> Seq`. (Split a string into a sequence of characters, shorthand for `Str.split("")`)~~
 - [x] ~~🐛 Fix `Str.split(Str)` for strings which have multiple submatches per match, e.g. `"     0    w  e    r".split("  ")` segfaults. (Encountered in AOC '24 day 25)~~
 - [x] ~~`map` and some other array functions should also accept arity=0 functions, not only arity=1 and arity=2.~~
 - [x] ~~Implement `Seq.sum() -> Num`, `Tuple.sum() -> Num`. (Sum all elements. Requires some sort of \_\_add)~~

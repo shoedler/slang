@@ -130,7 +130,8 @@ int fprint_string_escaped(FILE* file, const char* str, int max_len, bool quote);
 // Returns the number of characters printed.
 int value_print_safe(FILE* file, Value value);
 
-// Native sort fn wrapper. Compares two Values using the [a] types SP_METHOD_LT.
+// Native sort fn wrapper. Compares two Values using the [a] types SP_METHOD_LT. [cmp_fn] is ignored, but required for the
+// function signature in sorting context. Returns -1 if a < b, and 1 if a >= b. Returns 0 on error and sets a VM error.
 int value_array_sort_compare_wrapper_native(Value a, Value b, Value cmp_fn);
 
 // Custom sort fn wrapper. Compare two Values using a custom comparison function [cmp_fn]. The function must take two arguments
