@@ -6,6 +6,7 @@
 #include <string.h>
 #include "chunk.h"
 #include "common.h"
+#include "file.h"
 #include "hashtable.h"
 #include "memory.h"
 #include "object.h"
@@ -1641,7 +1642,7 @@ static void destructuring(DestructureType type, bool rhs_is_import, bool is_cons
       cwd = str_value(copy_string("?", 1));
     }
 
-    char* absolute_path                  = vm_resolve_module_path((ObjString*)cwd.as.obj, NULL, file_path);
+    char* absolute_path                  = file_resolve_module_path(AS_CSTRING(cwd), NULL, file_path->chars);
     uint16_t absolute_file_path_constant = make_constant(str_value(copy_string(absolute_path, strlen(absolute_path))));
     free(absolute_path);  // since we copied to make sure it's allocated on our managed heap, we need to free it.
 

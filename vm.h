@@ -192,13 +192,6 @@ bool vm_inherits(ObjClass* klass, ObjClass* base);
 // `Stack: ...[a][b]` → `Stack: ...[a+b]`
 void vm_concatenate();
 
-// Resolves an import-path to an absolute file-path, based on the current working directory.
-// - [module_name] can be NULL, if the module is imported solely by [module_path] (relative or absolute).
-// - [module_path] can be NULL, if the module is expected to be in the same directory as the importing module and the file is
-// named after [module_name].
-// Returns the absolute path to the module. The caller is responsible for freeing the memory.
-char* vm_resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path);
-
 // Creates a sequence of length "count" from the top "count" values on the stack.
 // The resulting sequence is pushed onto the stack.
 // This is obviously O(n), so use it with caution.

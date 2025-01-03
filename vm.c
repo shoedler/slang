@@ -622,53 +622,6 @@ bool vm_inherits(ObjClass* klass, ObjClass* base) {
   return false;
 }
 
-char* vm_resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path) {
-  if (module_path == NULL && module_name == NULL) {
-    INTERNAL_ERROR("Cannot resolve module path. Both module name and path are NULL.");
-    exit(SLANG_EXIT_MEMORY_ERROR);
-  }
-
-  char* absolute_file_path;
-
-  // Either we have a module path, or we check the current working directory
-  if (module_path == NULL) {
-    // Just slap the module name + extension onto the cwd
-    char* module_file_name = file_ensure_slang_extension(module_name->chars);
-    absolute_file_path     = file_join_path(cwd->chars, module_file_name);
-    free(module_file_name);
-  } else {
-    // It's probably a realtive path, we add the extension to the provided path and prepend the cwd
-    char* module_path_ = file_ensure_slang_extension(module_path->chars);
-    absolute_file_path = file_join_path(cwd->chars, module_path_);
-    free(module_path_);
-
-    if (!file_exists(absolute_file_path)) {
-      // Clearly, it's not a relative path.
-      free(absolute_file_path);
-
-      // We assume it is an absolute path instead, which also has the extension already
-      absolute_file_path = malloc(module_path->length + 1);
-      if (absolute_file_path == NULL) {
-        INTERNAL_ERROR("Could not import module '%s'. Out of memory.",
-                       module_name == NULL ? module_path->chars : module_name->chars);
-        exit(SLANG_EXIT_MEMORY_ERROR);
-      }
-
-      strcpy(absolute_file_path, module_path->chars);
-    }
-  }
-
-  if (absolute_file_path == NULL) {
-    INTERNAL_ERROR(
-        "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
-        "'%s'",
-        module_name->chars, cwd->chars, module_path == NULL ? "NULL" : module_path->chars);
-    exit(SLANG_EXIT_IO_ERROR);
-  }
-
-  return absolute_file_path;
-}
-
 // Imports a module by [module_name] and pushes it onto the stack. If the module was already imported, it is loaded
 // from cache. If the module was not imported yet, it is loaded from the file system and then cached.
 // If [module_path] is NULL, the module is expected to be in the same directory as the importing module. Returns true if
@@ -685,52 +638,36 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
     return true;
   }
 
-  // First, we need to get the current working directory
-  Value cwd = native_cwd(0, NULL);
-  if (is_nil(cwd)) {
-    vm_error(
-        "Could not import module '%s'. Could not get current working directory, because there is no "
-        "active module or the active module is not a file.",
-        module_name->chars);
-    return false;
-  }
-
-  char* abs_module_path = vm_resolve_module_path(AS_STR(cwd), module_name, module_path);
-
   // Check if we have already imported the module by absolute path.
-  if (hashtable_get_by_string(&vm.modules, copy_string(abs_module_path, strlen(abs_module_path)), &module)) {
+  if (hashtable_get_by_string(&vm.modules, module_path, &module)) {
     vm_push(module);
-    free(abs_module_path);
     return true;
   }
 
   // Nope, so we need to load the module from the file system
-  if (!file_exists(abs_module_path)) {
-    vm_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars, abs_module_path);
-    free(abs_module_path);
+  if (!file_exists(module_path->chars)) {
+    vm_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars, module_path->chars);
     return false;
   }
 
   // Load the module by running the file
   int previous_exit_frame = vm.exit_on_frame;
   vm.exit_on_frame        = vm.frame_count;
-  module                  = vm_run_file(abs_module_path, module_name->chars);
+  module                  = vm_run_file2(module_path->chars, module_name->chars, true /* no warnings */);
   vm.exit_on_frame        = previous_exit_frame;
 
   // Check if the module is actually a module
   if (!(module.type == vm.module_class)) {
-    vm_error("Could not import module '%s' from file '%s'. Expected module type", module_name->chars, abs_module_path);
-    free(abs_module_path);
+    vm_error("Could not import module '%s' from file '%s'. Expected module type", module_name->chars, module_path->chars);
     return false;
   }
 
-  vm_push(module);  // Show ourselves to the GC before we do anything that might trigger a GC
-  ObjString* path = copy_string(abs_module_path, strlen(abs_module_path));
-  vm_push(str_value(path));  // Show ourselves to the GC before we do anything that might trigger a GC
-  hashtable_set(&vm.modules, str_value(path), module);
+  vm_push(module);                  // Show ourselves to the GC before we do anything that might trigger a GC
+  vm_push(str_value(module_path));  // Show ourselves to the GC before we do anything that might trigger a GC
+  hashtable_set(&vm.modules, str_value(module_path), module);
   vm_pop();  // path
+  // Leave the module on the stack
 
-  free(abs_module_path);
   return true;
 }
 

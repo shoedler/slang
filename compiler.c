@@ -546,25 +546,9 @@ static void compile_statement_import(FnCompiler* compiler, AstStatement* stmt) {
     emit_define_id_explicit(compiler, module_name, name);
   } else if (name_or_pattern->type == NODE_PATTERN) {
     AstPattern* pattern = (AstPattern*)name_or_pattern;
-
-    // Since we don't have a module name, we calculate the absolute path of the module here and use it as the module name.
-    // TODO: When loading a module from cache, we should compare their absolute paths instead of the module name to avoid
-    // loading the same module multiple times.
-    Value cwd;
-    if (!hashtable_get_by_string(&vm.module->fields, vm.special_prop_names[SPECIAL_PROP_FILE_PATH], &cwd)) {
-      INTERNAL_ERROR("Module file path not found in the fields of the active module (module." STR(SP_PROP_FILE_PATH) ").");
-      cwd = str_value(copy_string("?", 1));
-    }
-
-    char* absolute_path = vm_resolve_module_path((ObjString*)cwd.as.obj, NULL, stmt->path);
-    uint16_t absolute_file_path_constant =
-        make_constant(compiler, str_value(copy_string(absolute_path, strlen(absolute_path))), (AstNode*)stmt);
-    free(absolute_path);  // since we copied to make sure it's allocated on our managed heap, we need to free it.
-
+    uint16_t path       = make_constant(compiler, str_value(stmt->path), (AstNode*)stmt);
     emit_define_pattern_prelude(compiler, pattern);
-
-    emit_three(compiler, OP_IMPORT_FROM, absolute_file_path_constant, absolute_file_path_constant,
-               (AstNode*)stmt);  // Use the path as the module name.
+    emit_three(compiler, OP_IMPORT_FROM, path, path, (AstNode*)stmt);  // Use the path as the module name.
 
     emit_define_pattern(compiler, pattern);
   } else {

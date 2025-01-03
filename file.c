@@ -230,3 +230,43 @@ bool file_write(const char* path, const char* content) {
 
   return bytes_written == content_len;
 }
+
+char* file_resolve_module_path(const char* cwd, const char* module_name, const char* module_path) {
+  if (module_path == NULL && module_name == NULL) {
+    INTERNAL_ERROR("Cannot resolve module path. Both module name and path are NULL.");
+    exit(SLANG_EXIT_MEMORY_ERROR);
+  }
+
+  char* absolute_file_path;
+
+  // Either we have a module path, or we check the current working directory
+  if (module_path == NULL) {
+    // Just slap the module name + extension onto the cwd
+    char* module_file_name = file_ensure_slang_extension(module_name);
+    absolute_file_path     = file_join_path(cwd, module_file_name);
+    free(module_file_name);
+  } else {
+    // It's probably a realtive path, we add the extension to the provided path and prepend the cwd
+    char* module_path_ = file_ensure_slang_extension(module_path);
+    absolute_file_path = file_join_path(cwd, module_path_);
+    free(module_path_);
+
+    if (!file_exists(absolute_file_path)) {
+      // Clearly, it's not a relative path.
+      free(absolute_file_path);
+
+      // We assume it is an absolute path instead, which also has the extension already
+      absolute_file_path = strdup(module_path);
+    }
+  }
+
+  if (absolute_file_path == NULL) {
+    INTERNAL_ERROR(
+        "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
+        "'%s'",
+        module_name, cwd, module_path == NULL ? "NULL" : module_path);
+    exit(SLANG_EXIT_IO_ERROR);
+  }
+
+  return absolute_file_path;
+}

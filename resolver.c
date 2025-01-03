@@ -5,6 +5,7 @@
 #include <string.h>
 #include "ast.h"
 #include "chunk.h"
+#include "file.h"
 #include "object.h"
 #include "scanner.h"
 #include "scope.h"
@@ -609,13 +610,30 @@ static void resolve_declare_variable(FnResolver* resolver, AstDeclaration* decl)
 //
 
 static void resolve_statement_import(FnResolver* resolver, AstStatement* stmt) {
+  // Calculate the absolute path of the module to import
+  Value cwd_value;
+  if (!hashtable_get_by_string(resolver->global_scope, vm.special_prop_names[SPECIAL_PROP_FILE_PATH], &cwd_value)) {
+    resolver_error(resolver, (AstNode*)stmt, "Could not resolve current working directory.");
+  }
+  const char* cwd = AS_CSTRING(cwd_value);
+
   // We can already define the variables, since there's no expression to initialize them where they
   // could be used.
   if (stmt->base.children[0]->type == NODE_ID) {
-    AstId* id = get_child_as_id((AstNode*)stmt, 0, false);
+    AstId* id        = get_child_as_id((AstNode*)stmt, 0, false);
+    const char* path = stmt->path == NULL ? NULL : stmt->path->chars;
+
+    char* absolute_path = file_resolve_module_path(cwd, id->name->chars, path);
+    stmt->path          = copy_string(absolute_path, strlen(absolute_path));
+    free(absolute_path);
+
     declare_variable(resolver, id, false);
     define_variable(resolver, id);
   } else {
+    char* absolute_path = file_resolve_module_path(cwd, NULL, stmt->path->chars);
+    stmt->path          = copy_string(absolute_path, strlen(absolute_path));
+    free(absolute_path);
+
     AstPattern* pattern = (AstPattern*)stmt->base.children[0];
     declare_pattern(resolver, pattern, false);
     define_pattern(resolver, pattern);
