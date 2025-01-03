@@ -26,12 +26,13 @@ for let k = 0; k < 5; ++k; {
   for let j = 0; j < 30; ++j; {
     let i = 0
     while i < 10000 {
-      sum = sum + zoo.ant()
-                + zoo.banana()
-                + zoo.tuna()
-                + zoo.hay()
-                + zoo.grass()
-                + zoo.mouse()
+      sum = sum + 
+            zoo.ant() + 
+            zoo.banana() + 
+            zoo.tuna() + 
+            zoo.hay() + 
+            zoo.grass() + 
+            zoo.mouse()
       ++i
     }
   }
