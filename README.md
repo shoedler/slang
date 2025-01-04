@@ -43,8 +43,8 @@ You can, for example, easily cache stuff:
 - [ ] Add resolver warn for vars that could be constant.
 - [ ] Make parser marking possible and remove disabling the GC during parsing.
 - [ ] Turn globals / natives into an array. Because we can resolve it now at compile time. This would also allow for constant time global variable lookup
-- [ ] Make REPL use the new compiler
 - [ ] Remove `run-old` completely
+- [x] ~~Make REPL use the new compiler~~
 - [x] ~~Move path resolution from the compiler to the resolver.~~
 - [x] ~~Remove `in_global_scope` and `current_scope` from the compiler - that should be handled via the resolver. Currently needed for destructuring, but I think that should be possible without it.~~
 

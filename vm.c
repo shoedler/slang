@@ -653,7 +653,7 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   // Load the module by running the file
   int previous_exit_frame = vm.exit_on_frame;
   vm.exit_on_frame        = vm.frame_count;
-  module                  = vm_run_file2(module_path->chars, module_name->chars, true /* no warnings */);
+  module                  = vm_run_module(module_path->chars, module_name->chars, true /* no warnings */);
   vm.exit_on_frame        = previous_exit_frame;
 
   // Check if the module is actually a module
@@ -1673,12 +1673,20 @@ ObjObject* vm_make_module(const char* source_path, const char* module_name) {
   return module;
 }
 
-void vm_start_module(const char* source_path, const char* module_name) {
-  ObjObject* module = vm_make_module(source_path, module_name);
-  vm.module         = module;
+ObjObject* vm_start_module(const char* source_path, const char* module_name) {
+  ObjObject* enclosing_module = vm.module;
+  ObjObject* module           = vm_make_module(source_path, module_name);
+  vm.module                   = module;
+  return enclosing_module;
 }
 
-Value vm_interpret(const char* source, const char* source_path, const char* module_name) {
+static ObjObject* vm_end_module(ObjObject* enclosing_module) {
+  ObjObject* module = vm.module;
+  vm.module         = enclosing_module;
+  return module;
+}
+
+Value vm_interpret_old(const char* source, const char* source_path, const char* module_name) {
   ObjObject* enclosing_module = vm.module;
   bool is_module              = module_name != NULL && source_path != NULL;
 
@@ -1711,7 +1719,7 @@ Value vm_interpret(const char* source, const char* source_path, const char* modu
   return result;
 }
 
-Value vm_run_file(const char* path, const char* module_name) {
+Value vm_run_file_old(const char* path, const char* module_name) {
 #ifdef DEBUG_TRACE_EXECUTION
   printf("\n");
   printf(ANSI_CYAN_STR("Running file: %s\n"), path);
@@ -1724,7 +1732,7 @@ Value vm_run_file(const char* path, const char* module_name) {
     return nil_value();
   }
 
-  Value result = vm_interpret(source, path, name);
+  Value result = vm_interpret_old(source, path, name);
   free(source);
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -1735,8 +1743,52 @@ Value vm_run_file(const char* path, const char* module_name) {
   return result;
 }
 
-Value vm_run_file2(const char* source_path, const char* module_name, bool disable_warnings) {
-  bool is_module = module_name != NULL && source_path != NULL;
+Value vm_interpret(const char* source, ObjString* name, bool disable_warnings) {
+  if (name == NULL) {
+    name = copy_string(VALUE_STR_ANON_FN, STR_LEN(VALUE_STR_ANON_FN));
+  }
+
+  // Parse
+  AstFn* ast = NULL;
+  VM_SET_FLAG(VM_FLAG_PAUSE_GC);
+  bool parsed = parse(source, name, &ast);
+  if (!parsed) {
+    exit(SLANG_EXIT_COMPILE_ERROR);
+  }
+  VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
+
+  // Resolve
+  bool resolved = resolve(ast, &vm.module->fields, &vm.natives, disable_warnings);
+  if (!resolved) {
+    ast_free((AstNode*)ast);
+    exit(SLANG_EXIT_COMPILE_ERROR);
+  }
+
+  // Compile
+  ObjFunction* function = NULL;
+  bool compiled         = compile(ast, vm.module, &function);
+  if (!compiled) {
+    ast_free((AstNode*)ast);
+    exit(SLANG_EXIT_COMPILE_ERROR);
+  }
+  ast_free((AstNode*)ast);  // No longer needed
+
+  // Run
+  Value root_fn_value = nil_value();
+  if (function != NULL) {
+    vm_push(fn_value((Obj*)function));  // Gc protection
+    ObjClosure* closure = new_closure(function);
+    vm_pop();
+    vm_push(fn_value((Obj*)closure));
+    call_value(fn_value((Obj*)closure), 0);
+
+    root_fn_value = run();
+  }
+
+  return root_fn_value;
+}
+
+Value vm_run_module(const char* source_path, const char* module_name, bool disable_warnings) {
 #ifdef DEBUG_TRACE_EXECUTION
   printf("\n");
   printf(ANSI_CYAN_STR("Running file: %s\n"), source_path);
@@ -1748,59 +1800,17 @@ Value vm_run_file2(const char* source_path, const char* module_name, bool disabl
     return nil_value();
   }
 
-  ObjObject* enclosing_module = vm.module;
-  if (is_module) {
-    vm_start_module(source_path, name);
-  }
-
-  // Parse
-  AstFn* ast = NULL;
-  VM_SET_FLAG(VM_FLAG_PAUSE_GC);
-  bool parsed = parse(source, copy_string(name, (int)strlen(name)), &ast);
-  if (!parsed) {
-    free(source);
-    exit(SLANG_EXIT_COMPILE_ERROR);
-  }
-  VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
-
-  // Resolve
-  bool resolved = resolve(ast, &vm.module->fields, &vm.natives, disable_warnings);
-  if (!resolved) {
-    ast_free((AstNode*)ast);
-    free(source);
-    exit(SLANG_EXIT_COMPILE_ERROR);
-  }
-
-  // Compile
-  ObjFunction* function = NULL;
-  bool compiled         = compile(ast, vm.module, &function);
-  if (!compiled) {
-    ast_free((AstNode*)ast);
-    free(source);
-    exit(SLANG_EXIT_COMPILE_ERROR);
-  }
-  ast_free((AstNode*)ast);  // No longer needed
-
-  // Interpret
-  Value result = nil_value();
-  if (function != NULL) {
-    vm_push(fn_value((Obj*)function));  // Gc protection
-    ObjClosure* closure = new_closure(function);
-    vm_pop();
-    vm_push(fn_value((Obj*)closure));
-    call_value(fn_value((Obj*)closure), 0);
-
-    result = run();
-    if (is_module) {
-      result = instance_value(vm.module);
-    }
-  }
-
-  if (is_module) {
-    vm.module = enclosing_module;
-  }
+  // Don't need the result, we just want the module
+  ObjObject* enclosing_module = vm_start_module(source_path, name);
+  vm_interpret(source, copy_string(name, (int)strlen(name)), disable_warnings);
+  ObjObject* module = vm_end_module(enclosing_module);
 
   free(source);
 
+  Value result = instance_value(module);
+#ifdef DEBUG_TRACE_EXECUTION
+  printf(ANSI_CYAN_STR("Done running file: %s\n"), source_path);
+  printf("\n");
+#endif
   return result;
 }

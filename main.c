@@ -107,14 +107,14 @@ static SlangExitCode repl() {
   vm_start_module(cwd, CMD_REPL);
 
   for (;;) {
-    printf("slang > ");
+    printf(ANSI_GRAY_STR("slang > "));
 
     if (!fgets(line, sizeof(line), stdin)) {
       printf("\n");
       break;
     }
 
-    vm_interpret(line, NULL, NULL);
+    vm_interpret(line, NULL, true /* disable_warnings */);
   }
 
   return shutdown_vm();
@@ -133,7 +133,7 @@ static SlangExitCode run_old() {
     exit(SLANG_EXIT_BAD_USAGE);
   }
 
-  vm_run_file(path, "main");
+  vm_run_file_old(path, "main");
 
   return shutdown_vm();
 }
@@ -153,7 +153,7 @@ static SlangExitCode run() {
     exit(SLANG_EXIT_BAD_USAGE);
   }
 
-  vm_run_file2(path, "main", disable_warnings);
+  vm_run_module(path, "main", disable_warnings);
 
   return shutdown_vm();
 }

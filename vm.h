@@ -142,21 +142,22 @@ void vm_free();
 // Creates a new module instance. [source_path] is optional. The [module_name] however, is required.
 ObjObject* vm_make_module(const char* source_path, const char* module_name);
 
-// Creates a new module instance and sets it as the current module.
-void vm_start_module(const char* source_path, const char* module_name);
+// Creates a new module instance and sets it as the current module. Returns the previous (enclosing) module, which can be NULL, if
+// this is the first module being created.
+ObjObject* vm_start_module(const char* source_path, const char* module_name);
 
-// Takes a string of source code, compiles it and then runs it.
-// Returns the result of the interpretation as a value.
-// Accepts an optional source path and name for the module which should result from calling this function.
-// Calling without the latter two arguments just runs the code as a script.
-Value vm_interpret(const char* source, const char* source_path, const char* module_name);
+// Takes a string of source code, compiles it and then runs it. Returns the result of the interpretation as a value.
+// Since every interpretation will return a function value, a [name] is required for it. If [name] is NULL, the default name for
+// anonymous functions is used.
+Value vm_interpret(const char* source, ObjString* name, bool disable_warnings);
 
-// Reads a file from path, compiles it and then runs it.
-// Returns the result of the interpretation as a value.
-// Accepts an optional name for the module which should result from calling this function. If NULL is
-// provided, path is used as the name.
-Value vm_run_file(const char* path, const char* module_name);
-Value vm_run_file2(const char* source_path, const char* module_name, bool disable_warnings);
+// Reads a file from path, compiles it and then runs it. Returns the result of the interpretation as a value. Accepts an optional
+// name for the module which should result from calling this function. If NULL is provided, path is used as the name.
+Value vm_run_file_old(const char* path, const char* module_name);
+
+// Reads a file from path, compiles it and then runs it. Returns the result of the interpretation as a value. Accepts an optional
+// name for the module which should result from calling this function. If NULL is provided, path is used as the name.
+Value vm_run_module(const char* source_path, const char* module_name, bool disable_warnings);
 
 // Push a value onto the stack.
 void vm_push(Value value);

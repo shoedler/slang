@@ -376,7 +376,7 @@ static void compiler_init(OldCompiler* compiler, FunctionType type) {
       current->function->name = copy_string("(Unnamed module)", STR_LEN("(Unnamed module)"));
       break;
     }
-    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("$anon_fn$", STR_LEN("$anon_fn$")); break;
+    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string(VALUE_STR_ANON_FN, STR_LEN(VALUE_STR_ANON_FN)); break;
     case TYPE_CONSTRUCTOR: current->function->name = vm.special_method_names[SPECIAL_METHOD_CTOR]; break;
     default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
   }

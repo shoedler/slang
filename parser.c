@@ -421,7 +421,7 @@ static AstExpression* parse_literal(Parser* parser, Token expr_start) {
 }
 
 static AstExpression* parse_expr_anon_fn(Parser* parser, Token expr_start) {
-  Token name = synthetic_token("$anon_fn$");
+  Token name = synthetic_token(VALUE_STR_ANON_FN);
   AstFn* fn  = parse_function(parser, expr_start, name, FN_TYPE_ANONYMOUS_FUNCTION);
   return ast_expr_anon_fn_init(expr_start, parser->previous, fn);
 }

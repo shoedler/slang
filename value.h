@@ -38,6 +38,7 @@ typedef struct ObjClass ObjClass;
 #define VALUE_STR_TRUE "true"
 #define VALUE_STR_FALSE "false"
 #define VALUE_STR_NIL "nil"
+#define VALUE_STR_ANON_FN "$anon_fn$"
 #define VALUE_STR_EMPTY_INTERNAL "EMPTY_INTERNAL"
 
 #define VALUE_STRFMT_FUNCTION "<Fn %s>"
