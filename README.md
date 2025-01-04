@@ -100,6 +100,7 @@ You can, for example, easily cache stuff:
 - [ ] Add test for `Math.band(Int, Int) -> Int` (Or maybe move to `Int`?)
 - [ ] Add test for `Str.ascii() -> Seq` which includes special characters.
 - [ ] Maybe check for `NULL` functions in `vm_exec_callable` instead of before calling it - would add some overhead though.
+- [ ] Collect compile-time errors as strings and print them either directly when they occur (when compiling an entry point), or, as part of a failed import error message (runtime error). Currently, the compiler pipeline directly prints to stderr, which is a little confusing, as e.g. parser errors will be printed before the runtime error message for a failed import. see `module-import-wiht-compile-error.spec.sl` for an example.
 - [x] ~~Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.~~
 - [x] ~~Add `Tuple.order` test.~~
 - [x] ~~Remove `"" + value.to_str()` throughout the codebase, `"" + value` should now work.~~

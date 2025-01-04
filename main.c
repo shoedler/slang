@@ -71,20 +71,6 @@ static void configure_vm() {
   }
 }
 
-static SlangExitCode shutdown_vm() {
-  int exit_code = 0;
-
-  if (VM_HAS_FLAG(VM_FLAG_HAD_COMPILE_ERROR)) {
-    exit_code = SLANG_EXIT_COMPILE_ERROR;
-  } else if (VM_HAS_FLAG(VM_FLAG_HAD_UNCAUGHT_RUNTIME_ERROR)) {
-    exit_code = SLANG_EXIT_RUNTIME_ERROR;
-  }
-
-  vm_free();
-
-  return exit_code;
-}
-
 static SlangExitCode repl() {
   configure_vm();
 
@@ -117,7 +103,8 @@ static SlangExitCode repl() {
     vm_interpret(line, NULL, true /* disable_warnings */);
   }
 
-  return shutdown_vm();
+  vm_free();
+  return SLANG_EXIT_SUCCESS;
 }
 
 static SlangExitCode run_old() {
@@ -135,7 +122,15 @@ static SlangExitCode run_old() {
 
   vm_run_file_old(path, "main");
 
-  return shutdown_vm();
+  SlangExitCode exit_code = SLANG_EXIT_SUCCESS;
+  if (VM_HAS_FLAG(VM_FLAG_HAD_COMPILE_ERROR)) {
+    exit_code = SLANG_EXIT_COMPILE_ERROR;
+  } else if (VM_HAS_FLAG(VM_FLAG_HAD_UNCAUGHT_RUNTIME_ERROR)) {
+    exit_code = SLANG_EXIT_RUNTIME_ERROR;
+  }
+  vm_free();
+
+  return exit_code;
 }
 
 static SlangExitCode run() {
@@ -146,16 +141,14 @@ static SlangExitCode run() {
   const char* path = pop_option();
   if (path == NULL) {
     usage("No path provided for " CMD_RUN);
-    exit(SLANG_EXIT_BAD_USAGE);
+    return SLANG_EXIT_BAD_USAGE;
   }
   if (!validate_options()) {
     usage("Unknown options for " CMD_RUN);
-    exit(SLANG_EXIT_BAD_USAGE);
+    return SLANG_EXIT_BAD_USAGE;
   }
 
-  vm_run_module(path, "main", disable_warnings);
-
-  return shutdown_vm();
+  return vm_run_entry_point(path, disable_warnings);
 }
 
 int main(int argc, char* argv[]) {

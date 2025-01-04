@@ -146,18 +146,22 @@ ObjObject* vm_make_module(const char* source_path, const char* module_name);
 // this is the first module being created.
 ObjObject* vm_start_module(const char* source_path, const char* module_name);
 
-// Takes a string of source code, compiles it and then runs it. Returns the result of the interpretation as a value.
-// Since every interpretation will return a function value, a [name] is required for it. If [name] is NULL, the default name for
-// anonymous functions is used.
-Value vm_interpret(const char* source, ObjString* name, bool disable_warnings);
+// Takes a string of source code, compiles it and then runs it. Returns the exit code of the interpretation.
+// Since every interpretation will produce a function value (the toplevel), a [name] is required for it. If [name] is NULL, the
+// default name for anonymous functions is used - this will affect error messages.
+SlangExitCode vm_interpret(const char* source, ObjString* name, bool disable_warnings);
 
 // Reads a file from path, compiles it and then runs it. Returns the result of the interpretation as a value. Accepts an optional
 // name for the module which should result from calling this function. If NULL is provided, path is used as the name.
 Value vm_run_file_old(const char* path, const char* module_name);
 
-// Reads a file from path, compiles it and then runs it. Returns the result of the interpretation as a value. Accepts an optional
-// name for the module which should result from calling this function. If NULL is provided, path is used as the name.
+// Reads a module from [source_path], compiles it and then runs it. Returns the resulting module as an instance value. Accepts an
+// optional [module_name] for the module which should result from calling this function. If NULL is provided, [source_path] is
+// used as the name.
 Value vm_run_module(const char* source_path, const char* module_name, bool disable_warnings);
+
+// Reads a file from [source_path], compiles it and then runs it. Returns the resulting exit code.
+SlangExitCode vm_run_entry_point(const char* source_path, bool disable_warnings);
 
 // Push a value onto the stack.
 void vm_push(Value value);

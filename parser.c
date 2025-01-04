@@ -1167,12 +1167,7 @@ bool parse(const char* source, ObjString* name, AstFn** ast) {
   ast_print((AstNode*)*ast, 0);
 #endif
 
-  if (parser.had_error) {
-    ast_free((AstNode*)*ast);
-    return false;
-  }
-
-  return true;
+  return !parser.had_error;
 }
 
 void parser_mark_roots() {

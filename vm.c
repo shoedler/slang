@@ -656,6 +656,10 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
   module                  = vm_run_module(module_path->chars, module_name->chars, true /* no warnings */);
   vm.exit_on_frame        = previous_exit_frame;
 
+  if (module.type == vm.nil_class) {
+    return false;  // There was an error loading the module
+  }
+
   // Check if the module is actually a module
   if (!(module.type == vm.module_class)) {
     vm_error("Could not import module '%s' from file '%s'. Expected module type", module_name->chars, module_path->chars);
@@ -1743,7 +1747,7 @@ Value vm_run_file_old(const char* path, const char* module_name) {
   return result;
 }
 
-Value vm_interpret(const char* source, ObjString* name, bool disable_warnings) {
+SlangExitCode vm_interpret(const char* source, ObjString* name, bool disable_warnings) {
   if (name == NULL) {
     name = copy_string(VALUE_STR_ANON_FN, STR_LEN(VALUE_STR_ANON_FN));
   }
@@ -1752,29 +1756,28 @@ Value vm_interpret(const char* source, ObjString* name, bool disable_warnings) {
   AstFn* ast = NULL;
   VM_SET_FLAG(VM_FLAG_PAUSE_GC);
   bool parsed = parse(source, name, &ast);
-  if (!parsed) {
-    exit(SLANG_EXIT_COMPILE_ERROR);
-  }
   VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
+  if (!parsed) {
+    ast_free((AstNode*)ast);
+    return SLANG_EXIT_COMPILE_ERROR;
+  }
 
   // Resolve
   bool resolved = resolve(ast, &vm.module->fields, &vm.natives, disable_warnings);
   if (!resolved) {
     ast_free((AstNode*)ast);
-    exit(SLANG_EXIT_COMPILE_ERROR);
+    return SLANG_EXIT_COMPILE_ERROR;
   }
 
   // Compile
   ObjFunction* function = NULL;
   bool compiled         = compile(ast, vm.module, &function);
+  ast_free((AstNode*)ast);  // We don't need the AST anymore
   if (!compiled) {
-    ast_free((AstNode*)ast);
-    exit(SLANG_EXIT_COMPILE_ERROR);
+    return SLANG_EXIT_COMPILE_ERROR;
   }
-  ast_free((AstNode*)ast);  // No longer needed
 
   // Run
-  Value root_fn_value = nil_value();
   if (function != NULL) {
     vm_push(fn_value((Obj*)function));  // Gc protection
     ObjClosure* closure = new_closure(function);
@@ -1782,35 +1785,87 @@ Value vm_interpret(const char* source, ObjString* name, bool disable_warnings) {
     vm_push(fn_value((Obj*)closure));
     call_value(fn_value((Obj*)closure), 0);
 
-    root_fn_value = run();
+    run();
   }
 
-  return root_fn_value;
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    return SLANG_EXIT_RUNTIME_ERROR;
+  }
+  return SLANG_EXIT_SUCCESS;
 }
 
 Value vm_run_module(const char* source_path, const char* module_name, bool disable_warnings) {
 #ifdef DEBUG_TRACE_EXECUTION
   printf("\n");
-  printf(ANSI_CYAN_STR("Running file: %s\n"), source_path);
+  printf(ANSI_CYAN_STR("Running module: %s\n"), source_path);
 #endif
   const char* name = module_name == NULL ? source_path : module_name;
   char* source     = file_read(source_path);
   if (source == NULL) {
     free(source);
+    vm_error("Running module '%s' failed. Could not read source from file '%s'.", name, source_path);
     return nil_value();
   }
 
-  // Don't need the result, we just want the module
   ObjObject* enclosing_module = vm_start_module(source_path, name);
-  vm_interpret(source, copy_string(name, (int)strlen(name)), disable_warnings);
-  ObjObject* module = vm_end_module(enclosing_module);
-
+  SlangExitCode code          = vm_interpret(source, copy_string(name, (int)strlen(name)), disable_warnings);
+  ObjObject* module           = vm_end_module(enclosing_module);  // Will be an instance of the module class, even on error
   free(source);
 
-  Value result = instance_value(module);
+  Value module_value = nil_value();
+  switch (code) {
+    case SLANG_EXIT_SUCCESS: {
+      module_value = instance_value(module);
+      break;
+    }
+    case SLANG_EXIT_COMPILE_ERROR: {
+      vm_error("Running module '%s' failed with a compile error.", name);
+      break;
+    }
+    case SLANG_EXIT_RUNTIME_ERROR: {
+      // Propagate the error
+      break;
+    }
+    default: {
+      vm_error("Running module '%s' yielded %d failure code.", name, code);
+      break;
+    }
+  }
+
 #ifdef DEBUG_TRACE_EXECUTION
-  printf(ANSI_CYAN_STR("Done running file: %s\n"), source_path);
+  printf(ANSI_CYAN_STR("Done running module: %s\n"), source_path);
   printf("\n");
 #endif
-  return result;
+
+  return module_value;
+}
+
+SlangExitCode vm_run_entry_point(const char* source_path, bool disable_warnings) {
+#ifdef DEBUG_TRACE_EXECUTION
+  printf("\n");
+  printf(ANSI_CYAN_STR("Running entry point: %s\n"), source_path);
+#endif
+  char* source = file_read(source_path);
+  if (source == NULL) {
+    free(source);
+    fprintf(stderr, "Could not read file \"%s\".\n", source_path);
+    return SLANG_EXIT_IO_ERROR;
+  }
+
+  ObjObject* enclosing_module = vm_start_module(source_path, "main");
+  SlangExitCode code          = vm_interpret(source, copy_string("main", STR_LEN("main")), disable_warnings);
+  vm_end_module(enclosing_module);
+  free(source);
+
+#ifdef DEBUG_TRACE_EXECUTION
+  printf(ANSI_CYAN_STR("Done running entry point: %s\n"), source_path);
+  printf("\n");
+#endif
+
+  // Special case, because the VM_HAS_ERROR flag is reset even after an uncaught runtime error, so, we need to check for it
+  if (VM_HAS_FLAG(VM_FLAG_HAD_UNCAUGHT_RUNTIME_ERROR)) {
+    return SLANG_EXIT_RUNTIME_ERROR;
+  }
+
+  return code;
 }
