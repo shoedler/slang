@@ -59,7 +59,7 @@ fn max_relief(vid, opened, min_left, type) {
     prev_opened[vid] = true
     let new_opened = Tuple(prev_opened)
 
-    for let i = 0; i < tunnel.len; i++ ; {
+    for let i = 0; i < tunnel.len; ++i ; {
       // We subtract 2 from min_left because it takes 1 minute to open the valve and 1 minute to walk trough the tunnel.
       let reliefed = valve_relief + max_relief(valve_labels[tunnel[i]], new_opened, min_left - 2, type)
       max_reliefed = reliefed > max_reliefed ? reliefed : max_reliefed
@@ -67,7 +67,7 @@ fn max_relief(vid, opened, min_left, type) {
   }
  
   // Also run the case where we don't open the valve
-  for let i = 0; i < tunnel.len; i++ ; {
+  for let i = 0; i < tunnel.len; ++i ; {
     // In this case, we only subtract 1 from min_left, because we only need to walk trough the tunnel to the next valve.
     let reliefed = max_relief(valve_labels[tunnel[i]], opened, min_left - 1, type)
     max_reliefed = reliefed > max_reliefed ? reliefed : max_reliefed
