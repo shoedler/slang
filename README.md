@@ -35,6 +35,7 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
+- [ ] Fix "unused var" warnings for late-bound globals
 - [ ] Resolve natives and imports of cached modules in the compiler maybe? We could easily just look the stuff up and emit a value for it (e.g. constant, or some new OP like `OP_PRECOMPILED`) instead of looking it up in the VM.
 - [ ] Test if assignment to patterns works, because declarations do.
 - [ ] After testing: Refactor module imports without Module name (imports using "from").
@@ -85,6 +86,15 @@ You can, for example, easily cache stuff:
 
 ## Improvements
 
+- [ ] Verify that value-array sorting should use SP_METHOD_LT (currently used), and not SP_METHOD_LTEQ instead?
+- [ ] Refactor comparators to `FLOAT_COMPARATOR` and `INT_COMPARATOR` respectively - just like in **native_type_str.c** (see `STR_COMPARATOR`).
+- [ ] Rename `Str.reps` to `Str.rep` for consistency.
+- [ ] String refactoring:
+  - [ ] Move to UTF-16 / unicode codepoints.
+  - [ ] Refactor/remove `Str.ascii()`
+  - [ ] Refactor/remove `Str.ascii_at()`
+  - [ ] Refactor/remove `static Str.from_ascii(Int) -> Str`
+  - [ ] Refactor str comparison functions
 - [ ] Improve destructuring assignment:
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
 - [ ] Make managed-code callables accept less arguments than it has parameters. There is an inconsistency, since native-callables allow this. Should be easy, just pass `nil` to the missing arguments.
@@ -99,6 +109,12 @@ You can, for example, easily cache stuff:
 - [ ] Add test for `Math.bor(Int, Int) -> Int` (Or maybe move to `Int`?)
 - [ ] Add test for `Math.band(Int, Int) -> Int` (Or maybe move to `Int`?)
 - [ ] Add test for `Str.ascii() -> Seq` which includes special characters.
+- [ ] Add test for `Str.ascii_at(Int) -> Int` which includes special characters.
+- [ ] Add test for `static Str.from_ascii(Int) -> Str` which includes special characters.
+- [ ] Add test for `Str.SP_METHOD_LT(Str) -> Bool`, also for sorting.
+- [ ] Add test for `Str.SP_METHOD_LTEQ(Str) -> Bool`
+- [ ] Add test for `Str.SP_METHOD_GT(Str) -> Bool`
+- [ ] Add test for `Str.SP_METHOD_GTEQ(Str) -> Bool`
 - [ ] Maybe check for `NULL` functions in `vm_exec_callable` instead of before calling it - would add some overhead though.
 - [ ] Collect compile-time errors as strings and print them either directly when they occur (when compiling an entry point), or, as part of a failed import error message (runtime error). Currently, the compiler pipeline directly prints to stderr, which is a little confusing, as e.g. parser errors will be printed before the runtime error message for a failed import. see `module-import-wiht-compile-error.spec.sl` for an example.
 - [x] ~~Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.~~

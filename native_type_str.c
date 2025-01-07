@@ -15,13 +15,19 @@ static Value str_to_str(int argc, Value argv[]);
 static Value str_has(int argc, Value argv[]);
 static Value str_slice(int argc, Value argv[]);
 static Value str_add(int argc, Value argv[]);
+static Value str_lt(int argc, Value argv[]);
+static Value str_gt(int argc, Value argv[]);
+static Value str_lteq(int argc, Value argv[]);
+static Value str_gteq(int argc, Value argv[]);
 
 static Value str_split(int argc, Value argv[]);
 static Value str_trim(int argc, Value argv[]);
 static Value str_ints(int argc, Value argv[]);
 static Value str_ascii(int argc, Value argv[]);
+static Value str_ascii_at(int argc, Value argv[]);
 static Value str_chars(int argc, Value argv[]);
 static Value str_reps(int argc, Value argv[]);
+static Value str_from_ascii(int argc, Value argv[]);
 
 ObjClass* native_str_class_partial_init() {
   ObjClass* str_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
@@ -46,17 +52,20 @@ void native_str_class_finalize() {
   define_native(&vm.str_class->methods, STR(SP_METHOD_MUL), native___mul_not_supported, 1);
   define_native(&vm.str_class->methods, STR(SP_METHOD_DIV), native___div_not_supported, 1);
   define_native(&vm.str_class->methods, STR(SP_METHOD_MOD), native___mod_not_supported, 1);
-  define_native(&vm.str_class->methods, STR(SP_METHOD_LT), native___lt_not_supported, 1);
-  define_native(&vm.str_class->methods, STR(SP_METHOD_GT), native___gt_not_supported, 1);
-  define_native(&vm.str_class->methods, STR(SP_METHOD_LTEQ), native___lteq_not_supported, 1);
-  define_native(&vm.str_class->methods, STR(SP_METHOD_GTEQ), native___gteq_not_supported, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_LT), str_lt, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_GT), str_gt, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_LTEQ), str_lteq, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_GTEQ), str_gteq, 1);
 
   define_native(&vm.str_class->methods, "split", str_split, 1);
   define_native(&vm.str_class->methods, "trim", str_trim, 0);
   define_native(&vm.str_class->methods, "ints", str_ints, 0);
   define_native(&vm.str_class->methods, "ascii", str_ascii, 0);
+  define_native(&vm.str_class->methods, "ascii_at", str_ascii_at, 1);
   define_native(&vm.str_class->methods, "chars", str_chars, 0);
   define_native(&vm.str_class->methods, "reps", str_reps, 1);
+
+  define_native(&vm.str_class->static_methods, "from_ascii", str_from_ascii, 1);
   finalize_new_class(vm.str_class);
 }
 
@@ -314,6 +323,47 @@ static Value str_add(int argc, Value argv[]) {
   return vm_pop();  // The new string
 }
 
+#define STR_COMPARATOR(name, op, length_op)                                       \
+  static Value name(int argc, Value argv[]) {                                     \
+    UNUSED(argc);                                                                 \
+    NATIVE_CHECK_RECEIVER(vm.str_class)                                           \
+    NATIVE_CHECK_ARG_AT(1, vm.str_class)                                          \
+                                                                                  \
+    ObjString* left  = AS_STR(argv[0]);                                           \
+    ObjString* right = AS_STR(argv[1]);                                           \
+                                                                                  \
+    int min_length = left->length < right->length ? left->length : right->length; \
+    int cmp        = strncmp(left->chars, right->chars, min_length);              \
+                                                                                  \
+    if (cmp == 0) {                                                               \
+      return bool_value(left->length length_op right->length);                    \
+    }                                                                             \
+                                                                                  \
+    return bool_value(cmp op 0);                                                  \
+  }
+
+/**
+ * TYPENAME_STRING.SP_METHOD_LT(other: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Compares two TYPENAME_STRINGs lexicographically.
+ */
+STR_COMPARATOR(str_lt, <, <)
+/**
+ * TYPENAME_STRING.SP_METHOD_GT(other: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Compares two TYPENAME_STRINGs lexicographically.
+ */
+STR_COMPARATOR(str_gt, >, >)
+/**
+ * TYPENAME_STRING.SP_METHOD_LTEQ(other: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Compares two TYPENAME_STRINGs lexicographically.
+ */
+STR_COMPARATOR(str_lteq, <, <=)
+/**
+ * TYPENAME_STRING.SP_METHOD_GTEQ(other: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Compares two TYPENAME_STRINGs lexicographically.
+ */
+STR_COMPARATOR(str_gteq, >, >=)
+#undef STR_COMPARATOR
+
 static bool is_digit(char c) {
   return c >= '0' && c <= '9';
 }
@@ -393,6 +443,26 @@ static Value str_ascii(int argc, Value argv[]) {
 }
 
 /**
+ * TYPENAME_STRING.ascii_at(index: TYPENAME_INT) -> TYPENAME_INT
+ * @brief Returns the ASCII value of the character at the given index in the TYPENAME_STRING. If the index is out of bounds, -1 is
+ * returned.
+ */
+static Value str_ascii_at(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.str_class);
+  NATIVE_CHECK_ARG_AT(1, vm.int_class);
+
+  ObjString* str = AS_STR(argv[0]);
+  int index      = (int)argv[1].as.integer;
+
+  if (index < 0 || index >= str->length) {
+    return int_value(-1);
+  }
+
+  return int_value((int)str->chars[index]);
+}
+
+/**
  * TYPENAME_STRING.chars() -> TYPENAME_SEQ
  * @brief Returns a TYPENAME_SEQ containing individual characters of the TYPENAME_STRING.
  */
@@ -437,4 +507,22 @@ static Value str_reps(int argc, Value argv[]) {
   new_str[new_length] = '\0';
 
   return str_value(copy_string(new_str, new_length));
+}
+
+/**
+ * static TYPENAME_STRING.from_ascii(code: TYPENAME_INT) -> TYPENAME_STRING
+ * @brief Returns a new TYPENAME_STRING containing the character represented by the ASCII value 'code'.
+ */
+static Value str_from_ascii(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_ARG_AT(1, vm.int_class)
+
+  int code = (int)argv[1].as.integer;
+  if (code < 0 || code > 255) {
+    vm_error("Invalid ASCII code %d.", code);
+    return nil_value();
+  }
+
+  char c = (char)code;
+  return str_value(copy_string(&c, 1));
 }

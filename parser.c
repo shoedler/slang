@@ -376,6 +376,7 @@ static AstExpression* parse_literal_string(Parser* parser, Token expr_start) {
           case '\\': PUSH_CHAR('\\'); break;
           case '\"': PUSH_CHAR('\"'); break;
           case '\'': PUSH_CHAR('\''); break;
+          case '0': PUSH_CHAR('\0'); break;  // Null character
           default: parser_error_at_current(parser, "Invalid escape sequence."); goto FINISH_STR;
         }
         cur += 2;
