@@ -7,6 +7,7 @@ import { BENCH_LOG_FILE, BENCH_PRE_SUFFIX, SlangBuildConfigs, SlangFileSuffixes,
 import {
   LOG_CONFIG,
   createOrAppendJsonFile,
+  error,
   getProcessorName,
   gitStatus,
   info,
@@ -16,11 +17,7 @@ import {
   warn,
 } from './utils.ts';
 
-type BenchmarkResult = {
-  name: string;
-  cpu: string;
-  lang: string;
-  v: string;
+type BenchmarkRun = {
   date: Date;
   score: number;
   best: number;
@@ -29,31 +26,45 @@ type BenchmarkResult = {
   sd: number;
 };
 
+type BenchmarkResult = {
+  name: string;
+  cpu: string;
+  lang: string;
+  v: string;
+} & BenchmarkRun;
+
 type Benchmark = {
   name: string;
   regex: RegExp;
 };
 
+type Language = {
+  name: string;
+  ext: `.${string}`;
+  cmdRunFile: string[];
+  cmdGetVersion: string[];
+};
+
 const NUM_RUNS = 20; // Number of runs for each benchmark
 
-const LANGUAGES = [
+const LANGUAGES: Language[] = [
   {
-    lang: 'slang',
+    name: 'slang',
     ext: SlangFileSuffixes.Slang,
-    cmd: [`${path.join(SlangPaths.BinDir, SlangBuildConfigs.Release, 'slang')}`, 'run'],
-    version: [`${path.join(SlangPaths.BinDir, SlangBuildConfigs.Release, 'slang')}`, '--version'],
+    cmdRunFile: [`${path.join(SlangPaths.BinDir, SlangBuildConfigs.Release, 'slang')}`, 'run'],
+    cmdGetVersion: [`${path.join(SlangPaths.BinDir, SlangBuildConfigs.Release, 'slang')}`, '--version'],
   },
   {
-    lang: 'javascript',
+    name: 'javascript',
     ext: '.js',
-    cmd: ['node', '--jitless', '--noexpose_wasm'],
-    version: ['node', '--version'],
+    cmdRunFile: ['node', '--jitless', '--noexpose_wasm'],
+    cmdGetVersion: ['node', '--version'],
   },
   {
-    lang: 'python',
+    name: 'python',
     ext: '.py',
-    cmd: ['py'],
-    version: ['py', '--version'],
+    cmdRunFile: ['py'],
+    cmdGetVersion: ['py', '--version'],
   },
 ];
 
@@ -134,6 +145,209 @@ const findResult = (
 };
 
 /**
+ * Retrieves the version of an installed language, which signifies that the language is actually installed.
+ * @param lang - The language to get the installed version from
+ * @returns A promise which resolves to the version string of the language, or null if the interpreter is not installed / version retrieval failed.
+ */
+const runGetVersion = async (lang: Language): Promise<string | null> => {
+  let { output: interpreterVersion } = await runProcess(lang.cmdGetVersion.join(' '));
+  if (!interpreterVersion) {
+    error(`No interpreter fond for language '${lang.name}'.`, `Command '${lang.cmdGetVersion.join(' ')}' failed.`);
+    return null;
+  }
+
+  if (isLangSlang(lang)) {
+    interpreterVersion += ' @ ' + (await gitStatus()).hash;
+  }
+
+  interpreterVersion = normalizeLineEndings(interpreterVersion).replace(/\n/g, '');
+  return interpreterVersion;
+};
+
+/**
+ * Runs a single benchmark and returns the result of the run. Prints lang, name and progress to stdout
+ * @param lang - The language which executes this run.
+ * @param bench - The benchmark to execute.
+ * @param numWarmupRuns - Amount of warmup runs to do before running the benchmark.
+ * @param numRuns - Amount of runs to do of this benchmark.
+ * @param benchNamePadding - A right-padding to print after the bench-name is printed.
+ * @param langNamePadding  - A right-padding to print after the lang-name is printed.
+ * @returns A promise which resolves to either the result, or null, if the run failed.
+ */
+const runBenchmark = async (
+  lang: Language,
+  bench: Benchmark,
+  numWarmupRuns = NUM_RUNS,
+  numRuns = NUM_RUNS,
+  benchNamePadding: number = bench.name.length + 1,
+  langNamePadding: number = lang.name.length + 1,
+): Promise<BenchmarkRun | null> => {
+  const { ext, name, cmdRunFile } = lang;
+  const filePath = path.join(SlangPaths.BenchDir, bench.name + BENCH_PRE_SUFFIX + ext);
+  const runCommand = cmdRunFile.join(' ') + ' ' + filePath;
+
+  const times: number[] = [];
+
+  // Print benchmark header
+  const [, , multilineHeader, multilineHeaderStyle] = LOG_CONFIG['info'];
+  process.stdout.write(multilineHeaderStyle(multilineHeader));
+  process.stdout.write(`  ${chalk.bold(bench.name)} `);
+  process.stdout.write(' '.repeat(benchNamePadding - bench.name.length + 1));
+  process.stdout.write(`${chalk.italic(name == 'slang' ? chalk.magenta(name) : name)} `);
+  process.stdout.write(' '.repeat(langNamePadding - name.length + 1));
+
+  if (!existsSync(filePath)) {
+    process.stdout.write(` (file ${filePath} not found)\n`);
+    return null;
+  }
+
+  // Create a progress spinner
+  const SPINNER = '░▒▓';
+  const [PENDING, COMPLETED] = '░█';
+  const cursor = (show: boolean) => process.stdout.write(show ? '\x1b[?25h' : '\x1b[?25l');
+  let i = 0;
+
+  const spinner = setInterval(() => {
+    cursor(false); // Hide cursor
+    const char = SPINNER.charAt(Math.floor(Date.now() / 80) % SPINNER.length);
+
+    process.stdout.write('\x1b[s'); // Save cursor position
+
+    const progCurrent = char;
+    const progDone = COMPLETED.repeat(i);
+    const progRemain = PENDING.repeat(numRuns - i);
+
+    const progress = chalk.green(progDone) + progCurrent + chalk.red(progRemain);
+
+    const current = i.toString().padStart(numRuns.toString().length, ' ');
+    process.stdout.write(` ${progress} ${current}/${numRuns}`);
+
+    process.stdout.write('\x1b[u'); // Restore cursor position
+  }, 100);
+
+  const stopSpinner = () => {
+    clearInterval(spinner);
+    cursor(true); // Show cursor
+  };
+
+  // Warmup
+  for (let j = 0; j < numWarmupRuns; j++) await runProcess(runCommand, '', undefined, false, true);
+
+  // Run benchmark
+  for (; i < numRuns; i++) {
+    const { output } = await runProcess(runCommand, '', undefined, false, true);
+
+    if (!output) {
+      stopSpinner();
+      process.stdout.write('\n');
+      warn(`${lang} running ${bench.name} benchmark failed`, `Received no output`);
+      times.push(Infinity);
+      break;
+    }
+
+    const match = normalizeLineEndings(output).trim().match(bench.regex);
+    if (!match || !match[1] /* elapsed time */) {
+      stopSpinner();
+      process.stdout.write('\n');
+      warn(`${lang} output for ${bench.name} does not match expected output`, output);
+      times.push(Infinity);
+      break;
+    }
+
+    times.push(parseFloat(match[1]));
+  }
+
+  stopSpinner();
+
+  // Calculate some stats
+  const best = Math.min(...times);
+  const avg = times.reduce((a, b) => a + b) / times.length;
+  const worst = Math.max(...times);
+  const score = getScore(avg);
+  const standardDev = standardDeviation(times);
+
+  return {
+    best,
+    avg,
+    worst,
+    score,
+    sd: standardDev,
+    date: new Date(),
+  };
+};
+
+/**
+ * Prints a benchmark result with comparison. If the [lang] is slang, the result will be
+ * compared to the last run of this benchmark on this processor (looked up in [prevResults]).
+ * For any other language, the result is compared to the slang result of the current benchmark
+ * run (looked up in [currentResults])
+ * @param lang - The language of this benchmark result.
+ * @param bench - The benchmark which generated this result.
+ * @param processorName - The name of the processor which created this result.
+ * @param result - The result of the run
+ * @param currentResults - All results of the current run - This is used if any other language other
+ * than slang is printing results - this should contain the result of the slang run, because slang always runs first.
+ * The slang result will form the basis for the comparison.
+ * @param prevResults - All previous results, loaded from a serialized file. This is used if slang is printing results -
+ * the last added slang entry for this benchmark run will be used for the compaison.
+ */
+const printBenchmarkResultWithComparison = (
+  lang: Language,
+  bench: Benchmark,
+  processorName: string,
+  result: BenchmarkRun,
+  currentResults: BenchmarkResult[],
+  prevResults: BenchmarkResult[],
+): void => {
+  let comparison;
+  let comparisonSuffix;
+  let dividend = result.avg;
+  let divisor = result.avg;
+
+  if (isLangSlang(lang)) {
+    // If we're running a slang benchmark, compare to a previous slang result
+    const prevResult = findResult(prevResults, bench.name, 'slang', processorName, false);
+    if (prevResult) {
+      comparisonSuffix = '% relative to baseline';
+      divisor = prevResult.avg;
+    } else {
+      comparison = 'no baseline for this benchmark on this cpu found';
+      comparisonSuffix = '';
+    }
+  } else {
+    // If we're running a non-slang benchmark, compare to the current slang result. Slang always runs first.
+    const slangResult = findResult(currentResults, bench.name, 'slang', processorName);
+    if (slangResult) {
+      comparisonSuffix = '%';
+      dividend = slangResult.avg;
+    } else {
+      comparison = 'no slang result for this benchmark on this cpu found';
+      comparisonSuffix = '';
+    }
+  }
+
+  // Calculate comparison
+  const ratio = (100 / dividend) * divisor;
+  if (!comparison) {
+    comparison = ratio.toFixed(2) + comparisonSuffix;
+  }
+  if (ratio > 100) {
+    comparison = chalk.green(comparison);
+  }
+  if (ratio < 100) {
+    comparison = chalk.red(comparison);
+  }
+
+  // Emphasize standard deviation if it's high
+  const avgStr = 'avg=' + chalk.bold(result.avg.toFixed(3)) + 's';
+  const bestStr = 'best=' + result.best.toFixed(3) + 's';
+  const worstStr = 'worst=' + result.worst.toFixed(3) + 's';
+  const sdStr = 'sd=' + (result.sd > 0.05 ? chalk.yellow(result.sd.toFixed(4)) : result.sd.toFixed(4));
+
+  process.stdout.write(` ${avgStr} ${bestStr} ${worstStr} ${sdStr} ${comparison}\n`);
+};
+
+/**
  * Runs all benchmarks and writes results to a log file
  * @param langPattern - Pattern to match languages (regex)
  */
@@ -142,176 +356,41 @@ export const runBenchmarks = async (langPattern?: string) => {
   const prevResults = JSON.parse(await readFile(benchLogFile));
   const results: BenchmarkResult[] = [];
 
-  const date = new Date();
   const processorName = await getProcessorName();
-
-  const actualLanguages = langPattern ? LANGUAGES.filter(l => l.lang.match(langPattern)) : LANGUAGES;
-
+  const actualLanguages = langPattern ? LANGUAGES.filter(l => l.name.match(langPattern)) : LANGUAGES;
   const longestBenchmarkName = Math.max(...BENCHMARKS.map(b => b.name.length));
-  const longestLanguageName = Math.max(...actualLanguages.map(l => l.lang.length));
+  const longestLanguageName = Math.max(...actualLanguages.map(l => l.name.length));
 
   for (const language of actualLanguages) {
-    const { lang, ext, cmd } = language;
-    const isSlang = lang === 'slang';
+    const { name } = language;
 
-    let { output: interpreterVersion } = await runProcess(language.version.join(' '));
-    if (!interpreterVersion) {
-      warn(`${lang} version command failed`, `Received no output`);
-      interpreterVersion = 'unknown version';
+    const version = await runGetVersion(language);
+    if (!version) {
+      continue;
     }
-
-    if (isSlang) {
-      interpreterVersion += ' @ ' + (await gitStatus()).hash;
-    }
-
-    interpreterVersion = normalizeLineEndings(interpreterVersion).replace(/\n/g, '');
 
     for (const benchmark of BENCHMARKS) {
-      const filePath = path.join(SlangPaths.BenchDir, benchmark.name + BENCH_PRE_SUFFIX + ext);
-      const runCommand = cmd.join(' ') + ' ' + filePath;
-      const times: number[] = [];
-
-      // Print benchmark header
-      const [, , multilineHeader, multilineHeaderStyle] = LOG_CONFIG['info'];
-      process.stdout.write(multilineHeaderStyle(multilineHeader));
-      process.stdout.write(`  ${chalk.bold(benchmark.name)} `);
-      process.stdout.write(' '.repeat(longestBenchmarkName - benchmark.name.length + 1));
-      process.stdout.write(`${chalk.italic(lang == 'slang' ? chalk.magenta(lang) : lang)} `);
-      process.stdout.write(' '.repeat(longestLanguageName - lang.length + 1));
-
-      if (!existsSync(filePath)) {
-        process.stdout.write(` (file ${filePath} not found)\n`);
+      const result = await runBenchmark(
+        language,
+        benchmark,
+        NUM_RUNS,
+        NUM_RUNS,
+        longestBenchmarkName,
+        longestLanguageName,
+      );
+      if (!result) {
         continue;
       }
 
-      // Create a progress spinner
-      const SPINNER = '░▒▓';
-      const [PENDING, COMPLETED] = '░█';
-      const cursor = (show: boolean) => process.stdout.write(show ? '\x1b[?25h' : '\x1b[?25l');
-      let i = 0;
+      printBenchmarkResultWithComparison(language, benchmark, processorName, result, results, prevResults);
 
-      const spinner = setInterval(() => {
-        cursor(false); // Hide cursor
-        const char = SPINNER.charAt(Math.floor(Date.now() / 80) % SPINNER.length);
-
-        process.stdout.write('\x1b[s'); // Save cursor position
-
-        const progCurrent = char;
-        const progDone = COMPLETED.repeat(i);
-        const progRemain = PENDING.repeat(NUM_RUNS - i);
-
-        const progress = chalk.green(progDone) + progCurrent + chalk.red(progRemain);
-
-        const current = i.toString().padStart(NUM_RUNS.toString().length, ' ');
-        process.stdout.write(` ${progress} ${current}/${NUM_RUNS}`);
-
-        process.stdout.write('\x1b[u'); // Restore cursor position
-      }, 100);
-
-      const stopSpinner = () => {
-        clearInterval(spinner);
-        cursor(true); // Show cursor
-      };
-
-      // Do one warmup run
-      for (let j = 0; j < NUM_RUNS; j++) await runProcess(runCommand, '', undefined, false, true);
-
-      // Run benchmark
-      for (; i < NUM_RUNS; i++) {
-        const { output } = await runProcess(runCommand, '', undefined, false, true);
-
-        if (!output) {
-          stopSpinner();
-          process.stdout.write('\n');
-          warn(`${lang} running ${benchmark.name} benchmark failed`, `Received no output`);
-          times.push(Infinity);
-          break;
-        }
-
-        const match = normalizeLineEndings(output).trim().match(benchmark.regex);
-        if (!match || !match[1] /* elapsed time */) {
-          stopSpinner();
-          process.stdout.write('\n');
-          warn(`${lang} output for ${benchmark.name} does not match expected output`, output);
-          times.push(Infinity);
-          break;
-        }
-
-        times.push(parseFloat(match[1]));
-      }
-
-      stopSpinner();
-
-      // Calculate some stats
-      const best = Math.min(...times);
-      const avg = times.reduce((a, b) => a + b) / times.length;
-      const worst = Math.max(...times);
-      const score = getScore(avg);
-      const standardDev = standardDeviation(times);
-
-      // Print benchmark results
-      let comparison;
-      let comparisonSuffix;
-      let dividend = avg;
-      let divisor = avg;
-
-      if (isSlang) {
-        // If we're running a slang benchmark, compare to a previous slang result
-        const prevResult = findResult(prevResults, benchmark.name, 'slang', processorName, false);
-        if (prevResult) {
-          comparisonSuffix = '% relative to baseline';
-          divisor = prevResult.avg;
-        } else {
-          comparison = 'no baseline for this benchmark on this cpu found';
-          comparisonSuffix = '';
-        }
-      } else {
-        // If we're running a non-slang benchmark, compare to the current slang result. Slang always runs first.
-        const slangResult = findResult(results, benchmark.name, 'slang', processorName);
-        if (slangResult) {
-          comparisonSuffix = '%';
-          dividend = slangResult.avg;
-        } else {
-          comparison = 'no slang result for this benchmark on this cpu found';
-          comparisonSuffix = '';
-        }
-      }
-
-      // Calculate comparison
-      const ratio = (100 / dividend) * divisor;
-      if (!comparison) {
-        comparison = ratio.toFixed(2) + comparisonSuffix;
-      }
-      if (ratio > 100) {
-        comparison = chalk.green(comparison);
-      }
-      if (ratio < 100) {
-        comparison = chalk.red(comparison);
-      }
-
-      // Emphasize standard deviation if it's high
-      const avgStr = 'avg=' + chalk.bold(avg.toFixed(3)) + 's';
-      const bestStr = 'best=' + best.toFixed(3) + 's';
-      const worstStr = 'worst=' + worst.toFixed(3) + 's';
-      const sdStr = 'sd=' + (standardDev > 0.05 ? chalk.yellow(standardDev.toFixed(4)) : standardDev.toFixed(4));
-
-      process.stdout.write(` ${avgStr} ${bestStr} ${worstStr} ${sdStr} ${comparison}\n`);
-
-      // Push benchmark result to results array
-      const result: BenchmarkResult = {
+      results.push({
         name: benchmark.name,
         cpu: processorName,
-        date,
-        lang,
-        score,
-        best,
-        avg,
-        worst,
-        sd: standardDev,
-        v: interpreterVersion,
-      };
-
-      results.push(result);
+        lang: name,
+        v: version,
+        ...result,
+      });
     }
   }
 
@@ -321,6 +400,13 @@ export const runBenchmarks = async (langPattern?: string) => {
 
   ok(`All benchmarks done.`);
 };
+
+/**
+ * Determines whether a lanugage is the slang language.
+ * @param lang - Input language
+ * @returns True, if the provided language is "slang"
+ */
+const isLangSlang = (lang: Language) => lang.name === 'slang';
 
 /**
  * Serve benchmark results
