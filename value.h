@@ -38,6 +38,7 @@ typedef struct ObjClass ObjClass;
 #define VALUE_STR_TRUE "true"
 #define VALUE_STR_FALSE "false"
 #define VALUE_STR_NIL "nil"
+#define VALUE_STR_ANON_FN "$anon_fn$"
 #define VALUE_STR_EMPTY_INTERNAL "EMPTY_INTERNAL"
 
 #define VALUE_STRFMT_FUNCTION "<Fn %s>"
@@ -120,12 +121,18 @@ Value value_array_remove_at(ValueArray* array, int index);
 // Free a value array.
 void value_array_free(ValueArray* array);
 
+// Print an escaped string to a file. Will print at most [max_len] characters of the string. If the string is longer, it will
+// print
+// "..." at the end. Returns the number of characters printed.
+int fprint_string_escaped(FILE* file, const char* str, int max_len, bool quote);
+
 // Prints a value to a file. Will look different from the values default print representation, but it will
 // guarantee that the gc will not be called.
 // Returns the number of characters printed.
 int value_print_safe(FILE* file, Value value);
 
-// Native sort fn wrapper. Compares two Values using the [a] types SP_METHOD_LT.
+// Native sort fn wrapper. Compares two Values using the [a] types SP_METHOD_LT. [cmp_fn] is ignored, but required for the
+// function signature in sorting context. Returns -1 if a < b, and 1 if a >= b. Returns 0 on error and sets a VM error.
 int value_array_sort_compare_wrapper_native(Value a, Value b, Value cmp_fn);
 
 // Custom sort fn wrapper. Compare two Values using a custom comparison function [cmp_fn]. The function must take two arguments

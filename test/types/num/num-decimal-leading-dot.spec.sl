@@ -1,3 +1,4 @@
 // [exit] 2
-// [expect-error] Compile error at line 3 at '.': Expecting expression.
-.123
+.123 // [expect-error] Parser error at line 2 at '.': Expecting expression.
+     // [expect-error]      2 | .123
+     // [expect-error]          ~

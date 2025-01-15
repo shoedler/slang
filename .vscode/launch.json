@@ -34,6 +34,38 @@
       ]
     },
     {
+      "name": "Debug: Run Sample (Old Compiler)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}\\bin\\x64\\debug\\slang.exe",
+      "args": ["run-old", "${workspaceFolder}\\sample.sl"],
+      "stopAtEntry": false,
+      "cwd": "${fileDirname}",
+      "environment": [
+        // mimalloc conf, see https://github.com/microsoft/mimalloc?tab=readme-ov-file#environment-options
+        {
+          "name": "MIMALLOC_SHOW_ERRORS",
+          "value": "1"
+        }
+      ],
+      "externalConsole": false,
+      "preLaunchTask": "gcc-make-debug",
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:/Projects/.dev/msys64/ucrt64/bin/gdb.exe",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Set Disassembly Flavor to Intel",
+          "text": "-gdb-set disassembly-flavor intel",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
       "name": "Debug: REPL",
       "type": "cppdbg",
       "request": "launch",
@@ -65,6 +97,32 @@
       "request": "launch",
       "program": "${workspaceFolder}\\bin\\x64\\release\\slang.exe",
       "args": ["run", "${workspaceFolder}\\sample.sl"],
+      "stopAtEntry": false,
+      "cwd": "${fileDirname}",
+      "environment": [],
+      "externalConsole": false,
+      "preLaunchTask": "gcc-make-release",
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:/Projects/.dev/msys64/ucrt64/bin/gdb.exe",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Set Disassembly Flavor to Intel",
+          "text": "-gdb-set disassembly-flavor intel",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
+      "name": "Release: Run Sample (Old Compiler)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}\\bin\\x64\\release\\slang.exe",
+      "args": ["run-old", "${workspaceFolder}\\sample.sl"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],

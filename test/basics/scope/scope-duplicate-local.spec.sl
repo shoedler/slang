@@ -1,5 +1,5 @@
 {
   let a = "value" // [exit] 2
-  let a = "other" // [expect-error] Compile error at line 3 at 'a': Already a variable with this name in this scope.
-} 
-// [expect-error] Compile error at line 6 at end: Expecting '}' after block.
+  let a = "other" // [expect-error] Resolver error at line 3: Local variable 'a' is already declared.
+}                 // [expect-error]      3 |   let a = "other"
+                  // [expect-error]                ~

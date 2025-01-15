@@ -5,8 +5,6 @@
 #include <stdint.h>
 #include "value.h"
 
-#define TABLE_MAX_LOAD 0.75
-
 // A hash table entry.
 typedef struct {
   Value key;
@@ -38,7 +36,7 @@ bool hashtable_get(HashTable* table, Value key, Value* value);
 // Whenever possible, use this function instead of hashtable_get.
 bool hashtable_get_by_string(HashTable* table, ObjString* key, Value* value);
 
-// Adds a value to a hashtable. Returns true if the value was added, false if
+// Add or update a value in a hashtable. Returns true if the value was added, false if
 // it was an update.
 bool hashtable_set(HashTable* table, Value key, Value value);
 

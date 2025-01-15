@@ -80,6 +80,52 @@ void value_array_free(ValueArray* array) {
   value_array_init(array);
 }
 
+int fprint_string_escaped(FILE* file, const char* str, int max_len, bool quote) {
+  int written = 0;
+  int count   = 0;
+
+  if (quote) {
+    written += fprintf(file, "\"");
+  }
+
+  for (const char* p = str; *p; p++) {
+    if (count++ >= max_len) {
+      written += fprintf(file, "...");
+      break;
+    }
+
+    if (*p == '\n') {
+      written += fprintf(file, "\\n");
+    } else if (*p == '\t') {
+      written += fprintf(file, "\\t");
+    } else if (*p == '\r') {
+      written += fprintf(file, "\\r");
+    } else if (*p == '\v') {
+      written += fprintf(file, "\\v");
+    } else if (*p == '\b') {
+      written += fprintf(file, "\\b");
+    } else if (*p == '\f') {
+      written += fprintf(file, "\\f");
+    } else if (*p == '\a') {
+      written += fprintf(file, "\\a");
+    } else if (*p == '\\') {
+      written += fprintf(file, "\\\\");
+    } else if (*p == '\"') {
+      written += fprintf(file, "\\\"");
+    } else if (*p == '\'') {
+      written += fprintf(file, "\\\'");
+    } else {
+      written += fprintf(file, "%c", *p);
+    }
+  }
+
+  if (quote) {
+    written += fprintf(file, "\"");
+  }
+
+  return written;
+}
+
 int value_print_safe(FILE* file, Value value) {
   if (is_bool(value)) {
     return fprintf(file, value.as.boolean ? VALUE_STR_TRUE : VALUE_STR_FALSE);
@@ -101,7 +147,7 @@ int value_print_safe(FILE* file, Value value) {
   }
 
   if (is_str(value)) {
-    return fprintf(file, "%s", AS_CSTRING(value));
+    return fprint_string_escaped(file, AS_STR(value)->chars, AS_STR(value)->length, false);
   }
   if (is_closure(value)) {
     return fprintf(file, VALUE_STRFMT_FUNCTION, AS_CLOSURE(value)->function->name->chars);

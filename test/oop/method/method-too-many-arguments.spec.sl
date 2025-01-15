@@ -256,6 +256,6 @@
      a, // 253
      a, // 254
      a, // 255 // [exit] 2
-     a) // [expect-error] Compile error at line 259 at 'a': Can't have more than 255 arguments.
-}
-// [expect-error] Compile error at line 261 at end: Expecting '}' after block.
+     a) // [expect-error] Parser error at line 259 at 'a': Can't have more than 255 arguments.
+}       // [expect-error]    259 |      a)
+        // [expect-error]               ~

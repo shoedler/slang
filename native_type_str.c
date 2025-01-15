@@ -15,9 +15,19 @@ static Value str_to_str(int argc, Value argv[]);
 static Value str_has(int argc, Value argv[]);
 static Value str_slice(int argc, Value argv[]);
 static Value str_add(int argc, Value argv[]);
+static Value str_lt(int argc, Value argv[]);
+static Value str_gt(int argc, Value argv[]);
+static Value str_lteq(int argc, Value argv[]);
+static Value str_gteq(int argc, Value argv[]);
 
 static Value str_split(int argc, Value argv[]);
 static Value str_trim(int argc, Value argv[]);
+static Value str_ints(int argc, Value argv[]);
+static Value str_ascii(int argc, Value argv[]);
+static Value str_ascii_at(int argc, Value argv[]);
+static Value str_chars(int argc, Value argv[]);
+static Value str_reps(int argc, Value argv[]);
+static Value str_from_ascii(int argc, Value argv[]);
 
 ObjClass* native_str_class_partial_init() {
   ObjClass* str_class = new_class(NULL, NULL);  // Names are null because hashtables are not yet initialized
@@ -42,13 +52,20 @@ void native_str_class_finalize() {
   define_native(&vm.str_class->methods, STR(SP_METHOD_MUL), native___mul_not_supported, 1);
   define_native(&vm.str_class->methods, STR(SP_METHOD_DIV), native___div_not_supported, 1);
   define_native(&vm.str_class->methods, STR(SP_METHOD_MOD), native___mod_not_supported, 1);
-  define_native(&vm.str_class->methods, STR(SP_METHOD_LT), native___lt_not_supported, 1);
-  define_native(&vm.str_class->methods, STR(SP_METHOD_GT), native___gt_not_supported, 1);
-  define_native(&vm.str_class->methods, STR(SP_METHOD_LTEQ), native___lteq_not_supported, 1);
-  define_native(&vm.str_class->methods, STR(SP_METHOD_GTEQ), native___gteq_not_supported, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_LT), str_lt, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_GT), str_gt, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_LTEQ), str_lteq, 1);
+  define_native(&vm.str_class->methods, STR(SP_METHOD_GTEQ), str_gteq, 1);
 
   define_native(&vm.str_class->methods, "split", str_split, 1);
   define_native(&vm.str_class->methods, "trim", str_trim, 0);
+  define_native(&vm.str_class->methods, "ints", str_ints, 0);
+  define_native(&vm.str_class->methods, "ascii", str_ascii, 0);
+  define_native(&vm.str_class->methods, "ascii_at", str_ascii_at, 1);
+  define_native(&vm.str_class->methods, "chars", str_chars, 0);
+  define_native(&vm.str_class->methods, "reps", str_reps, 1);
+
+  define_native(&vm.str_class->static_methods, "from_ascii", str_from_ascii, 1);
   finalize_new_class(vm.str_class);
 }
 
@@ -151,16 +168,19 @@ static Value str_split(int argc, Value argv[]) {
   int start = 0;
   for (int i = 0; i < str->length; i++) {
     if (strncmp(str->chars + i, sep->chars, sep->length) == 0) {
-      Value item = str_value(copy_string(str->chars + start, i - start));
-      vm_push(item);  // GC Protection
-      value_array_write(&seq->items, item);
-      vm_pop();  // The item
+      // Only create a new string if we have content between the separators
+      if (i >= start) {
+        Value item = str_value(copy_string(str->chars + start, i - start));
+        vm_push(item);  // GC Protection
+        value_array_write(&seq->items, item);
+        vm_pop();  // The item
+      }
       start = i + sep->length;
+      i     = start - 1;  // -1 because the loop will increment it
     }
   }
 
-  // Add the last part of the string aswell - same behavior as Js.
-  // TODO (optimize): Maybe remove this? "123".split("3") -> ["12", ""], but without this it would be ["12"]
+  // Add the last part of the string aswell - same behavior as Js and Python
   Value item = str_value(copy_string(str->chars + start, str->length - start));
   vm_push(item);  // GC Protection
   value_array_write(&seq->items, item);
@@ -301,4 +321,208 @@ static Value str_add(int argc, Value argv[]) {
   vm_push(other);    // GC Protection
   vm_concatenate();
   return vm_pop();  // The new string
+}
+
+#define STR_COMPARATOR(name, op, length_op)                                       \
+  static Value name(int argc, Value argv[]) {                                     \
+    UNUSED(argc);                                                                 \
+    NATIVE_CHECK_RECEIVER(vm.str_class)                                           \
+    NATIVE_CHECK_ARG_AT(1, vm.str_class)                                          \
+                                                                                  \
+    ObjString* left  = AS_STR(argv[0]);                                           \
+    ObjString* right = AS_STR(argv[1]);                                           \
+                                                                                  \
+    int min_length = left->length < right->length ? left->length : right->length; \
+    int cmp        = strncmp(left->chars, right->chars, min_length);              \
+                                                                                  \
+    if (cmp == 0) {                                                               \
+      return bool_value(left->length length_op right->length);                    \
+    }                                                                             \
+                                                                                  \
+    return bool_value(cmp op 0);                                                  \
+  }
+
+/**
+ * TYPENAME_STRING.SP_METHOD_LT(other: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Compares two TYPENAME_STRINGs lexicographically.
+ */
+STR_COMPARATOR(str_lt, <, <)
+/**
+ * TYPENAME_STRING.SP_METHOD_GT(other: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Compares two TYPENAME_STRINGs lexicographically.
+ */
+STR_COMPARATOR(str_gt, >, >)
+/**
+ * TYPENAME_STRING.SP_METHOD_LTEQ(other: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Compares two TYPENAME_STRINGs lexicographically.
+ */
+STR_COMPARATOR(str_lteq, <, <=)
+/**
+ * TYPENAME_STRING.SP_METHOD_GTEQ(other: TYPENAME_STRING) -> TYPENAME_BOOL
+ * @brief Compares two TYPENAME_STRINGs lexicographically.
+ */
+STR_COMPARATOR(str_gteq, >, >=)
+#undef STR_COMPARATOR
+
+static bool is_digit(char c) {
+  return c >= '0' && c <= '9';
+}
+
+/**
+ * TYPENAME_STRING.ints() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ containing the integers found in the TYPENAME_STRING.
+ * Everything except a digit and a unary minus is considered a separator. Leading and trailing separators are ignored.
+ * E.g. "12a34" -> [12, 34], "1.2" -> [1, 2], "hello1234 " -> [1234], "32-23" -> [32, -23]
+ */
+static Value str_ints(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.str_class);
+
+  ObjString* str = AS_STR(argv[0]);
+  ObjSeq* seq    = new_seq();
+  vm_push(seq_value(seq));  // GC Protection
+
+  int i = 0;
+  while (i < str->length) {
+    // Skip non-digit and non-minus characters
+    while (i < str->length && !is_digit(str->chars[i]) && str->chars[i] != '-') {
+      i++;
+    }
+
+    if (i == str->length) {
+      break;
+    }
+
+    // Check for unary minus
+    bool is_negative = false;
+    if (str->chars[i] == '-') {
+      is_negative = true;
+      i++;
+    }
+
+    // Collect digits
+    char* num = str->chars + i;
+    while (i < str->length && is_digit(str->chars[i])) {
+      i++;
+    }
+
+    // Null-terminate the number string temporarily
+    char c        = str->chars[i];
+    str->chars[i] = '\0';
+    int value     = atoi(num);
+    if (is_negative) {
+      value = -value;
+    }
+    str->chars[i] = c;
+
+    value_array_write(&seq->items, int_value(value));
+  }
+
+  vm_pop();  // The seq
+  return seq_value(seq);
+}
+
+/**
+ * TYPENAME_STRING.ascii() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ containing the ASCII values of the characters in the TYPENAME_STRING.
+ */
+static Value str_ascii(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.str_class);
+
+  ObjString* str   = AS_STR(argv[0]);
+  ValueArray items = value_array_init_of_size(str->length);
+  ObjSeq* seq      = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
+
+  for (int i = 0; i < str->length; i++) {
+    seq->items.values[i] = int_value((int)str->chars[i]);
+  }
+  seq->items.count = str->length;
+
+  return seq_value(seq);
+}
+
+/**
+ * TYPENAME_STRING.ascii_at(index: TYPENAME_INT) -> TYPENAME_INT
+ * @brief Returns the ASCII value of the character at the given index in the TYPENAME_STRING. If the index is out of bounds, -1 is
+ * returned.
+ */
+static Value str_ascii_at(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.str_class);
+  NATIVE_CHECK_ARG_AT(1, vm.int_class);
+
+  ObjString* str = AS_STR(argv[0]);
+  int index      = (int)argv[1].as.integer;
+
+  if (index < 0 || index >= str->length) {
+    return int_value(-1);
+  }
+
+  return int_value((int)str->chars[index]);
+}
+
+/**
+ * TYPENAME_STRING.chars() -> TYPENAME_SEQ
+ * @brief Returns a TYPENAME_SEQ containing individual characters of the TYPENAME_STRING.
+ */
+static Value str_chars(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.str_class);
+
+  ObjString* str   = AS_STR(argv[0]);
+  ValueArray items = value_array_init_of_size(str->length);
+  ObjSeq* seq      = take_seq(&items);  // We can already take the seq, because seqs don't calculate the hash upon taking.
+
+  vm_push(seq_value(seq));  // GC Protection
+  for (int i = 0; i < str->length; i++) {
+    seq->items.values[i] = str_value(copy_string(str->chars + i, 1));
+    seq->items.count++;
+  }
+
+  return vm_pop();  // The seq
+}
+
+/**
+ * TYPENAME_STRING.reps(count: TYPENAME_INT) -> TYPENAME_STRING
+ * @brief Returns a new TYPENAME_STRING containing 'count' repetitions of the original TYPENAME_STRING.
+ */
+static Value str_reps(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.str_class)
+  NATIVE_CHECK_ARG_AT(1, vm.int_class)
+
+  ObjString* str = AS_STR(argv[0]);
+  int count      = (int)argv[1].as.integer;
+
+  if (count <= 0) {
+    return str_value(copy_string("", 0));
+  }
+
+  int new_length = str->length * count;
+  char* new_str  = malloc(new_length + 1);
+  for (int i = 0; i < count; i++) {
+    memcpy(new_str + i * str->length, str->chars, str->length);
+  }
+  new_str[new_length] = '\0';
+
+  return str_value(copy_string(new_str, new_length));
+}
+
+/**
+ * static TYPENAME_STRING.from_ascii(code: TYPENAME_INT) -> TYPENAME_STRING
+ * @brief Returns a new TYPENAME_STRING containing the character represented by the ASCII value 'code'.
+ */
+static Value str_from_ascii(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_ARG_AT(1, vm.int_class)
+
+  int code = (int)argv[1].as.integer;
+  if (code < 0 || code > 255) {
+    vm_error("Invalid ASCII code %d.", code);
+    return nil_value();
+  }
+
+  char c = (char)code;
+  return str_value(copy_string(&c, 1));
 }

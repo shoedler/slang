@@ -1,8 +1,8 @@
 let i = 0
-while i++ < 3 {
+while ++i < 3 {
   print "Outer loop: " + i
   let j = 0
-  while j++ < 3 {
+  while ++j < 3 {
     if j == i 
       break  
     print "  Inner loop: " + j

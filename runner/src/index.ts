@@ -52,10 +52,12 @@ const hint = [
   '    - update-files  Update test files with new expectations',
   '    - no-parallel   Run tests sequentially (default is parallel)',
   '    - no-build      Skip building the project (default is to build)',
+  '    - no-stress     Run tests without stressing the GC (default is to stress GC)',
   '    - <pattern>     Run tests that match the regex pattern',
   '  - watch-sample    Watch sample file (sample.sl)',
   '  - watch-test      Watch test files',
   '    - no-parallel   Run tests sequentially (default is parallel)',
+  '    - no-stress     Run tests without stressing the GC (default is to stress GC)',
   '    - <pattern>     Watch tests that match the regex pattern',
   '',
   'Note: If not specified, the default configuration is release',
@@ -99,6 +101,7 @@ switch (cmd) {
     const doUpdateFiles = Boolean(consumeOption('update-files', false));
     const doNoParallel = Boolean(consumeOption('no-parallel', false));
     const doNoBuild = Boolean(consumeOption('no-build', false));
+    const doNoStress = Boolean(consumeOption('no-stress', false));
     const testNamePattern = options.pop() || '.*';
     validateOptions();
 
@@ -114,7 +117,12 @@ switch (cmd) {
       warn('Skipping build');
     }
 
-    await runTests(config, testFilepaths, [SlangRunFlags.StressGc], null, doUpdateFiles, !doNoParallel);
+    const flags = [SlangRunFlags.DisableWarnings];
+    if (!doNoStress) {
+      flags.push(SlangRunFlags.StressGc);
+    }
+
+    await runTests(config, testFilepaths, flags, null, doUpdateFiles, !doNoParallel);
     break;
   }
   case 'sample': {
@@ -178,8 +186,14 @@ switch (cmd) {
   case 'watch-test': {
     const config = SlangBuildConfigs.Release;
     const doNoParallel = Boolean(consumeOption('no-parallel', false));
+    const doNoStress = Boolean(consumeOption('no-stress', false));
     const testNamePattern = options.pop() || '.*';
     validateOptions();
+
+    const flags = [SlangRunFlags.DisableWarnings];
+    if (!doNoStress) {
+      flags.push(SlangRunFlags.StressGc);
+    }
 
     watch(
       SLANG_PROJ_DIR,
@@ -202,7 +216,7 @@ switch (cmd) {
         }
 
         const testFilepaths = await findTests(testNamePattern);
-        await runTests(config, testFilepaths, [], signal, false, !doNoParallel);
+        await runTests(config, testFilepaths, flags, signal, false, !doNoParallel);
       },
     );
     break;

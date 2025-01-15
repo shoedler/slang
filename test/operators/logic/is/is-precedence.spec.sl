@@ -1,4 +1,4 @@
-print  fn -> 1  is Fn // [expect] <Fn (anon)>
+print  fn -> 1  is Fn // [expect] <Fn $anon_fn$>
 print (fn -> 1) is Fn // [expect] true
 
 // Has "comparison" precedence, so preceeding comparisons get evaluated first

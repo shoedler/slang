@@ -119,7 +119,6 @@ typedef struct {
   size_t bytes_allocated;  // Number of bytes currently allocated.
   size_t prev_gc_freed;    // Number of bytes freed in the last garbage collection.
   size_t next_gc;          // Number of bytes at which the next garbage collection will occur.
-
 } Vm;
 
 #define VM_FLAG_PAUSE_GC (1 << 0)
@@ -143,20 +142,26 @@ void vm_free();
 // Creates a new module instance. [source_path] is optional. The [module_name] however, is required.
 ObjObject* vm_make_module(const char* source_path, const char* module_name);
 
-// Creates a new module instance and sets it as the current module.
-void vm_start_module(const char* source_path, const char* module_name);
+// Creates a new module instance and sets it as the current module. Returns the previous (enclosing) module, which can be NULL, if
+// this is the first module being created.
+ObjObject* vm_start_module(const char* source_path, const char* module_name);
 
-// Takes a string of source code, compiles it and then runs it.
-// Returns the result of the interpretation as a value.
-// Accepts an optional source path and name for the module which should result from calling this function.
-// Calling without the latter two arguments just runs the code as a script.
-Value vm_interpret(const char* source, const char* source_path, const char* module_name);
+// Takes a string of source code, compiles it and then runs it. Returns the exit code of the interpretation.
+// Since every interpretation will produce a function value (the toplevel), a [name] is required for it. If [name] is NULL, the
+// default name for anonymous functions is used - this will affect error messages.
+SlangExitCode vm_interpret(const char* source, ObjString* name, bool disable_warnings);
 
-// Reads a file from path, compiles it and then runs it.
-// Returns the result of the interpretation as a value.
-// Accepts an optional name for the module which should result from calling this function. If NULL is
-// provided, path is used as the name.
-Value vm_run_file(const char* path, const char* module_name);
+// Reads a file from path, compiles it and then runs it. Returns the result of the interpretation as a value. Accepts an optional
+// name for the module which should result from calling this function. If NULL is provided, path is used as the name.
+Value vm_run_file_old(const char* path, const char* module_name);
+
+// Reads a module from [source_path], compiles it and then runs it. Returns the resulting module as an instance value. Accepts an
+// optional [module_name] for the module which should result from calling this function. If NULL is provided, [source_path] is
+// used as the name.
+Value vm_run_module(const char* source_path, const char* module_name, bool disable_warnings);
+
+// Reads a file from [source_path], compiles it and then runs it. Returns the resulting exit code.
+SlangExitCode vm_run_entry_point(const char* source_path, bool disable_warnings);
 
 // Push a value onto the stack.
 void vm_push(Value value);
@@ -191,13 +196,6 @@ bool vm_inherits(ObjClass* klass, ObjClass* base);
 // Concatenates two strings on the stack (pops them) into a new string and pushes it onto the stack
 // `Stack: ...[a][b]` → `Stack: ...[a+b]`
 void vm_concatenate();
-
-// Resolves an import-path to an absolute file-path, based on the current working directory.
-// - [module_name] can be NULL, if the module is imported solely by [module_path] (relative or absolute).
-// - [module_path] can be NULL, if the module is expected to be in the same directory as the importing module and the file is
-// named after [module_name].
-// Returns the absolute path to the module. The caller is responsible for freeing the memory.
-char* vm_resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path);
 
 // Creates a sequence of length "count" from the top "count" values on the stack.
 // The resulting sequence is pushed onto the stack.

@@ -1,8 +1,7 @@
 cls Foo {
   ctor {           // [exit] 2
-    this = "value" // [expect-error] Compile error at line 3 at '=': Invalid assignment target.
-  }
-}
+    this = "value" // [expect-error] Parser error at line 3 at '=': Invalid assignment target.
+  }                // [expect-error]      3 |     this = "value"
+}                  // [expect-error]                   ~
 
 Foo()
-// [expect-error] Compile error at line 8 at end: Expecting '}' after block.

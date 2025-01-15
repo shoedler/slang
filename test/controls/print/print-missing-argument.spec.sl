@@ -1,2 +1,4 @@
 // [exit] 2
-print // [expect-error] Compile error at line 2 at end: Expecting expression.
+print // [expect-error] Parser error at line 4 at end: Expecting expression.
+      // [expect-error]      4 |
+      // [expect-error] 

@@ -1,7 +1,7 @@
 cls Skip {
   fn test(val) {
     let i = 0
-    while i++ < 4 {
+    while ++i < 4 {
       if (i == 2) skip
       print i + val
     }

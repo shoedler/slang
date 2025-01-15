@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "ast.h"
 #include "chunk.h"
 #include "common.h"
 #include "compiler.h"
@@ -13,6 +14,9 @@
 #include "memory.h"
 #include "native.h"
 #include "object.h"
+#include "old_compiler.h"
+#include "parser.h"
+#include "resolver.h"
 #include "sys.h"
 #include "value.h"
 #include "vm.h"
@@ -68,61 +72,6 @@ static void reset_stack() {
 
   VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);  // Clear the pause flag, just to be sure
   vm_clear_error();
-}
-
-static void dump_location() {
-  CallFrame* frame      = current_frame();
-  ObjFunction* function = frame->closure->function;
-  size_t instruction    = frame->ip - function->chunk.code - 1;
-
-  SourceView source = function->chunk.source_views[instruction];
-
-  const char* error_end   = source.start + source.error_end_ofs;
-  const char* error_start = source.start + source.error_start_ofs;
-
-  fprintf(stderr, "\n %5d | ", source.line);
-
-  // Print the source code line
-  for (const char* chr = source.start; chr < error_end || (chr >= error_end && *chr != '\n' && *chr != '\0'); chr++) {
-    if (*chr == '\r') {
-      continue;
-    }
-
-    if (*chr == '\n') {
-      fputs("...", stderr);
-      break;
-    }
-
-    if (*chr == '/' && chr[1] == '/') {
-      break;  // Break if we reach a line comment
-    }
-
-    fputc(*chr, stderr);
-  }
-
-  // Newline and padding
-  fputs("\n         ", stderr);
-  for (const char* chr = source.start; chr < error_start; chr++) {
-    fputc(' ', stderr);
-  }
-
-  // Print the squiggly line
-  fputs(ANSI_COLOR_RED, stderr);
-  for (const char* chr = error_start; chr < error_end; chr++) {
-    if (*chr == '\r') {
-      continue;
-    }
-
-    if (*chr == '\n') {
-      break;
-    }
-
-    fputc('~', stderr);
-  }
-  fputs(ANSI_COLOR_RESET, stderr);
-
-  // Done!
-  fputs("\n\n", stderr);
 }
 
 static void dump_stacktrace() {
@@ -673,53 +622,6 @@ bool vm_inherits(ObjClass* klass, ObjClass* base) {
   return false;
 }
 
-char* vm_resolve_module_path(ObjString* cwd, ObjString* module_name, ObjString* module_path) {
-  if (module_path == NULL && module_name == NULL) {
-    INTERNAL_ERROR("Cannot resolve module path. Both module name and path are NULL.");
-    exit(SLANG_EXIT_MEMORY_ERROR);
-  }
-
-  char* absolute_file_path;
-
-  // Either we have a module path, or we check the current working directory
-  if (module_path == NULL) {
-    // Just slap the module name + extension onto the cwd
-    char* module_file_name = file_ensure_slang_extension(module_name->chars);
-    absolute_file_path     = file_join_path(cwd->chars, module_file_name);
-    free(module_file_name);
-  } else {
-    // It's probably a realtive path, we add the extension to the provided path and prepend the cwd
-    char* module_path_ = file_ensure_slang_extension(module_path->chars);
-    absolute_file_path = file_join_path(cwd->chars, module_path_);
-    free(module_path_);
-
-    if (!file_exists(absolute_file_path)) {
-      // Clearly, it's not a relative path.
-      free(absolute_file_path);
-
-      // We assume it is an absolute path instead, which also has the extension already
-      absolute_file_path = malloc(module_path->length + 1);
-      if (absolute_file_path == NULL) {
-        INTERNAL_ERROR("Could not import module '%s'. Out of memory.",
-                       module_name == NULL ? module_path->chars : module_name->chars);
-        exit(SLANG_EXIT_MEMORY_ERROR);
-      }
-
-      strcpy(absolute_file_path, module_path->chars);
-    }
-  }
-
-  if (absolute_file_path == NULL) {
-    INTERNAL_ERROR(
-        "Could not produce a valid module path for module '%s'. Cwd is '%s', additional path is "
-        "'%s'",
-        module_name->chars, cwd->chars, module_path == NULL ? "NULL" : module_path->chars);
-    exit(SLANG_EXIT_IO_ERROR);
-  }
-
-  return absolute_file_path;
-}
-
 // Imports a module by [module_name] and pushes it onto the stack. If the module was already imported, it is loaded
 // from cache. If the module was not imported yet, it is loaded from the file system and then cached.
 // If [module_path] is NULL, the module is expected to be in the same directory as the importing module. Returns true if
@@ -736,52 +638,40 @@ static bool import_module(ObjString* module_name, ObjString* module_path) {
     return true;
   }
 
-  // First, we need to get the current working directory
-  Value cwd = native_cwd(0, NULL);
-  if (is_nil(cwd)) {
-    vm_error(
-        "Could not import module '%s'. Could not get current working directory, because there is no "
-        "active module or the active module is not a file.",
-        module_name->chars);
-    return false;
-  }
-
-  char* abs_module_path = vm_resolve_module_path(AS_STR(cwd), module_name, module_path);
-
   // Check if we have already imported the module by absolute path.
-  if (hashtable_get_by_string(&vm.modules, copy_string(abs_module_path, strlen(abs_module_path)), &module)) {
+  if (hashtable_get_by_string(&vm.modules, module_path, &module)) {
     vm_push(module);
-    free(abs_module_path);
     return true;
   }
 
   // Nope, so we need to load the module from the file system
-  if (!file_exists(abs_module_path)) {
-    vm_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars, abs_module_path);
-    free(abs_module_path);
+  if (!file_exists(module_path->chars)) {
+    vm_error("Could not import module '%s'. File '%s' does not exist.", module_name->chars, module_path->chars);
     return false;
   }
 
   // Load the module by running the file
   int previous_exit_frame = vm.exit_on_frame;
   vm.exit_on_frame        = vm.frame_count;
-  module                  = vm_run_file(abs_module_path, module_name->chars);
+  module                  = vm_run_module(module_path->chars, module_name->chars, true /* no warnings */);
   vm.exit_on_frame        = previous_exit_frame;
+
+  if (module.type == vm.nil_class) {
+    return false;  // There was an error loading the module
+  }
 
   // Check if the module is actually a module
   if (!(module.type == vm.module_class)) {
-    vm_error("Could not import module '%s' from file '%s'. Expected module type", module_name->chars, abs_module_path);
-    free(abs_module_path);
+    vm_error("Could not import module '%s' from file '%s'. Expected module type", module_name->chars, module_path->chars);
     return false;
   }
 
-  vm_push(module);  // Show ourselves to the GC before we do anything that might trigger a GC
-  ObjString* path = copy_string(abs_module_path, strlen(abs_module_path));
-  vm_push(str_value(path));  // Show ourselves to the GC before we do anything that might trigger a GC
-  hashtable_set(&vm.modules, str_value(path), module);
+  vm_push(module);                  // Show ourselves to the GC before we do anything that might trigger a GC
+  vm_push(str_value(module_path));  // Show ourselves to the GC before we do anything that might trigger a GC
+  hashtable_set(&vm.modules, str_value(module_path), module);
   vm_pop();  // path
+  // Leave the module on the stack
 
-  free(abs_module_path);
   return true;
 }
 
@@ -858,7 +748,12 @@ static bool handle_runtime_error() {
       // Pop the synthetic handler
       vm_pop();
 
-      dump_location();
+      CallFrame* frame      = current_frame();
+      ObjFunction* function = frame->closure->function;
+      size_t instruction    = frame->ip - function->chunk.code - 1;
+
+      SourceView source = function->chunk.source_views[instruction];
+      report_error_location(source);
       dump_stacktrace();
       reset_stack();
       vm.frame_count = 0;
@@ -1055,6 +950,7 @@ DO_OP_GET_GLOBAL: {
   Value value;
   if (!hashtable_get_by_string(frame->globals, name, &value)) {
     if (!hashtable_get_by_string(&vm.natives, name, &value)) {
+      INTERNAL_ERROR("This should have been caught in the resolver.");
       vm_error("Undefined variable '%s'.", name->chars);
       goto FINISH_ERROR;
     }
@@ -1115,6 +1011,7 @@ DO_OP_SET_GLOBAL: {
   if (hashtable_set(frame->globals, str_value(name),
                     peek(0))) {  // peek, because assignment is an expression!
     hashtable_delete(frame->globals, str_value(name));
+    INTERNAL_ERROR("This should have been caught in the resolver.");
     vm_error("Undefined variable '%s'.", name->chars);
     goto FINISH_ERROR;
   }
@@ -1780,12 +1677,20 @@ ObjObject* vm_make_module(const char* source_path, const char* module_name) {
   return module;
 }
 
-void vm_start_module(const char* source_path, const char* module_name) {
-  ObjObject* module = vm_make_module(source_path, module_name);
-  vm.module         = module;
+ObjObject* vm_start_module(const char* source_path, const char* module_name) {
+  ObjObject* enclosing_module = vm.module;
+  ObjObject* module           = vm_make_module(source_path, module_name);
+  vm.module                   = module;
+  return enclosing_module;
 }
 
-Value vm_interpret(const char* source, const char* source_path, const char* module_name) {
+static ObjObject* vm_end_module(ObjObject* enclosing_module) {
+  ObjObject* module = vm.module;
+  vm.module         = enclosing_module;
+  return module;
+}
+
+Value vm_interpret_old(const char* source, const char* source_path, const char* module_name) {
   ObjObject* enclosing_module = vm.module;
   bool is_module              = module_name != NULL && source_path != NULL;
 
@@ -1793,7 +1698,7 @@ Value vm_interpret(const char* source, const char* source_path, const char* modu
     vm_start_module(source_path, module_name);
   }
 
-  ObjFunction* function = compiler_compile_module(source);
+  ObjFunction* function = old_compiler_compile_module(source);
   if (function == NULL) {
     if (is_module) {
       vm.module = enclosing_module;
@@ -1818,7 +1723,7 @@ Value vm_interpret(const char* source, const char* source_path, const char* modu
   return result;
 }
 
-Value vm_run_file(const char* path, const char* module_name) {
+Value vm_run_file_old(const char* path, const char* module_name) {
 #ifdef DEBUG_TRACE_EXECUTION
   printf("\n");
   printf(ANSI_CYAN_STR("Running file: %s\n"), path);
@@ -1831,7 +1736,7 @@ Value vm_run_file(const char* path, const char* module_name) {
     return nil_value();
   }
 
-  Value result = vm_interpret(source, path, name);
+  Value result = vm_interpret_old(source, path, name);
   free(source);
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -1840,4 +1745,127 @@ Value vm_run_file(const char* path, const char* module_name) {
 #endif
 
   return result;
+}
+
+SlangExitCode vm_interpret(const char* source, ObjString* name, bool disable_warnings) {
+  if (name == NULL) {
+    name = copy_string(VALUE_STR_ANON_FN, STR_LEN(VALUE_STR_ANON_FN));
+  }
+
+  // Parse
+  AstFn* ast = NULL;
+  VM_SET_FLAG(VM_FLAG_PAUSE_GC);
+  bool parsed = parse(source, name, &ast);
+  VM_CLEAR_FLAG(VM_FLAG_PAUSE_GC);
+  if (!parsed) {
+    ast_free((AstNode*)ast);
+    return SLANG_EXIT_COMPILE_ERROR;
+  }
+
+  // Resolve
+  bool resolved = resolve(ast, &vm.module->fields, &vm.natives, disable_warnings);
+  if (!resolved) {
+    ast_free((AstNode*)ast);
+    return SLANG_EXIT_COMPILE_ERROR;
+  }
+
+  // Compile
+  ObjFunction* function = NULL;
+  bool compiled         = compile(ast, vm.module, &function);
+  ast_free((AstNode*)ast);  // We don't need the AST anymore
+  if (!compiled) {
+    return SLANG_EXIT_COMPILE_ERROR;
+  }
+
+  // Run
+  if (function != NULL) {
+    vm_push(fn_value((Obj*)function));  // Gc protection
+    ObjClosure* closure = new_closure(function);
+    vm_pop();
+    vm_push(fn_value((Obj*)closure));
+    call_value(fn_value((Obj*)closure), 0);
+
+    run();
+  }
+
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    return SLANG_EXIT_RUNTIME_ERROR;
+  }
+  return SLANG_EXIT_SUCCESS;
+}
+
+Value vm_run_module(const char* source_path, const char* module_name, bool disable_warnings) {
+#ifdef DEBUG_TRACE_EXECUTION
+  printf("\n");
+  printf(ANSI_CYAN_STR("Running module: %s\n"), source_path);
+#endif
+  const char* name = module_name == NULL ? source_path : module_name;
+  char* source     = file_read(source_path);
+  if (source == NULL) {
+    free(source);
+    vm_error("Running module '%s' failed. Could not read source from file '%s'.", name, source_path);
+    return nil_value();
+  }
+
+  ObjObject* enclosing_module = vm_start_module(source_path, name);
+  SlangExitCode code          = vm_interpret(source, copy_string(name, (int)strlen(name)), disable_warnings);
+  ObjObject* module           = vm_end_module(enclosing_module);  // Will be an instance of the module class, even on error
+  free(source);
+
+  Value module_value = nil_value();
+  switch (code) {
+    case SLANG_EXIT_SUCCESS: {
+      module_value = instance_value(module);
+      break;
+    }
+    case SLANG_EXIT_COMPILE_ERROR: {
+      vm_error("Running module '%s' failed with a compile error.", name);
+      break;
+    }
+    case SLANG_EXIT_RUNTIME_ERROR: {
+      // Propagate the error
+      break;
+    }
+    default: {
+      vm_error("Running module '%s' yielded %d failure code.", name, code);
+      break;
+    }
+  }
+
+#ifdef DEBUG_TRACE_EXECUTION
+  printf(ANSI_CYAN_STR("Done running module: %s\n"), source_path);
+  printf("\n");
+#endif
+
+  return module_value;
+}
+
+SlangExitCode vm_run_entry_point(const char* source_path, bool disable_warnings) {
+#ifdef DEBUG_TRACE_EXECUTION
+  printf("\n");
+  printf(ANSI_CYAN_STR("Running entry point: %s\n"), source_path);
+#endif
+  char* source = file_read(source_path);
+  if (source == NULL) {
+    free(source);
+    fprintf(stderr, "Could not read file \"%s\".\n", source_path);
+    return SLANG_EXIT_IO_ERROR;
+  }
+
+  ObjObject* enclosing_module = vm_start_module(source_path, "main");
+  SlangExitCode code          = vm_interpret(source, copy_string("main", STR_LEN("main")), disable_warnings);
+  vm_end_module(enclosing_module);
+  free(source);
+
+#ifdef DEBUG_TRACE_EXECUTION
+  printf(ANSI_CYAN_STR("Done running entry point: %s\n"), source_path);
+  printf("\n");
+#endif
+
+  // Special case, because the VM_HAS_ERROR flag is reset even after an uncaught runtime error, so, we need to check for it
+  if (VM_HAS_FLAG(VM_FLAG_HAD_UNCAUGHT_RUNTIME_ERROR)) {
+    return SLANG_EXIT_RUNTIME_ERROR;
+  }
+
+  return code;
 }

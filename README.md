@@ -33,46 +33,91 @@ You can, for example, easily cache stuff:
 
 # Roadmap for Version 1.0
 
+## Compiler rebuild
+
+- [ ] Fix "unused var" warnings for late-bound globals
+- [ ] Resolve natives and imports of cached modules in the compiler maybe? We could easily just look the stuff up and emit a value for it (e.g. constant, or some new OP like `OP_PRECOMPILED`) instead of looking it up in the VM.
+- [ ] Test if assignment to patterns works, because declarations do.
+- [ ] After testing: Refactor module imports without Module name (imports using "from").
+- [ ] After testing: Reorder the operands for `OP_GET_PROPERTY`(and set too) in the VM from `[recv][value] (top)` to `[value][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
+- [ ] After testing: Reorder the operands for `OP_GET_SUBSCRIPT`(and set too) in the VM from `[recv][idx][value] (top)` to `[value][idx][recv] (top)`. This would eliminate the need for the "prelude" functions for assignment.
+- [ ] Add resolver warn for vars that could be constant.
+- [ ] Make parser marking possible and remove disabling the GC during parsing.
+- [ ] Turn globals / natives into an array. Because we can resolve it now at compile time. This would also allow for constant time global variable lookup
+- [ ] Remove `run-old` completely
+- [x] ~~Make REPL use the new compiler~~
+- [x] ~~Move path resolution from the compiler to the resolver.~~
+- [x] ~~Remove `in_global_scope` and `current_scope` from the compiler - that should be handled via the resolver. Currently needed for destructuring, but I think that should be possible without it.~~
+
 ## Features
 
+- [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hasing tuples containing negative `Int`s). UPDATE: Found it. It's the hashing of integers thats the issue.
+- [ ] Add `not` for `is` and `in`: e.g. `x not in y` and `x is not Int`
+- [ ] Allow `Tuple.inside = fn(this) -> (this[0]>=0 and this[0]<ROWS) and (this[1]>=0 and this[1]<COLS)`
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
-- [ ] Implement native `Json` module.
-  - [ ] Implement `Json.parse(Str) -> Obj`.
-  - [ ] Implement `Json.stringify(Value) -> Str`.
-  - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
+- [ ] Implement `Seq.mapat(Int, Fn) -> Seq`. (Map only the element at the given index but return the whole sequence)
 - [ ] Implement `Seq.cull(Value|Fn) -> Seq`. (Remove all elements that are equal to the argument or satisfy the predicate)
 - [ ] Implement `Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)
 - [ ] Add a variant of `log` (Maybe `tap`/`info`/`dump`/`peek`?) which accepts a single argument and also, return it. That'd be awesome: `const x = a + b + c + tap(d) + e`
 - [ ] Add more error classes to std. Add a native `Error` base class, from which managed-code errors inherit. Check `vm_inherits(error.type, vm.error_class)` in `handle_runtime_error` and - if true - use `error.type->name` as the prefix instead of `Uncaught error`.
-- [x] ~~Implement `Seq.sum() -> Num`, `Tuple.sum() -> Num`. (Sum all elements. Requires some sort of __add)~~
-- [x] ~~Implement `Seq.sort(sort_fn) -> Seq`. (Sort a sequence in place. Requires some sort of __lt)~~
+- [x] ~~Implement `Str.ints() -> Seq`. (Split a string into a sequence of integers (also negative ones))~~
+- [x] ~~Implement `Str.rep(Int) -> Str`. (Repeat a string `n` times)~~
+- [x] ~~Implement `Str.chars() -> Seq`. (Split a string into a sequence of characters, shorthand for `Str.split("")`)~~
+- [x] ~~Implement `Seq.sum() -> Num`, `Tuple.sum() -> Num`. (Sum all elements. Requires some sort of \_\_add)~~
+- [x] ~~Implement `Seq.sort(sort_fn) -> Seq`. (Sort a sequence in place. Requires some sort of \_\_lt)~~
+- [x] ~~Implement `Seq.min(type: Type) -> Value`. (Get the minimum value of a sequence, should use SP_METHOD_LT of the `type`)~~
+- [x] ~~Implement `Set` class~~ (Part of the `std` module - not a native type)
+  - [x] ~~Implement `Set.add(Obj) -> Nil`.~~
+  - [x] ~~Implement `Set.del(Obj) -> Nil`.~~
+  - [x] ~~Implement ~~`Seq(Set)` constructor~~ `Set.to_seq() -> Seq`~~
 - [x] ~~Implement native `Math` module.~~
   - [x] ~~Implement `Math.abs(Num) -> Num`.~~
   - [x] ~~Implement `Math.ceil(Num) -> Int`.~~
   - [x] ~~Implement `Math.floor(Num) -> Int`.~~
+- [x] ~~Implement `Gc` module~~
+  - [x] ~~Implement `Gc collect() -> Nil`.~~
+  - [x] ~~Implement `Gc stats() -> Obj`.~~
+- [x] ~~🐛 Fix `Str.split(Str)` for strings which have multiple submatches per match, e.g. `"     0    w  e    r".split("  ")` segfaults. (Encountered in AOC '24 day 25)~~
+- [x] ~~`map` and some other array functions should also accept arity=0 functions, not only arity=1 and arity=2.~~
 - [x] ~~Implement `Test` class / module with `Assert.that(expected, Is.equal_to(actual))`~~
 - [x] ~~Add destructuring to module imports.~~
 - [x] ~~Add `const` (**_See Challenge 22.3_**)~~
-- [x] ~~Implement `Set` class~~ (Part of the `std` module - not a native type)
-- [x] ~~Implement `Set.add(Obj) -> Nil`.~~
-- [x] ~~Implement `Set.del(Obj) -> Nil`.~~
-- [x] ~~Implement ~~`Seq(Set)` constructor~~ `Set.to_seq() -> Seq`~~
-- [x] ~~Implement `Gc` module~~
-- [x] ~~Implement `Gc collect() -> Nil`.~~
-- [x] ~~Implement `Gc stats() -> Obj`.~~
 
 ## Improvements
 
+- [ ] Verify that value-array sorting should use SP_METHOD_LT (currently used), and not SP_METHOD_LTEQ instead?
+- [ ] Refactor comparators to `FLOAT_COMPARATOR` and `INT_COMPARATOR` respectively - just like in **native_type_str.c** (see `STR_COMPARATOR`).
+- [ ] Rename `Str.reps` to `Str.rep` for consistency.
+- [ ] String refactoring:
+  - [ ] Move to UTF-16 / unicode codepoints.
+  - [ ] Refactor/remove `Str.ascii()`
+  - [ ] Refactor/remove `Str.ascii_at()`
+  - [ ] Refactor/remove `static Str.from_ascii(Int) -> Str`
+  - [ ] Refactor str comparison functions
 - [ ] Improve destructuring assignment:
-  - [ ] Check `can_assign` in `tuple_literal`, `seq_literal` and `obj_literal`. It should be false. Or implement destructuring assignments.
   - [ ] If you destructure a `Seq` into a `Tuple`, the rest of the elements should be of the type of the lhs. E.g. `let (a, ...b) = [1, 2, 3]` where `a` is an `Int` and `b` is a `Tuple`. Currently, `b` is a `Seq`.
 - [ ] Make managed-code callables accept less arguments than it has parameters. There is an inconsistency, since native-callables allow this. Should be easy, just pass `nil` to the missing arguments.
-- [ ] Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
 - [ ] Add a mimalloc segfault handler.
+- [ ] Implement `Float.nan` and `Float.inf` constants (Would require static fields).
+- [ ] Add test for `Math.pow(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add test for `Math.xor(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add test for `Math.shl(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add test for `Math.shr(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add test for `Math.bor(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add test for `Math.band(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add test for `Str.ascii() -> Seq` which includes special characters.
+- [ ] Add test for `Str.ascii_at(Int) -> Int` which includes special characters.
+- [ ] Add test for `static Str.from_ascii(Int) -> Str` which includes special characters.
+- [ ] Add test for `Str.SP_METHOD_LT(Str) -> Bool`, also for sorting.
+- [ ] Add test for `Str.SP_METHOD_LTEQ(Str) -> Bool`
+- [ ] Add test for `Str.SP_METHOD_GT(Str) -> Bool`
+- [ ] Add test for `Str.SP_METHOD_GTEQ(Str) -> Bool`
 - [ ] Maybe check for `NULL` functions in `vm_exec_callable` instead of before calling it - would add some overhead though.
+- [ ] Collect compile-time errors as strings and print them either directly when they occur (when compiling an entry point), or, as part of a failed import error message (runtime error). Currently, the compiler pipeline directly prints to stderr, which is a little confusing, as e.g. parser errors will be printed before the runtime error message for a failed import. see `module-import-wiht-compile-error.spec.sl` for an example.
+- [x] ~~Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.~~
 - [x] ~~Add `Tuple.order` test.~~
 - [x] ~~Remove `"" + value.to_str()` throughout the codebase, `"" + value` should now work.~~
 - [x] ~~Align `DO_OP_IN` with `MAKE_OP()`, there's some unnecessary push/pop-int in there.~~
@@ -80,7 +125,7 @@ You can, for example, easily cache stuff:
 - [x] ~~Fix VM finishing a program in error state not exiting with `EXIT_FAILURE`. (Probably, the flags are reset in `vm_free` or `reset_stack` or something).~~
 - [x] ~~Make compiler errors recoverable. Just let it sync, then continue - instead of aborting.~~
 - [x] ~~Use `obj_get_prop` in `obj_has` instead of just checking the hashtable for a value. Otherwise, they behave differently - which sucks.~~
-- [x] ~~Make sure managed code classes do not override internal classes.~~ Not necessary, since we don't update the Vms internalized natives. 
+- [x] ~~Make sure managed code classes do not override internal classes.~~ Not necessary, since we don't update the Vms internalized natives.
 - [x] ~~Add `error` and other contextual keywords to a list of reserved words (Maybe including all natives). Check them when declaring anything.~~ Not necessary, since other ctx keywords have their own TOKEN type. As for errors, we'll just allow redeclaration, even inside a catch-block. The reason being that the error-var gets injected into a scope surrounding the whole try/catch statement, not just in the catch-block.
 - [x] ~~Remove `string_to_double` and use `number` from the compiler instead.~~
 - [x] ~~Generalized calls. This is optional, but could enhance the language.~~
@@ -104,6 +149,7 @@ You can, for example, easily cache stuff:
 
 ## Optimizations
 
+- [ ] Exclude the natives from the gc
 - [ ] Add `OP_CALL_SP` and use a lookup table similar to `finalize_new_class` to call the method. Would make sense now that we have so many SP methods. We could also remove all arithmetic and comparison operations.
 - [ ] The features I want to implement for this language kinda require a more complex compilation process. Specifically, ditching the single-pass approach for a two-pass compiler and an actual AST.
 - [ ] Maybe delete `NATIVE_CHECK_RECEIVER` as most of the time the method is called from the receiver.
@@ -128,7 +174,11 @@ You can, for example, easily cache stuff:
 - [ ] String interpolation. C#-style `$"Hello {name}"` (**_See Challenge 16.1_**)
 - [ ] Implement `match` Statement. (**_See Challenge 23.1_**, on how to impl `switch`, that's a start.)
 - [ ] Implement `@memoize` decorator. Would put args into a `Tuple` and use that as a key in a `Obj`.
-- [ ] Implement `Float.nan` and `Float.inf` constants (Would require static fields).
+- [ ] Implement native `Json` module.
+  - [ ] Implement `Json.parse(Str) -> Obj`.
+  - [ ] Implement `Json.stringify(Value) -> Str`.
+  - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
+
 
 ---
 

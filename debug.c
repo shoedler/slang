@@ -118,7 +118,7 @@ static int closure_instruction(const char* name, Chunk* chunk, int offset) {
     int is_local = chunk->code[offset++];
     int index    = chunk->code[offset++];
     char upval_str[VALUE_STR_LEN];
-    sprintf(upval_str, "%s %d", is_local ? "local" : "upvalue", index);
+    sprintf(upval_str, "upvalue to %s %d", is_local ? "local" : "upvalue", index);
 
     printf("\n");
     PRINT_OFFSET(offset - 2);
@@ -209,7 +209,7 @@ int debug_disassemble_instruction(Chunk* chunk, int offset) {
     case OP_THROW: return simple_instruction(STR(OP_THROW), offset);
     case OP_IS: return simple_instruction(STR(OP_IS), offset);
     case OP_IN: return simple_instruction(STR(OP_IN), offset);
-    case OP_GET_SLICE: return byte_instruction(STR(OP_GET_SLICE), chunk, offset);
+    case OP_GET_SLICE: return simple_instruction(STR(OP_GET_SLICE), offset);
     default: INTERNAL_ERROR("Unhandled opcode: %d\n", instruction); return offset + 1;
   }
 }

@@ -4,4 +4,4 @@ print s // [expect] [1]
 
 s.push("hello", nil, fn -> 1, true)
 
-print s // [expect] [1, hello, nil, <Fn (anon)>, true]
+print s // [expect] [1, hello, nil, <Fn $anon_fn$>, true]

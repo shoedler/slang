@@ -12,6 +12,9 @@
 #include "gc.h"
 #include "hashtable.h"
 #include "object.h"
+#include "old_compiler.h"
+#include "parser.h"
+#include "resolver.h"
 #include "value.h"
 #include "vm.h"
 
@@ -316,6 +319,9 @@ static void mark_roots() {
 
   // And the compiler roots. The GC can run while compiling, so we need to mark
   // the compiler's internal state as well.
+  old_compiler_mark_roots();
+  parser_mark_roots();
+  resolver_mark_roots();
   compiler_mark_roots();
 }
 

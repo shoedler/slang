@@ -21,18 +21,19 @@ let zoo = Zoo()
 
 let start = Perf.now()
 
-for let k = 0; k < 5; k++; {
+for let k = 0; k < 5; ++k; {
   let sum = 0
-  for let j = 0; j < 30; j++; {
+  for let j = 0; j < 30; ++j; {
     let i = 0
     while i < 10000 {
-      sum = sum + zoo.ant()
-                + zoo.banana()
-                + zoo.tuna()
-                + zoo.hay()
-                + zoo.grass()
-                + zoo.mouse()
-      i++
+      sum = sum + 
+            zoo.ant() + 
+            zoo.banana() + 
+            zoo.tuna() + 
+            zoo.hay() + 
+            zoo.grass() + 
+            zoo.mouse()
+      ++i
     }
   }
   print sum

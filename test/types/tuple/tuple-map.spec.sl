@@ -11,6 +11,9 @@ print a                                // [expect] [1, 3, 4]
 // Passing an anonymous function with two arguments
 print (1,3,4).map(fn(x, i) -> x + i) // [expect] (1, 4, 6)
 
+// Passing an anonymous function without arguments
+print (1,3,4).map(fn -> 1) // [expect] (1, 1, 1)
+
 // Passing a named function
 fn square(x) -> x * x
 print (1,3,4).map(square) // [expect] (1, 9, 16)

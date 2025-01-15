@@ -1,2 +1,5 @@
 // [exit] 2
-[][0.. // [expect-error] Compile error at line 2 at end: Expecting expression.
+// [expect-error] Parser error at line 5 at end: Expecting expression.
+// [expect-error]      5 | [][0..
+// [expect-error] 
+[][0.. 

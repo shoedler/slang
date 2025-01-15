@@ -1,8 +1,8 @@
 let i = 0
-while i++ < 3 {
+while ++i < 3 {
   let do_something = fn {
     let j = 0
-    while j++ < 3 {
+    while ++j < 3 {
       if i == j
         skip
       print "  do_something: i = " + i + ", j = " + j

@@ -12,6 +12,7 @@ export enum SlangDefines {
 
 export enum SlangRunFlags {
   StressGc = '--stress-gc',
+  DisableWarnings = '--no-warn',
 }
 
 export enum SlangFileSuffixes {

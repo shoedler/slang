@@ -25,14 +25,14 @@ print a[fn -> 1] // [expect] nil
 print a[[1,2,3]] // [expect] nil
 print a[(1,2,3)] // [expect] (4, 5, 6)
 print a[{1:2}]   // [expect] nil 
-print a[f] // [expect] <Fn (anon)>
+print a[f] // [expect] <Fn $anon_fn$>
 print a[s] // [expect] [4, 5, 6]
 print a[t] // [expect] (4, 5, 6)
 print a[o] // [expect] {3: 4}
 print a["hello"] // [expect] world
 
 // This order changes when you fiddle with hashing and other object related stuff...
-// print a // {1: 2, nil: nil, true: false, [1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn (anon)>: <Fn (anon)>, <Fn (anon)>: <Fn (anon)>, hello: world}
+// print a // {1: 2, nil: nil, true: false, [1, 2, 3]: [4, 5, 6], [1, 2, 3]: [4, 5, 6], <Fn $anon_fn$>: <Fn $anon_fn$>, <Fn $anon_fn$>: <Fn $anon_fn$>, hello: world}
 // ... so we can't really test the order of the keys
 
 let entries = a.entries()

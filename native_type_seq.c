@@ -10,13 +10,19 @@ static bool seq_get_prop(Value receiver, ObjString* name, Value* result);
 static bool seq_get_subs(Value receiver, Value index, Value* result);
 static bool seq_set_subs(Value receiver, Value index, Value value);
 
+// SP methods
 static Value seq_ctor(int argc, Value argv[]);
 static Value seq_to_str(int argc, Value argv[]);
 static Value seq_has(int argc, Value argv[]);
 static Value seq_slice(int argc, Value argv[]);
+
+// Seq-only methods
 static Value seq_push(int argc, Value argv[]);
 static Value seq_pop(int argc, Value argv[]);
 static Value seq_yank(int argc, Value argv[]);
+static Value seq_cull(int argc, Value argv[]);
+
+// LISTLIKE methods
 static Value seq_pos(int argc, Value argv[]);
 static Value seq_first(int argc, Value argv[]);
 static Value seq_last(int argc, Value argv[]);
@@ -32,6 +38,7 @@ static Value seq_count(int argc, Value argv[]);
 static Value seq_concat(int argc, Value argv[]);
 static Value seq_sort(int argc, Value argv[]);
 static Value seq_order(int argc, Value argv[]);
+static Value seq_min(int argc, Value argv[]);
 static Value seq_sum(int argc, Value argv[]);
 
 ObjClass* native_seq_class_partial_init() {
@@ -48,6 +55,7 @@ ObjClass* native_seq_class_partial_init() {
 }
 
 void native_seq_class_finalize() {
+  // SP methods
   define_native(&vm.seq_class->methods, STR(SP_METHOD_CTOR), seq_ctor, 1);
   define_native(&vm.seq_class->methods, STR(SP_METHOD_TO_STR), seq_to_str, 0);
   define_native(&vm.seq_class->methods, STR(SP_METHOD_HAS), seq_has, 1);
@@ -62,9 +70,13 @@ void native_seq_class_finalize() {
   define_native(&vm.seq_class->methods, STR(SP_METHOD_LTEQ), native___lteq_not_supported, 1);
   define_native(&vm.seq_class->methods, STR(SP_METHOD_GTEQ), native___gteq_not_supported, 1);
 
+  // Seq-only methods
   define_native(&vm.seq_class->methods, "push", seq_push, -1);
   define_native(&vm.seq_class->methods, "pop", seq_pop, 0);
   define_native(&vm.seq_class->methods, "yank", seq_yank, 1);
+  define_native(&vm.seq_class->methods, "cull", seq_cull, 1);
+
+  // LISTLIKE methods
   define_native(&vm.seq_class->methods, "pos", seq_pos, 1);
   define_native(&vm.seq_class->methods, "first", seq_first, 1);
   define_native(&vm.seq_class->methods, "last", seq_last, 1);
@@ -80,6 +92,7 @@ void native_seq_class_finalize() {
   define_native(&vm.seq_class->methods, "concat", seq_concat, 1);
   define_native(&vm.seq_class->methods, "sort", seq_sort, 0);
   define_native(&vm.seq_class->methods, "order", seq_order, 1);
+  define_native(&vm.seq_class->methods, "min", seq_min, 0);
   define_native(&vm.seq_class->methods, "sum", seq_sum, 0);
   finalize_new_class(vm.seq_class);
 }
@@ -203,6 +216,77 @@ static Value seq_yank(int argc, Value argv[]) {
   return value_array_remove_at(&seq->items, (int)index);  // Does bounds checking
 }
 
+/**
+ * TYPENAME_SEQ.cull(pred: TYPENAME_FUNCTION -> TYPENAME_BOOL) -> TYPENAME_SEQ
+ * @brief Removes all items from a TYPENAME_SEQ for which 'pred' evaluates to VALUE_STR_TRUE and returns them in a new
+ TYPENAME_SEQ.
+ * Returns an empty TYPENAME_SEQ if no item satisfies the predicate.
+ */
+static Value seq_cull(int argc, Value argv[]) {
+  UNUSED(argc);
+  NATIVE_CHECK_RECEIVER(vm.seq_class)
+  NATIVE_CHECK_ARG_AT_IS_CALLABLE(1)
+
+  ObjSeq* orig = AS_SEQ(argv[0]);
+  int fn_arity = callable_get_arity(argv[1]);
+
+  ObjSeq* seq = new_seq();
+  vm_push(seq_value(seq)); /* GC Protection */
+
+  /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */
+  switch (fn_arity) {
+    case 1: {
+      for (int i = 0; i < orig->items.count; i++) {
+        /* Execute the provided function on the item */
+        vm_push(argv[1]);               /* Push the function */
+        vm_push(orig->items.values[i]); /* arg0 (1): Push the item */
+        Value result = vm_exec_callable(argv[1], 1);
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+          return nil_value(); /* Propagate the error */
+        }
+
+        /* We don't use vm_is_falsey here, because we want to check for a boolean value. */
+        if (is_bool(result) && result.as.boolean) {
+          result = value_array_remove_at(&orig->items, i);
+          vm_push(result); /* GC Protection */
+          value_array_write(&seq->items, result);
+          vm_pop(); /* Remove the value pushed for GC Protection */
+        }
+      }
+      break;
+    }
+    case 2: {
+      for (int i = 0; i < orig->items.count; i++) {
+        /* Execute the provided function on the item */
+        vm_push(argv[1]);               /* Push the function */
+        vm_push(orig->items.values[i]); /* arg0 (1): Push the item */
+        vm_push(int_value(i));          /* arg1 (2): Push the index */
+        Value result = vm_exec_callable(argv[1], 2);
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+          return nil_value(); /* Propagate the error */
+        }
+
+        /* We don't use vm_is_falsey here, because we want to check for a boolean value. */
+        if (is_bool(result) && result.as.boolean) {
+          result = value_array_remove_at(&orig->items, i);
+          vm_push(result); /* GC Protection */
+          value_array_write(&seq->items, result);
+          vm_pop(); /* Remove the value pushed for GC Protection */
+        }
+      }
+      break;
+    }
+    default: {
+      vm_error("Function passed to \"" STR(cull) "\" must take 1 or 2 arguments, but got %d.", fn_arity);
+      return nil_value();
+    }
+  }
+
+  /* Remove the values which were pushed for GC Protection */
+  Value result = vm_pop();
+  return result;
+}
+
 #define NATIVE_LISTLIKE_GET_ARRAY(value) AS_SEQ(value)->items
 #define NATIVE_LISTLIKE_NEW_EMPTY() seq_value(new_seq())
 #define NATIVE_LISTLIKE_TAKE_ARRAY(value_array) seq_value(take_seq(&value_array))
@@ -259,6 +343,9 @@ static Value seq_order(int argc, Value argv[]) {
 }
 static Value seq_sort(int argc, Value argv[]) {
   NATIVE_LISTLIKE_SORT_BODY(vm.seq_class);
+}
+static Value seq_min(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_MIN_BODY(vm.seq_class);
 }
 static Value seq_sum(int argc, Value argv[]) {
   NATIVE_LISTLIKE_SUM_BODY(vm.seq_class);

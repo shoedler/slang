@@ -115,4 +115,13 @@ Token scanner_scan_token();
 // Get the start of a line of a token, exclusive (points to the first character of the line).
 const char* scanner_get_line_start(Token token);
 
+static inline bool token_is_inc_dec(TokenKind type) {
+  return type == TOKEN_PLUS_PLUS || type == TOKEN_MINUS_MINUS;
+}
+
+static inline bool token_is_compound_assignment(TokenKind type) {
+  return type == TOKEN_PLUS_ASSIGN || type == TOKEN_MINUS_ASSIGN || type == TOKEN_MULT_ASSIGN || type == TOKEN_DIV_ASSIGN ||
+         type == TOKEN_MOD_ASSIGN;
+}
+
 #endif

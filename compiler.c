@@ -1,2203 +1,1212 @@
 #include "compiler.h"
-
 #include <stdarg.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "chunk.h"
+#include "ast.h"
 #include "common.h"
-#include "hashtable.h"
+#include "debug.h"
 #include "memory.h"
 #include "object.h"
-#include "scanner.h"
-#include "stdint.h"
-#include "value.h"
+#include "scope.h"
 #include "vm.h"
 
-#ifdef DEBUG_PRINT_CODE
-#include "debug.h"
+FnCompiler* current_compiler = NULL;
+AstFn* compiler_root         = NULL;
+
+// Forward declarations
+void compile_children(FnCompiler* compiler, AstNode* node);
+static void compile_node(FnCompiler* compiler, AstNode* node);
+static void emit_return(FnCompiler* compiler, AstNode* source);
+
+static void compiler_init(FnCompiler* compiler, FnCompiler* enclosing, AstFn* function, ObjObject* globals_context) {
+  compiler->enclosing = enclosing;
+  current_compiler    = compiler;
+
+  compiler->result = NULL;  // Required, because new_function() can trigger a GC
+
+  compiler->function                = function;
+  compiler->result                  = new_function();
+  compiler->result->upvalue_count   = function->upvalue_count;
+  compiler->result->globals_context = globals_context == NULL ? enclosing->result->globals_context : globals_context;
+  compiler->result->name            = ((AstId*)function->base.children[0])->name;
+
+  compiler->brakes_count    = 0;
+  compiler->brakes_capacity = 0;
+  compiler->brake_jumps     = NULL;
+
+  compiler->innermost_loop_scope = NULL;
+  compiler->innermost_loop_start = -1;
+
+  compiler->had_error = false;
+}
+
+static ObjFunction* end_compiler(FnCompiler* compiler) {
+  emit_return(compiler, (AstNode*)compiler->function);
+  ObjFunction* function = compiler->result;
+#ifdef DEBUG_PRINT_BYTECODE
+  debug_disassemble_chunk(&function->chunk, function->name->chars);
 #endif
 
-// A construct holding the parser's state.
-typedef struct {
-  Token current;    // The current token.
-  Token previous;   // The token before the current.
-  bool had_error;   // True if there was an error during parsing.
-  bool panic_mode;  // True if the parser requires synchronization.
-} Parser;
+  if (compiler->enclosing != NULL) {
+    compiler->enclosing->had_error |= compiler->had_error;
+  }
 
-// Precedence levels for comparison expressions.
-typedef enum {
-  PREC_NONE,
-  PREC_ASSIGN,      // =
-  PREC_TERNARY,     // ?:
-  PREC_OR,          // or
-  PREC_AND,         // and
-  PREC_EQUALITY,    // == !=
-  PREC_COMPARISON,  // < > <= >= is in
-  PREC_TERM,        // + -
-  PREC_FACTOR,      // * / %
-  PREC_UNARY,       // ! -
-  PREC_CALL,        // . () [] grouping with parens
-  PREC_PRIMARY
-} Precedence;
-
-// Signature for a function that parses a prefix or infix expression.
-typedef void (*ParseFn)(bool can_assign);
-
-// Precedence-dependent rule for parsing expressions.
-typedef struct {
-  ParseFn prefix;  // Prefix, e.g. unary operators. Example: -1, where '-' is the prefix operator.
-  ParseFn infix;   // Infix, e.g. binary operators. Example: 1 + 2, where '+' is the infix operator.
-  Precedence precedence;
-} ParseRule;
-
-// Local variable that lives on the stack.
-typedef struct {
-  Token name;
-  int depth;
-  bool is_captured;  // True if the variable is captured by an upvalue.
-  bool is_const;     // True if the variable is a constant.
-} Local;
-
-typedef struct {
-  uint16_t index;
-  bool is_local;
-} Upvalue;
-
-// Compiler state.
-typedef struct Compiler {
-  struct Compiler* enclosing;
-  ObjFunction* function;
-  FunctionType type;
-
-  Local locals[MAX_LOCALS];
-  int local_count;
-  Upvalue upvalues[MAX_UPVALUES];
-  int scope_depth;
-
-  // Brake jumps need to be stored because we don't know the offset of the jump when we compile them.
-  // That's why we store them in an array and patch them later.
-  int brakes_count;
-  int brakes_capacity;
-  int* brake_jumps;
-
-  int innermost_loop_start;
-  int innermost_loop_scope_depth;
-} Compiler;
-
-typedef struct ClassCompiler {
-  struct ClassCompiler* enclosing;
-  bool has_baseclass;
-} ClassCompiler;
-
-Parser parser;
-Compiler* current            = NULL;
-ClassCompiler* current_class = NULL;
-Chunk* compiling_chunk;
-
-#define CONSTNESS_FN_DECLARATION false
-#define CONSTNESS_FN_PARAMS false
-#define CONSTNESS_CLS_DECLARATION false
-#define CONSTNESS_IMPORT_VARS true
-#define CONSTNESS_IMPORT_BINDINGS true
-#define CONSTNESS_KW_ERROR false
-#define CONSTNESS_KW_BASE true
-
-// Keep track of globals that were declared as constants. This is completely uncoupled from the VMs globals,
-// as this is only required during compilation (of a module).
-ObjString* const_globals[MAX_CONST_GLOBALS];
-int const_globals_count;
-
-// Retrieves the current chunk from the current compiler.
-static inline Chunk* current_chunk() {
-  return &current->function->chunk;
+  current_compiler = compiler->enclosing;
+  return function;
 }
 
-// Prints the given token as an error message.
-// Sets the parser into panic mode to avoid cascading errors.
-static void handle_compiler_error(Token* token, const char* format, va_list args) {
-  if (parser.panic_mode) {
-    return;
-  }
+static void compiler_free(FnCompiler* compiler) {
+  FREE_ARRAY(int, compiler->brake_jumps, compiler->brakes_capacity);
+}
 
-  VM_SET_FLAG(VM_FLAG_HAD_COMPILE_ERROR);
-  parser.panic_mode = true;
+// Prints an error message at the offending node.
+static void compiler_error(FnCompiler* compiler, AstNode* offending_node, const char* format, ...) {
+  compiler->had_error = true;
 
-  fprintf(stderr, "Compile error at line %d", token->line);
-
-  if (token->type == TOKEN_EOF) {
-    fprintf(stderr, " at end");
-  } else if (token->type != TOKEN_ERROR) {
-    fprintf(stderr, " at '%.*s'", token->length, token->start);
-  }
-
-  fprintf(stderr, ": ");
+  fprintf(stderr, "Compiler error at line %d", offending_node->token_start.line);
+  fprintf(stderr, ": " ANSI_COLOR_RED);
+  va_list args;
+  va_start(args, format);
   vfprintf(stderr, format, args);
-  fprintf(stderr, "\n");
-
-  parser.had_error = true;
-}
-
-// Prints the given token as an error message.
-// Sets the parser into panic mode to avoid cascading errors.
-static void compiler_error(Token* token, const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  handle_compiler_error(token, format, args);
+  fprintf(stderr, ANSI_COLOR_RESET "\n");
   va_end(args);
+
+  SourceView source = chunk_make_source_view(offending_node->token_start, offending_node->token_end);
+  report_error_location(source);
 }
 
-// Prints an error message at the previous token.
-// Sets the parser into panic mode to avoid cascading errors.
-static void compiler_error_at_previous(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  handle_compiler_error(&parser.previous, format, args);
-  va_end(args);
-}
-
-// Prints an error message at the current token.
-// Sets the parser into panic mode to avoid cascading errors.
-static void compiler_error_at_current(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  handle_compiler_error(&parser.current, format, args);
-  va_end(args);
-}
-
-// Parse the next token. Consumes error tokens, so that on the next call we have a valid token.
-static void advance() {
-  parser.previous = parser.current;
-
-  for (;;) {
-    parser.current = scanner_scan_token();
-
-    if (parser.current.type != TOKEN_ERROR) {
-      break;
-    }
-
-    compiler_error_at_current(parser.current.start);
-  }
-}
-
-// Assert and cosume the current token according to the provided token type.
-// If it doesn't match, print an error message.
-static void consume(TokenKind type, const char* format, ...) {
-  if (parser.current.type == type) {
-    advance();
-    return;
-  }
-
-  va_list args;
-  va_start(args, format);
-  handle_compiler_error(&parser.current, format, args);
-  va_end(args);
-}
-
-// Compares the current token with the provided token type.
-static bool check(TokenKind type) {
-  return parser.current.type == type;
-}
-
-// Accept the current token if it matches the provided token type, otherwise do
-// nothing.
-static bool match(TokenKind type) {
-  if (!check(type)) {
-    return false;
-  }
-  advance();
-  return true;
-}
-
-// Checks if the current token is a statement terminator.
-// Mainly used for return statements, because they can be followed an expression
-static bool check_statement_return_end() {
-  return parser.current.is_first_on_line ||  // If the current token is the first on the line
-         check(TOKEN_CBRACE) ||  // If the current token is a closing brace, indicating the end of a block ({ ret x` })
-         check(TOKEN_ELSE) ||    // If the current token is an else keyword (if a ret b` else ret c)
-         check(TOKEN_EOF);       // If the current token is the end of the file
-}
-
-// Checks whether a token matches a reserved property name.
-static bool check_reserved_prop(Token* name) {
-  for (int i = 0; i < SPECIAL_PROP_MAX; i++) {
-    if (vm.special_prop_names[i]->length == name->length &&
-        memcmp(vm.special_prop_names[i]->chars, name->start, name->length) == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// Checks whether a token matches a reserved method name.
-static bool check_reserved_method(Token* name) {
-  for (int i = 0; i < SPECIAL_METHOD_MAX; i++) {
-    if (vm.special_method_names[i]->length == name->length &&
-        memcmp(vm.special_method_names[i]->chars, name->start, name->length) == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// Writes an opcode or operand to the current chunk.
-// [error_start] is the token where the error message should start if the Vm encounters a runtime error executing this data.
-// It'll span up to the previous token.
-static void emit_one(uint16_t data, Token error_start) {
-  chunk_write(current_chunk(), data, error_start, parser.previous /* error_end */);
-}
-// Writes an opcode or operand to the current chunk.
-// This is a shorthand for [emit_one], indicating that the offending token is [parser.previous].
-static void emit_one_here(uint16_t data) {
-  emit_one(data, parser.previous);  // 'current' is actually the next one we want to consume. So we use 'previous'.
-}
-
-// Writes two opcodes or operands to the current chunk.
-// [error_start] is the token where the error message should start if the Vm encounters a runtime error executing this data.
-// It'll span up to the previous token.
-static void emit_two(uint16_t data1, uint16_t data2, Token error_start) {
-  emit_one(data1, error_start);
-  emit_one(data2, error_start);
-}
-// Writes two opcodes or operands to the current chunk.
-// This is a shorthand for [emit_two], indicating that the offending token is [parser.previous].
-static void emit_two_here(uint16_t data1, uint16_t data2) {
-  emit_two(data1, data2, parser.previous);  // 'current' is actually the next one we want to consume. So we use 'previous'.
-}
-
-// Emits a loop instruction. The operand is a 16-bit offset. It is calculated by subtracting the current chunk's count from the
-// offset of the jump instruction.
-static void emit_loop(int loop_start) {
-  emit_one_here(OP_LOOP);
-
-  int offset = current_chunk()->count - loop_start + 1;
-  if (offset > MAX_JUMP) {
-    compiler_error_at_previous("Loop body too large, cannot jump over %d opcodes. Max is " STR(MAX_JUMP), offset);
-  }
-
-  emit_one_here((uint16_t)offset);
-}
-
-// Emits a jump instruction and returns the offset of the jump instruction.
-// Along with the emitted jump instruction, a 16-bit placeholder for the
-// operand is emitted.
-static int emit_jump(uint16_t instruction) {
-  emit_one_here(instruction);
-  emit_one_here(UINT16_MAX);
-  return current_chunk()->count - 1;
-}
-
-// Patches a previously emitted jump instruction with the actual jump offset.
-// The offset is calculated by subtracting the current chunk's count from the
-// offset of the jump instruction.
-static void patch_jump(int offset) {
-  // -1 to adjust for the bytecode for the jump offset itself.
-  int jump = current_chunk()->count - offset - 1;
-
-  if (jump > MAX_JUMP) {
-    compiler_error_at_previous("Too much code to jump over, cannot jump over %d opcodes. Max is " STR(MAX_JUMP), jump);
-  }
-
-  current_chunk()->code[offset] = (uint16_t)jump;
-}
-
-// Patches a previously emitted jump instruction from a break statement.
-static void patch_breaks(int jump_start_offset) {
-  while (current->brakes_count > 0 && current->brake_jumps[current->brakes_count - 1] > jump_start_offset) {
-    patch_jump(current->brake_jumps[current->brakes_count - 1]);
-    current->brakes_count--;
-  }
-}
+//
+// Emission
+//
 
 // Adds a value to the current constant pool and returns its index.
-static uint16_t make_constant(Value value) {
-  int constant = chunk_add_constant(current_chunk(), value);
+static uint16_t make_constant(FnCompiler* compiler, Value value, AstNode* source) {
+  int constant = chunk_add_constant(&compiler->result->chunk, value);
   if (constant > MAX_CONSTANTS) {
-    compiler_error_at_previous("Too many constants in one chunk. Max is " STR(MAX_CONSTANTS));
+    compiler_error(compiler, source, "Too many constants in one chunk. Max is " STR(MAX_CONSTANTS));
     return 0;
   }
 
   return (uint16_t)constant;
 }
 
-// Adds value to the constant pool and emits a const instruction to load it.
-static void emit_constant(Value value, Token error_start) {
-  emit_two(OP_CONSTANT, make_constant(value), error_start);
-}
-static void emit_constant_here(Value value) {
-  emit_constant(value, parser.previous);
+// Adds the ids name to the constant pool and returns its index.
+static uint16_t id_constant(FnCompiler* compiler, ObjString* id, AstNode* source) {
+  return make_constant(compiler, str_value(id), source);
 }
 
-// Emits a return instruction.
-// If the current function is a constructor, the return value is the instance
-// (the 'this' pointer). Otherwise, the return value is nil.
-static void emit_return() {
-  if (current->type == TYPE_CONSTRUCTOR) {
-    emit_two_here(OP_GET_LOCAL, 0);  // Return class instance, e.g. 'this'.
+// Adds the synthetic name to the constant pool and returns its index.
+static uint16_t synthetic_constant(FnCompiler* compiler, const char* name, AstNode* source) {
+  return make_constant(compiler, str_value(copy_string(name, strlen(name))), source);
+}
+
+// Writes an opcode or operand to the current chunk. [source] is the node that generated the instruction and is
+// used for error reporting in the vm via a lightweight source view.
+static void emit_one(FnCompiler* compiler, uint16_t data, AstNode* source) {
+  chunk_write(&compiler->result->chunk, data, source->token_start, source->token_end);
+}
+// See emit_one
+static void emit_two(FnCompiler* compiler, uint16_t data1, uint16_t data2, AstNode* source) {
+  emit_one(compiler, data1, source);
+  emit_one(compiler, data2, source);
+}
+// See emit_one
+static void emit_three(FnCompiler* compiler, uint16_t data1, uint16_t data2, uint16_t data3, AstNode* source) {
+  emit_one(compiler, data1, source);
+  emit_one(compiler, data2, source);
+  emit_one(compiler, data3, source);
+}
+
+static void emit_return(FnCompiler* compiler, AstNode* source) {
+  if (compiler->function->type == FN_TYPE_CONSTRUCTOR) {
+    emit_two(compiler, OP_GET_LOCAL, 0, source);  // Return class instance, e.g. 'this'.
   } else {
-    emit_one_here(OP_NIL);
+    emit_one(compiler, OP_NIL, source);
   }
 
-  emit_one_here(OP_RETURN);
+  emit_one(compiler, OP_RETURN, source);
 }
 
-// Initializes a new compiler.
-static void compiler_init(Compiler* compiler, FunctionType type) {
-  compiler->enclosing = current;
-  current             = compiler;
+static void emit_constant(FnCompiler* compiler, Value value, AstNode* source) {
+  emit_two(compiler, OP_CONSTANT, make_constant(compiler, value, source), source);
+}
 
-  compiler->function                   = NULL;
-  compiler->type                       = type;
-  compiler->local_count                = 0;
-  compiler->scope_depth                = 0;
-  compiler->function                   = new_function();
-  compiler->function->globals_context  = vm.module;
-  compiler->innermost_loop_start       = -1;
-  compiler->innermost_loop_scope_depth = -1;
+// Emits a jump instruction and returns the offset of the jump instruction. Along with the emitted jump instruction, a 16-bit
+// placeholder for the operand is emitted.
+static int emit_jump(FnCompiler* compiler, uint16_t instruction, AstNode* source) {
+  emit_one(compiler, instruction, source);
+  emit_one(compiler, UINT16_MAX, source);
+  return compiler->result->chunk.count - 1;
+}
 
-  compiler->brakes_capacity = 0;
-  compiler->brakes_count    = 0;
-  compiler->brake_jumps     = NULL;
+// Patches a previously emitted jump instruction with the actual jump offset. The offset is calculated by subtracting the current
+// chunk's count from the offset of the jump instruction.
+static void patch_jump(FnCompiler* compiler, int offset) {
+  // -1 to adjust for the bytecode for the jump offset itself.
+  int jump = compiler->result->chunk.count - offset - 1;
 
-  // Determine the name of the function via its type.
-  switch (type) {
-    case TYPE_MODULE: {
-      // We use the modules name as the functions name (same reference, no copy). Meaning that the modules
-      // toplevel function has the same name as the module. This is useful for debugging and for stacktraces -
-      // it let's us easily determine if a frames function is a toplevel function or not.
-      Value module_name;
-      if (hashtable_get_by_string(&vm.module->fields, vm.special_prop_names[SPECIAL_PROP_MODULE_NAME], &module_name)) {
-        current->function->name = AS_STR(module_name);
-        break;
-      }
-      INTERNAL_ERROR("Module name not found in the fields of the active module (module." STR(SP_PROP_MODULE_NAME) ").");
-      current->function->name = copy_string("(Unnamed module)", STR_LEN("(Unnamed module)"));
+  if (jump > MAX_JUMP) {
+    compiler_error(compiler, (AstNode*)compiler->function,
+                   "Too much code to jump over, cannot jump over %d opcodes. Max is " STR(MAX_JUMP), jump);
+  }
+
+  compiler->result->chunk.code[offset] = (uint16_t)jump;
+}
+
+// Patches a previously emitted jump instruction from a break statement.
+static void patch_breaks(FnCompiler* compiler, int jump_start_offset) {
+  while (compiler->brakes_count > 0 && compiler->brake_jumps[compiler->brakes_count - 1] > jump_start_offset) {
+    patch_jump(compiler, compiler->brake_jumps[compiler->brakes_count - 1]);
+    compiler->brakes_count--;
+  }
+}
+
+// Emits a loop instruction. The operand is a 16-bit offset. It is calculated by subtracting the current chunk's count from the
+// offset of the jump instruction.
+static void emit_loop(FnCompiler* compiler, int loop_start, AstNode* source) {
+  emit_one(compiler, OP_LOOP, source);
+
+  int offset = compiler->result->chunk.count - loop_start + 1;
+  if (offset > MAX_JUMP) {
+    compiler_error(compiler, source, "Loop body too large, cannot jump over %d opcodes. Max is " STR(MAX_JUMP), offset);
+  }
+
+  emit_one(compiler, (uint16_t)offset, source);
+}
+
+// Emits bytecode to assign the value at the top of the stack to the given [id].
+static void emit_assign_id(FnCompiler* compiler, AstId* id) {
+  switch (id->ref->symbol->type) {
+    case SYMBOL_LOCAL: {
+      OpCode op = id->ref->is_upvalue ? OP_SET_UPVALUE : OP_SET_LOCAL;
+      emit_two(compiler, op, id->ref->index, (AstNode*)id);
       break;
     }
-    case TYPE_ANONYMOUS_FUNCTION: current->function->name = copy_string("(anon)", STR_LEN("(anon)")); break;
-    case TYPE_CONSTRUCTOR: current->function->name = vm.special_method_names[SPECIAL_METHOD_CTOR]; break;
-    default: current->function->name = copy_string(parser.previous.start, parser.previous.length); break;
-  }
-
-  Local* local       = &current->locals[current->local_count++];
-  local->depth       = 0;
-  local->is_captured = false;
-
-  // Sometimes we need to "inject" the 'this' keyword, depending on the type of function we're compiling.
-  if (type == TYPE_CONSTRUCTOR || type == TYPE_METHOD) {
-    local->name.start  = KEYWORD_THIS;
-    local->name.length = STR_LEN(KEYWORD_THIS);
-  } else {
-    local->name.start  = "";  // Not accessible.
-    local->name.length = 0;
-  }
-}
-
-// Frees a compiler
-static void compiler_free(Compiler* compiler) {
-  FREE_ARRAY(int, compiler->brake_jumps, compiler->brakes_capacity);
-}
-
-// Ends the current compiler and returns the compiled function.
-// Moves up the compiler chain, by setting the current compiler to the enclosing
-static ObjFunction* end_compiler() {
-  emit_return();
-  ObjFunction* function = current->function;
-
-#ifdef DEBUG_PRINT_CODE
-  if (!parser.had_error) {
-    debug_disassemble_chunk(current_chunk(), function->name != NULL ? function->name->chars : "[Toplevel]");
-
-    if (current->enclosing == NULL) {
-      printf("\n== End of compilation ==\n\n");
+    case SYMBOL_NATIVE: INTERNAL_ASSERT(false, "Fix resolver. Assigning to natives is forbidden."); break;
+    case SYMBOL_GLOBAL: {
+      uint16_t global_constant = id_constant(compiler, id->name, (AstNode*)id);
+      emit_two(compiler, OP_SET_GLOBAL, global_constant, (AstNode*)id);
+      break;
     }
+    default: INTERNAL_ERROR("Unknown symbol type: %d", id->ref->symbol->type);
   }
-#endif
-  current = current->enclosing;
-
-  return function;
 }
 
-// Opens up a new scope.
-static void begin_scope() {
-  current->scope_depth++;
+// Emits bytecode to define the given [id] as a variable with the value at the top of the stack.
+// If it's a global, [global_constant] is the index of the global constant in the constant pool.
+// Note: This exists for defining globals - they are referenced by their acutal name. In contrast to emit_define_id, this exists
+// because of import and destructuring declarations. In these cases we add a constant for some variable before actually defining
+// any variable. We want to reuse the constant to not add unnecessary duplicate constants to the pool.
+static void emit_define_id_explicit(FnCompiler* compiler, AstId* id, uint16_t global_constant) {
+  Symbol* sym = id->ref->symbol;
+  switch (sym->type) {
+    case SYMBOL_LOCAL: break;  // Locals are already defined.
+    case SYMBOL_NATIVE: INTERNAL_ASSERT(false, "Fix resolver. Cannot define natives."); break;
+    case SYMBOL_GLOBAL: {
+      emit_two(compiler, OP_DEFINE_GLOBAL, global_constant, (AstNode*)id);
+      break;
+    }
+    default: INTERNAL_ERROR("Unknown symbol type: %d", sym->type);
+  }
 }
 
-// Closes a scope. Closes over from the scope we're leaving.
-static void end_scope() {
-  current->scope_depth--;
+// Emits bytecode to define the given [id] as a variable with the value at the top of the stack.
+static void emit_define_id(FnCompiler* compiler, AstId* id) {
+  if (id->ref->symbol->type == SYMBOL_GLOBAL) {
+    uint16_t global_constant = id_constant(compiler, id->name, (AstNode*)id);
+    emit_define_id_explicit(compiler, id, global_constant);
+  } else {
+    emit_define_id_explicit(compiler, id, 0 /* ignored */);
+  }
+}
 
-  while (current->local_count > 0 && current->locals[current->local_count - 1].depth > current->scope_depth) {
-    // Since we're leaving the scope, we don't need the local variables anymore.
-    // The ones who got captured by a closure are still needed, and are
-    // going to need to live on the heap.
-    if (current->locals[current->local_count - 1].is_captured) {
-      emit_one_here(OP_CLOSE_UPVALUE);
+// Emits bytecode to load the value of the given [id] onto the stack.
+static void emit_load_id(FnCompiler* compiler, AstId* id) {
+  switch (id->ref->symbol->type) {
+    case SYMBOL_LOCAL: {
+      OpCode op = id->ref->is_upvalue ? OP_GET_UPVALUE : OP_GET_LOCAL;
+      emit_two(compiler, op, id->ref->index, (AstNode*)id);
+      break;
+    }
+    case SYMBOL_NATIVE:
+    case SYMBOL_GLOBAL: {
+      uint16_t global = id_constant(compiler, id->name, (AstNode*)id);
+      emit_two(compiler, OP_GET_GLOBAL, global, (AstNode*)id);
+      break;
+    }
+    default: INTERNAL_ERROR("Unknown symbol type: %d", id->ref->symbol->type);
+  }
+}
+
+// Emits preliminary bytecode for any supported assignment target in a compound assignment case (++,--,%= etc.). These assignments
+// require the target to be loaded onto the stack before the value to be assigned is computed. Used in combination with
+// emit_assignment. Returns the name index if the target is a property access, 0 otherwise.
+static uint16_t emit_compound_assignment_prelude(FnCompiler* compiler, AstExpression* target) {
+  if (target->type == EXPR_VARIABLE) {
+    AstId* id = (AstId*)target->base.children[0];
+    emit_load_id(compiler, id);  // [value]
+    return 0;
+  } else if (target->type == EXPR_DOT) {
+    AstNode* receiver = target->base.children[0];
+    AstId* property   = (AstId*)target->base.children[1];
+    uint16_t name     = id_constant(compiler, property->name, (AstNode*)property);
+    compile_node(compiler, receiver);                               // [target]
+    emit_two(compiler, OP_DUPE, 0, (AstNode*)target);               // Duplicate the receiver: [target][target]
+    emit_two(compiler, OP_GET_PROPERTY, name, (AstNode*)property);  // [target][value]
+    return name;
+  } else if (target->type == EXPR_SUBS) {
+    AstNode* receiver = target->base.children[0];
+    AstNode* index    = target->base.children[1];
+    compile_node(compiler, receiver);                        // [target]
+    compile_node(compiler, index);                           // [target][idx]
+    emit_two(compiler, OP_DUPE, 1, (AstNode*)target);        // Duplicate the receiver: [target][idx][target]
+    emit_two(compiler, OP_DUPE, 1, (AstNode*)target);        // Duplicate the index:  [target][idx][target][idx]
+    emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)target);  // [target][idx][value]
+    return 0;
+  } else {
+    INTERNAL_ERROR("Unsupported compound assignment target: %d", target->type);
+    return 0;
+  }
+}
+
+// Emits final bytecode for any supported assignment target in a compound assignment case (++,--,%= etc.). Used in combination
+// with emit_compound_assignment_prelude. Assigns the value at the top of the stack to [target].
+static void emit_compound_assignment(FnCompiler* compiler, AstExpression* target, uint16_t name) {
+  if (target->type == EXPR_VARIABLE) {
+    // Expects Stack: [value]
+    AstId* id = (AstId*)target->base.children[0];
+    emit_assign_id(compiler, id);
+  } else if (target->type == EXPR_DOT) {
+    // Expects Stack: [target][value]
+    AstId* property = (AstId*)target->base.children[1];
+    emit_two(compiler, OP_SET_PROPERTY, name, (AstNode*)property);
+  } else if (target->type == EXPR_SUBS) {
+    // Expects Stack: [target][idx][value]
+    emit_one(compiler, OP_SET_SUBSCRIPT, (AstNode*)target);
+  } else {
+    INTERNAL_ERROR("Unsupported compound assignment target: %d", target->type);
+  }
+}
+
+// Emits preliminary bytecode for any supported assignment target in a normal assignment case (=). Some targets require the
+// to be emitted before the value to be assigned is computed. Used in combination with emit_assignment. Returns the name index if
+// the target is a property access, 0 otherwise.
+static uint16_t emit_assignment_prelude(FnCompiler* compiler, AstExpression* target) {
+  if (target->type == EXPR_VARIABLE) {
+    return 0;
+  } else if (target->type == EXPR_DOT) {
+    AstNode* receiver = target->base.children[0];
+    AstId* property   = (AstId*)target->base.children[1];
+    uint16_t name     = id_constant(compiler, property->name, (AstNode*)property);
+    compile_node(compiler, receiver);  // [target]
+    return name;
+  } else if (target->type == EXPR_SUBS) {
+    AstNode* receiver = target->base.children[0];
+    AstNode* index    = target->base.children[1];
+    compile_node(compiler, receiver);  // [target]
+    compile_node(compiler, index);     // [target][idx]
+    return 0;
+  } else {
+    INTERNAL_ERROR("Unsupported assignment target: %d", target->type);
+    return 0;
+  }
+}
+
+// Emits final bytecode for any supported assignment target in a normal assignment case (=). Used in combination with
+// emit_assignment_prelude. Assigns the value at the top of the stack to [target].
+static void emit_assignment(FnCompiler* compiler, AstExpression* target, uint16_t name) {
+  if (target->type == EXPR_VARIABLE) {
+    // Expects Stack: [value]
+    AstId* id = (AstId*)target->base.children[0];
+    emit_assign_id(compiler, id);
+  } else if (target->type == EXPR_DOT) {
+    // Expects Stack: [target][value]
+    AstId* property = (AstId*)target->base.children[1];
+    emit_two(compiler, OP_SET_PROPERTY, name, (AstNode*)property);
+  } else if (target->type == EXPR_SUBS) {
+    // Expects Stack: [target][idx][value]
+    emit_one(compiler, OP_SET_SUBSCRIPT, (AstNode*)target);
+  } else {
+    INTERNAL_ERROR("Unsupported assignment target: %d", target->type);
+  }
+}
+
+// Emits bytecode for defining variables using destructuring. Assings the value at the top of the stack to the pattern.
+static void emit_define_pattern(FnCompiler* compiler, AstPattern* pattern) {
+  for (int i = 0; i < pattern->base.count; i++) {
+    AstPattern* child = (AstPattern*)pattern->base.children[i];
+    emit_two(compiler, OP_DUPE, 0, (AstNode*)child);  // Duplicate the rhs value: [rhs] -> [rhs][rhs]
+
+    if (!ast_pattern_is_var(child)) {
+      // Nested pattern
+      emit_constant(compiler, int_value(i), (AstNode*)child);  // [rhs][rhs][idx]
+      emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)child);   // [rhs][rhs][value]
+      emit_define_pattern(compiler, child);
     } else {
-      emit_one_here(OP_POP);
-    }
-    current->local_count--;
-  }
-}
+      // Binding or rest
+      AstId* child_id = (AstId*)child->base.children[0];
 
-static void expression();
-static void statement();
-static void declaration();
-static void block();
-
-static uint16_t argument_list();
-static void declaration_let();
-static void try_(bool can_assign);
-
-static ParseRule* get_rule(TokenKind type);
-static void parse_precedence(Precedence precedence);
-static uint16_t identifier_constant(Token* name);
-static int resolve_local(Compiler* compiler, Token* name, bool* is_const);
-static int resolve_upvalue(Compiler* compiler, Token* name, bool* is_const);
-static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local);
-static uint16_t parse_variable(const char* error_message, bool is_const);
-static void define_variable(uint16_t global, bool is_const);
-
-// Checks if the current token is a compound assigment token.
-static bool match_compound_assignment() {
-  return match(TOKEN_PLUS_ASSIGN) || match(TOKEN_MINUS_ASSIGN) || match(TOKEN_MULT_ASSIGN) || match(TOKEN_DIV_ASSIGN) ||
-         match(TOKEN_MOD_ASSIGN);
-}
-
-// Checks if the current token is an inc/dec token.
-static bool match_inc_dec() {
-  return match(TOKEN_PLUS_PLUS) || match(TOKEN_MINUS_MINUS);
-}
-
-// Compiles a compound assignment expression. The lhs bytecode has already been
-// emitted. The rhs starts at the current token. The compound assignment
-// operator is in the previous token.
-static void compound_assignment() {
-  TokenKind op_type = parser.previous.type;
-  expression();
-
-  switch (op_type) {
-    case TOKEN_PLUS_ASSIGN: emit_one_here(OP_ADD); break;
-    case TOKEN_MINUS_ASSIGN: emit_one_here(OP_SUBTRACT); break;
-    case TOKEN_MULT_ASSIGN: emit_one_here(OP_MULTIPLY); break;
-    case TOKEN_DIV_ASSIGN: emit_one_here(OP_DIVIDE); break;
-    case TOKEN_MOD_ASSIGN: emit_one_here(OP_MODULO); break;
-    default: INTERNAL_ERROR("Unhandled compound assignment operator type: %d", op_type); break;
-  }
-}
-
-// Compiles an inc/dec expression. The lhs bytecode has already been emitted.
-// The inc/dec operator is in the previous token.
-static void inc_dec() {
-  TokenKind op_type = parser.previous.type;
-  emit_constant_here(int_value(1));
-
-  switch (op_type) {
-    case TOKEN_PLUS_PLUS: emit_one_here(OP_ADD); break;
-    case TOKEN_MINUS_MINUS: emit_one_here(OP_SUBTRACT); break;
-    default: INTERNAL_ERROR("Unhandled inc/dec operator type: %d", op_type); break;
-  }
-}
-
-// Compiles a function call expression.
-// The opening parenthesis has already been consumed and is referenced by the
-// previous token.
-static void call(bool can_assign) {
-  UNUSED(can_assign);
-  Token error_start  = parser.previous;
-  uint16_t arg_count = argument_list();
-  emit_two(OP_CALL, arg_count, error_start);
-}
-
-// Compiles a dot expression.
-// The lhs bytecode has already been emitted. The rhs starts at the current
-// token. The dot operator is in the previous token.
-static void dot(bool can_assign) {
-  if (!match(TOKEN_ID)) {
-    consume(TOKEN_CTOR, "Expecting property name after '.'.");
-  }
-
-  Token error_start = parser.previous;
-  uint16_t name     = identifier_constant(&parser.previous);
-
-#define CHECK_RESERVED()                                                                                         \
-  if (check_reserved_prop(&error_start)) {                                                                       \
-    compiler_error(&error_start, "Cannot set reserved property '%.*s'.", error_start.length, error_start.start); \
-    return;                                                                                                      \
-  }                                                                                                              \
-  if (check_reserved_method(&error_start)) {                                                                     \
-    compiler_error(&error_start, "Cannot set reserved method '%.*s'.", error_start.length, error_start.start);   \
-    return;                                                                                                      \
-  }
-
-  if (can_assign && match(TOKEN_ASSIGN)) {
-    CHECK_RESERVED();
-    expression();
-    emit_two(OP_SET_PROPERTY, name, error_start);
-  } else if (can_assign && match_inc_dec()) {
-    CHECK_RESERVED();
-    emit_two(OP_DUPE, 0, error_start);  // Duplicate the object.
-    emit_two(OP_GET_PROPERTY, name, error_start);
-    inc_dec();
-    emit_two(OP_SET_PROPERTY, name, error_start);
-  } else if (can_assign && match_compound_assignment()) {
-    CHECK_RESERVED();
-    emit_two(OP_DUPE, 0, error_start);  // Duplicate the object.
-    emit_two(OP_GET_PROPERTY, name, error_start);
-    compound_assignment();
-    emit_two(OP_SET_PROPERTY, name, error_start);
-  } else if (match(TOKEN_OPAR)) {
-    // Shorthand for method calls. This combines two instructions into one:
-    // getting a property and calling a method.
-    uint16_t arg_count = argument_list();
-    emit_two(OP_INVOKE, name, error_start);
-    emit_one(arg_count, error_start);
-  } else {
-    emit_two(OP_GET_PROPERTY, name, error_start);
-  }
-
-#undef CHECK_RESERVED
-}
-
-// Compiles a subscripting expression. The opening bracket has already been consumed and is referenced by the previous token.
-static void subscripting(bool can_assign) {
-  bool slice_started = false;
-
-  // Start at the '['
-  Token error_start = parser.previous;
-
-  // Since the first number in a slice is optional, we need to check if the subscripting starts with a '..'
-  if (match(TOKEN_DOTDOT)) {
-    slice_started = true;
-    emit_constant_here(int_value(0));  // Start index.
-  }
-
-  // Either the index or the slice end.
-  if (slice_started && check(TOKEN_CBRACK)) {
-    emit_one(OP_NIL, error_start);  // Signals that we want to slice until the end.
-  } else {
-    expression();
-  }
-
-  // Handle slices
-  if (slice_started || match(TOKEN_DOTDOT)) {
-    // If the slice already started, we already have emitted the end aswell.
-    if (!slice_started) {
-      // The end of the slice is optional too.
-      if (check(TOKEN_CBRACK)) {
-        emit_one(OP_NIL, error_start);  // Signals that we want to slice until the end.
+      Value payload = pattern->type == PAT_OBJ ? str_value(child_id->name) : int_value(i);
+      if (child->type == PAT_REST) {
+        emit_constant(compiler, payload, (AstNode*)child);  // [rhs][rhs][payload]
+        emit_one(compiler, OP_NIL, (AstNode*)child);        // [rhs][rhs][payload][nil]
+        emit_one(compiler, OP_GET_SLICE, (AstNode*)child);  // [rhs][slice]
       } else {
-        expression();
+        // it's a PAT_BINDING
+        emit_constant(compiler, payload, (AstNode*)child);      // [rhs][rhs][payload]
+        emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)child);  // [rhs][value]
       }
-    }
 
-    consume(TOKEN_CBRACK, "Expecting ']' after slice.");
-    emit_one(OP_GET_SLICE, error_start);
-
-    if (match(TOKEN_ASSIGN)) {
-      compiler_error_at_previous("Slices can't be assigned to.");
-    }
-    return;
-  }
-
-  consume(TOKEN_CBRACK, "Expecting ']' after index.");
-
-  if (can_assign && match(TOKEN_ASSIGN)) {
-    expression();  // The new value.
-    emit_one(OP_SET_SUBSCRIPT, error_start);
-  } else if (can_assign && match_inc_dec()) {
-    emit_two(OP_DUPE, 1, error_start);  // Duplicate the indexee: [indexee][index] -> [indexee][index][indexee]
-    emit_two(OP_DUPE, 1, error_start);  // Duplicate the index:   [indexee][index][indexee] -> [indexee][index][indexee][index]
-    emit_one(OP_GET_SUBSCRIPT, error_start);
-    inc_dec();
-    emit_one(OP_SET_SUBSCRIPT, error_start);
-  } else if (can_assign && match_compound_assignment()) {
-    emit_two(OP_DUPE, 1, error_start);  // Duplicate the indexee: [indexee][index] -> [indexee][index][indexee]
-    emit_two(OP_DUPE, 1, error_start);  // Duplicate the index:  [indexee][index][indexee] -> [indexee][index][indexee][index]
-    emit_one(OP_GET_SUBSCRIPT, error_start);
-    compound_assignment();
-    emit_one(OP_SET_SUBSCRIPT, error_start);
-  } else {
-    emit_one(OP_GET_SUBSCRIPT, error_start);
-  }
-}
-
-// Compiles a text literal (true, false, nil).
-// The literal has already been consumed and is referenced by the previous
-// token.
-static void literal(bool can_assign) {
-  UNUSED(can_assign);
-  TokenKind op_type = parser.previous.type;
-
-  switch (op_type) {
-    case TOKEN_FALSE: emit_one_here(OP_FALSE); break;
-    case TOKEN_NIL: emit_one_here(OP_NIL); break;
-    case TOKEN_TRUE: emit_one_here(OP_TRUE); break;
-    default: INTERNAL_ERROR("Unhandled literal: %d", op_type); return;
-  }
-}
-
-// Compiles a tuple literal.
-// The opening parenthesis, aswell as the first element (optional) and the comma (previous token) have been consumed.
-// Maybe the first element (expression) has already been consumed too, bc it could also just be a grouping experssion (expression
-// in parentheses). Making a tuple of one element is allowed, but it's also a little stupid.
-static void tuple_literal(bool can_assign, int already_emitted_items, Token error_start) {
-  UNUSED(can_assign);
-  int count = 0;
-
-  if (!check(TOKEN_CPAR)) {
-    do {
-      if (check(TOKEN_CPAR)) {
-        break;  // Allow trailing comma.
-      }
-      expression();
-      count++;
-    } while (match(TOKEN_COMMA));
-  }
-  consume(TOKEN_CPAR, "Expecting ')' after " STR(TYPENAME_TUPLE) " literal. Or maybe you are missing a ','?");
-
-  if (count <= MAX_TUPLE_LITERAL_ITEMS) {
-    emit_two(OP_TUPLE_LITERAL, (uint16_t)(count + already_emitted_items), error_start);
-  } else {
-    // Still use 'compiler_error_at_current' because the message would be very long if we'd start at 'error_start'.
-    compiler_error_at_current("Can't have more than " STR(MAX_TUPLE_LITERAL_ITEMS) " items in a " STR(TYPENAME_TUPLE) ".");
-  }
-}
-
-// Compiles an empty tuple literal.
-// The opening parenthesis has already been consumed (previous token). Also, the comma has already been consumed.
-static void empty_tuple_literal(bool can_assign, Token error_start) {
-  UNUSED(can_assign);
-
-  consume(TOKEN_CPAR, "Expecting ')' after " STR(TYPENAME_TUPLE) " literal. ");
-  emit_two(OP_TUPLE_LITERAL, (uint16_t)0, error_start);
-}
-
-// Compiles a grouping (expression in parentheses).
-// The opening parenthesis has already been consumed (previous token)
-static void grouping(bool can_assign) {
-  UNUSED(can_assign);
-
-  // Start at the '('
-  Token error_start = parser.previous;
-
-  if (match(TOKEN_COMMA)) {
-    empty_tuple_literal(can_assign, error_start);
-    return;
-  }
-
-  expression();
-
-  if (match(TOKEN_COMMA)) {
-    tuple_literal(can_assign, 1, error_start);
-    return;
-  }
-
-  consume(TOKEN_CPAR, "Expecting ')' after expression.");
-}
-
-// Compiles a seq literal.
-// The opening brace has already been consumed (previous token)
-static void seq_literal(bool can_assign) {
-  UNUSED(can_assign);
-  int count = 0;
-
-  // Start at the '['
-  Token error_start = parser.previous;
-
-  if (!check(TOKEN_CBRACK)) {
-    do {
-      if (check(TOKEN_CBRACK)) {
-        break;  // Allow trailing comma.
-      }
-      expression();
-      count++;
-    } while (match(TOKEN_COMMA));
-  }
-  consume(TOKEN_CBRACK, "Expecting ']' after " STR(TYPENAME_SEQ) " literal. Or maybe you are missing a ','?");
-
-  if (count <= MAX_SEQ_LITERAL_ITEMS) {
-    emit_two(OP_SEQ_LITERAL, (uint16_t)count, error_start);
-  } else {
-    // Still use 'compiler_error_at_current' because the message would be very long if we'd start at 'error_start'.
-    compiler_error_at_current("Can't have more than " STR(MAX_SEQ_LITERAL_ITEMS) " items in a " STR(TYPENAME_SEQ) ".");
-  }
-}
-
-// Compiles an object literal.
-// The opening brace has already been consumed (previous token)
-static void object_literal(bool can_assign) {
-  UNUSED(can_assign);
-  int count = 0;
-
-  // Start at the '{'
-  Token error_start = parser.previous;
-
-  if (!check(TOKEN_CBRACE)) {
-    do {
-      if (check(TOKEN_CBRACE)) {
-        break;  // Allow trailing comma.
-      }
-      expression();
-      consume(TOKEN_COLON, "Expecting ':' after key.");
-      expression();
-      count++;
-    } while (match(TOKEN_COMMA));
-  }
-  consume(TOKEN_CBRACE, "Expecting '}' after " STR(TYPENAME_OBJ) " literal. Or maybe you are missing a ','?");
-
-  if (count <= MAX_OBJECT_LITERAL_ITEMS) {
-    emit_two(OP_OBJECT_LITERAL, (uint16_t)count, error_start);
-  } else {
-    // Still use 'compiler_error_at_current' because the message would be very long if we'd start at 'error_start'.
-    compiler_error_at_current("Can't have more than " STR(MAX_OBJECT_LITERAL_ITEMS) " items in a " STR(TYPENAME_OBJ) ".");
-  }
-}
-
-Value compiler_parse_number(const char* str, size_t length) {
-  if (length == 0) {
-    return int_value(0);
-  }
-
-  if (str[0] == '0' && length >= 2) {
-    char kind = str[1];
-    // See if it's a hexadecimal, binary, or octal number.
-    if ((kind == 'x' || kind == 'X')) {
-      long long value = strtoll(str + 2, NULL, 16);
-      return int_value(value);
-    }
-
-    if ((kind == 'b' || kind == 'B')) {
-      long long value = strtoll(str + 2, NULL, 2);
-      return int_value(value);
-    }
-
-    if ((kind == 'o' || kind == 'O')) {
-      long long value = strtoll(str + 2, NULL, 8);
-      return int_value(value);
-    }
-  }
-
-  // Check if the number is a float.
-  bool is_float = false;
-  for (size_t i = 0; i < length; i++) {
-    if (str[i] == '.') {
-      is_float = true;
-      break;
-    }
-  }
-
-  if (is_float) {
-    double value = strtod(str, NULL);
-    return float_value(value);
-  } else {
-    long long int value = strtoll(str, NULL, 10);
-    return int_value(value);
-  }
-}
-
-// Compiles a number literal and emits it as a number value.
-// The number has already been consumed and is referenced by the previous token.
-static void number(bool can_assign) {
-  UNUSED(can_assign);
-  Value value = compiler_parse_number(parser.previous.start, parser.previous.length);
-  emit_constant_here(value);
-}
-
-// Compiles a string literal and emits it as a string object value.
-// The string has already been consumed and is referenced by the previous token.
-static void string(bool can_assign) {
-  UNUSED(can_assign);
-  // Build the string using a flexible array
-  size_t str_capacity = 8;
-  size_t str_length   = 0;
-  char* str_bytes     = (char*)malloc(str_capacity);
-
-#define PUSH_CHAR(c)                                          \
-  do {                                                        \
-    if (str_capacity < str_length + 1) {                      \
-      size_t old   = str_capacity;                            \
-      str_capacity = GROW_CAPACITY(old);                      \
-      str_bytes    = (char*)realloc(str_bytes, str_capacity); \
-    }                                                         \
-    str_bytes[str_length++] = c;                              \
-  } while (0)
-
-  do {
-    const char* cur = parser.previous.start + 1;                           // Skip the opening quote.
-    const char* end = parser.previous.start + parser.previous.length - 1;  // Skip the closing quote.
-
-    while (cur < end) {
-      if (*cur == '\\') {
-        if (cur + 1 > end) {
-          compiler_error_at_current("Unterminated escape sequence.");
-          return;
-        }
-        switch (cur[1]) {
-          case 'f': PUSH_CHAR('\f'); break;  // Form feed
-          case 'r': PUSH_CHAR('\r'); break;  // Carriage return
-          case 'n': PUSH_CHAR('\n'); break;  // Newline
-          case 't': PUSH_CHAR('\t'); break;  // Tab
-          case 'v': PUSH_CHAR('\v'); break;  // Vertical tab
-          case 'b': PUSH_CHAR('\b'); break;  // Backspace
-          case '\\': PUSH_CHAR('\\'); break;
-          case '\"': PUSH_CHAR('\"'); break;
-          case '\'': PUSH_CHAR('\''); break;
-          default: compiler_error_at_current("Invalid escape sequence."); return;
-        }
-        cur += 2;
+      if (child_id->ref->symbol->type == SYMBOL_GLOBAL) {
+        emit_define_id(compiler, child_id);
       } else {
-        PUSH_CHAR(*cur);
-        cur++;
+        // In local scope, we have already emitted a placeholder (OP_NIL) in the prelude for the value, so we need to use assign,
+        // not define.
+        emit_assign_id(compiler, child_id);
+        if (child_id->ref->symbol->type == SYMBOL_LOCAL) {
+          emit_one(compiler, OP_POP, (AstNode*)child);  // Discard the value.
+        }
       }
     }
-  } while (match(TOKEN_STRING));
-
-  // Emit the string constant.
-  emit_constant_here(str_value(copy_string(str_bytes, (int)str_length)));
-
-  // Cleanup
-  free(str_bytes);
-#undef PUSH_CHAR
-}
-
-// Compiles a unary expression and emits the corresponding instruction.
-// The operator has already been consumed and is referenced by the previous
-// token.
-static void unary(bool can_assign) {
-  UNUSED(can_assign);
-  TokenKind operator_type = parser.previous.type;
-  Token error_start       = parser.previous;
-
-  parse_precedence(PREC_UNARY);
-
-  // Emit the operator instruction.
-  switch (operator_type) {
-    case TOKEN_NOT: emit_one(OP_NOT, error_start); break;
-    case TOKEN_MINUS: emit_one(OP_NEGATE, error_start); break;
-    default: INTERNAL_ERROR("Unhandled unary operator type: %d", operator_type); return;
   }
+
+  emit_one(compiler, OP_POP, (AstNode*)pattern);  // Discard the rhs value left on the stack.
 }
 
-// Compiles a binary expression and emits the corresponding instruction.
-// The lhs bytecode has already been emitted. The rhs starts at the current
-// token. The operator is in the previous token.
-static void binary(bool can_assign) {
-  UNUSED(can_assign);
-  TokenKind op_type = parser.previous.type;
-  Token error_start = parser.previous;
-
-  ParseRule* rule = get_rule(op_type);
-  parse_precedence((Precedence)(rule->precedence + 1));
-
-  switch (op_type) {
-    case TOKEN_NEQ: emit_one(OP_NEQ, error_start); break;
-    case TOKEN_EQ: emit_one(OP_EQ, error_start); break;
-    case TOKEN_GT: emit_one(OP_GT, error_start); break;
-    case TOKEN_GTEQ: emit_one(OP_GTEQ, error_start); break;
-    case TOKEN_LT: emit_one(OP_LT, error_start); break;
-    case TOKEN_LTEQ: emit_one(OP_LTEQ, error_start); break;
-    case TOKEN_PLUS: emit_one(OP_ADD, error_start); break;
-    case TOKEN_MINUS: emit_one(OP_SUBTRACT, error_start); break;
-    case TOKEN_MULT: emit_one(OP_MULTIPLY, error_start); break;
-    case TOKEN_DIV: emit_one(OP_DIVIDE, error_start); break;
-    case TOKEN_MOD: emit_one(OP_MODULO, error_start); break;
-    default: INTERNAL_ERROR("Unhandled binary operator type: %d", op_type); break;
-  }
-}
-
-// Generates bytecode to load a variable with the given name onto the stack.
-// [name] can be a synthetic token, but [error_start] must be the actual token from the source code.
-static void load_variable(Token name, bool can_assign, Token error_start) {
-  uint16_t get_op;
-  uint16_t set_op;
-  bool is_var_const = false;
-  int arg           = resolve_local(current, &name, &is_var_const);
-
-  if (arg != -1) {
-    get_op = OP_GET_LOCAL;
-    set_op = OP_SET_LOCAL;
-  } else if ((arg = resolve_upvalue(current, &name, &is_var_const)) != -1) {
-    get_op = OP_GET_UPVALUE;
-    set_op = OP_SET_UPVALUE;
-  } else {
-    arg = identifier_constant(&name);
-    // Get the name we added back from the constant pool and check if it matches (pointer comparison) any of the const globals in
-    // this compilation.
-    ObjString* name = (ObjString*)current_chunk()->constants.values[arg].as.obj;
-    for (int i = 0; i < const_globals_count; i++) {
-      if (const_globals[i] == name) {
-        is_var_const = true;
-        break;
+// Emits preliminary bytecode for defining a pattern. Used in combination with emit_define_pattern.
+static void emit_define_pattern_prelude(FnCompiler* compiler, AstPattern* pattern) {
+  // Emit placeholder values when in local scope. Not needed for globals, as they are declared with OP_DEFINE_GLOBAL.
+  // We only get here when the pattern is preceded by a 'let' or 'const' keyword, so we can safely assume all of the bindings are
+  // locals.
+  for (int i = 0; i < pattern->base.count; i++) {
+    AstPattern* child = (AstPattern*)pattern->base.children[i];
+    if (ast_pattern_is_var(child)) {
+      AstId* child_id = (AstId*)child->base.children[0];
+      if (child_id->ref->symbol->type == SYMBOL_LOCAL) {
+        emit_one(compiler, OP_NIL, (AstNode*)child);  // Define the variable.
       }
+    } else {
+      emit_define_pattern_prelude(compiler, child);
     }
-
-    get_op = OP_GET_GLOBAL;
-    set_op = OP_SET_GLOBAL;
   }
-
-#define CHECK_CONSTNESS()                                       \
-  if (is_var_const) {                                           \
-    compiler_error(&error_start, "Can't reassign a constant."); \
-    return;                                                     \
-  }
-
-#define CHECK_RESERVED_GLOBAL()                                                                                               \
-  if (set_op == OP_SET_GLOBAL && check_reserved_prop(&error_start)) {                                                         \
-    compiler_error(&error_start, "Cannot assign to global reserved property '%.*s'.", error_start.length, error_start.start); \
-    return;                                                                                                                   \
-  }                                                                                                                           \
-  if (set_op == OP_SET_GLOBAL && check_reserved_method(&error_start)) {                                                       \
-    compiler_error(&error_start, "Cannot assign to global reserved method '%.*s'.", error_start.length, error_start.start);   \
-    return;                                                                                                                   \
-  }
-
-  if (can_assign && match(TOKEN_ASSIGN)) {
-    CHECK_CONSTNESS();
-    CHECK_RESERVED_GLOBAL();
-    expression();
-    emit_two(set_op, (uint16_t)arg, error_start);
-  } else if (can_assign && match_inc_dec()) {
-    CHECK_CONSTNESS();
-    CHECK_RESERVED_GLOBAL();
-    emit_two(get_op, (uint16_t)arg, error_start);
-    inc_dec();
-    emit_two(set_op, (uint16_t)arg, error_start);
-  } else if (can_assign && match_compound_assignment()) {
-    CHECK_CONSTNESS();
-    CHECK_RESERVED_GLOBAL();
-    emit_two(get_op, (uint16_t)arg, error_start);
-    compound_assignment();
-    emit_two(set_op, (uint16_t)arg, error_start);
-  } else {
-    emit_two(get_op, (uint16_t)arg, error_start);
-  }
-
-#undef CHECK_CONSTNESS
-#undef CHECK_RESERVED_GLOBAL
 }
 
-// Compiles a variable reference.
-// The variable has already been consumed and is referenced by the previous
-// token.
-static void variable(bool can_assign) {
-  load_variable(parser.previous, can_assign, parser.previous);
-}
+//
+// Important stuff
+//
 
-// Creates a token from the given text.
-// Synthetic refers to the fact that the token is not from the source code.
-static Token synthetic_token(const char* text) {
-  Token token;
-  token.start  = text;
-  token.length = (int)strlen(text);
-  return token;
-}
+// Discards all local variables in the scope. The ones that are captured by closures are closed over.
+// Used for exiting a scope.
+static void discard_locals(FnCompiler* compiler, Scope* scope, AstNode* source) {
+  int count = scope->local_count;
+  SymbolEntry locals[count];
+  scope_get_locals(scope, locals);
 
-// Compiles a base expression.
-// This is a special expression that allows access to the base class. It also handles the directly following dot operator - which
-// is the only operator allowed after a base expression. The base keyword has already been consumed and is referenced by the
-// previous token.
-static void base_(bool can_assign) {
-  UNUSED(can_assign);
-
-  Token error_start = parser.previous;
-
-  if (current_class == NULL) {
-    compiler_error_at_previous("Can't use '" KEYWORD_BASE "' outside of a class.");
-  } else if (!current_class->has_baseclass) {
-    compiler_error_at_previous("Can't use '" KEYWORD_BASE "' in a class with no base-class.");
-  } else if (current->type == TYPE_METHOD_STATIC) {
-    compiler_error_at_previous("Can't use '" KEYWORD_BASE "' in a static method.");
-  }
-
-  Token method_name;
-  if (check(TOKEN_OPAR)) {
-    method_name = synthetic_token(STR(SP_METHOD_CTOR));
-  } else {
-    consume(TOKEN_DOT, "Expecting '.' after '" KEYWORD_BASE "'.");
-    consume(TOKEN_ID, "Expecting base-class method name.");
-    method_name = parser.previous;
-    error_start = parser.previous;  // Use the method name as the error token instead.
-  }
-
-  uint16_t name = identifier_constant(&method_name);
-
-  load_variable(synthetic_token(KEYWORD_THIS), false, error_start);
-  if (match(TOKEN_OPAR)) {
-    // Shorthand for method calls. This combines two instructions into one:
-    // getting a property and calling a method.
-    uint16_t arg_count = argument_list();
-
-    load_variable(synthetic_token(KEYWORD_BASE), false, error_start);
-    emit_two(OP_BASE_INVOKE, name, error_start);
-    emit_one(arg_count, error_start);
-  } else {
-    load_variable(synthetic_token(KEYWORD_BASE), false, error_start);
-    emit_two(OP_GET_BASE_METHOD, name, error_start);
+  for (SymbolEntry* entry = locals; entry < locals + count; entry++) {
+    if (entry->value->is_captured) {
+      emit_one(compiler, OP_CLOSE_UPVALUE, source);
+    } else {
+      emit_one(compiler, OP_POP, source);
+    }
   }
 }
 
 // Compiles a function.
-// The declaration has already been consumed. Here, we start at the function's
-// parameters. This is used for all supported functions types named functions, anonymous functions, constructors and methods.
-static void function(bool can_assign, FunctionType type) {
-  UNUSED(can_assign);
-  Compiler compiler;
-  compiler_init(&compiler, type);
-  begin_scope();
+static ObjFunction* compile_function(FnCompiler* compiler, AstFn* fn) {
+  FnCompiler subcompiler;
+  compiler_init(&subcompiler, compiler, fn, NULL /* inferred */);
+
+  AstId* name            = (AstId*)fn->base.children[0];
+  AstDeclaration* params = (AstDeclaration*)fn->base.children[1];
+  AstNode* body          = fn->base.children[2];
 
   // Parameters
-  if (match(TOKEN_OPAR)) {
-    if (!check(TOKEN_CPAR)) {  // It's allowed to have "()" with no parameters.
-      do {
-        current->function->arity++;
-        if (current->function->arity > MAX_FN_ARGS) {
-          compiler_error_at_current("Can't have more than " STR(MAX_FN_ARGS) " parameters.");
-        }
-
-        // Parameters are just local variables.
-        uint16_t constant = parse_variable("Expecting parameter name.", CONSTNESS_FN_PARAMS);
-        define_variable(constant, CONSTNESS_FN_PARAMS);
-      } while (match(TOKEN_COMMA));
-    }
-
-    if (!match(TOKEN_CPAR)) {
-      compiler_error_at_current("Expecting ')' after parameters.");
+  if (params != NULL) {
+    subcompiler.result->arity = params->base.count;
+    for (int i = 0; i < params->base.count; i++) {
+      AstId* id = (AstId*)params->base.children[i];
+      emit_define_id(&subcompiler, id);
     }
   }
 
-  // Body
-  if (match(TOKEN_OBRACE)) {
-    block();
-  } else if (match(TOKEN_LAMBDA)) {
-    if (type == TYPE_CONSTRUCTOR) {
-      compiler_error_at_current("Constructors can't be lambda functions.");
-    }
-    // TODO (optimize): end_compiler() will also emit OP_NIL and OP_RETURN, which are unnecessary (Same goes
-    // for non-lambda functions which only have a return) We could optimize this by not emitting those
-    // instructions, but that would require some changes to end_compiler() and emit_return().
-
-    expression();
-    emit_one_here(OP_RETURN);
-  } else {
-    compiler_error_at_current("Expecting '{' or '->' before function body.");
+  // Body / expression
+  compile_node(&subcompiler, body);
+  if (fn->is_lambda) {
+    INTERNAL_ASSERT(body->type == NODE_EXPR, "Lambda body should be an expression.");
+    emit_one(&subcompiler, OP_RETURN, (AstNode*)fn);  // Implicit return for lambdas.
   }
 
-  ObjFunction* function = end_compiler();  // Also handles end of scope. (end_scope())
-
-  emit_two_here(OP_CLOSURE, make_constant(fn_value((Obj*)function)));
+  // Done. Now emit the produced function and its upvalues in the parent compiler.
+  ObjFunction* function = end_compiler(&subcompiler);
+  emit_two(compiler, OP_CLOSURE, make_constant(compiler, fn_value((Obj*)function), (AstNode*)fn), (AstNode*)fn);
   for (int i = 0; i < function->upvalue_count; i++) {
-    emit_one_here(compiler.upvalues[i].is_local ? 1 : 0);
-    emit_one_here(compiler.upvalues[i].index);
+    emit_one(compiler, fn->upvalues[i].is_local ? 1 : 0, (AstNode*)fn);
+    emit_one(compiler, fn->upvalues[i].target_index, (AstNode*)fn);
   }
 
-  compiler_free(&compiler);
-}
+  compiler_free(&subcompiler);
 
-static void anonymous_function(bool can_assign) {
-  function(can_assign /* does not matter */, TYPE_ANONYMOUS_FUNCTION);
-}
-
-// Compiles a class method.
-// Nothing has been consumed yet.
-static void method() {
-  FunctionType type = match(TOKEN_STATIC) ? TYPE_METHOD_STATIC : TYPE_METHOD;
-  consume(TOKEN_FN, "Expecting method initializer.");
-  consume(TOKEN_ID, "Expecting method name.");
-  Token error_start = parser.previous;
-
-  uint16_t constant = identifier_constant(&parser.previous);
-
-  function(false /* does not matter */, type);
-  emit_two(OP_METHOD, constant, error_start);
-  emit_one((uint16_t)type, error_start);
-}
-
-static void constructor() {
-  consume(TOKEN_CTOR, "Expecting constructor.");
-  Token error_start = parser.previous;
-
-  Token ctor        = synthetic_token(STR(SP_METHOD_CTOR));
-  uint16_t constant = identifier_constant(&ctor);
-
-  function(false /* does not matter */, TYPE_CONSTRUCTOR);
-  emit_two(OP_METHOD, constant, error_start);
-  emit_one((uint16_t)TYPE_CONSTRUCTOR, error_start);
-}
-
-// Compiles an and expression. And is special in that it acts more lik a control flow construct rather than a
-// binary operator. It short-circuits the evaluation of the rhs if the lhs is false by jumping over the rhs.
-// The lhs bytecode has already been emitted. The rhs starts at the current token. The and operator is in the
-// previous token.
-static void and_(bool can_assign) {
-  UNUSED(can_assign);
-  int end_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_one_here(OP_POP);
-
-  parse_precedence(PREC_AND);
-
-  patch_jump(end_jump);
-}
-
-// Compiles an or expression.
-// Or is special in that it acts more lik a control flow construct rather than
-// a binary operator. It short-circuits the evaluation of the rhs if the lhs is
-// true by jumping over the rhs. The lhs bytecode has already been emitted.
-static void or_(bool can_assign) {
-  UNUSED(can_assign);
-  // TODO (optimize): We could optimize this by inverting the logic (jumping over the rhs if the lhs is true)
-  // which would probably require a new opcode (OP_JUMP_IF_TRUE) and then we could reuse the and_ function -
-  // well, it would have to be renamed then and accept a new parameter (the type of jump to emit).
-  int else_jump = emit_jump(OP_JUMP_IF_FALSE);
-  int end_jump  = emit_jump(OP_JUMP);
-
-  patch_jump(else_jump);
-  emit_one_here(OP_POP);
-
-  parse_precedence(PREC_OR);
-  patch_jump(end_jump);
-}
-
-// Compiles a ternary expression. The condition bytecode has already been emitted. The question mark has been
-// consumed and is referenced by the previous token. The true branch starts at the current token.
-static void ternary(bool can_assign) {
-  UNUSED(can_assign);
-  int else_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_one_here(OP_POP);  // Discard the condition.
-
-  parse_precedence(PREC_TERNARY);
-
-  consume(TOKEN_COLON, "Expecting ':' after true branch.");
-  int end_jump = emit_jump(OP_JUMP);
-
-  patch_jump(else_jump);
-  emit_one_here(OP_POP);  // Discard the true branch.
-
-  parse_precedence(PREC_TERNARY);
-  patch_jump(end_jump);
-}
-
-// Compiles an 'is' expression. The 'is' keyword has already been consumed and is referenced by the previous
-// token.
-static void is_(bool can_assign) {
-  UNUSED(can_assign);
-  expression();
-  emit_one_here(OP_IS);
-}
-
-// Compiles an 'in' expression. The 'in' keyword has already been consumed and is referenced by the previous token.
-static void in_(bool can_assign) {
-  UNUSED(can_assign);
-  expression();
-  emit_one_here(OP_IN);
-}
-
-// Compiles a 'this' expression.
-// The 'this' keyword has already been consumed and is referenced by the previous
-// token.
-static void this_(bool can_assign) {
-  UNUSED(can_assign);
-  if (current_class == NULL) {
-    compiler_error_at_previous("Can't use '" KEYWORD_THIS "' outside of a class.");
-    return;
+  // Class functions register themselves in the class scope. Named functions register themselves in enclosing scope.
+  if (fn->type == FN_TYPE_CONSTRUCTOR) {
+    uint16_t ctor = synthetic_constant(compiler, STR(SP_METHOD_CTOR), (AstNode*)fn);
+    emit_two(compiler, OP_METHOD, ctor, (AstNode*)fn);
+    emit_one(compiler, (uint16_t)FN_TYPE_CONSTRUCTOR, (AstNode*)fn);
+  } else if (fn->type == FN_TYPE_METHOD) {
+    uint16_t method = id_constant(compiler, name->name, (AstNode*)name);
+    emit_two(compiler, OP_METHOD, method, (AstNode*)fn);
+    emit_one(compiler, (uint16_t)FN_TYPE_METHOD, (AstNode*)fn);
+  } else if (fn->type == FN_TYPE_METHOD_STATIC) {
+    uint16_t method = id_constant(compiler, name->name, (AstNode*)name);
+    emit_two(compiler, OP_METHOD, method, (AstNode*)fn);
+    emit_one(compiler, (uint16_t)FN_TYPE_METHOD_STATIC, (AstNode*)fn);
+  } else if (fn->type == FN_TYPE_NAMED_FUNCTION) {
+    emit_define_id(compiler, name);
+  } else {
+    INTERNAL_ASSERT(fn->type == FN_TYPE_ANONYMOUS_FUNCTION, "Unknown function type: %d", fn->type);
   }
 
-  if (current->type == TYPE_METHOD_STATIC) {
-    compiler_error_at_previous("Can't use '" KEYWORD_THIS "' in a static method.");
-    return;
-  }
-
-  variable(false);  // Can't assign to 'this'.
+  return function;
 }
 
-ParseRule rules[] = {
-    [TOKEN_OPAR]    = {grouping, call, PREC_CALL},
-    [TOKEN_CPAR]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACE]  = {object_literal, NULL, PREC_NONE},
-    [TOKEN_CBRACE]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_OBRACK]  = {seq_literal, subscripting, PREC_CALL},
-    [TOKEN_CBRACK]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_COMMA]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_DOT]     = {NULL, dot, PREC_CALL},
-    [TOKEN_MINUS]   = {unary, binary, PREC_TERM},
-    [TOKEN_PLUS]    = {NULL, binary, PREC_TERM},
-    [TOKEN_DIV]     = {NULL, binary, PREC_FACTOR},
-    [TOKEN_MULT]    = {NULL, binary, PREC_FACTOR},
-    [TOKEN_MOD]     = {NULL, binary, PREC_FACTOR},
-    [TOKEN_NOT]     = {unary, NULL, PREC_NONE},
-    [TOKEN_TERNARY] = {NULL, ternary, PREC_TERNARY},
-    [TOKEN_NEQ]     = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_ASSIGN]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_EQ]      = {NULL, binary, PREC_EQUALITY},
-    [TOKEN_GT]      = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_GTEQ]    = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LT]      = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_LTEQ]    = {NULL, binary, PREC_COMPARISON},
-    [TOKEN_ID]      = {variable, NULL, PREC_NONE},
-    [TOKEN_STRING]  = {string, NULL, PREC_NONE},
-    [TOKEN_NUMBER]  = {number, NULL, PREC_NONE},
-    [TOKEN_AND]     = {NULL, and_, PREC_AND},
-    [TOKEN_CLASS]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_STATIC]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_ELSE]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_FALSE]   = {literal, NULL, PREC_NONE},
-    [TOKEN_FOR]     = {NULL, NULL, PREC_NONE},
-    [TOKEN_FN]      = {anonymous_function, NULL, PREC_NONE},
-    [TOKEN_LAMBDA]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_IF]      = {NULL, NULL, PREC_NONE},
-    [TOKEN_NIL]     = {literal, NULL, PREC_NONE},
-    [TOKEN_OR]      = {NULL, or_, PREC_OR},
-    [TOKEN_PRINT]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_RETURN]  = {NULL, NULL, PREC_NONE},
-    [TOKEN_BASE]    = {base_, NULL, PREC_NONE},
-    [TOKEN_TRY]     = {try_, NULL, PREC_NONE},
-    [TOKEN_CATCH]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_THROW]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_IS]      = {NULL, is_, PREC_COMPARISON},
-    [TOKEN_IN]      = {NULL, in_, PREC_COMPARISON},
-    [TOKEN_THIS]    = {this_, NULL, PREC_NONE},
-    [TOKEN_TRUE]    = {literal, NULL, PREC_NONE},
-    [TOKEN_LET]     = {NULL, NULL, PREC_NONE},
-    [TOKEN_CONST]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_WHILE]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_BREAK]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_SKIP]    = {NULL, NULL, PREC_NONE},
-    [TOKEN_ERROR]   = {NULL, NULL, PREC_NONE},
-    [TOKEN_EOF]     = {NULL, NULL, PREC_NONE},
-};
-
-// Returns the rule for the given token type.
-static ParseRule* get_rule(TokenKind type) {
-  return &rules[type];
-}
-
-// Parses any expression with a precedence higher or equal to the provided
-// precedence. Handles prefix and infix expressions and determines whether the
-// expression can be assigned to.
-static void parse_precedence(Precedence precedence) {
-  advance();
-  ParseFn prefix_rule = get_rule(parser.previous.type)->prefix;
-  if (prefix_rule == NULL) {
-    compiler_error_at_previous("Expecting expression.");
-    return;
-  }
-
-  bool can_assign = precedence <= PREC_ASSIGN;
-  prefix_rule(can_assign);
-
-  // Exit early if we're now at a new line. That's it. Nothing more is needed to make newlines meaningful.
-  // This allows us to write code like this:
-  //   let a = [1,2,3]
-  //   [4].map(fn (x) -> log(x))
-  //  Which would've been impossible before. That would've been interpreted as let a = [1,2,3][4].map...
-  if (parser.current.is_first_on_line) {
-    // Except if it's a dot, because chaining method calls on newlines is a common pattern and still allowed.
-    if (parser.current.type != TOKEN_DOT) {
-      return;
-    }
-  }
-
-  while (precedence <= get_rule(parser.current.type)->precedence) {
-    advance();
-    ParseFn infix_rule = get_rule(parser.previous.type)->infix;
-    infix_rule(can_assign);
-  }
-
-  if (can_assign && match(TOKEN_ASSIGN)) {
-    compiler_error_at_previous("Invalid assignment target.");
-  } else if (can_assign && match_inc_dec()) {
-    compiler_error_at_previous("Invalid inc/dec target.");
-  } else if (can_assign && match_compound_assignment()) {
-    compiler_error_at_previous("Invalid compound assignment target.");
-  }
-}
-
-// Adds the token's lexeme to the constant pool and returns its index.
-static uint16_t identifier_constant(Token* name) {
-  return make_constant(str_value(copy_string(name->start, name->length)));
-}
-
-// Checks whether the text content of two tokens is equal.
-static bool identifiers_equal(Token* id_a, Token* id_b) {
-  if (id_a->length != id_b->length) {
-    return false;
-  }
-
-  return memcmp(id_a->start, id_b->start, id_a->length) == 0;
-}
-
-// Resolves a local variable by looking it up in the current compilers
-// local variables. Returns the index of the local variable in the locals array,
-// or -1 if it is not found.
-// [is_const] is set to true if the resolved local is a constant.
-static int resolve_local(Compiler* compiler, Token* name, bool* is_const) {
-  // Walk backwards through the locals to shadow outer variables with the same
-  // name.
-  for (int i = compiler->local_count - 1; i >= 0; i--) {
-    Local* local = &compiler->locals[i];
-    if (identifiers_equal(name, &local->name)) {
-      if (local->depth == -1) {
-        compiler_error_at_previous("Can't read local variable in its own initializer.");
-      }
-      *is_const = local->is_const;
-      return i;
-    }
-  }
-
-  return -1;
-}
-
-// Resolves an upvalue.
-// - If it is found in the enclosing compiler's locals, it is marked as
-// captured and an upvalue is added to the current compiler's upvalues array.
-// - If it is not found in the enclosing compiler's locals, it is recursively
-// resolved in the outer enclosing compilers.
 //
-// Returns the index of the upvalue in the current compiler's upvalues array, or
-// -1 if it is not found.
-// [is_const] is set to true if the resolved upvalue is a constant.
-static int resolve_upvalue(Compiler* compiler, Token* name, bool* is_const) {
-  if (compiler->enclosing == NULL) {
-    return -1;
-  }
+// Declarations
+//
 
-  bool is_local_const = false;
-  int local           = resolve_local(compiler->enclosing, name, &is_local_const);
-  if (local != -1) {
-    compiler->enclosing->locals[local].is_captured = true;
-    *is_const                                      = is_local_const;
-    return add_upvalue(compiler, (uint16_t)local, true);
-  }
-
-  // Recurse on upper scopes (compilers) to maybe find the variable there
-  bool is_upvalue_const = false;
-  int upvalue           = resolve_upvalue(compiler->enclosing, name, &is_upvalue_const);
-  if (upvalue != -1) {
-    *is_const = is_upvalue_const;
-    return add_upvalue(compiler, (uint16_t)upvalue, false);
-  }
-
-  return -1;
+static void compile_declare_function(FnCompiler* compiler, AstDeclaration* decl) {
+  AstFn* fn = (AstFn*)decl->base.children[0];
+  compile_function(compiler, fn);
 }
 
-// Adds a local variable to the current compiler's local variables array.
-static void add_local(Token name, bool is_const) {
-  if (current->local_count == MAX_LOCALS) {
-    compiler_error_at_previous("Can't have more than " STR(MAX_LOCALS) " local variables in one scope.");
-    return;
+static void compile_declare_class(FnCompiler* compiler, AstDeclaration* decl) {
+  AstId* class          = (AstId*)decl->base.children[0];
+  AstId* baseclass_name = (AstId*)decl->base.children[1];
+
+  // Declare and define the class name
+  uint16_t class_name = id_constant(compiler, class->name, (AstNode*)class);
+  emit_two(compiler, OP_CLASS, class_name, (AstNode*)decl);
+  emit_define_id_explicit(compiler, class, class_name);
+
+  if (baseclass_name != NULL) {
+    emit_load_id(compiler, baseclass_name);
+    emit_load_id(compiler, class);
+    emit_one(compiler, OP_INHERIT, (AstNode*)decl);
   }
 
-  Local* local    = &current->locals[current->local_count++];
-  local->name     = name;
-  local->is_const = is_const;
-  local->depth    = -1;  // Means it is not initialized, bc it's value (rvalue) is
-                         // not yet evaluated.
-  local->is_captured = false;
+  emit_load_id(compiler, class);
+  // Body
+  for (int i = 2; i < decl->base.count; i++) {
+    AstNode* member = decl->base.children[i];
+    compile_node(compiler, member);
+  }
+
+  emit_one(compiler, OP_FINALIZE, (AstNode*)decl);
 }
 
-// Adds a global variable - which is just a constant in the constant pool of the outermost compiler. Returns the index of the
-// constant in the constant pool. This was mainly added to support constant globals and to easily track creation of globals
-static void add_const_global(uint16_t global) {
-  INTERNAL_ASSERT(current->scope_depth == 0, "Can't add a global in a local scope.");
+static void compile_declare_variable(FnCompiler* compiler, AstDeclaration* decl) {
+  AstNode* id_or_pattern = decl->base.children[0];
+  AstNode* initializer   = decl->base.children[1];
 
-  if (const_globals_count == MAX_CONST_GLOBALS) {
-    compiler_error_at_previous("Can't have more than " STR(MAX_CONST_GLOBALS) " global constants per compilation.");
-    return;
+  if (id_or_pattern->type == NODE_PATTERN) {
+    emit_define_pattern_prelude(compiler, (AstPattern*)id_or_pattern);
   }
 
-  // Get the name of the global we added back from the constant pool
-  ObjString* global_name               = (ObjString*)current_chunk()->constants.values[global].as.obj;
-  const_globals[const_globals_count++] = global_name;  // ... and add its pointer to the const_globals array
-}
-
-// Adds an upvalue to the current compiler's upvalues array. Checks whether the upvalue is already in the array. If so, it returns
-// its index. Otherwise, it adds it to the array and returns the new index. Logs a compile error if the upvalue count exceeds the
-// maximum and returns 0.
-static int add_upvalue(Compiler* compiler, uint16_t index, bool is_local) {
-  int upvalue_count = compiler->function->upvalue_count;
-
-  for (int i = 0; i < upvalue_count; i++) {
-    Upvalue* upvalue = &compiler->upvalues[i];
-    if (upvalue->index == index && upvalue->is_local == is_local) {
-      return i;
-    }
+  if (initializer != NULL) {
+    compile_node(compiler, initializer);
+  } else {
+    emit_one(compiler, OP_NIL, (AstNode*)decl);
   }
 
-  if (upvalue_count == MAX_UPVALUES) {
-    compiler_error_at_previous("Can't have more than " STR(MAX_UPVALUES) " closure variables in one function.");
-    return 0;
-  }
-
-  compiler->upvalues[upvalue_count].is_local = is_local;
-  compiler->upvalues[upvalue_count].index    = index;
-  return compiler->function->upvalue_count++;
-}
-
-// Declares a local variable in the current scope from the provided token. If we're in the toplevel, nothing happens. This is
-// because global variables are late bound. This function is the only place where the compiler records the existence of a local
-// variable.
-static void declare_local(Token* name, bool is_const) {
-  if (current->scope_depth == 0) {
-    return;
-  }
-
-  for (int i = current->local_count - 1; i >= 0; i--) {
-    Local* local = &current->locals[i];
-    if (local->depth != -1 && local->depth < current->scope_depth) {
-      break;
-    }
-
-    if (identifiers_equal(name, &local->name)) {
-      compiler_error_at_previous("Already a variable with this name in this scope.");
-    }
-  }
-
-  add_local(*name, is_const);
-}
-
-// Consumes a variable name and returns its index in the constant pool. If it is a local variable, the function exits early with a
-// dummy index of 0, because there is no need to store it in the constant pool
-static uint16_t parse_variable(const char* error_message, bool is_const) {
-  consume(TOKEN_ID, error_message);
-
-  declare_local(&parser.previous, is_const);
-  if (current->scope_depth > 0) {
-    return 0;
-  }
-
-  uint16_t global = identifier_constant(&parser.previous);
-  if (is_const) {
-    add_const_global(global);
-  }
-  return global;
-}
-
-// Marks a local variable as initialized by setting its depth to the current scope depth.
-// Locals are first created with a depth of -1, which means they are not yet initialized.
-// If we're in global scope, nothing happens.
-static void mark_initialized() {
-  if (current->scope_depth == 0) {
-    return;
-  }
-  current->locals[current->local_count - 1].depth = current->scope_depth;
-}
-
-// Emits a define-global instruction (if we are not in a local scope) for the most recent local.
-// The variables' index in the constant pool represents the operand of the
-// instruction.
-static void define_variable(uint16_t global, bool is_const) {
-  if (current->scope_depth > 0) {
-    mark_initialized();
-    return;
-  }
-
-  if (is_const) {
-    add_const_global(global);
-  }
-
-  emit_two_here(OP_DEFINE_GLOBAL, global);
-}
-
-// Compiles an argument list.
-// The opening parenthesis has already been consumed and is referenced by the
-// previous token.
-static uint16_t argument_list() {
-  uint16_t arg_count = 0;
-  if (!check(TOKEN_CPAR)) {
-    do {
-      expression();
-      if (arg_count == MAX_FN_ARGS) {
-        compiler_error_at_previous("Can't have more than " STR(MAX_FN_ARGS) " arguments.");
-      }
-      arg_count++;
-    } while (match(TOKEN_COMMA));
-  }
-  consume(TOKEN_CPAR, "Expecting ')' after arguments.");
-  return arg_count;
-}
-
-// Synchronizes the parser after a syntax error, by skipping tokens until we
-// reached a statement or declaration boundary.
-static void synchronize() {
-  parser.panic_mode = false;
-
-  while (parser.current.type != TOKEN_EOF) {
-    switch (parser.current.type) {
-      case TOKEN_CLASS:
-      case TOKEN_FN:
-      case TOKEN_LET:
-      case TOKEN_FOR:
-      case TOKEN_IF:
-      case TOKEN_WHILE:
-      case TOKEN_PRINT:
-      case TOKEN_RETURN: return;
-
-      default:;  // Do nothing.
-    }
-
-    advance();
+  if (id_or_pattern->type == NODE_PATTERN) {
+    emit_define_pattern(compiler, (AstPattern*)id_or_pattern);
+  } else if (id_or_pattern->type == NODE_ID) {
+    emit_define_id(compiler, (AstId*)id_or_pattern);
+  } else {
+    INTERNAL_ERROR("Unknown declaration target: %d", id_or_pattern->type);
   }
 }
 
-// Compiles a single expression into bytecode. An expression leaves a value on the stack.
-static void expression() {
-  parse_precedence(PREC_ASSIGN);
-}
+//
+// Statements
+//
 
-// Different types of destructuring assignments.
-typedef enum {
-  DESTRUCTURE_SEQ,
-  DESTRUCTURE_OBJ,
-  DESTRUCTURE_TUPLE,
-} DestructureType;
+static void compile_statement_import(FnCompiler* compiler, AstStatement* stmt) {
+  AstNode* name_or_pattern = stmt->base.children[0];
 
-// Compiles a destructuring statement.
-// The opening token has already been consumed at this point. Currently either let, const or import.
-static void destructuring(DestructureType type, bool rhs_is_import, bool is_const) {
-  typedef struct {
-    Token name;       // The variable name, used for object destructuring.
-    uint16_t global;  // The global index of the variable - used if we're in global scope.
-    uint16_t local;   // The local index (stack slot index) of the variable - used if we're in local scope.
-    bool is_rest;     // Denotes whether the variable is a rest parameter.
-    int index;        // The index of the variable in the destructuring pattern.
-  } DestructuringVariable;
+  if (name_or_pattern->type == NODE_ID) {
+    AstId* module_name = (AstId*)name_or_pattern;
+    uint16_t name      = id_constant(compiler, module_name->name, (AstNode*)module_name);
 
-  TokenKind closing;
-  switch (type) {
-    case DESTRUCTURE_SEQ: closing = TOKEN_CBRACK; break;
-    case DESTRUCTURE_OBJ: closing = TOKEN_CBRACE; break;
-    case DESTRUCTURE_TUPLE: closing = TOKEN_CPAR; break;
-    default: INTERNAL_ERROR("Unhandled destructuring type."); break;
-  }
-
-  DestructuringVariable variables[MAX_DESTRUCTURING_VARS];
-  int current_index = 0;
-  bool has_rest     = false;
-  bool local_scope  = current->scope_depth > 0;
-
-  Token error_start = parser.previous;
-
-  // Parse the left-hand side of the assignment, e.g. the variables.
-  while (!check(closing) && !check(TOKEN_EOF)) {
-    if (has_rest) {
-      compiler_error_at_previous("Rest parameter must be last in destructuring assignment.");
-    }
-    has_rest = match(TOKEN_DOTDOTDOT);
-    if (has_rest && type == DESTRUCTURE_OBJ) {
-      compiler_error_at_previous("Rest parameter is not allowed in " STR(TYPENAME_OBJ) " destructuring assignment.");
-    }
-
-    // A variable is parsed just like in a normal let declaration. But, because the rhs is not yet compiled,
-    // we need to first declare the variables. In a local scope, we emit OP_NIL to define the variable, in global scope,
-    // that doesn't matter yet (will be declared later with OP_DEFINE_GLOBAL) We don't want to mark the variables as
-    // initialized yet, so we don't use define_variable(global) here. We just emit OP_NIL (if in local scope) to create a
-    // placeholder value on the stack for the local.
-    uint16_t global;
-    if (has_rest) {
-      global = parse_variable("Expecting identifier after ellipsis in destructuring assignment.", is_const);
+    if (stmt->path != NULL) {
+      uint16_t path = make_constant(compiler, str_value(stmt->path), (AstNode*)stmt);
+      emit_three(compiler, OP_IMPORT_FROM, name, path, (AstNode*)stmt);
     } else {
-      global = parse_variable("Expecting identifier in destructuring assignment.", is_const);
-    }
-    variables[current_index].is_rest = has_rest;
-    variables[current_index].global  = global;
-    variables[current_index].local   = (uint16_t)(current->local_count - 1);  // It's just the one on the top.
-    variables[current_index].index   = current_index;
-    variables[current_index].name    = parser.previous;  // Used for object destructuring.
-
-    // Emit a placeholder value for the variable if we're in a local scope, because locals live on the stack.
-    if (local_scope) {
-      emit_one(OP_NIL, error_start);  // Define the variable.
+      emit_two(compiler, OP_IMPORT, name, (AstNode*)module_name);
     }
 
-    if (++current_index > MAX_DESTRUCTURING_VARS) {
-      compiler_error_at_previous("Can't have more than " STR(MAX_DESTRUCTURING_VARS) " variables in destructuring assignment.");
-    }
+    emit_define_id_explicit(compiler, module_name, name);
+  } else if (name_or_pattern->type == NODE_PATTERN) {
+    AstPattern* pattern = (AstPattern*)name_or_pattern;
+    uint16_t path       = make_constant(compiler, str_value(stmt->path), (AstNode*)stmt);
+    emit_define_pattern_prelude(compiler, pattern);
+    emit_three(compiler, OP_IMPORT_FROM, path, path, (AstNode*)stmt);  // Use the path as the module name.
 
-    if (has_rest) {
-      break;
-    }
-
-    if (!match(TOKEN_COMMA)) {
-      break;
-    }
-  }
-
-  if (!match(closing)) {
-    has_rest ? compiler_error_at_previous("Rest parameter must be last in destructuring assignment.")
-             : compiler_error_at_previous("Unterminated destructuring pattern.");
-  }
-
-  // Parse the right-hand side of the assignment.
-  // Either an expression or an import statement.
-  if (rhs_is_import) {
-    consume(TOKEN_FROM, "Expecting 'from' after destructuring assignment import.");
-    consume(TOKEN_STRING, "Expecting file name.");
-
-    // Since we don't have a module name, we calculate the absolute path of the module here and use it as the module name.
-    // TODO: When loading a module from cache, we should compare their absolute paths instead of the module name to avoid
-    // loading the same module multiple times.
-    ObjString* file_path = copy_string(parser.previous.start + 1, parser.previous.length - 2);  // +1 and -2 to strip the quotes
-
-    Value cwd;
-    if (!hashtable_get_by_string(&vm.module->fields, vm.special_prop_names[SPECIAL_PROP_FILE_PATH], &cwd)) {
-      INTERNAL_ERROR("Module file path not found in the fields of the active module (module." STR(SP_PROP_FILE_PATH) ").");
-      cwd = str_value(copy_string("?", 1));
-    }
-
-    char* absolute_path                  = vm_resolve_module_path((ObjString*)cwd.as.obj, NULL, file_path);
-    uint16_t absolute_file_path_constant = make_constant(str_value(copy_string(absolute_path, strlen(absolute_path))));
-    free(absolute_path);  // since we copied to make sure it's allocated on our managed heap, we need to free it.
-
-    emit_two(OP_IMPORT_FROM, absolute_file_path_constant, parser.previous);  // Use the path as the module name.
-    emit_one(absolute_file_path_constant, parser.previous);
+    emit_define_pattern(compiler, pattern);
   } else {
-    consume(TOKEN_ASSIGN, "Expecting '=' in destructuring assignment.");  // Even Js does this.
-    expression();
-  }
-
-  // Emit code to destructure the rhs value
-  for (int i = 0; i < current_index; i++) {
-    DestructuringVariable* var = &variables[i];
-
-    emit_two(OP_DUPE, 0, error_start);  // Duplicate the rhs value: [RhsVal] -> [RhsVal][RhsVal]
-
-    // Emit code to get the index from the rhs. For objs, we use the variable name as the operand for OP_GET_SUBSCRIPT. For
-    // seqs and tuples, we use the variables index.
-    Value payload = type == DESTRUCTURE_OBJ ? str_value(copy_string(var->name.start, var->name.length)) : int_value(var->index);
-    if (var->is_rest) {
-      emit_constant(payload, error_start);  // [RhsVal][RhsVal] -> [RhsVal][RhsVal][current_index]
-      emit_one(OP_NIL, error_start);        //                  -> [RhsVal][RhsVal][current_index][nil]
-      emit_one(OP_GET_SLICE, error_start);  //                  -> [RhsVal][slice]
-    } else {
-      emit_constant(payload, error_start);      // [RhsVal][RhsVal] -> [RhsVal][RhsVal][i]
-      emit_one(OP_GET_SUBSCRIPT, error_start);  //                  -> [RhsVal][value]
-    }
-
-    // Define the variable. We need to emit different opcodes depending on whether we're in a local or global scope.
-    if (local_scope) {
-      // Mark the variable as initialized. We cannot use mark_initialized() here, because that would just mark the most
-      // recent local. So we need to do it manually.
-      current->locals[var->local].depth = current->scope_depth;
-      emit_two(OP_SET_LOCAL, var->local, error_start);
-      emit_one(OP_POP, error_start);  // Discard the value.
-    } else {
-      emit_two(OP_DEFINE_GLOBAL, var->global, error_start);  // Also pops the value.
-    }
-  }
-
-  emit_one(OP_POP, error_start);  // Discard the value.
-}
-
-// Compiles a print statement.
-// The print keyword has already been consumed at this point.
-static void statement_print() {
-  Token error_start = parser.previous;
-  expression();
-  emit_one(OP_PRINT, error_start);
-}
-
-// Compiles an expression statement.
-// Nothing has been consumed yet, so the current token is the first token of the
-// expression.
-static void statement_expression() {
-  Token error_start = parser.current;
-  expression();
-  emit_one(OP_POP, error_start);
-}
-
-// Compiles an if statement.
-// The if keyword has already been consumed at this point.
-static void statement_if() {
-  expression();
-
-  int then_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_one_here(OP_POP);  // Discard the result of the condition expression.
-
-  statement();
-
-  int else_jump = emit_jump(OP_JUMP);
-
-  patch_jump(then_jump);
-  emit_one_here(OP_POP);
-
-  if (match(TOKEN_ELSE)) {
-    statement();
-  }
-
-  patch_jump(else_jump);
-}
-
-// Compiles a throw statement.
-// The throw keyword has already been consumed at this point.
-static void statement_throw() {
-  Token error_start = parser.previous;
-  expression();
-  emit_one(OP_THROW, error_start);
-}
-
-// Compiles a try statement.
-// The try keyword has already been consumed at this point.
-static void statement_try(bool is_try_expression) {
-  // Make sure we are in a local scope, so that the error variable is not defined globally.
-  begin_scope();
-
-  int try_jump = emit_jump(OP_TRY);
-
-  // Contextual variable: Inject the "error" variable into the local scope.
-  Token error = synthetic_token(KEYWORD_ERROR);
-  add_local(error, CONSTNESS_KW_ERROR);
-  define_variable(0, CONSTNESS_KW_ERROR);  // We're never in global scope here, so we can pass 0 as the global index.
-
-  Token error_start = parser.current;
-
-  // Compile the try block / expression.
-  if (is_try_expression) {
-    expression();  // Leaves the result on the stack.
-
-    // Set the error variable to the expression result.
-    bool _is_const = false;  // Discard, we don't care if it's a constant.
-    int arg        = resolve_local(current, &error, &_is_const);
-    emit_two(OP_SET_LOCAL, (uint16_t)arg, error_start);
-  } else {
-    statement();
-  }
-
-  // If the try block was successful, skip the catch block.
-  int success_jump = emit_jump(OP_JUMP);
-  patch_jump(try_jump);
-
-  // Compile optional catch block / expression.
-  if (is_try_expression) {
-    //  If there is no else expression, we push nil as the "else" value.
-    match(TOKEN_ELSE) ? expression() : emit_one_here(OP_NIL);
-
-    // Set the error variable to the else expression result or the nil value.
-    bool _is_const = false;  // Discard, we don't care if it's a constant.
-    int arg        = resolve_local(current, &error, &_is_const);
-    emit_two(OP_SET_LOCAL, (uint16_t)arg, error_start);
-  } else {
-    if (match(TOKEN_CATCH)) {
-      statement();
-    }
-  }
-
-  patch_jump(success_jump);
-
-  end_scope();  // This will pop the error handler variable from the stack.
-}
-
-// Compiles a try expression. This is a special form of the try "statement" that returns a value.
-// The try keyword has already been consumed at this point.
-static void try_(bool can_assign) {
-  UNUSED(can_assign);
-  statement_try(true /* is_try_expression */);
-}
-
-// Compiles a return statement.
-// The return keyword has already been consumed at this point.
-// Handles illegal return statements in a constructor.
-// The return value is an expression or nil.
-static void statement_return() {
-  Token error_start = parser.previous;
-
-  if (check_statement_return_end()) {
-    emit_return();
-  } else {
-    if (current->type == TYPE_CONSTRUCTOR) {
-      compiler_error_at_previous("Can't return a value from a constructor.");
-    }
-
-    expression();
-    if (!check_statement_return_end()) {
-      compiler_error_at_current("Expecting newline, '}' or some other statement after return value.");
-    }
-    emit_one(OP_RETURN, error_start);
+    INTERNAL_ERROR("Unknown import target.");
   }
 }
 
-// Compiles a while statement.
-// The while keyword has already been consumed at this point.
-static void statement_while() {
+static void compile_statement_block(FnCompiler* compiler, AstStatement* stmt) {
+  compile_children(compiler, (AstNode*)stmt);
+}
+
+static void compile_statement_if(FnCompiler* compiler, AstStatement* stmt) {
+  AstNode* condition   = stmt->base.children[0];
+  AstNode* then_branch = stmt->base.children[1];
+  AstNode* else_branch = stmt->base.children[2];
+
+  compile_node(compiler, condition);
+  int then_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, (AstNode*)stmt);
+  emit_one(compiler, OP_POP, condition);  // Discard the condition value.
+
+  compile_node(compiler, then_branch);
+  int else_jump = emit_jump(compiler, OP_JUMP, (AstNode*)stmt);
+
+  patch_jump(compiler, then_jump);
+  emit_one(compiler, OP_POP, (AstNode*)stmt);
+
+  if (else_branch != NULL) {
+    compile_node(compiler, else_branch);
+  }
+
+  patch_jump(compiler, else_jump);
+}
+
+#define NEW_LOOP()                                                 \
+  int surrounding_loop_start     = compiler->innermost_loop_start; \
+  compiler->innermost_loop_start = compiler->result->chunk.count;
+
+#define END_LOOP() compiler->innermost_loop_start = surrounding_loop_start;
+
+static void compile_statement_while(FnCompiler* compiler, AstStatement* stmt) {
+  AstNode* condition = stmt->base.children[0];
+  AstNode* body      = stmt->base.children[1];
+
   // Save the loop state for continue(skip)/break statements, which might occur in the loop body.
-  int surrounding_loop_start          = current->innermost_loop_start;
-  int surrounding_loop_scope_depth    = current->innermost_loop_scope_depth;
-  current->innermost_loop_start       = current_chunk()->count;
-  current->innermost_loop_scope_depth = current->scope_depth;
+  NEW_LOOP();
 
-  // Loop condition
-  expression();
+  compile_node(compiler, condition);
+  int exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, condition);  // Jump out of the loop if the condition is false.
+  emit_one(compiler, OP_POP, condition);                             // Discard the result of the condition expression.
 
-  int exit_jump = emit_jump(OP_JUMP_IF_FALSE);
-  emit_one_here(OP_POP);
+  compile_node(compiler, body);
+  emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);
+  patch_jump(compiler, exit_jump);
+  emit_one(compiler, OP_POP, condition);
 
-  // Loop body
-  statement();
-
-  emit_loop(current->innermost_loop_start);
-
-  patch_jump(exit_jump);
-  emit_one_here(OP_POP);
-
-  patch_breaks(current->innermost_loop_start);
+  patch_breaks(compiler, compiler->innermost_loop_start);
 
   // Restore the surrounding loop state.
-  current->innermost_loop_start       = surrounding_loop_start;
-  current->innermost_loop_scope_depth = surrounding_loop_scope_depth;
+  END_LOOP();
 }
 
-// Compiles a for statement.
-// The for keyword has already been consumed at this point.
-static void statement_for() {
-  begin_scope();
+static void compile_statement_for(FnCompiler* compiler, AstStatement* stmt) {
+  AstNode* initializer = stmt->base.children[0];
+  AstNode* condition   = stmt->base.children[1];
+  AstNode* increment   = stmt->base.children[2];
+  AstNode* body        = stmt->base.children[3];
 
   // Initializer
-  if (match(TOKEN_SCOLON)) {
-    // No initializer.
-  } else {
-    if (match(TOKEN_LET)) {
-      declaration_let();
-    } else {
-      statement_expression();
-    }
-    consume(TOKEN_SCOLON, "Expecting ';' after loop initializer.");
+  if (initializer != NULL) {
+    compile_node(compiler, initializer);
   }
 
   // Save the loop state for continue(skip)/break statements, which might occur in the loop body.
-  int surrounding_loop_start          = current->innermost_loop_start;
-  int surrounding_loop_scope_depth    = current->innermost_loop_scope_depth;
-  current->innermost_loop_start       = current_chunk()->count;
-  current->innermost_loop_scope_depth = current->scope_depth;
+  NEW_LOOP();
 
   // Loop condition
   int exit_jump = -1;
-  if (!match(TOKEN_SCOLON)) {
-    expression();
-    consume(TOKEN_SCOLON, "Expecting ';' after loop condition.");
-
-    // Jump out of the loop if the condition is false.
-    exit_jump = emit_jump(OP_JUMP_IF_FALSE);
-    emit_one_here(OP_POP);  // Discard the result of the condition expression.
+  if (condition != NULL) {
+    compile_node(compiler, condition);
+    exit_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, condition);  // Jump out of the loop if the condition is false.
+    emit_one(compiler, OP_POP, condition);                         // Discard the result of the condition expression.
   }
 
   // Loop increment
-  if (!match(TOKEN_SCOLON)) {
-    int body_jump       = emit_jump(OP_JUMP);
-    int increment_start = current_chunk()->count;
-    expression();
-    emit_one_here(OP_POP);  // Discard the result of the increment expression.
-    consume(TOKEN_SCOLON, "Expecting ';' after loop increment.");
-
-    emit_loop(current->innermost_loop_start);
-    current->innermost_loop_start = increment_start;
-    patch_jump(body_jump);
+  if (increment != NULL) {
+    int body_jump       = emit_jump(compiler, OP_JUMP, increment);
+    int increment_start = compiler->result->chunk.count;
+    compile_node(compiler, increment);
+    emit_one(compiler, OP_POP, increment);  // Discard the result of the increment expression.
+    emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);
+    compiler->innermost_loop_start = increment_start;
+    patch_jump(compiler, body_jump);
   }
 
   // Loop body
-  statement();
-  emit_loop(current->innermost_loop_start);
+  compile_node(compiler, body);
+  emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);
 
   if (exit_jump != -1) {
-    patch_jump(exit_jump);
-    emit_one_here(OP_POP);  // Discard the result of the condition expression.
+    patch_jump(compiler, exit_jump);
+    emit_one(compiler, OP_POP, condition);  // Discard the result of the condition expression.
   }
 
-  patch_breaks(current->innermost_loop_start);
+  patch_breaks(compiler, compiler->innermost_loop_start);
 
   // Restore the surrounding loop state.
-  current->innermost_loop_start       = surrounding_loop_start;
-  current->innermost_loop_scope_depth = surrounding_loop_scope_depth;
-
-  end_scope();
+  END_LOOP();
 }
 
-// Compiles a skip statement.
-// The skip keyword has already been consumed at this point.
-static void statement_skip() {
-  if (current->innermost_loop_start == -1) {
-    compiler_error_at_previous("Can't skip outside of a loop.");
-  }
+#undef NEW_LOOP
+#undef END_LOOP
 
-  // Discard any locals created in the loop body.
-  for (int i = current->local_count - 1; i >= 0 && current->locals[i].depth > current->innermost_loop_scope_depth; i--) {
-    emit_one_here(OP_POP);
+static void compile_statement_return(FnCompiler* compiler, AstStatement* stmt) {
+  AstNode* expr = stmt->base.children[0];
+  if (expr != NULL) {
+    compile_node(compiler, expr);
+    emit_one(compiler, OP_RETURN, expr);
+  } else {
+    emit_return(compiler, (AstNode*)stmt);
   }
-
-  // Jump back to the start of the loop.
-  emit_loop(current->innermost_loop_start);
 }
 
-// Compiles a break statement.
-// The break keyword has already been consumed at this point.
-static void statement_break() {
-  if (current->innermost_loop_start == -1) {
-    compiler_error_at_previous("Can't break outside of a loop.");
-  }
-
-  // Grow the array if necessary.
-  if (SHOULD_GROW(current->brakes_count + 1, current->brakes_capacity)) {
-    int old_capacity         = current->brakes_capacity;
-    current->brakes_capacity = GROW_CAPACITY(old_capacity);
-    current->brake_jumps     = RESIZE_ARRAY(int, current->brake_jumps, current->brakes_count, current->brakes_capacity);
-  }
-
-  // Discard any locals created in the loop body.
-  for (int i = current->local_count - 1; i >= 0 && current->locals[i].depth > current->innermost_loop_scope_depth; i--) {
-    emit_one_here(OP_POP);
-  }
-
-  // Jump to the end of the loop.
-  current->brake_jumps[current->brakes_count++] = emit_jump(OP_JUMP);
+static void compile_statement_print(FnCompiler* compiler, AstStatement* stmt) {
+  AstNode* expr = stmt->base.children[0];
+  compile_node(compiler, expr);
+  emit_one(compiler, OP_PRINT, expr);
 }
 
-// Compiles an import statement.
-// The import keyword has already been consumed at this point.
-static void statement_import() {
-  if (check(TOKEN_ID)) {
-    Token error_start = parser.previous;
-    consume(TOKEN_ID, "Expecting module name.");
+static void compile_statement_expr(FnCompiler* compiler, AstStatement* stmt) {
+  AstNode* expr = stmt->base.children[0];
+  compile_node(compiler, expr);
+  emit_one(compiler, OP_POP, expr);
+}
 
-    uint16_t name_constant = identifier_constant(&parser.previous);
-    declare_local(&parser.previous, CONSTNESS_IMPORT_VARS);  // Module names are always constants.
+static void compile_statement_break(FnCompiler* compiler, AstStatement* stmt) {
+  INTERNAL_ASSERT(compiler->innermost_loop_start != -1, "Should have been caught by the resolver.");
 
-    if (match(TOKEN_FROM)) {
-      consume(TOKEN_STRING, "Expecting file name.");
-      uint16_t file_path_constant =
-          make_constant(str_value(copy_string(parser.previous.start + 1,
-                                              parser.previous.length - 2)));  // +1 and -2 to strip the quotes
-      emit_two(OP_IMPORT_FROM, name_constant, error_start);
-      emit_one(file_path_constant, error_start);
-    } else {
-      emit_two(OP_IMPORT, name_constant, error_start);
+  // Grow the brakes array if necessary
+  if (SHOULD_GROW(compiler->brakes_count + 1, compiler->brakes_capacity)) {
+    int old_capacity          = compiler->brakes_capacity;
+    compiler->brakes_capacity = GROW_CAPACITY(old_capacity);
+    compiler->brake_jumps     = RESIZE_ARRAY(int, compiler->brake_jumps, compiler->brakes_count, compiler->brakes_capacity);
+  }
+
+  // Discard any locals created in the loop body, then jump to the end of the loop.
+  for (int i = 0; i < stmt->locals_to_pop; i++) {
+    emit_one(compiler, OP_POP, (AstNode*)stmt);
+  }
+
+  compiler->brake_jumps[compiler->brakes_count++] = emit_jump(compiler, OP_JUMP, (AstNode*)stmt);
+}
+
+static void compile_statement_skip(FnCompiler* compiler, AstStatement* stmt) {
+  INTERNAL_ASSERT(compiler->innermost_loop_start != -1, "Should have been caught by the resolver.");
+
+  // Discard any locals created in the loop body, then jump to the end of the loop.
+  for (int i = 0; i < stmt->locals_to_pop; i++) {
+    emit_one(compiler, OP_POP, (AstNode*)stmt);
+  }
+
+  emit_loop(compiler, compiler->innermost_loop_start, (AstNode*)stmt);
+}
+
+static void compile_statement_throw(FnCompiler* compiler, AstStatement* stmt) {
+  AstNode* expr = stmt->base.children[0];
+  compile_node(compiler, expr);
+  emit_one(compiler, OP_THROW, (AstNode*)stmt);
+}
+
+static void compile_statement_try(FnCompiler* compiler, AstStatement* stmt) {
+  AstNode* try_stmt   = stmt->base.children[0];
+  AstNode* catch_stmt = stmt->base.children[1];
+
+  int try_jump = emit_jump(compiler, OP_TRY, (AstNode*)stmt);
+  compile_node(compiler, try_stmt);  // Try statement
+
+  // If the try stmt was successful, skip the catch stmt.
+  int success_jump = emit_jump(compiler, OP_JUMP, try_stmt);
+  patch_jump(compiler, try_jump);
+
+  if (catch_stmt != NULL) {
+    compile_node(compiler, catch_stmt);  // Catch statement
+  }
+  patch_jump(compiler, success_jump);  // Skip the catch block if the try block was successful.
+}
+
+//
+// Expressions
+//
+
+static void compile_expr_binary(FnCompiler* compiler, AstExpression* expr) {
+  AstNode* left  = expr->base.children[0];
+  AstNode* right = expr->base.children[1];
+
+  compile_node(compiler, left);
+  compile_node(compiler, right);
+  switch (expr->operator_.type) {
+    case TOKEN_NEQ: emit_one(compiler, OP_NEQ, (AstNode*)expr); break;
+    case TOKEN_EQ: emit_one(compiler, OP_EQ, (AstNode*)expr); break;
+    case TOKEN_GT: emit_one(compiler, OP_GT, (AstNode*)expr); break;
+    case TOKEN_GTEQ: emit_one(compiler, OP_GTEQ, (AstNode*)expr); break;
+    case TOKEN_LT: emit_one(compiler, OP_LT, (AstNode*)expr); break;
+    case TOKEN_LTEQ: emit_one(compiler, OP_LTEQ, (AstNode*)expr); break;
+    case TOKEN_PLUS: emit_one(compiler, OP_ADD, (AstNode*)expr); break;
+    case TOKEN_MINUS: emit_one(compiler, OP_SUBTRACT, (AstNode*)expr); break;
+    case TOKEN_MULT: emit_one(compiler, OP_MULTIPLY, (AstNode*)expr); break;
+    case TOKEN_DIV: emit_one(compiler, OP_DIVIDE, (AstNode*)expr); break;
+    case TOKEN_MOD: emit_one(compiler, OP_MODULO, (AstNode*)expr); break;
+    default: INTERNAL_ERROR("Unhandled binary operator type: %d", expr->operator_.type); break;
+  }
+}
+
+static void compile_expr_postfix(FnCompiler* compiler, AstExpression* expr) {
+  AstExpression* inner = (AstExpression*)expr->base.children[0];
+  OpCode op;
+
+  switch (expr->operator_.type) {
+    case TOKEN_PLUS_PLUS: op = OP_ADD; break;
+    case TOKEN_MINUS_MINUS: op = OP_SUBTRACT; break;
+    default: INTERNAL_ERROR("Unhandled postfix operator type: %d", expr->operator_.type); break;
+  }
+
+  // TODO (optimize): That's a lot of bytecode for a simple operation.
+  compile_node(compiler, (AstNode*)inner);  // Load itself before the operation
+
+  uint16_t name = emit_compound_assignment_prelude(compiler, inner);
+  emit_constant(compiler, int_value(1), (AstNode*)expr);  // Load the increment/decrement value
+  emit_one(compiler, op, (AstNode*)inner);
+  emit_compound_assignment(compiler, inner, name);  // Leaves the result on the stack
+
+  emit_one(compiler, OP_POP, (AstNode*)expr);  // Discard the result, leaving the original value on the stack.
+}
+
+static void compile_expr_unary(FnCompiler* compiler, AstExpression* expr) {
+  if (expr->operator_.type == TOKEN_NOT) {
+    compile_node(compiler, expr->base.children[0]);
+    emit_one(compiler, OP_NOT, (AstNode*)expr);
+  } else if (expr->operator_.type == TOKEN_MINUS) {
+    compile_node(compiler, expr->base.children[0]);
+    emit_one(compiler, OP_NEGATE, (AstNode*)expr);
+  } else {
+    AstExpression* inner = (AstExpression*)expr->base.children[0];
+    OpCode op;
+
+    switch (expr->operator_.type) {
+      case TOKEN_PLUS_PLUS: op = OP_ADD; break;
+      case TOKEN_MINUS_MINUS: op = OP_SUBTRACT; break;
+      default: INTERNAL_ERROR("Unhandled unary operator type: %d", expr->operator_.type); break;
     }
 
-    define_variable(name_constant, CONSTNESS_IMPORT_VARS);
-  } else if (match(TOKEN_OBRACE)) {
-    destructuring(DESTRUCTURE_OBJ, true /* rhs_is_import */, CONSTNESS_IMPORT_BINDINGS);  // Import bindings are always constants.
-  } else {
-    compiler_error(&parser.current, "Expecting module name or destructuring assignment after import.");
+    // TODO (optimize): That's a lot of bytecode for a simple operation.
+    uint16_t name = emit_compound_assignment_prelude(compiler, inner);
+    emit_constant(compiler, int_value(1), (AstNode*)expr);  // Load the increment/decrement value
+    emit_one(compiler, op, (AstNode*)inner);
+    emit_compound_assignment(compiler, inner, name);  // Leaves the result on the stack, e.g. itself after the operation.
   }
 }
 
-// Compiles a block.
-static void block() {
-  while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF)) {
-    declaration();
-  }
-
-  consume(TOKEN_CBRACE, "Expecting '}' after block.");
+static void compile_expr_grouping(FnCompiler* compiler, AstExpression* expr) {
+  compile_children(compiler, (AstNode*)expr);
 }
 
-// Compiles a statement.
-static void statement() {
-  if (match(TOKEN_PRINT)) {
-    statement_print();
-  } else if (match(TOKEN_IF)) {
-    statement_if();
-  } else if (match(TOKEN_THROW)) {
-    statement_throw();
-  } else if (match(TOKEN_TRY)) {
-    statement_try(false /* isn't try_expression */);
-  } else if (match(TOKEN_WHILE)) {
-    statement_while();
-  } else if (match(TOKEN_RETURN)) {
-    statement_return();
-  } else if (match(TOKEN_FOR)) {
-    statement_for();
-  } else if (match(TOKEN_IMPORT)) {
-    statement_import();
-  } else if (match(TOKEN_SKIP)) {
-    statement_skip();
-  } else if (match(TOKEN_BREAK)) {
-    statement_break();
-  } else if (match(TOKEN_OBRACE)) {
-    begin_scope();
-    block();
-    end_scope();
-  } else {
-    statement_expression();
-  }
+static void compile_expr_literal(FnCompiler* compiler, AstExpression* expr) {
+  compile_children(compiler, (AstNode*)expr);
 }
 
-// Compiles a let declaration.
-// The let keyword has already been consumed at this point.
-static void declaration_let() {
-  bool constness = false;
-  if (match(TOKEN_OBRACK)) {
-    destructuring(DESTRUCTURE_SEQ, false /* rhs_is_import */, constness);
-  } else if (match(TOKEN_OBRACE)) {
-    destructuring(DESTRUCTURE_OBJ, false /* rhs_is_import */, constness);
-  } else if (match(TOKEN_OPAR)) {
-    destructuring(DESTRUCTURE_TUPLE, false /* rhs_is_import */, constness);
-  } else {
-    uint16_t global = parse_variable("Expecting variable name.", constness);
+static void compile_expr_variable(FnCompiler* compiler, AstExpression* expr) {
+  AstId* var = (AstId*)expr->base.children[0];
+  emit_load_id(compiler, var);
+}
 
-    if (match(TOKEN_ASSIGN)) {
-      expression();
-    } else {
-      emit_one_here(OP_NIL);
+static void compile_expr_assign(FnCompiler* compiler, AstExpression* expr) {
+  AstExpression* left  = (AstExpression*)expr->base.children[0];
+  AstExpression* right = (AstExpression*)expr->base.children[1];
+  OpCode op;
+
+  switch (expr->operator_.type) {
+    case TOKEN_ASSIGN: {
+      uint16_t name = emit_assignment_prelude(compiler, left);
+      compile_node(compiler, (AstNode*)right);
+      emit_assignment(compiler, left, name);
+      return;
+    }
+    case TOKEN_PLUS_ASSIGN: op = OP_ADD; break;
+    case TOKEN_MINUS_ASSIGN: op = OP_SUBTRACT; break;
+    case TOKEN_MULT_ASSIGN: op = OP_MULTIPLY; break;
+    case TOKEN_DIV_ASSIGN: op = OP_DIVIDE; break;
+    case TOKEN_MOD_ASSIGN: op = OP_MODULO; break;
+    default: INTERNAL_ERROR("Unhandled compound assignment operator type: %d", expr->operator_.type); break;
+  }
+
+  // TODO (optimize): That's a lot of bytecode for a simple operation.
+  uint16_t name = emit_compound_assignment_prelude(compiler, left);
+  compile_node(compiler, (AstNode*)right);
+  emit_one(compiler, op, (AstNode*)expr);
+  emit_compound_assignment(compiler, left, name);
+}
+
+static void compile_expr_and(FnCompiler* compiler, AstExpression* expr) {
+  AstNode* left  = expr->base.children[0];
+  AstNode* right = expr->base.children[1];
+
+  compile_node(compiler, left);
+  int end_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, left);
+  emit_one(compiler, OP_POP, left);  // Discard the left value.
+
+  compile_node(compiler, right);
+  patch_jump(compiler, end_jump);
+}
+
+static void compile_expr_or(FnCompiler* compiler, AstExpression* expr) {
+  AstNode* left  = expr->base.children[0];
+  AstNode* right = expr->base.children[1];
+
+  compile_node(compiler, left);
+  int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, left);
+  int end_jump  = emit_jump(compiler, OP_JUMP, left);
+
+  patch_jump(compiler, else_jump);
+  emit_one(compiler, OP_POP, left);  // Discard the left value.
+
+  compile_node(compiler, right);
+  patch_jump(compiler, end_jump);
+}
+
+static void compile_expr_is(FnCompiler* compiler, AstExpression* expr) {
+  AstNode* left  = expr->base.children[0];
+  AstNode* right = expr->base.children[1];
+
+  compile_node(compiler, left);
+  compile_node(compiler, right);
+  emit_one(compiler, OP_IS, (AstNode*)expr);
+}
+
+static void compile_expr_in(FnCompiler* compiler, AstExpression* expr) {
+  AstNode* left  = expr->base.children[0];
+  AstNode* right = expr->base.children[1];
+
+  compile_node(compiler, left);
+  compile_node(compiler, right);
+  emit_one(compiler, OP_IN, (AstNode*)expr);
+}
+
+static void compile_expr_call(FnCompiler* compiler, AstExpression* expr) {
+  AstExpression* target = (AstExpression*)expr->base.children[0];
+  uint16_t argc         = (uint16_t)expr->base.count - 1;
+
+  // Calling "base" is a special case
+  if (target->type == EXPR_BASE) {
+    AstId* this_  = (AstId*)target->base.children[0];
+    AstId* base_  = (AstId*)target->base.children[1];
+    uint16_t ctor = synthetic_constant(compiler, STR(SP_METHOD_CTOR), (AstNode*)target);
+    emit_load_id(compiler, (AstId*)this_);  // This
+    for (int i = 1; i < expr->base.count; i++) {
+      compile_node(compiler, expr->base.children[i]);
     }
 
-    define_variable(global, constness);
-  }
-}
-
-static void declaration_const() {
-  bool constness = true;
-  if (match(TOKEN_OBRACK)) {
-    destructuring(DESTRUCTURE_SEQ, false /* rhs_is_import */, constness);
-  } else if (match(TOKEN_OBRACE)) {
-    destructuring(DESTRUCTURE_OBJ, false /* rhs_is_import */, constness);
-  } else if (match(TOKEN_OPAR)) {
-    destructuring(DESTRUCTURE_TUPLE, false /* rhs_is_import */, constness);
+    emit_load_id(compiler, (AstId*)base_);  // Base
+    emit_three(compiler, OP_BASE_INVOKE, ctor, argc, (AstNode*)target);
   } else {
-    uint16_t global = parse_variable("Expecting constant name.", constness);
-
-    if (match(TOKEN_ASSIGN)) {
-      expression();
-    } else {
-      compiler_error_at_previous("Expecting '=' after constant name.");
+    // Could just use compile_children here, but this is more explicit:
+    compile_node(compiler, (AstNode*)target);
+    for (int i = 1; i < expr->base.count; i++) {
+      compile_node(compiler, expr->base.children[i]);
     }
-
-    define_variable(global, constness);
+    emit_two(compiler, OP_CALL, argc, (AstNode*)expr);
   }
 }
 
-// Compiles a function declaration.
-// The fn keyword has already been consumed at this point.
-// Since functions are first-class, this is similar to a variable declaration.
-static void declaration_function() {
-  uint16_t global = parse_variable("Expecting function name.", CONSTNESS_FN_DECLARATION);  // Function name
+static void compile_expr_dot(FnCompiler* compiler, AstExpression* expr) {
+  // If we get here, it's always a property get access.
+  AstNode* target = expr->base.children[0];
+  AstId* property = (AstId*)expr->base.children[1];
+  uint16_t name   = id_constant(compiler, property->name, (AstNode*)property);
 
-  mark_initialized();
-  function(false /* does not matter */, TYPE_FUNCTION);
-  define_variable(global, CONSTNESS_FN_DECLARATION);
+  // Getting a property from "base" is a special case
+  if (((AstExpression*)target)->type == EXPR_BASE) {
+    AstId* this_ = (AstId*)target->children[0];
+    AstId* base_ = (AstId*)target->children[1];
+
+    emit_load_id(compiler, this_);  // This
+    emit_load_id(compiler, base_);  // Base
+    emit_two(compiler, OP_GET_BASE_METHOD, name, (AstNode*)expr);
+  } else {
+    compile_node(compiler, target);
+    emit_two(compiler, OP_GET_PROPERTY, name, (AstNode*)expr);
+  }
 }
 
-// Compiles a class declaration.
-// The class keyword has already been consumed at this point.
-// Also handles inheritance.
-static void declaration_class() {
-  Token error_start = parser.previous;
+static void compile_expr_invoke(FnCompiler* compiler, AstExpression* expr) {
+  AstNode* target = expr->base.children[0];
+  AstId* property = (AstId*)expr->base.children[1];
+  uint16_t name   = id_constant(compiler, property->name, (AstNode*)property);
+  uint16_t argc   = (uint16_t)expr->base.count - 2;
 
-  consume(TOKEN_ID, "Expecting class name.");
-  Token class_name       = parser.previous;
-  uint16_t name_constant = identifier_constant(&parser.previous);
-  declare_local(&parser.previous, CONSTNESS_CLS_DECLARATION);
+  // Invoking a method on "base" is a special case
+  if (((AstExpression*)target)->type == EXPR_BASE) {
+    AstId* this_ = (AstId*)target->children[0];
+    AstId* base_ = (AstId*)target->children[1];
 
-  emit_two(OP_CLASS, name_constant, error_start);
-
-  // Define here, so it can be referenced in the class body.
-  define_variable(name_constant, CONSTNESS_CLS_DECLARATION);
-
-  ClassCompiler class_compiler;
-  class_compiler.has_baseclass = false;
-  class_compiler.enclosing     = current_class;
-  current_class                = &class_compiler;
-
-  // Inherit from base class
-  if (match(TOKEN_COLON)) {
-    consume(TOKEN_ID, "Expecting base-class name.");
-    variable(false);
-
-    if (identifiers_equal(&class_name, &parser.previous)) {
-      compiler_error_at_previous("A class can't inherit from itself.");
+    emit_load_id(compiler, this_);  // This
+    for (int i = 2; i < expr->base.count; i++) {
+      compile_node(compiler, expr->base.children[i]);
     }
+    emit_load_id(compiler, base_);  // Base
+    emit_three(compiler, OP_BASE_INVOKE, name, argc, (AstNode*)expr);
+  } else {
+    compile_node(compiler, target);
+    for (int i = 2; i < expr->base.count; i++) {
+      compile_node(compiler, expr->base.children[i]);
+    }
+    emit_three(compiler, OP_INVOKE, name, argc, (AstNode*)expr);
+  }
+}
 
-    begin_scope();
+static void compile_expr_subs(FnCompiler* compiler, AstExpression* expr) {
+  AstExpression* target = (AstExpression*)expr->base.children[0];
+  AstNode* index        = expr->base.children[1];
 
-    // Contextual variable: Inject the "base" variable into the scope.
-    add_local(synthetic_token(KEYWORD_BASE), CONSTNESS_KW_BASE);
-    define_variable(0 /* ignore, we're not in global scope */,
-                    CONSTNESS_KW_BASE);  // We're never in global scope here, so we can pass 0 as the global index.
+  compile_node(compiler, (AstNode*)target);
+  compile_node(compiler, index);
+  emit_one(compiler, OP_GET_SUBSCRIPT, (AstNode*)expr);
+}
 
-    load_variable(class_name, false, parser.previous);
-    emit_one(OP_INHERIT, parser.previous);
-    class_compiler.has_baseclass = true;
+static void compile_expr_slice(FnCompiler* compiler, AstExpression* expr) {
+  AstExpression* target = (AstExpression*)expr->base.children[0];
+  AstNode* start        = expr->base.children[1];
+  AstNode* end          = expr->base.children[2];
+
+  compile_node(compiler, (AstNode*)target);
+  if (start == NULL) {
+    emit_constant(compiler, int_value(0), (AstNode*)expr);  // Default start index is 0
+  } else {
+    compile_node(compiler, start);
   }
 
-  load_variable(class_name, false, error_start);
+  if (end == NULL) {
+    emit_one(compiler, OP_NIL, (AstNode*)expr);  // Default end index is nil
+  } else {
+    compile_node(compiler, end);
+  }
 
-  // Body
-  bool has_ctor = false;
-  consume(TOKEN_OBRACE, "Expecting '{' before class body.");
-  while (!check(TOKEN_CBRACE) && !check(TOKEN_EOF) && !parser.panic_mode) {
-    if (check(TOKEN_CTOR)) {
-      if (has_ctor) {
-        compiler_error_at_previous("Can't have more than one constructor.");
+  emit_one(compiler, OP_GET_SLICE, (AstNode*)expr);
+}
+
+static void compile_expr_this(FnCompiler* compiler, AstExpression* expr) {
+  AstId* this_ = (AstId*)expr->base.children[0];
+  emit_load_id(compiler, this_);
+}
+
+static void compile_expr_anon_fn(FnCompiler* compiler, AstExpression* expr) {
+  compile_function(compiler, (AstFn*)expr->base.children[0]);
+}
+
+static void compile_expr_ternary(FnCompiler* compiler, AstExpression* expr) {
+  AstNode* condition    = expr->base.children[0];
+  AstNode* true_branch  = expr->base.children[1];
+  AstNode* false_branch = expr->base.children[2];
+
+  compile_node(compiler, condition);  // Condition
+  int else_jump = emit_jump(compiler, OP_JUMP_IF_FALSE, condition);
+  emit_one(compiler, OP_POP, condition);  // Discard the condition.
+
+  compile_node(compiler, true_branch);  // True branch
+  int end_jump = emit_jump(compiler, OP_JUMP, true_branch);
+
+  patch_jump(compiler, else_jump);
+  emit_one(compiler, OP_POP, true_branch);  // Discard the true branch.
+
+  compile_node(compiler, false_branch);  // False branch
+  patch_jump(compiler, end_jump);
+}
+
+static void compile_expr_try(FnCompiler* compiler, AstExpression* expr) {
+  AstId* error        = (AstId*)expr->base.children[0];
+  AstNode* try_expr   = expr->base.children[1];
+  AstNode* catch_expr = expr->base.children[2];
+
+  int try_jump = emit_jump(compiler, OP_TRY, (AstNode*)expr);
+  compile_node(compiler, try_expr);  // Try expression
+  emit_assign_id(compiler, error);
+
+  // If the try block was successful, skip the catch block.
+  int success_jump = emit_jump(compiler, OP_JUMP, try_expr);
+  patch_jump(compiler, try_jump);
+
+  if (catch_expr == NULL) {
+    emit_one(compiler, OP_NIL, try_expr);  // Push nil as the "else" value.
+  } else {
+    compile_node(compiler, catch_expr);  // Catch expression
+  }
+  emit_assign_id(compiler, error);     // Assign the error variable.
+  patch_jump(compiler, success_jump);  // Skip the catch block if the try block was successful.
+}
+
+//
+// Literals
+//
+
+static void compile_lit_number(FnCompiler* compiler, AstLiteral* lit) {
+  emit_constant(compiler, lit->value, (AstNode*)lit);
+}
+
+static void compile_lit_string(FnCompiler* compiler, AstLiteral* lit) {
+  emit_constant(compiler, lit->value, (AstNode*)lit);
+}
+
+static void compile_lit_bool(FnCompiler* compiler, AstLiteral* lit) {
+  emit_one(compiler, lit->value.as.boolean ? OP_TRUE : OP_FALSE, (AstNode*)lit);
+}
+
+static void compile_lit_nil(FnCompiler* compiler, AstLiteral* lit) {
+  emit_one(compiler, OP_NIL, (AstNode*)lit);
+}
+
+static void compile_lit_tuple(FnCompiler* compiler, AstLiteral* lit) {
+  compile_children(compiler, (AstNode*)lit);
+  emit_two(compiler, OP_TUPLE_LITERAL, (uint16_t)lit->base.count, (AstNode*)lit);
+}
+
+static void compile_lit_seq(FnCompiler* compiler, AstLiteral* lit) {
+  compile_children(compiler, (AstNode*)lit);
+  emit_two(compiler, OP_SEQ_LITERAL, (uint16_t)lit->base.count, (AstNode*)lit);
+}
+
+static void compile_lit_obj(FnCompiler* compiler, AstLiteral* lit) {
+  compile_children(compiler, (AstNode*)lit);
+  emit_two(compiler, OP_OBJECT_LITERAL, (uint16_t)lit->base.count / 2, (AstNode*)lit);
+}
+
+static void compile_node(FnCompiler* compiler, AstNode* node) {
+  switch (node->type) {
+    case NODE_BLOCK: compile_children(compiler, node); break;
+    case NODE_FN: compile_function(compiler, (AstFn*)node); break;
+    case NODE_ID: INTERNAL_ERROR("Should not compile " STR(NODE_ID) " directly."); break;
+    case NODE_DECL: {
+      AstDeclaration* decl = (AstDeclaration*)node;
+      switch (decl->type) {
+        case DECL_FN: compile_declare_function(compiler, decl); break;
+        case DECL_FN_PARAMS: INTERNAL_ERROR("Should not compile " STR(DECL_FN_PARAMS) " directly."); break;
+        case DECL_CLASS: compile_declare_class(compiler, decl); break;
+        case DECL_VARIABLE: compile_declare_variable(compiler, decl); break;
+        default: INTERNAL_ERROR("Unhandled declaration type."); break;
       }
-      constructor();
-      has_ctor = true;
-    } else {
-      method();
+      break;
+    }
+    case NODE_STMT: {
+      AstStatement* stmt = (AstStatement*)node;
+      switch (stmt->type) {
+        case STMT_IMPORT: compile_statement_import(compiler, stmt); break;
+        case STMT_BLOCK: compile_statement_block(compiler, stmt); break;
+        case STMT_IF: compile_statement_if(compiler, stmt); break;
+        case STMT_WHILE: compile_statement_while(compiler, stmt); break;
+        case STMT_FOR: compile_statement_for(compiler, stmt); break;
+        case STMT_RETURN: compile_statement_return(compiler, stmt); break;
+        case STMT_PRINT: compile_statement_print(compiler, stmt); break;
+        case STMT_EXPR: compile_statement_expr(compiler, stmt); break;
+        case STMT_BREAK: compile_statement_break(compiler, stmt); break;
+        case STMT_SKIP: compile_statement_skip(compiler, stmt); break;
+        case STMT_THROW: compile_statement_throw(compiler, stmt); break;
+        case STMT_TRY: compile_statement_try(compiler, stmt); break;
+        default: INTERNAL_ERROR("Unhandled statement type."); break;
+      }
+      break;
+    }
+    case NODE_EXPR: {
+      AstExpression* expr = (AstExpression*)node;
+      switch (expr->type) {
+        case EXPR_BINARY: compile_expr_binary(compiler, expr); break;
+        case EXPR_POSTFIX: compile_expr_postfix(compiler, expr); break;
+        case EXPR_UNARY: compile_expr_unary(compiler, expr); break;
+        case EXPR_GROUPING: compile_expr_grouping(compiler, expr); break;
+        case EXPR_LITERAL: compile_expr_literal(compiler, expr); break;
+        case EXPR_VARIABLE: compile_expr_variable(compiler, expr); break;
+        case EXPR_ASSIGN: compile_expr_assign(compiler, expr); break;
+        case EXPR_AND: compile_expr_and(compiler, expr); break;
+        case EXPR_OR: compile_expr_or(compiler, expr); break;
+        case EXPR_IS: compile_expr_is(compiler, expr); break;
+        case EXPR_IN: compile_expr_in(compiler, expr); break;
+        case EXPR_CALL: compile_expr_call(compiler, expr); break;
+        case EXPR_DOT: compile_expr_dot(compiler, expr); break;
+        case EXPR_INVOKE: compile_expr_invoke(compiler, expr); break;
+        case EXPR_SUBS: compile_expr_subs(compiler, expr); break;
+        case EXPR_SLICE: compile_expr_slice(compiler, expr); break;
+        case EXPR_THIS: compile_expr_this(compiler, expr); break;
+        case EXPR_BASE: INTERNAL_ERROR("Should not compile " STR(EXPR_BASE) " directly."); break;
+        case EXPR_ANONYMOUS_FN: compile_expr_anon_fn(compiler, expr); break;
+        case EXPR_TERNARY: compile_expr_ternary(compiler, expr); break;
+        case EXPR_TRY: compile_expr_try(compiler, expr); break;
+        default: INTERNAL_ERROR("Unhandled expression type."); break;
+      }
+      break;
+    }
+    case NODE_LIT: {
+      AstLiteral* lit = (AstLiteral*)node;
+      switch (lit->type) {
+        case LIT_NUMBER: compile_lit_number(compiler, lit); break;
+        case LIT_STRING: compile_lit_string(compiler, lit); break;
+        case LIT_BOOL: compile_lit_bool(compiler, lit); break;
+        case LIT_NIL: compile_lit_nil(compiler, lit); break;
+        case LIT_TUPLE: compile_lit_tuple(compiler, lit); break;
+        case LIT_SEQ: compile_lit_seq(compiler, lit); break;
+        case LIT_OBJ: compile_lit_obj(compiler, lit); break;
+        default: INTERNAL_ERROR("Unhandled literal type."); break;
+      }
+      break;
+    }
+    case NODE_PATTERN: INTERNAL_ERROR("Should not compile " STR(NODE_PATTERN) " directly."); break;
+  }
+
+  // Exit the scope, if we entered one - no need to do that for functions though, since their locals are popped when the function
+  // returns.
+  if (node->scope != NULL && node->type != NODE_FN) {
+    discard_locals(compiler, node->scope, node);
+  }
+}
+
+void compile_children(FnCompiler* compiler, AstNode* node) {
+  for (int i = 0; i < node->count; i++) {
+    AstNode* child = node->children[i];
+    if (child != NULL) {
+      compile_node(compiler, child);
     }
   }
-  consume(TOKEN_CBRACE, "Expecting '}' after class body.");
-  emit_one(OP_FINALIZE, error_start);  // Finalize the class & pop it from the stack.
-
-  if (class_compiler.has_baseclass) {
-    end_scope();
-  }
-
-  current_class = current_class->enclosing;
 }
 
-// Compiles a declaration.
-static void declaration() {
-  if (match(TOKEN_CLASS)) {  // TODO (optimization): Reorder these to match the frequency of use.
-    declaration_class();
-  } else if (match(TOKEN_FN)) {
-    declaration_function();
-  } else if (match(TOKEN_CONST)) {
-    declaration_const();
-  } else if (match(TOKEN_LET)) {
-    declaration_let();
-  } else {
-    statement();
-  }
+bool compile(AstFn* ast, ObjObject* globals_context, ObjFunction** result) {
+  compiler_root = ast;
 
-  if (parser.panic_mode) {
-    synchronize();
-  }
-}
+  FnCompiler compiler;
+  compiler_init(&compiler, NULL, ast, globals_context);
 
-ObjFunction* compiler_compile_module(const char* source) {
-  scanner_init(source);
-  Compiler compiler;
-  const_globals_count = 0;
+  INTERNAL_ASSERT((AstDeclaration*)ast->base.children[1] == NULL, "Expected no parameters in the root function.");
+  AstNode* body = ast->base.children[2];
 
-  compiler_init(&compiler, TYPE_MODULE);
+  // Compile body
+  compile_node(&compiler, body);
+  *result = end_compiler(&compiler);
 
-#ifdef DEBUG_PRINT_CODE
-  printf("== Begin compilation ==\n");
-#endif
-
-  parser.had_error  = false;
-  parser.panic_mode = false;
-
-  advance();
-
-  while (!match(TOKEN_EOF)) {
-    declaration();
-  }
-
-  ObjFunction* function = end_compiler();
+  bool success = !compiler.had_error;
   compiler_free(&compiler);
-  return parser.had_error ? NULL : function;
+
+  compiler_root    = NULL;
+  current_compiler = NULL;
+
+  return success;
 }
 
 void compiler_mark_roots() {
-  Compiler* compiler = current;
+  if (current_compiler == NULL) {
+    return;
+  }
+
+  ast_mark((AstNode*)compiler_root);
+
+  FnCompiler* compiler = current_compiler;
   while (compiler != NULL) {
-    mark_obj((Obj*)compiler->function);
+    mark_obj((Obj*)compiler->result);
     compiler = compiler->enclosing;
   }
 }
-
-#undef CONSTNESS_FN_DECLARATION
-#undef CONSTNESS_FN_PARAMS
-#undef CONSTNESS_CLS_DECLARATION
-#undef CONSTNESS_IMPORT_VARS
-#undef CONSTNESS_IMPORT_BINDINGS
-#undef CONSTNESS_KW_ERROR
-#undef CONSTNESS_KW_BASE

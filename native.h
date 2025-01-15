@@ -522,6 +522,17 @@ uint64_t native_default_obj_hash(Value self);
                                                                                                                  \
   /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                       \
   switch (fn_arity) {                                                                                            \
+    case 0: {                                                                                                    \
+      for (int i = 0; i < count; i++) {                                                                          \
+        /* Execute the provided function on the item */                                                          \
+        vm_push(argv[1]); /* Push the function */                                                                \
+        vm_exec_callable(argv[1], 0);                                                                            \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                    \
+          return nil_value(); /* Propagate the error */                                                          \
+        }                                                                                                        \
+      }                                                                                                          \
+      break;                                                                                                     \
+    }                                                                                                            \
     case 1: {                                                                                                    \
       for (int i = 0; i < count; i++) {                                                                          \
         /* Execute the provided function on the item */                                                          \
@@ -548,7 +559,7 @@ uint64_t native_default_obj_hash(Value self);
       break;                                                                                                     \
     }                                                                                                            \
     default: {                                                                                                   \
-      vm_error("Function passed to \"" STR(each) "\" must take 1 or 2 arguments, but got %d.", fn_arity);        \
+      vm_error("Function passed to \"" STR(each) "\" must take 0 to 2 arguments, but got %d.", fn_arity);        \
       return nil_value();                                                                                        \
     }                                                                                                            \
   }                                                                                                              \
@@ -572,6 +583,19 @@ uint64_t native_default_obj_hash(Value self);
                                                                                                                   \
   /* Loops are duplicated to avoid the overhead of checking the arity on each iteration */                        \
   switch (fn_arity) {                                                                                             \
+    case 0: {                                                                                                     \
+      while (mapped.count < count) {                                                                              \
+        /* Execute the provided function on the item */                                                           \
+        vm_push(argv[1]); /* Push the function */                                                                 \
+        mapped.values[mapped.count] = vm_exec_callable(argv[1], 0);                                               \
+        if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                     \
+          return nil_value(); /* Propagate the error */                                                           \
+        }                                                                                                         \
+        vm_push(mapped.values[mapped.count]); /* GC Protection */                                                 \
+        mapped.count++;                                                                                           \
+      }                                                                                                           \
+      break;                                                                                                      \
+    }                                                                                                             \
     case 1: {                                                                                                     \
       while (mapped.count < count) {                                                                              \
         /* Execute the provided function on the item */                                                           \
@@ -602,7 +626,7 @@ uint64_t native_default_obj_hash(Value self);
       break;                                                                                                      \
     }                                                                                                             \
     default: {                                                                                                    \
-      vm_error("Function passed to \"" STR(map) "\" must take 1 or 2 arguments, but got %d.", fn_arity);          \
+      vm_error("Function passed to \"" STR(map) "\" must take 0 to 2 arguments, but got %d.", fn_arity);          \
       return nil_value();                                                                                         \
     }                                                                                                             \
   }                                                                                                               \
@@ -692,54 +716,54 @@ uint64_t native_default_obj_hash(Value self);
  * TYPENAME_T.join(sep: TYPENAME_STRING) -> TYPENAME_STRING
  * @brief Joins the items of a TYPENAME_T into a single TYPENAME_STRING, separated by 'sep'.
  */
-#define NATIVE_LISTLIKE_JOIN_BODY(class)                                                               \
-  UNUSED(argc);                                                                                        \
-  NATIVE_CHECK_RECEIVER(class)                                                                         \
-  NATIVE_CHECK_ARG_AT(1, vm.str_class)                                                                 \
-                                                                                                       \
-  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                               \
-  ObjString* sep   = AS_STR(argv[1]);                                                                  \
-                                                                                                       \
-  size_t buf_size = 64; /* Start with a reasonable size */                                             \
-  char* chars     = malloc(buf_size);                                                                  \
-  chars[0]        = '\0'; /* Start with an empty string, so we can use strcat */                       \
-                                                                                                       \
-  for (int i = 0; i < items.count; i++) {                                                              \
-    /* Maybe this is faster (checking if the item is a string)  - unsure though */                     \
-    ObjString* item_str = NULL;                                                                        \
-    if (!is_str(items.values[i])) {                                                                    \
-      /* Execute the to_str method on the item */                                                      \
-      vm_push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                     \
-      item_str = AS_STR(vm_exec_callable(fn_value(items.values[i].type->__to_str), 0));                \
-      if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                            \
-        return nil_value();                                                                            \
-      }                                                                                                \
-    } else {                                                                                           \
-      item_str = AS_STR(items.values[i]);                                                              \
-    }                                                                                                  \
-                                                                                                       \
-    /* Expand chars to fit the separator plus the next item */                                         \
-    size_t new_buf_size = strlen(chars) + item_str->length + sep->length; /* Consider the separator */ \
-                                                                                                       \
-    /* Expand if necessary */                                                                          \
-    if (new_buf_size > buf_size) {                                                                     \
-      buf_size        = new_buf_size;                                                                  \
-      size_t old_size = strlen(chars);                                                                 \
-      chars           = realloc(chars, buf_size);                                                      \
-      chars[old_size] = '\0'; /* Ensure null-termination at the end of the old string */               \
-    }                                                                                                  \
-                                                                                                       \
-    /* Append the string */                                                                            \
-    strcat(chars, item_str->chars);                                                                    \
-    if (i < items.count - 1) {                                                                         \
-      strcat(chars, sep->chars);                                                                       \
-    }                                                                                                  \
-  }                                                                                                    \
-                                                                                                       \
-  /* Intuitively, you'd expect to use take_string here, but we don't know where malloc */              \
-  /* allocates the memory - we don't want this block in our own memory pool. */                        \
-  ObjString* str_obj = copy_string(chars, (int)strlen(chars));                                         \
-  free(chars);                                                                                         \
+#define NATIVE_LISTLIKE_JOIN_BODY(class)                                                                   \
+  UNUSED(argc);                                                                                            \
+  NATIVE_CHECK_RECEIVER(class)                                                                             \
+  NATIVE_CHECK_ARG_AT(1, vm.str_class)                                                                     \
+                                                                                                           \
+  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                                   \
+  ObjString* sep   = AS_STR(argv[1]);                                                                      \
+                                                                                                           \
+  size_t buf_size = 64; /* Start with a reasonable size */                                                 \
+  char* chars     = malloc(buf_size);                                                                      \
+  chars[0]        = '\0'; /* Start with an empty string, so we can use strcat */                           \
+                                                                                                           \
+  for (int i = 0; i < items.count; i++) {                                                                  \
+    /* Maybe this is faster (checking if the item is a string)  - unsure though */                         \
+    ObjString* item_str = NULL;                                                                            \
+    if (!is_str(items.values[i])) {                                                                        \
+      /* Execute the to_str method on the item */                                                          \
+      vm_push(items.values[i]); /* Push the receiver (item at i) for to_str, or */                         \
+      item_str = AS_STR(vm_exec_callable(fn_value(items.values[i].type->__to_str), 0));                    \
+      if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                \
+        return nil_value();                                                                                \
+      }                                                                                                    \
+    } else {                                                                                               \
+      item_str = AS_STR(items.values[i]);                                                                  \
+    }                                                                                                      \
+                                                                                                           \
+    /* Expand chars to fit the separator plus the next item and null terminator */                         \
+    size_t new_buf_size = strlen(chars) + item_str->length + sep->length + 1; /* Consider the separator */ \
+                                                                                                           \
+    /* Expand if necessary */                                                                              \
+    if (new_buf_size > buf_size) {                                                                         \
+      buf_size        = new_buf_size;                                                                      \
+      size_t old_size = strlen(chars);                                                                     \
+      chars           = realloc(chars, buf_size);                                                          \
+      chars[old_size] = '\0'; /* Ensure null-termination at the end of the old string */                   \
+    }                                                                                                      \
+                                                                                                           \
+    /* Append the string */                                                                                \
+    strcat(chars, item_str->chars);                                                                        \
+    if (i < items.count - 1) {                                                                             \
+      strcat(chars, sep->chars);                                                                           \
+    }                                                                                                      \
+  }                                                                                                        \
+                                                                                                           \
+  /* Intuitively, you'd expect to use take_string here, but we don't know where malloc */                  \
+  /* allocates the memory - we don't want this block in our own memory pool. */                            \
+  ObjString* str_obj = copy_string(chars, (int)strlen(chars));                                             \
+  free(chars);                                                                                             \
   return str_value(str_obj);
 
 /**
@@ -888,6 +912,7 @@ uint64_t native_default_obj_hash(Value self);
  * TYPENAME_T.fold(initial: TYPENAME_VALUE, fn: TYPENAME_FUNCTION) -> TYPENAME_VALUE
  * @brief Reduces the items of a TYPENAME_T to a single value by executing 'fn' on each item. 'fn' should take two or three
  * arguments: the accumulator, the item and the index. The latter is optional. The initial value of the accumulator is 'initial'.
+ * The passed function should return the new accumulator value.
  */
 #define NATIVE_LISTLIKE_FOLD_BODY(class)                                                                          \
   UNUSED(argc);                                                                                                   \
@@ -1086,6 +1111,30 @@ uint64_t native_default_obj_hash(Value self);
                                                                                                                  \
   /* Take at the end so that tuples calc their hash correctly */                                                 \
   return NATIVE_LISTLIKE_TAKE_ARRAY(sorted);
+
+/**
+ * TYPENAME_T.min() -> TYPENAME_VALUE
+ * @brief Returns the smallest item of a TYPENAME_T. Returns TYPENAME_NIL if the TYPENAME_T is empty. Uses the default
+ * "SP_METHOD_LT" method of the items type to compare the items.
+ */
+#define NATIVE_LISTLIKE_MIN_BODY(class)                                                                        \
+  UNUSED(argc);                                                                                                \
+  NATIVE_CHECK_RECEIVER(class)                                                                                 \
+                                                                                                               \
+  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                                       \
+  if (items.count == 0) {                                                                                      \
+    return nil_value();                                                                                        \
+  }                                                                                                            \
+                                                                                                               \
+  Value min = items.values[0];                                                                                 \
+  /* We just use value_array_sort_compare_wrapper_native to get the min value, so it's consistent with sort */ \
+  for (int i = 1; i < items.count; i++) {                                                                      \
+    if (value_array_sort_compare_wrapper_native(min, items.values[i], nil_value()) > 0) {                      \
+      min = items.values[i];                                                                                   \
+    }                                                                                                          \
+  }                                                                                                            \
+                                                                                                               \
+  return min;
 
 /**
  * TYPENAME_T.sum() -> TYPENAME_VALUE

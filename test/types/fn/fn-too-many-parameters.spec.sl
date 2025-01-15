@@ -254,4 +254,6 @@ fn f(
     a252,
     a253,
     a254,       // [exit] 2
-    a255, a) {} // [expect-error] Compile error at line 257 at 'a': Can't have more than 255 parameters.
+    a255, a) {} // [expect-error] Parser error at line 257 at 'a': Can't have more than 255 parameters.
+                // [expect-error]    257 |     a255, a) {}
+                // [expect-error]                    ~

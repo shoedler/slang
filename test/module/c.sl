@@ -1,0 +1,1 @@
+cls A { // Compile Error

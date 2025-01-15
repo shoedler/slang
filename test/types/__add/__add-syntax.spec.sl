@@ -34,7 +34,7 @@ print "1" + 1.0          // [expect] 11
 print "Lol" + [1,2,3]    // [expect] Lol[1, 2, 3]
 print "Lol" + (1,2,3)    // [expect] Lol(1, 2, 3)
 print "Lol" + {"a":"b"}  // [expect] Lol{a: b}
-print "Lol" + (fn -> 1)  // [expect] Lol<Fn (anon)>
+print "Lol" + (fn -> 1)  // [expect] Lol<Fn $anon_fn$>
 print "Lol" + X          // [expect] Lol<X>
 print "Lol" + X()        // [expect] Lol<Instance of X> 
 print "Lol" + Y()        // [expect] Lol<Instance of Y>

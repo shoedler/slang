@@ -4,9 +4,9 @@ const global = 1
  
 {
   fn fun() {
-    global++ // [expect-error] Compile error at line 7 at 'global': Can't reassign a constant.
-  }          // [expect-error] Compile error at line 14 at end: Expecting '}' after block.
-             // [expect-error] Compile error at line 14 at end: Expecting '}' after block.
+    global++ // [expect-error] Resolver error at line 7: Cannot assign to constant variable 'global'.
+  }          // [expect-error]      7 |     global++
+             // [expect-error]              ~~~~~~
   f = fun
 }
 

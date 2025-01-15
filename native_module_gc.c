@@ -84,7 +84,7 @@ static Value native_gc_stress(int argc, Value argv[]) {
   NATIVE_CHECK_ARG_AT(1, vm.bool_class)
 
   bool old_value = VM_HAS_FLAG(VM_FLAG_STRESS_GC);
-  if (argv[0].as.boolean) {
+  if (argv[1].as.boolean) {
     VM_SET_FLAG(VM_FLAG_STRESS_GC);
   } else {
     VM_CLEAR_FLAG(VM_FLAG_STRESS_GC);

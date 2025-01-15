@@ -19,6 +19,13 @@ print [1,3,4].each(fn(x, i) -> log(x, i))
 // [expect] 4 2
 // [expect] nil
 
+// Passing an anonymous function without arguments
+print [1,3,4].each(fn -> log("hi"))
+// [expect] hi
+// [expect] hi
+// [expect] hi
+// [expect] nil
+
 // Passing a named function
 let s = []
 fn store(x) -> s.push(x*2)

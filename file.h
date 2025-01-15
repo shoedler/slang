@@ -34,4 +34,11 @@ char* file_base(const char* path);
 // returns a copy of the input string. The caller is responsible for freeing the returned string.
 char* file_ensure_slang_extension(const char* path);
 
+// Resolves an import-path to an absolute file-path, based on the current working directory. Returns the absolute path to the
+// module. The caller is responsible for freeing the memory.
+// - [module_name] can be NULL, if the module is imported solely by [module_path] (relative or absolute).
+// - [module_path] can be NULL, if the module is expected to be in the same directory as the importing module and the file is
+// named after [module_name].
+char* file_resolve_module_path(const char* cwd, const char* module_name, const char* module_path);
+
 #endif

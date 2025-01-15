@@ -17,7 +17,7 @@ void hashtable_free(HashTable* table) {
   hashtable_init(table);
 }
 
-// Find the entry for key. Returns NULL if no entry is found.
+// Find the entry for key. Returns a pointer to the entry if found, or a pointer to an empty entry if not found.
 static Entry* find_entry(Entry* entries, int capacity, Value key) {
   uint64_t index = key.type->__hash(key) & (capacity - 1);
 
