@@ -1,9 +1,11 @@
-import os
 import time
+import os
+
+__dir = os.path.abspath(os.path.dirname(__file__))
 
 digits = "0123456789"
 
-with open(os.getcwd() + "/parse.bench.input") as f:
+with open(__dir + "/parse.bench.input") as f:
    prg = f.read()
 
 def run(do_enable):

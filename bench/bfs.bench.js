@@ -1,8 +1,11 @@
 import fs from "fs";
 import path from "path";
+import url from "url";
+
+const __dir = path.dirname(url.fileURLToPath(import.meta.url));
 
 const mapData = fs
-  .readFileSync(path.join(process.cwd(), "bfs.bench.input"), "utf8")
+  .readFileSync(path.join(__dir, "bfs.bench.input"), "utf8")
   .split("\n")
   .map((line) => line.trim().split(""));
 

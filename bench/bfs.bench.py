@@ -1,8 +1,10 @@
 import time
-from os import getcwd
+import os 
 from collections import deque
 
-with open(getcwd() + "/bfs.bench.input") as f:
+__dir = os.path.abspath(os.path.dirname(__file__))
+
+with open(__dir + "/bfs.bench.input") as f:
     map_data = [list(line.strip()) for line in f.readlines()]
 
 start = time.perf_counter()

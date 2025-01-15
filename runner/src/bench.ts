@@ -35,6 +35,8 @@ type BenchmarkResult = {
 
 type Benchmark = {
   name: string;
+  numRuns: number;
+  numWarmupRuns: number;
   regex: RegExp;
 };
 
@@ -44,8 +46,6 @@ type Language = {
   cmdRunFile: string[];
   cmdGetVersion: string[];
 };
-
-const NUM_RUNS = 20; // Number of runs for each benchmark
 
 const LANGUAGES: Language[] = [
   {
@@ -57,7 +57,7 @@ const LANGUAGES: Language[] = [
   {
     name: 'javascript',
     ext: '.js',
-    cmdRunFile: ['node', '--jitless', '--noexpose_wasm'],
+    cmdRunFile: ['node', '--jitless', '--noexpose_wasm', '--no-warnings'], // --no-warnings is a workaround for module syntax parsing warnings (MODULE_TYPELESS_PACKAGE_JSON)
     cmdGetVersion: ['node', '--version'],
   },
   {
@@ -73,18 +73,23 @@ const BENCHMARKS: Benchmark[] = [];
 /**
  * Define a benchmark
  * @param name - The name of the benchmark (file name, without extension and .bench suffix)
+ * @param numRuns - The number of runs to perform for this benchmark
+ * @param numWarmupRuns - The number of warmup runs to perform for this benchmark
  * @param expectedOutput - The expected output of the benchmark, each output line as an array element
  */
-const defineBenchmark = (name: string, expectedOutput: string[]) => {
+const defineBenchmark = (name: string, numRuns: number, numWarmupRuns: number, expectedOutput: string[]) => {
   const expectedOutStr = expectedOutput.length > 0 ? expectedOutput.join('\n') + '\n' : '';
   const regex = new RegExp(expectedOutStr + 'elapsed: (\\d+.\\d+)', 'm');
-  BENCHMARKS.push({ name, regex });
+  BENCHMARKS.push({ name, numRuns, numWarmupRuns, regex });
 };
 
-defineBenchmark('zoo', ['1800000', '1800000', '1800000', '1800000', '1800000']);
-defineBenchmark('string', []);
-defineBenchmark('fib', ['832040', '832040', '832040', '832040', '832040']);
-defineBenchmark('list', ['499999500000']);
+defineBenchmark('zoo', 20, 20, ['1800000', '1800000', '1800000', '1800000', '1800000']);
+defineBenchmark('string', 20, 20, []);
+defineBenchmark('fib', 20, 20, ['832040', '832040', '832040', '832040', '832040']);
+defineBenchmark('list', 20, 20, ['499999500000']);
+defineBenchmark('bfs', 20, 20, ['1533644', '936718']);
+defineBenchmark('dp', 20, 20, ['215374', '260586897262600']);
+defineBenchmark('parse', 20, 20, ['168539636', '97529391']);
 
 /**
  * Calculate score based on time
@@ -168,8 +173,6 @@ const runGetVersion = async (lang: Language): Promise<string | null> => {
  * Runs a single benchmark and returns the result of the run. Prints lang, name and progress to stdout
  * @param lang - The language which executes this run.
  * @param bench - The benchmark to execute.
- * @param numWarmupRuns - Amount of warmup runs to do before running the benchmark.
- * @param numRuns - Amount of runs to do of this benchmark.
  * @param benchNamePadding - A right-padding to print after the bench-name is printed.
  * @param langNamePadding  - A right-padding to print after the lang-name is printed.
  * @returns A promise which resolves to either the result, or null, if the run failed.
@@ -177,8 +180,6 @@ const runGetVersion = async (lang: Language): Promise<string | null> => {
 const runBenchmark = async (
   lang: Language,
   bench: Benchmark,
-  numWarmupRuns = NUM_RUNS,
-  numRuns = NUM_RUNS,
   benchNamePadding: number = bench.name.length + 1,
   langNamePadding: number = lang.name.length + 1,
 ): Promise<BenchmarkRun | null> => {
@@ -215,12 +216,12 @@ const runBenchmark = async (
 
     const progCurrent = char;
     const progDone = COMPLETED.repeat(i);
-    const progRemain = PENDING.repeat(numRuns - i);
+    const progRemain = PENDING.repeat(bench.numRuns - i);
 
     const progress = chalk.green(progDone) + progCurrent + chalk.red(progRemain);
 
-    const current = i.toString().padStart(numRuns.toString().length, ' ');
-    process.stdout.write(` ${progress} ${current}/${numRuns}`);
+    const current = i.toString().padStart(bench.numRuns.toString().length, ' ');
+    process.stdout.write(` ${progress} ${current}/${bench.numRuns}`);
 
     process.stdout.write('\x1b[u'); // Restore cursor position
   }, 100);
@@ -231,10 +232,10 @@ const runBenchmark = async (
   };
 
   // Warmup
-  for (let j = 0; j < numWarmupRuns; j++) await runProcess(runCommand, '', undefined, false, true);
+  for (let j = 0; j < bench.numWarmupRuns; j++) await runProcess(runCommand, '', undefined, false, true);
 
   // Run benchmark
-  for (; i < numRuns; i++) {
+  for (; i < bench.numRuns; i++) {
     const { output } = await runProcess(runCommand, '', undefined, false, true);
 
     if (!output) {
@@ -370,14 +371,7 @@ export const runBenchmarks = async (langPattern?: string) => {
     }
 
     for (const benchmark of BENCHMARKS) {
-      const result = await runBenchmark(
-        language,
-        benchmark,
-        NUM_RUNS,
-        NUM_RUNS,
-        longestBenchmarkName,
-        longestLanguageName,
-      );
+      const result = await runBenchmark(language, benchmark, longestBenchmarkName, longestLanguageName);
       if (!result) {
         continue;
       }

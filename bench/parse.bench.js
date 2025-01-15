@@ -1,8 +1,11 @@
-import { readFileSync } from "fs";
+import fs from "fs";
+import path from "path";
+import url from "url";
+
+const __dir = path.dirname(url.fileURLToPath(import.meta.url));
 
 const digits = "0123456789";
-
-const prg = readFileSync(process.cwd() + "/parse.bench.input", "utf8");
+const prg = fs.readFileSync(path.join(__dir, "parse.bench.input"), "utf8");
 
 function run(do_enable) {
   let i = 0;
