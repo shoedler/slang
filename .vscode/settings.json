@@ -12,7 +12,8 @@
     "tuple": "cpp",
     "type_traits": "cpp",
     "utility": "cpp"
-  }
+  },
+  "C_Cpp.default.cStandard": "c23"
   // See: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
   // Note: `AllowShortEnumsOnASingleLine: false` and `BraceWrapping: { AfterEnum: true }` are to put each enum value on a new line
 }

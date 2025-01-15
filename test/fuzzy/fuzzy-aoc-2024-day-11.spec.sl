@@ -1,3 +1,6 @@
+// Note: I needed to raise the max stack frames from 64 to 128 when I originally solved this. 
+//       This change didn't get committed bc it might have space complexity implications that I didn't investigate.
+
 // [skip] Stack overflow, 64 is not enough & I don't want to raise the limit. Yet.
 
 import File
