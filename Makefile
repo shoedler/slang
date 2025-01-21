@@ -72,7 +72,7 @@ release-profiled:
 	@echo "Building with profile generation..."
 	@$(MAKE) release CFLAGS="$(PROFILING_CFLAGS)" LDFLAGS="$(PROFILING_LDFLAGS)"
 	@echo "Gathering profile data..."
-	$(RELEASE_EXEC) run profile/profile.sl
+	$(RELEASE_EXEC) run --no-warn profile/profile.sl
 	@echo "Building final version with profile data..."
 	@$(MAKE) clean
 	@$(MAKE) release CFLAGS="$(FINAL_CFLAGS)" LDFLAGS="$(FINAL_LDFLAGS)"

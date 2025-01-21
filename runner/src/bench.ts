@@ -301,42 +301,38 @@ const printBenchmarkResultWithComparison = (
   prevResults: BenchmarkResult[],
 ): void => {
   let comparison;
-  let comparisonSuffix;
-  let dividend = result.avg;
-  let divisor = result.avg;
+
+  const makeComparison = (dividend: number, divisor: number, suffix: string) => {
+    // Calculate comparison
+    const ratio = (100 / dividend) * divisor;
+    let cmp = ratio.toFixed(2) + suffix;
+
+    if (ratio > 100) {
+      cmp = chalk.green(cmp);
+    }
+    if (ratio < 100) {
+      cmp = chalk.red(cmp);
+    }
+
+    return cmp;
+  };
 
   if (isLangSlang(lang)) {
     // If we're running a slang benchmark, compare to a previous slang result
     const prevResult = findResult(prevResults, bench.name, 'slang', processorName, false);
     if (prevResult) {
-      comparisonSuffix = '% relative to baseline';
-      divisor = prevResult.avg;
+      comparison = makeComparison(result.avg, prevResult.avg, '% relative to baseline');
     } else {
-      comparison = 'no baseline for this benchmark on this cpu found';
-      comparisonSuffix = '';
+      comparison = chalk.gray('no baseline for this benchmark on this cpu found');
     }
   } else {
     // If we're running a non-slang benchmark, compare to the current slang result. Slang always runs first.
     const slangResult = findResult(currentResults, bench.name, 'slang', processorName);
     if (slangResult) {
-      comparisonSuffix = '%';
-      dividend = slangResult.avg;
+      comparison = makeComparison(slangResult.avg, result.avg, '%');
     } else {
-      comparison = 'no slang result for this benchmark on this cpu found';
-      comparisonSuffix = '';
+      comparison = chalk.gray('no slang result for this benchmark on this cpu found');
     }
-  }
-
-  // Calculate comparison
-  const ratio = (100 / dividend) * divisor;
-  if (!comparison) {
-    comparison = ratio.toFixed(2) + comparisonSuffix;
-  }
-  if (ratio > 100) {
-    comparison = chalk.green(comparison);
-  }
-  if (ratio < 100) {
-    comparison = chalk.red(comparison);
   }
 
   // Emphasize standard deviation if it's high

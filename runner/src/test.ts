@@ -70,7 +70,7 @@ type TestResultToMetadataComparison = {
 const DEFAULT_TEST_NAME_PATTERN = '.*';
 
 /**
- * Finds all tests in the slang bench directory
+ * Finds all tests in the slang test directory
  * @param testNamePattern - A pattern to filter tests by name. Supports regex, defaults to all tests '.*'
  * @returns Array of test file paths
  */

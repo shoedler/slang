@@ -328,6 +328,16 @@ export const error = (message: string, hint?: string) => {
   prettyPrint('err', message + (hint ? chalk.gray(` ${hint}`) : ''));
 };
 
+const ABORT_HANDLERS: Array<() => void> = [];
+
+/**
+ * Add an abort handler. Gets called when the process is aborted using @see abort
+ * @param handler - Handler to add
+ */
+export const addAbortHandler = (handler: () => void) => {
+  ABORT_HANDLERS.push(handler);
+};
+
 /**
  * Abort the process with an error message
  * @param message - Error message to print
@@ -335,6 +345,9 @@ export const error = (message: string, hint?: string) => {
  */
 export const abort = (message: string, hint?: string) => {
   prettyPrint('abort', message + (hint ? chalk.gray(` ${hint}`) : ''));
+  for (const handler of ABORT_HANDLERS) {
+    handler();
+  }
   process.exit(1);
 };
 

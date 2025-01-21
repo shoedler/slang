@@ -7,6 +7,12 @@
     "bench": {
       "command": "deno run -A src/index.ts bench"
     },
+    "pgo-build": {
+      "command": "deno run -A src/index.ts pgo-build"
+    },
+    "pgo-bench": {
+      "command": "deno run -A src/index.ts pgo-bench"
+    },
     "sample": {
       "command": "deno run -A src/index.ts sample"
     },

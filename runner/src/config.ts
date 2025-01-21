@@ -18,6 +18,8 @@ export enum SlangRunFlags {
 export enum SlangFileSuffixes {
   Slang = '.sl',
   Test = '.spec.sl',
+  Profile = '.profile.sl',
+  Binary = '.slang.exe',
 }
 
 export const BENCH_PRE_SUFFIX = '.bench';
@@ -27,7 +29,9 @@ export enum SlangPaths {
   BinDir = SLANG_PROJ_DIR + '\\bin\\x64',
   BenchDir = SLANG_PROJ_DIR + '\\bench',
   TestDir = SLANG_PROJ_DIR + '\\test',
+  ProfileDir = SLANG_PROJ_DIR + '\\profile',
   SampleFile = SLANG_PROJ_DIR + '\\sample' + SlangFileSuffixes.Slang,
+  ProfileFile = SlangPaths.ProfileDir + '\\profile' + SlangFileSuffixes.Slang,
   RunnerSrcDir = SLANG_PROJ_DIR + '\\runner\\src',
 }
 
