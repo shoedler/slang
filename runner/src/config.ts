@@ -24,6 +24,7 @@ export enum SlangFileSuffixes {
 
 export const BENCH_PRE_SUFFIX = '.bench';
 export const BENCH_LOG_FILE = 'bench-log.json';
+export const PGO_BENCH_LOG_FILE = 'pgo-bench-log.json';
 
 export enum SlangPaths {
   BinDir = SLANG_PROJ_DIR + '\\bin\\x64',

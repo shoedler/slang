@@ -189,10 +189,15 @@ fn Func3(EnumParIn) {
   ret EnumLoc == Ident3
 }
 
-fn main(loops) {
+fn main(loops, standalone) {
   let [benchtime, stones] = Proc0(loops)
-  print "SlDhrystone("+VERSION+") time for "+loops+" passes = "+benchtime
-  print "This machine benchmarks at "+stones+" stones/second"
+  if standalone {
+    print "SlDhrystone("+VERSION+") time for "+loops+" passes = "+benchtime
+    print "This machine benchmarks at "+stones+" stones/second"
+  }
 }
 
-main(LOOPS)
+let start = Perf.now()
+main(LOOPS, false)
+print "elapsed: " + (Perf.now() - start) + "s"
+

@@ -48,7 +48,7 @@ const hint = [
   '    - no-build      Skip building the project (default is to build)',
   '    - <pattern>     Run language that matches the regex pattern',
   '  - pgo-build       Build release PGO binaries for each profile',
-  '  - pgo-bench       Benchmark PGO binaries and store results',
+  '  - pgo-bench       Benchmark PGO binaries and store results (Run "pgo-build" first)',
   '  - sample          Run sample file (sample.sl)',
   '    - no-build      Skip building the project (default is to build)',
   '  - test            Run tests (.spec.sl files)',

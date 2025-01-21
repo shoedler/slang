@@ -202,12 +202,20 @@ function Func3(EnumParIn) {
   return EnumLoc == Ident3;
 }
 
-function main(loops = LOOPS) {
+function main(loops = LOOPS, standalone = false) {
   let [benchtime, stones] = Proc0(loops);
-  console.log(
-    `JsDhrystone(${VERSION}) time for ${loops} passes = ${benchtime}`
-  );
-  console.log(`This machine benchmarks at ${stones} stones/second`);
+  if (standalone) {
+    console.log(
+      `JsDhrystone(${VERSION}) time for ${loops} passes = ${benchtime}`
+    );
+    console.log(`This machine benchmarks at ${stones} stones/second`);
+  }
 }
 
+const start = process.hrtime.bigint();
 main(LOOPS);
+console.log(
+  `elapsed: ${(Number(process.hrtime.bigint() - start) / 1_000_000_000).toFixed(
+    5
+  )}s`
+);

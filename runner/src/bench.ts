@@ -26,7 +26,7 @@ type BenchmarkRun = {
   sd: number;
 };
 
-type BenchmarkResult = {
+export type BenchmarkResult = {
   name: string;
   cpu: string;
   lang: string;
@@ -40,14 +40,14 @@ type Benchmark = {
   regex: RegExp;
 };
 
-type Language = {
+export type Language = {
   name: string;
   ext: `.${string}`;
   cmdRunFile: string[];
   cmdGetVersion: string[];
 };
 
-const LANGUAGES: Language[] = [
+export const LANGUAGES: Language[] = [
   {
     name: 'slang',
     ext: SlangFileSuffixes.Slang,
@@ -68,7 +68,7 @@ const LANGUAGES: Language[] = [
   },
 ];
 
-const BENCHMARKS: Benchmark[] = [];
+export const BENCHMARKS: Benchmark[] = [];
 
 /**
  * Define a benchmark
@@ -83,13 +83,14 @@ const defineBenchmark = (name: string, numRuns: number, numWarmupRuns: number, e
   BENCHMARKS.push({ name, numRuns, numWarmupRuns, regex });
 };
 
-defineBenchmark('zoo', 20, 20, ['1800000', '1800000', '1800000', '1800000', '1800000']);
-defineBenchmark('string', 20, 20, []);
+defineBenchmark('bfs', 20, 20, ['1533644', '936718']);
+defineBenchmark('dhrystone', 20, 20, []);
+defineBenchmark('dp', 20, 20, ['215374', '260586897262600']);
 defineBenchmark('fib', 20, 20, ['832040', '832040', '832040', '832040', '832040']);
 defineBenchmark('list', 20, 20, ['499999500000']);
-defineBenchmark('bfs', 20, 20, ['1533644', '936718']);
-defineBenchmark('dp', 20, 20, ['215374', '260586897262600']);
 defineBenchmark('parse', 20, 20, ['168539636', '97529391']);
+defineBenchmark('string', 20, 20, []);
+defineBenchmark('zoo', 20, 20, ['1800000', '1800000', '1800000', '1800000', '1800000']);
 
 /**
  * Calculate score based on time
@@ -154,7 +155,7 @@ const findResult = (
  * @param lang - The language to get the installed version from
  * @returns A promise which resolves to the version string of the language, or null if the interpreter is not installed / version retrieval failed.
  */
-const runGetVersion = async (lang: Language): Promise<string | null> => {
+export const runGetVersion = async (lang: Language): Promise<string | null> => {
   let { output: interpreterVersion } = await runProcess(lang.cmdGetVersion.join(' '));
   if (!interpreterVersion) {
     error(`No interpreter fond for language '${lang.name}'.`, `Command '${lang.cmdGetVersion.join(' ')}' failed.`);
@@ -177,7 +178,7 @@ const runGetVersion = async (lang: Language): Promise<string | null> => {
  * @param langNamePadding  - A right-padding to print after the lang-name is printed.
  * @returns A promise which resolves to either the result, or null, if the run failed.
  */
-const runBenchmark = async (
+export const runBenchmark = async (
   lang: Language,
   bench: Benchmark,
   benchNamePadding: number = bench.name.length + 1,
@@ -341,7 +342,23 @@ const printBenchmarkResultWithComparison = (
   const worstStr = 'worst=' + result.worst.toFixed(3) + 's';
   const sdStr = 'sd=' + (result.sd > 0.05 ? chalk.yellow(result.sd.toFixed(4)) : result.sd.toFixed(4));
 
+  process.stdout.write('\u001b[K'); // Clear from cursor to end of line
   process.stdout.write(` ${avgStr} ${bestStr} ${worstStr} ${sdStr} ${comparison}\n`);
+};
+
+/**
+ * Prints a benchmark result.
+ * @param result - The result of the run
+ */
+export const printBenchmarkResult = (result: BenchmarkRun): void => {
+  // Emphasize standard deviation if it's high
+  const avgStr = 'avg=' + chalk.bold(result.avg.toFixed(3)) + 's';
+  const bestStr = 'best=' + result.best.toFixed(3) + 's';
+  const worstStr = 'worst=' + result.worst.toFixed(3) + 's';
+  const sdStr = 'sd=' + (result.sd > 0.05 ? chalk.yellow(result.sd.toFixed(4)) : result.sd.toFixed(4));
+
+  process.stdout.write('\u001b[K'); // Clear from cursor to end of line
+  process.stdout.write(` ${avgStr} ${bestStr} ${worstStr} ${sdStr}\n`);
 };
 
 /**
@@ -363,6 +380,7 @@ export const runBenchmarks = async (langPattern?: string) => {
 
     const version = await runGetVersion(language);
     if (!version) {
+      warn(`Failed to get version for language '${language.name}'. Skipping benches for it.`);
       continue;
     }
 
