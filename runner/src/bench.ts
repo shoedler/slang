@@ -183,7 +183,7 @@ export const runBenchmark = async (
   bench: Benchmark,
   benchNamePadding: number = bench.name.length + 1,
   langNamePadding: number = lang.name.length + 1,
-): Promise<BenchmarkRun | null> => {
+): Promise<(BenchmarkRun & { raw: number[] }) | null> => {
   const { ext, name, cmdRunFile } = lang;
   const filePath = path.join(SlangPaths.BenchDir, bench.name + BENCH_PRE_SUFFIX + ext);
   const runCommand = cmdRunFile.join(' ') + ' ' + filePath;
@@ -274,6 +274,7 @@ export const runBenchmark = async (
     worst,
     score,
     sd: standardDev,
+    raw: times,
     date: new Date(),
   };
 };
@@ -397,7 +398,13 @@ export const runBenchmarks = async (langPattern?: string) => {
         cpu: processorName,
         lang: name,
         v: version,
-        ...result,
+        // Don't spread the `result` into here, since it also contains the raw run-times from the bench run - we don't want those in the result json.
+        avg: result.avg,
+        best: result.best,
+        date: result.date,
+        score: result.score,
+        sd: result.sd,
+        worst: result.worst,
       });
     }
   }

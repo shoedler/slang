@@ -18,7 +18,7 @@ export enum SlangRunFlags {
 export enum SlangFileSuffixes {
   Slang = '.sl',
   Test = '.spec.sl',
-  Profile = '.profile.sl',
+  Profile = '.tpp.sl',
   Binary = '.slang.exe',
 }
 

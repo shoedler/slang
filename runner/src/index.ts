@@ -8,7 +8,7 @@ import {
   SlangPaths,
   SlangRunFlags,
 } from './config.ts';
-import { runPgoBenchProfiles, runPgoBuildProfiles } from './pgo.ts';
+import { runPgoBenchProfiles, runPgoBenchResultsRanking, runPgoBuildProfiles } from './pgo.ts';
 import { findTests, runTests } from './test.ts';
 import { abort, buildSlangConfig, info, runSlangFile, separator, testFeatureFlag, warn } from './utils.ts';
 import { watch } from './watch.ts';
@@ -49,6 +49,8 @@ const hint = [
   '    - <pattern>     Run language that matches the regex pattern',
   '  - pgo-build       Build release PGO binaries for each profile',
   '  - pgo-bench       Benchmark PGO binaries and store results (Run "pgo-build" first)',
+  '    - <num-runs>    Number of runs to execute (default is 1)',
+  '  - pgo-rank        Analyze Benchmark PGO results (Run "pgo-build" and "pgo-bench" first)',
   '  - sample          Run sample file (sample.sl)',
   '    - no-build      Skip building the project (default is to build)',
   '  - test            Run tests (.spec.sl files)',
@@ -105,8 +107,14 @@ switch (cmd) {
     break;
   }
   case 'pgo-bench': {
+    const numRuns = Number(options.pop());
     validateOptions();
-    await runPgoBenchProfiles();
+    await runPgoBenchProfiles(numRuns);
+    break;
+  }
+  case 'pgo-rank': {
+    validateOptions();
+    await runPgoBenchResultsRanking();
     break;
   }
   case 'test': {
