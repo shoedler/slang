@@ -3,7 +3,7 @@ import Math
 import Perf
 
 const codes = File
-  .read(cwd() + "/dp.profile.input")
+  .read(cwd() + "/dp.tpp.input")
   .split("\r\n")
 
 const NUM_KEYS = [

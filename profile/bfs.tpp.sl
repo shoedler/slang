@@ -2,7 +2,7 @@ import File
 import Perf
 
 const map = File
-  .read(cwd() + "/bfs.profile.input")
+  .read(cwd() + "/bfs.tpp.input")
   .split("\r\n")
 
 const start = Perf.now()

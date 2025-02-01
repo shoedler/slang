@@ -8,7 +8,7 @@ let valve_labels = {}
 let num_valves = 0
 
 File
-  .read(cwd() + "mix.profile.input")
+  .read(cwd() + "mix.tpp.input")
   .split("\r\n")
   .each(fn (line, i) {
     let [left, right] = line.split(";")

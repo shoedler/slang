@@ -4,7 +4,7 @@ import Perf
 const digits = "0123456789"
 
 const prg = File
-  .read(cwd() + "/parse.profile.input")
+  .read(cwd() + "/parse.tpp.input")
 
 fn run(do_enable) {
   let i = 0
