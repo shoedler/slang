@@ -681,11 +681,19 @@ void vm_concatenate() {
 
   int length  = left->length + right->length;
   char* chars = ALLOCATE_ARRAY(char, length + 1);
-  memcpy(chars, left->chars, left->length);
-  memcpy(chars + left->length, right->chars, right->length);
-  chars[length] = '\0';
 
-  ObjString* result = take_string(chars, length);
+  ObjString* result = NULL;
+
+  if (!chars || length == 0) {
+    result = copy_string("", 0);
+  } else {
+    memcpy(chars, left->chars, left->length);
+    memcpy(chars + left->length, right->chars, right->length);
+    chars[length] = '\0';
+
+    result = take_string(chars, length);
+  }
+
   vm_pop();  // right
   vm_pop();  // left
   vm_push(str_value(result));
