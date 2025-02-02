@@ -1,6 +1,14 @@
 import path from 'node:path';
 import process from 'node:process';
-import { BenchmarkResult, BENCHMARKS, LANGUAGES, printBenchmarkResult, runBenchmark, runGetVersion } from './bench.ts';
+import {
+  BenchmarkResult,
+  BENCHMARKS,
+  Language,
+  LANGUAGES,
+  printBenchmarkResult,
+  runBenchmark,
+  runGetVersion,
+} from './bench.ts';
 import { LOCALE, PGO_BENCH_LOG_FILE, SlangBuildConfigs, SlangFileSuffixes, SlangPaths } from './config.ts';
 import {
   abort,
@@ -11,7 +19,6 @@ import {
   getProcessorName,
   info,
   ok,
-  readFile,
   separator,
   warn,
 } from './utils.ts';
@@ -95,7 +102,10 @@ const pgoBenchLogFilePath = path.join(SlangPaths.ProfileDir, PGO_BENCH_LOG_FILE)
 const makePgoBenchRawFilePath = (name: string, bench: string) =>
   path.join(SlangPaths.ProfileDir, 'pgo-raw-' + name + '-' + bench + '.json');
 
-export const runPgoBenchProfiles = async (numRuns = 1) => {
+export const runPgoBenchProfiles = async (numRuns = 10) => {
+  info(`Running PGO bench-suite ${numRuns} times`);
+  separator();
+
   const binaries = (await findBinaries()).map(binary => {
     const tppName = stripSuffix(path.basename(binary), SlangFileSuffixes.Binary);
     return {

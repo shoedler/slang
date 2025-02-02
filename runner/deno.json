@@ -13,9 +13,6 @@
     "pgo-bench": {
       "command": "deno run -A src/index.ts pgo-bench"
     },
-    "pgo-rank": {
-      "command": "deno run -A src/index.ts pgo-rank"
-    },
     "sample": {
       "command": "deno run -A src/index.ts sample"
     },
