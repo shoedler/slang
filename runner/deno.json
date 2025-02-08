@@ -7,6 +7,9 @@
     "bench": {
       "command": "deno run -A src/index.ts bench"
     },
+    "bench-extended": {
+      "command": "deno run -A src/index.ts bench-extended"
+    },
     "pgo-build": {
       "command": "deno run -A src/index.ts pgo-build"
     },

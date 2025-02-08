@@ -8,7 +8,7 @@ import {
   SlangPaths,
   SlangRunFlags,
 } from './config.ts';
-import { runPgoBenchProfiles, runPgoBuildProfiles } from './pgo.ts';
+import { runExtendedBench, runPgoBenchProfiles, runPgoBuildProfiles } from './pgo.ts';
 import { findTests, runTests } from './test.ts';
 import { abort, buildSlangConfig, info, runSlangFile, separator, testFeatureFlag, warn } from './utils.ts';
 import { watch } from './watch.ts';
@@ -47,6 +47,7 @@ const hint = [
   '    - no-serve      Run benchmarks without serving results',
   '    - no-build      Skip building the project (default is to build)',
   '    - <pattern>     Run language that matches the regex pattern',
+  '  - bench-extended  Run extended benchmark, including PGO binary.',
   '  - pgo-build       Build release PGO binaries for each profile',
   '  - pgo-bench       Benchmark PGO binaries and store results (Run "pgo-build" first)',
   '  - sample          Run sample file (sample.sl)',
@@ -97,6 +98,11 @@ switch (cmd) {
       info('Serving results');
       await serveResults();
     }
+    break;
+  }
+  case 'bench-extended': {
+    validateOptions();
+    await runExtendedBench();
     break;
   }
   case 'pgo-build': {

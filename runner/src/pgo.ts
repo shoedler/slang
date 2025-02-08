@@ -115,6 +115,15 @@ export const runPgoBenchProfiles = async (numRuns = 10) => {
     };
   });
 
+  // Add a normal release build to the binaries
+  info('Building and adding release build to the binaries');
+  await buildSlangConfig(SlangBuildConfigs.Release, null, true);
+  binaries.push({
+    binPath: path.join(SlangPaths.BinDir, SlangBuildConfigs.Release, 'slang'),
+    tppName: 'control',
+    name: 'slang(release)',
+  });
+
   const slangDef = LANGUAGES.find(lang => lang.name === 'slang')!;
   const processorName = await getProcessorName();
   const longestBenchmarkName = Math.max(...BENCHMARKS.map(b => b.name.length));
@@ -193,96 +202,93 @@ export const runPgoBenchProfiles = async (numRuns = 10) => {
   ok(`All benchmarks done. ${time}`);
 };
 
-export const runPgoBenchResultsRanking = async () => {
-  const data = await readFile(pgoBenchLogFilePath);
-  const rawResults = JSON.parse(data) as BenchmarkResult[];
+const extendedBenchLogFilePath = path.join(SlangPaths.ProfileDir, 'extended-bench-log.json');
+const makeExtendedBenchRawFilePath = (name: string, bench: string) =>
+  path.join(SlangPaths.ProfileDir, 'extended-bench-raw-' + name + '-' + bench + '.json');
 
-  // Remove dupes. That was necessary bc there was an error in the json generation which added duplicate results
-  const results = Object.values(
-    rawResults.reduce((unique, result) => {
-      const key = result.name + ',' + result.lang;
-      if (!unique[key]) unique[key] = result;
-      return unique;
-    }, {} as { [key: string]: BenchmarkResult }),
-  );
+export const runExtendedBench = async (numRuns = 10) => {
+  const BEST_PGO_BINARY = 'C:\\Projects\\slang\\profile\\list.slang.exe';
 
-  // Map results by name
-  const benchesByName = results.reduce((unique, result) => {
-    if (!unique[result.name]) unique[result.name] = results.filter(r => r.name === result.name);
-    return unique;
-  }, {} as { [key: string]: BenchmarkResult[] });
+  info(`Running extended bench-suite ${numRuns} times`);
+  separator();
 
-  const clone = <T>(d: T): T => JSON.parse(JSON.stringify(d));
+  const actualLanguages = JSON.parse(JSON.stringify(LANGUAGES)) as Language[];
+  const processorName = await getProcessorName();
 
-  Object.entries(benchesByName).forEach(([name, benchResults]) => {
-    const byAvg = clone(benchResults).sort((a, b) => a.avg - b.avg);
-    const byBest = clone(benchResults).sort((a, b) => a.best - b.best);
-    const byWorst = clone(benchResults).sort((a, b) => a.worst - b.worst);
-    const byScore = clone(benchResults).sort((a, b) => b.score - a.score);
-    const bySd = clone(benchResults).sort((a, b) => a.sd - b.sd);
+  // Add another slang language-definition for the best PGO binary
+  const slangLang = LANGUAGES.find(lang => lang.name === 'slang')!;
+  slangLang.name = 'slang(PGO-TPP=' + stripSuffix(path.basename(BEST_PGO_BINARY), SlangFileSuffixes.Binary) + ')';
+  slangLang.cmdRunFile = [BEST_PGO_BINARY, 'run'];
+  slangLang.cmdGetVersion = [BEST_PGO_BINARY, '--version'];
+  actualLanguages.push(slangLang);
 
-    const cell = (str: string) => str.padEnd(40, ' ') + '| ';
-    const row = (arr: any) => '| ' + arr.map(cell).join('');
+  const longestBenchmarkName = Math.max(...BENCHMARKS.map(b => b.name.length));
+  const longestLanguageName = Math.max(...actualLanguages.map(l => l.name.length));
 
-    console.log('Results for', name);
-    console.log(row(['rank', 'byAvg', 'byBest', 'byWorst', 'byScore', 'bySd']));
-    console.log(row(['----', '-----', '------', '-------', '-------', '----']));
+  const start = process.hrtime.bigint();
+  const startDate = new Date();
 
-    for (let i = 0; i < byAvg.length; i++) {
-      console.log(
-        row([
-          (i + 1).toString(),
-          (byAvg[i].avg ? byAvg[i].avg.toFixed(5) : '???') + ' ' + byAvg[i].lang,
-          (byBest[i].best ? byBest[i].best.toFixed(5) : '???') + ' ' + byBest[i].lang,
-          (byWorst[i].worst ? byWorst[i].worst.toFixed(5) : '???') + ' ' + byWorst[i].lang,
-          (byScore[i].score ? byScore[i].score.toFixed(5) : '???') + ' ' + byScore[i].lang,
-          (bySd[i].sd ? bySd[i].sd.toFixed(5) : '???') + ' ' + bySd[i].lang,
-        ]),
-      );
+  for (let i = 0; i < numRuns; i++) {
+    // Shuffle to distribute errors at start/end of run or hot/cold CPU
+    actualLanguages
+      .map(value => ({ value, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(({ value }) => value);
+
+    for (const lang of actualLanguages) {
+      info(`Benching language '${lang.name}'`);
+      const results: BenchmarkResult[] = [];
+
+      // Retrieve version
+      const version = await runGetVersion(lang);
+      if (!version) {
+        warn(`Failed to get version for language '${lang.name}'. Skipping benches for it.`);
+        continue;
+      }
+
+      for (const benchmark of BENCHMARKS) {
+        // Run
+        benchmark.numRuns = 100;
+        const result = await runBenchmark(lang, benchmark, longestBenchmarkName, longestLanguageName);
+        if (!result) {
+          continue;
+        }
+
+        printBenchmarkResult(result);
+
+        // Write raw results to log file
+        const extendedBenchRawFilePath = makeExtendedBenchRawFilePath(lang.name, benchmark.name);
+        await createOrAppendJsonFile(extendedBenchRawFilePath, [result]);
+
+        results.push({
+          name: benchmark.name,
+          cpu: processorName,
+          lang: lang.name,
+          v: version,
+          // Don't spread the `result` into here, since it also contains the raw run-times from the bench run - we don't want those in the result json.
+          avg: result.avg,
+          best: result.best,
+          date: result.date,
+          score: result.score,
+          sd: result.sd,
+          worst: result.worst,
+        });
+      }
+
+      // Write results to log file
+      info(`Took: ${(Number(process.hrtime.bigint() - start) / 1_000_000_000).toFixed(5)}s`);
+      info(`Writing results.`, `to ${extendedBenchLogFilePath}`);
+      await createOrAppendJsonFile(extendedBenchLogFilePath, results);
     }
-  });
+    info(
+      `Run ${i + 1} completed. Started: ${startDate.toLocaleString(LOCALE)}, ended: ${new Date().toLocaleString(
+        LOCALE,
+      )}`,
+    );
+    separator();
+  }
+
+  info(`Started: ${startDate.toLocaleString(LOCALE)}, ended: ${new Date().toLocaleString(LOCALE)}`);
+  const time = `Took: ${(Number(process.hrtime.bigint() - start) / 1_000_000_000).toFixed(5)}s`;
+  ok(`All benchmarks done. ${time}`);
 };
-
-// export const runPgoBenchResultsToCsv = async () => {
-//   const data = await readFile(pgoBenchLogFilePath)
-//   const rawResults = JSON.parse(data) as BenchmarkResult[];
-
-//   const unique: { [key: string]: BenchmarkResult } = {};
-
-// // Remove dupes. That was necessary bc
-// rawResults.forEach((result) => {
-//   const key = result.name + "," + result.lang;
-//   if (unique[key]) return;
-//   unique[key] = result;
-// });
-
-// // Write csv file
-// fs.writeFileSync(
-//   path.join(process.cwd(), "pgo-bench.csv"),
-//   [
-//     keys.join(","),
-//     ...Object.values(unique).map((result) =>
-//       keys.map((key) => (result[key] ?? "null").toString()).join(",")
-//     ),
-//   ].join("\n")
-// );
-
-// // Find best results
-// const results = {};
-// Object.values(unique).forEach((result) => {
-//   if (results[result.name]) results[result.name].push(result);
-//   else results[result.name] = [result];
-// });
-
-// const ranking = {};
-// Object.entries(results).forEach(([name, ress]) => {
-//   const sorted = ress.sort((a, b) => a.avg - b.avg).slice(0, 3);
-//   console.log("Top 3 for bench: " + name);
-//   sorted.forEach((res, i) => {
-//     if (ranking[res.lang]) ranking[res.lang] += 3 - i;
-//     else ranking[res.lang] = 3 - 1;
-//     console.log("  " + (i + 1) + ": " + res.lang + " avg=" + res.avg);
-//   });
-// });
-
-// console.log(ranking);
