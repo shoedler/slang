@@ -871,7 +871,7 @@ static void unary(bool can_assign) {
 
   // Emit the operator instruction.
   switch (operator_type) {
-    case TOKEN_NOT: emit_one(OP_NOT, error_start); break;
+    case TOKEN_NEGATE: emit_one(OP_NOT, error_start); break;
     case TOKEN_MINUS: emit_one(OP_NEGATE, error_start); break;
     default: INTERNAL_ERROR("Unhandled unary operator type: %d", operator_type); return;
   }
@@ -1222,7 +1222,7 @@ ParseRule rules[] = {
     [TOKEN_DIV]     = {NULL, binary, PREC_FACTOR},
     [TOKEN_MULT]    = {NULL, binary, PREC_FACTOR},
     [TOKEN_MOD]     = {NULL, binary, PREC_FACTOR},
-    [TOKEN_NOT]     = {unary, NULL, PREC_NONE},
+    [TOKEN_NEGATE]  = {unary, NULL, PREC_NONE},
     [TOKEN_TERNARY] = {NULL, ternary, PREC_TERNARY},
     [TOKEN_NEQ]     = {NULL, binary, PREC_EQUALITY},
     [TOKEN_ASSIGN]  = {NULL, NULL, PREC_NONE},

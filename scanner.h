@@ -23,6 +23,7 @@
 typedef enum {
   TOKEN_OR,       // 'or'
   TOKEN_AND,      // 'and'
+  TOKEN_NOT,      // 'not'
   TOKEN_EQ,       // '=='
   TOKEN_NEQ,      // '!='
   TOKEN_GT,       // '>'
@@ -34,7 +35,7 @@ typedef enum {
   TOKEN_MULT,     // '*'
   TOKEN_DIV,      // '/'
   TOKEN_MOD,      // '%'
-  TOKEN_NOT,      // '!'
+  TOKEN_NEGATE,   // '!'
   TOKEN_TERNARY,  // '?'
 
   TOKEN_PLUS_PLUS,    // '++'

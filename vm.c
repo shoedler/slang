@@ -1596,13 +1596,16 @@ DO_OP_THROW: {
 }
 
 /**
- * Checks if the 2nd-to-top value on the stack is an instance of the top value and pushes the result.
- * @note stack: `[...][instance][class] -> [...][result]`
+ * Checks if the 3rd-to-top value on the stack is (or is not) an instance of the 2nd-to-top value and pushes the result.
+ * If the top value on the stack is `true`, it checks if the instance is of the specified class, if not, it
+ * checks if the instance is not of the specified class.
+ * @note stack: `[...][instance][class][bool] -> [...][result]`
  * @note synopsis: `OP_IS`
  */
 DO_OP_IS: {
-  Value type  = vm_pop();
-  Value value = vm_pop();
+  Value modifier = vm_pop();
+  Value type     = vm_pop();
+  Value value    = vm_pop();
 
   if (!is_class(type)) {
     vm_error("Type must be a class. Was %s.", type.type->name->chars);
@@ -1612,9 +1615,10 @@ DO_OP_IS: {
   ObjClass* value_klass = value.type;
   ObjClass* type_klass  = AS_CLASS(type);
 
-  bool result = vm_inherits(value_klass, type_klass);
+  bool result      = vm_inherits(value_klass, type_klass);
+  bool is_instance = modifier.as.boolean;
 
-  vm_push(bool_value(result));
+  vm_push(bool_value(result == is_instance));
   DISPATCH();
 }
 

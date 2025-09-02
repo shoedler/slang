@@ -68,7 +68,7 @@
         },
         {
           "name": "keyword.operator.expression.SlangScript",
-          "match": "\\b(typeof|is|in|cwd|clock|log)\\b"
+          "match": "\\b(typeof|is|in|not|cwd|clock|log)\\b"
         },
         {
           "name": "keyword.operator.logical.SlangScript",

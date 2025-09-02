@@ -183,7 +183,14 @@ static TokenKind identifier_type() {
         }
       }
       break;
-    case 'n': return check_keyword(1, 2, "il", TOKEN_NIL);
+    case 'n':
+      if (scanner.current - scanner.start > 1) {
+        switch (scanner.start[1]) {
+          case 'i': return check_keyword(2, 1, "l", TOKEN_NIL);
+          case 'o': return check_keyword(2, 1, "t", TOKEN_NOT);
+        }
+      }
+      break;
     case 'o': return check_keyword(1, 1, "r", TOKEN_OR);
     case 'p': return check_keyword(1, 4, "rint", TOKEN_PRINT);
     case 'r': return check_keyword(1, 2, "et", TOKEN_RETURN);
@@ -387,7 +394,7 @@ Token scanner_scan_token() {
     case '%': return make_token(match('=') ? TOKEN_MOD_ASSIGN : TOKEN_MOD);
 
     case '=': return make_token(match('=') ? TOKEN_EQ : TOKEN_ASSIGN);
-    case '!': return make_token(match('=') ? TOKEN_NEQ : TOKEN_NOT);
+    case '!': return make_token(match('=') ? TOKEN_NEQ : TOKEN_NEGATE);
     case '<': return make_token(match('=') ? TOKEN_LTEQ : TOKEN_LT);
     case '>': return make_token(match('=') ? TOKEN_GTEQ : TOKEN_GT);
 

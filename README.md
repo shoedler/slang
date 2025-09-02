@@ -52,7 +52,8 @@ You can, for example, easily cache stuff:
 ## Features
 
 - [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hasing tuples containing negative `Int`s). UPDATE: Found it. It's the hashing of integers thats the issue.
-- [ ] Add `not` for `is` and `in`: e.g. `x not in y` and `x is not Int`
+- [x] ~~Add `not` for `is`: e.g. `x is not Int`~~
+- [ ] Add `not` for `in`: e.g. `x not in y` 
 - [ ] Allow `Tuple.inside = fn(this) -> (this[0]>=0 and this[0]<ROWS) and (this[1]>=0 and this[1]<COLS)`
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`

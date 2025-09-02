@@ -599,8 +599,13 @@ static AstExpression* parse_expr_or(Parser* parser, Token expr_start, AstExpress
 }
 
 static AstExpression* parse_expr_is(Parser* parser, Token expr_start, AstExpression* left) {
+  // Operator is either TOKEN_IS or TOKEN_NOT to differentiate between "is" and "is not"
+  Token operator = parser->previous;
+  if (match(parser, TOKEN_NOT)) {
+    operator = parser->previous;
+  }
   AstExpression* right = parse_precedence(parser, PREC_COMPARISON);
-  return ast_expr_is_init(expr_start, parser->previous, left, right);
+  return ast_expr_is_init(expr_start, parser->previous, operator, left, right);
 }
 
 static AstExpression* parse_expr_in(Parser* parser, Token expr_start, AstExpression* left) {
@@ -639,7 +644,7 @@ static ParseRule rules2[] = {
     [TOKEN_DIV]          = {NULL, parse_expr_binary, PREC_FACTOR},
     [TOKEN_MULT]         = {NULL, parse_expr_binary, PREC_FACTOR},
     [TOKEN_MOD]          = {NULL, parse_expr_binary, PREC_FACTOR},
-    [TOKEN_NOT]          = {parse_expr_unary, NULL, PREC_NONE},
+    [TOKEN_NEGATE]       = {parse_expr_unary, NULL, PREC_NONE},
     [TOKEN_TERNARY]      = {NULL, parse_expr_ternary, PREC_TERNARY},
     [TOKEN_NEQ]          = {NULL, parse_expr_binary, PREC_EQUALITY},
     [TOKEN_ASSIGN]       = {NULL, parse_expr_assign, PREC_ASSIGN},

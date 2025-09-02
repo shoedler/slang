@@ -783,7 +783,7 @@ static void compile_expr_postfix(FnCompiler* compiler, AstExpression* expr) {
 }
 
 static void compile_expr_unary(FnCompiler* compiler, AstExpression* expr) {
-  if (expr->operator_.type == TOKEN_NOT) {
+  if (expr->operator_.type == TOKEN_NEGATE) {
     compile_node(compiler, expr->base.children[0]);
     emit_one(compiler, OP_NOT, (AstNode*)expr);
   } else if (expr->operator_.type == TOKEN_MINUS) {
@@ -880,6 +880,7 @@ static void compile_expr_is(FnCompiler* compiler, AstExpression* expr) {
 
   compile_node(compiler, left);
   compile_node(compiler, right);
+  emit_constant(compiler, bool_value(expr->operator_.type == TOKEN_IS), left);
   emit_one(compiler, OP_IS, (AstNode*)expr);
 }
 
