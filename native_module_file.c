@@ -27,7 +27,7 @@ void native_register_file_module() {
 
 /**
  * MODULE_NAME.read(path: TYPENAME_STRING) -> TYPENAME_STRING
- * @brief Reads the content of a file and returns it as a string. Throws an error if the file does not exist.
+ * @brief Reads the content of a file at path (absolute) and returns it as a string. Throws an error if the file does not exist.
  */
 static Value native_file_read(int argc, Value argv[]) {
   UNUSED(argc);
