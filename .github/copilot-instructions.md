@@ -3,17 +3,6 @@ It is a compiler and runtime for the Slang programming language. Please follow t
 
 ## Code Standards
 
-### Development Environment
-
-This repository only supports development on Windows. MSYS2 is required with the following packages:
-
-- _gcc_ (UCRT64) with the more modern UCRT with `$ pacman -S mingw-w64-ucrt-x86_64-gcc` in the MSYS2 terminal.
-- _gdb_ (UCRT64) with `$ pacman -S ucrt64/mingw-w64-ucrt-x86_64-gdb`
-- _clang-tidy_ with `$ pacman -S mingw-w64-ucrt-x86_64-clang-tools-extra`
-- _make_ with `$ pacman -S make`
-- ~~_jemalloc_ with `$ pacman -S mingw-w64-ucrt-x86_64-jemalloc` (Since we require a concurrent memory allocator)~~
-- _mimalloc_ with `pacman -S mingw-w64-ucrt-x86_64-mimalloc`
-
 ### Development Flow
 
 - Build: `make debug` or `make release`
