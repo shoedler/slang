@@ -2,9 +2,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#include "memory.h"
 #include "value.h"
-#include "vm.h"
+#include "type_rules.h"
 
 static TypeChecker* current_checker = NULL;
 
@@ -35,10 +34,10 @@ void typecheck_error(TypeChecker* checker, AstNode* node, const char* format, ..
 
 // Parse type annotation from identifier
 SlangType* parse_type_annotation(AstId* type_id) {
-  if (type_id == NULL) return NULL;
+  if (type_id == NULL || type_id->name == NULL) return NULL;
   
-  const char* type_name = type_id->token.start;
-  int length = type_id->token.length;
+  const char* type_name = type_id->name->chars;
+  int length = type_id->name->length;
   
   if (strncmp(type_name, "int", length) == 0 && length == 3) {
     return type_create_primitive(TYPE_INT);
@@ -60,8 +59,10 @@ SlangType* parse_type_annotation(AstId* type_id) {
 SlangType* infer_literal_type(AstLiteral* literal) {
   switch (literal->type) {
     case LIT_NUMBER:
-      // Check if it's an integer or float
-      if (is_int(literal->value)) {
+      // For now, check if it's an integer or float based on the literal type
+      // This is a simplified check - a full implementation would examine the actual value
+      // Check if the value has a fractional part
+      if (literal->value.as.float_ == (double)(long long)literal->value.as.float_) {
         return type_create_primitive(TYPE_INT);
       } else {
         return type_create_primitive(TYPE_FLOAT);
@@ -88,7 +89,7 @@ SlangType* infer_literal_type(AstLiteral* literal) {
 // Type check literal expression
 SlangType* typecheck_literal(TypeChecker* checker, AstLiteral* literal) {
   SlangType* type = infer_literal_type(literal);
-  literal->base.base.slang_type = type;
+  literal->base.slang_type = type;
   return type;
 }
 
@@ -108,15 +109,21 @@ SlangType* typecheck_binary_expr(TypeChecker* checker, AstExpression* expr) {
   SlangType* left_type = typecheck_expression(checker, left);
   SlangType* right_type = typecheck_expression(checker, right);
   
-  SlangType* result_type = type_get_binary_result(left_type, right_type, expr->operator_.type);
+  // Use the systematic type rule lookup
+  TypeKind result_kind = lookup_binary_type_rule(left_type->kind, right_type->kind, expr->operator_.type);
   
-  if (result_type->kind == TYPE_ERROR) {
+  if (result_kind == TYPE_ERROR) {
     typecheck_error(checker, (AstNode*)expr, 
-                   "Invalid binary operation between %s and %s", 
+                   "Invalid binary operation '%.*s' between %s and %s", 
+                   expr->operator_.length,
+                   expr->operator_.start,
                    type_to_string(left_type), 
                    type_to_string(right_type));
+    expr->base.slang_type = type_create_primitive(TYPE_ERROR);
+    return expr->base.slang_type;
   }
   
+  SlangType* result_type = type_create_primitive(result_kind);
   expr->base.slang_type = result_type;
   return result_type;
 }

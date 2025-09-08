@@ -62,9 +62,6 @@ bool type_is_assignable(SlangType* target, SlangType* source);
 SlangType* type_infer_binary_op(SlangType* left, SlangType* right, int op);
 const char* type_to_string(SlangType* type);
 
-// Type checking operation result
-SlangType* type_get_binary_result(SlangType* left, SlangType* right, int op_type);
-
 // Memory management
 void type_free(SlangType* type);
 void type_mark(SlangType* type);

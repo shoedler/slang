@@ -1,20 +1,19 @@
 #include "type.h"
 #include <stdlib.h>
 #include <string.h>
-#include "memory.h"
 #include "scanner.h"
 
 // Type creation functions
 
 SlangType* type_create_primitive(TypeKind kind) {
-  SlangType* type = ALLOCATE(SlangType, 1);
+  SlangType* type = malloc(sizeof(SlangType));
   type->kind = kind;
   type->class_ref = NULL;
   return type;
 }
 
 SlangType* type_create_seq(SlangType* element_type) {
-  SlangType* type = ALLOCATE(SlangType, 1);
+  SlangType* type = malloc(sizeof(SlangType));
   type->kind = TYPE_SEQ;
   type->class_ref = NULL;
   type->data.seq.element_type = element_type;
@@ -22,7 +21,7 @@ SlangType* type_create_seq(SlangType* element_type) {
 }
 
 SlangType* type_create_tuple(SlangType** element_types, int count) {
-  SlangType* type = ALLOCATE(SlangType, 1);
+  SlangType* type = malloc(sizeof(SlangType));
   type->kind = TYPE_TUPLE;
   type->class_ref = NULL;
   type->data.tuple.element_types = element_types;
@@ -31,7 +30,7 @@ SlangType* type_create_tuple(SlangType** element_types, int count) {
 }
 
 SlangType* type_create_fn(SlangType** param_types, int param_count, SlangType* return_type) {
-  SlangType* type = ALLOCATE(SlangType, 1);
+  SlangType* type = malloc(sizeof(SlangType));
   type->kind = TYPE_FN;
   type->class_ref = NULL;
   type->data.fn.param_types = param_types;
@@ -41,14 +40,14 @@ SlangType* type_create_fn(SlangType** param_types, int param_count, SlangType* r
 }
 
 SlangType* type_create_class(ObjClass* class_ref) {
-  SlangType* type = ALLOCATE(SlangType, 1);
+  SlangType* type = malloc(sizeof(SlangType));
   type->kind = TYPE_CLASS;
   type->class_ref = class_ref;
   return type;
 }
 
 SlangType* type_create_instance(ObjClass* class_ref) {
-  SlangType* type = ALLOCATE(SlangType, 1);
+  SlangType* type = malloc(sizeof(SlangType));
   type->kind = TYPE_INSTANCE;
   type->class_ref = class_ref;
   return type;
@@ -102,64 +101,6 @@ bool type_is_assignable(SlangType* target, SlangType* source) {
   return false;
 }
 
-// Type operation rules based on existing native methods
-SlangType* type_get_binary_result(SlangType* left, SlangType* right, int op_type) {
-  if (left == NULL || right == NULL) return type_create_primitive(TYPE_ERROR);
-  
-  switch (op_type) {
-    case TOKEN_PLUS:  // Based on int_add and float_add logic
-      if (left->kind == TYPE_INT && right->kind == TYPE_INT) {
-        return type_create_primitive(TYPE_INT);
-      }
-      if ((left->kind == TYPE_INT && right->kind == TYPE_FLOAT) ||
-          (left->kind == TYPE_FLOAT && right->kind == TYPE_INT) ||
-          (left->kind == TYPE_FLOAT && right->kind == TYPE_FLOAT)) {
-        return type_create_primitive(TYPE_FLOAT);
-      }
-      if (left->kind == TYPE_STR && right->kind == TYPE_STR) {
-        return type_create_primitive(TYPE_STR);
-      }
-      break;
-      
-    case TOKEN_MINUS:
-    case TOKEN_MULT:
-    case TOKEN_DIV:
-    case TOKEN_MOD:
-      if (left->kind == TYPE_INT && right->kind == TYPE_INT) {
-        return type_create_primitive(TYPE_INT);
-      }
-      if ((left->kind == TYPE_INT && right->kind == TYPE_FLOAT) ||
-          (left->kind == TYPE_FLOAT && right->kind == TYPE_INT) ||
-          (left->kind == TYPE_FLOAT && right->kind == TYPE_FLOAT)) {
-        return type_create_primitive(TYPE_FLOAT);
-      }
-      break;
-      
-    case TOKEN_LT:
-    case TOKEN_GT:
-    case TOKEN_LTEQ:
-    case TOKEN_GTEQ:
-      if ((left->kind == TYPE_INT || left->kind == TYPE_FLOAT) &&
-          (right->kind == TYPE_INT || right->kind == TYPE_FLOAT)) {
-        return type_create_primitive(TYPE_BOOL);
-      }
-      if (left->kind == TYPE_STR && right->kind == TYPE_STR) {
-        return type_create_primitive(TYPE_BOOL);
-      }
-      break;
-      
-    case TOKEN_EQ:
-    case TOKEN_NEQ:
-      return type_create_primitive(TYPE_BOOL);
-      
-    case TOKEN_AND:
-    case TOKEN_OR:
-      return type_create_primitive(TYPE_BOOL);
-  }
-  
-  return type_create_primitive(TYPE_ERROR);
-}
-
 const char* type_to_string(SlangType* type) {
   if (type == NULL) return "unknown";
   
@@ -195,28 +136,28 @@ void type_free(SlangType* type) {
       for (int i = 0; i < type->data.tuple.element_count; i++) {
         type_free(type->data.tuple.element_types[i]);
       }
-      FREE_ARRAY(SlangType*, type->data.tuple.element_types, type->data.tuple.element_count);
+      free(type->data.tuple.element_types);
       break;
     case TYPE_FN:
       for (int i = 0; i < type->data.fn.param_count; i++) {
         type_free(type->data.fn.param_types[i]);
       }
-      FREE_ARRAY(SlangType*, type->data.fn.param_types, type->data.fn.param_count);
+      free(type->data.fn.param_types);
       type_free(type->data.fn.return_type);
       break;
     default:
       break;
   }
   
-  FREE(SlangType, type);
+  free(type);
 }
 
 void type_mark(SlangType* type) {
   if (type == NULL) return;
   
-  if (type->class_ref != NULL) {
-    mark_object((Obj*)type->class_ref);
-  }
+  // Note: For now, we don't mark the class_ref since types are not part of the GC system
+  // In a full implementation, this would need to integrate with the GC
+  // TODO: Consider making types part of the GC system or handling class references differently
   
   switch (type->kind) {
     case TYPE_SEQ:
