@@ -7,6 +7,9 @@
 #include "scope.h"
 #include "value.h"
 
+// Forward declaration for type system
+typedef struct SlangType SlangType;
+
 #define MAX_LOCALS (1024 * 3)    // Arbitrary, could to UINT32_MAX theoretically, but gl with an array of that size on the stack.
 #define MAX_UPVALUES (1024 * 3)  // Arbitrary, could to UINT32_MAX theoretically, but gl with an array of that size on the stack.
 
@@ -101,6 +104,7 @@ typedef struct AstNode {
   Token token_end;         // ending Token associated with this node (for error reporting) - can be the same as token_start
   struct AstNode* parent;  // Parent node (NULL for the root node)
   Scope* scope;            // Scope associated with this node. Mostly NULL, except for nodes that introduce a new scope
+  SlangType* slang_type;   // Type information for this node (for typechecking)
 
   int count;
   int capacity;
@@ -159,8 +163,9 @@ AstId* ast_id_init(Token id, ObjString* name);
 struct AstDeclaration {
   AstNode base;
   DeclarationType type;
-  bool is_static;  // DECL_METHOD
-  bool is_const;   // DECL_VARIABLE
+  bool is_static;         // DECL_METHOD
+  bool is_const;          // DECL_VARIABLE  
+  AstId* type_annotation; // Type annotation for DECL_VARIABLE (e.g., "int" in "let a: int")
 };
 
 AstDeclaration* ast_decl_fn_params_init(Token start, Token end);
@@ -169,6 +174,7 @@ AstDeclaration* ast_decl_fn_init(Token start, Token end, AstFn* fn);
 AstDeclaration* ast_decl_class_init(Token start, Token end, AstId* name, AstId* baseclass_name);
 void ast_decl_class_add_method_or_ctor(AstDeclaration* class_decl, AstFn* method_or_ctor);
 AstDeclaration* ast_decl_variable_init(Token start, Token end, bool is_const, AstId* id, AstExpression* initializer_expr);
+AstDeclaration* ast_decl_variable_init_typed(Token start, Token end, bool is_const, AstId* id, AstId* type_annotation, AstExpression* initializer_expr);
 AstDeclaration* ast_decl_variable_init2(Token start,
                                         Token end,
                                         bool is_const,

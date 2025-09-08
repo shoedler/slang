@@ -20,6 +20,7 @@ AstNode* ast_allocate_node(size_t size, NodeType type, Token start, Token end) {
 
   node->parent = NULL;
   node->scope  = NULL;
+  node->slang_type = NULL;
 
   return node;
 }
@@ -87,6 +88,7 @@ static AstDeclaration* ast_decl_init(Token start, Token end, DeclarationType typ
   decl->type           = type;
   decl->is_static      = false;
   decl->is_const       = false;
+  decl->type_annotation = NULL;
   return decl;
 }
 
@@ -121,6 +123,17 @@ AstDeclaration* ast_decl_variable_init(Token start, Token end, bool is_const, As
   var_decl->is_const       = is_const;
   ast_node_add_child((AstNode*)var_decl, (AstNode*)id);
   ast_node_add_child((AstNode*)var_decl, (AstNode*)initializer_expr);
+  return var_decl;
+}
+
+AstDeclaration* ast_decl_variable_init_typed(Token start, Token end, bool is_const, AstId* id, AstId* type_annotation, AstExpression* initializer_expr) {
+  AstDeclaration* var_decl = ast_decl_init(start, end, DECL_VARIABLE);
+  var_decl->is_const       = is_const;
+  var_decl->type_annotation = type_annotation;
+  ast_node_add_child((AstNode*)var_decl, (AstNode*)id);
+  if (initializer_expr != NULL) {
+    ast_node_add_child((AstNode*)var_decl, (AstNode*)initializer_expr);
+  }
   return var_decl;
 }
 

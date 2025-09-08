@@ -18,6 +18,7 @@
 #include "parser.h"
 #include "resolver.h"
 #include "sys.h"
+#include "typechecker.h"
 #include "value.h"
 #include "vm.h"
 
@@ -1777,6 +1778,13 @@ SlangExitCode vm_interpret(const char* source, ObjString* name, bool disable_war
   // Resolve
   bool resolved = resolve(ast, &vm.module->fields, &vm.natives, disable_warnings);
   if (!resolved) {
+    ast_free((AstNode*)ast);
+    return SLANG_EXIT_COMPILE_ERROR;
+  }
+
+  // Type check
+  bool typechecked = typecheck(ast, &vm.module->fields, &vm.natives);
+  if (!typechecked) {
     ast_free((AstNode*)ast);
     return SLANG_EXIT_COMPILE_ERROR;
   }

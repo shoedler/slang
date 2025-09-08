@@ -1122,13 +1122,29 @@ static AstDeclaration* parse_declaration_variable(Parser* parser) {
   consume(parser, TOKEN_ID, "Expecting variable name.");
   ObjString* name            = copy_string(parser->previous.start, parser->previous.length);
   AstId* id                  = ast_id_init(parser->previous, name);
+  AstId* type_annotation     = NULL;
   AstExpression* initializer = NULL;
+  
+  // Check for type annotation (let name: type)
+  if (match(parser, TOKEN_COLON)) {
+    consume(parser, TOKEN_ID, "Expecting type name after ':'.");
+    ObjString* type_name = copy_string(parser->previous.start, parser->previous.length);
+    type_annotation = ast_id_init(parser->previous, type_name);
+  }
+  
   if (match(parser, TOKEN_ASSIGN)) {
     initializer = parse_expression(parser);
   } else if (is_const) {
     parser_error(parser, &decl_start, "Const variable must be initialized.");
+  } else if (type_annotation == NULL) {
+    parser_error(parser, &decl_start, "Variable declaration must have either type annotation or initializer.");
   }
-  return ast_decl_variable_init(decl_start, parser->previous, is_const, id, initializer);
+  
+  if (type_annotation != NULL) {
+    return ast_decl_variable_init_typed(decl_start, parser->previous, is_const, id, type_annotation, initializer);
+  } else {
+    return ast_decl_variable_init(decl_start, parser->previous, is_const, id, initializer);
+  }
 }
 
 // Parse a declaration.
