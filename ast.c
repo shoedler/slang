@@ -600,7 +600,7 @@ static void print_fn_type(FnType type) {
     default: INTERNAL_ERROR("Unknown function type."); break;
   }
 
-  printf(fn_type_str);
+  printf("%s", fn_type_str);
 }
 
 static void ast_node_print(AstNode* node) {

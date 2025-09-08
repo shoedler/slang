@@ -8,13 +8,13 @@ MAKEFLAGS += --no-print-directory
 
 # General compiler flags
 EXTRA_CFLAGS?= # Extra flags to pass to the compiler by command line
-CFLAGS=-Wall -Wextra -Werror -std=c17 -m64 -D_UNICODE -DUNICODE $(EXTRA_CFLAGS)
+CFLAGS=-Wall -Wextra -Werror -std=gnu17 -m64 -D_GNU_SOURCE $(EXTRA_CFLAGS)
 LDFLAGS=-m64
-LIBS=-lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -luuid -lodbc32 -lodbccp32 -lmimalloc
+LIBS=
 
 # Source files and output
-DEBUG_EXEC=bin/x64/debug/slang.exe
-RELEASE_EXEC=bin/x64/release/slang.exe
+DEBUG_EXEC=bin/x64/debug/slang
+RELEASE_EXEC=bin/x64/release/slang
 DEBUG_DIR=bin/x64/debug/
 RELEASE_DIR=bin/x64/release/
 SOURCES=$(wildcard *.c)
@@ -28,16 +28,12 @@ RELEASE_DEP_DIR=$(RELEASE_DIR).deps/
 DEBUG_DEP_CFLAGS=-MMD -MP -MF $(DEBUG_DEP_DIR)/$*.d
 RELEASE_DEP_CFLAGS=-MMD -MP -MF $(RELEASE_DEP_DIR)/$*.d
 
-# Mimalloc library path
-MIMALLOC_LIBDIR := /ucrt64/lib
-LDFLAGS += -L$(MIMALLOC_LIBDIR) -Wl,-rpath,$(MIMALLOC_LIBDIR)
-
 # Debug specific flags
 DEBUG_CFLAGS=$(CFLAGS) -g -O0 -D_DEBUG
 DEBUG_LDFLAGS=$(LDFLAGS) -g 
 
 # Number of parallel LTO threads
-LTO_THREADS=20
+LTO_THREADS=4
 
 # Release specific flags (always include LTO for release builds)
 RELEASE_CFLAGS=$(CFLAGS) -O3 -march=native -DNDEBUG -flto=$(LTO_THREADS)

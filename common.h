@@ -1,7 +1,7 @@
 #ifndef common_h
 #define common_h
 
-#include <mimalloc.h>
+#include "mimalloc_stub.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -196,8 +196,11 @@ typedef enum {
 // Configuration checks
 //
 
-#ifndef _WIN32
-#error "Only Windows is supported."
+#ifdef __linux__
+// Comment out Windows check for Linux build
+// #ifndef _WIN32
+// #error "Only Windows is supported."
+// #endif
 #endif
 
 #endif
