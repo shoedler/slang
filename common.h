@@ -138,6 +138,9 @@ typedef enum {
 // Suppress unused parameter macro
 #define UNUSED(x) (void)(x)
 
+// Safe printf for string literals (to avoid format string warnings)
+#define printf_str(str) printf("%s", str)
+
 #define UINT8_COUNT (UINT8_MAX + 1)
 
 //
@@ -193,11 +196,22 @@ typedef enum {
 // #define _aligned_msize(p, a, o) mi_usable_size(p)
 
 //
-// Configuration checks
+// Platform detection and compatibility
 //
 
-#ifndef _WIN32
-#error "Only Windows is supported."
+// Platform detection macros
+#ifdef _WIN32
+  #define SLANG_PLATFORM_WINDOWS 1
+  #define SLANG_PLATFORM_LINUX 0
+  #define SLANG_PATH_SEPARATOR '\\'
+  #define SLANG_PATH_SEPARATOR_STR "\\"
+#elif defined(__linux__)
+  #define SLANG_PLATFORM_WINDOWS 0
+  #define SLANG_PLATFORM_LINUX 1
+  #define SLANG_PATH_SEPARATOR '/'
+  #define SLANG_PATH_SEPARATOR_STR "/"
+#else
+  #error "Unsupported platform. Only Windows and Linux are supported."
 #endif
 
 #endif
