@@ -59,7 +59,11 @@ typedef struct {
 static GCThreadPool gc_thread_pool = {0};
 
 // Thread-local storage
+#if SLANG_PLATFORM_WINDOWS
+static __declspec(thread) GCWorker* current_worker = NULL;
+#elif SLANG_PLATFORM_LINUX
 static __thread GCWorker* current_worker = NULL;
+#endif
 
 void gc_assign_current_worker(int worker_id) {
   if (worker_id == -1) {
