@@ -1623,17 +1623,29 @@ DO_OP_IS: {
 }
 
 /**
- * Checks if the 2nd-to-top value on the stack is "in" the top value and pushes the result. (Invokes `__has` on the container)
- * @note stack: `[...][value][container] -> [...][result]`
- * @note synopsis: `OP_CALL_METHOD, arg_count`
- * @param arg_count number of arguments to pass to the callable
+ * Checks if the 2nd-to-top value on the stack is "in" (or not in) the top value and pushes the result. (Invokes `__has` on the
+ * container) If the top value on the stack is `true`, it checks if the value is in the container, if not, it checks if the value
+ * is not in the container.
+ * @note stack: `[...][value][container][bool] -> [...][result]`
+ * @note synopsis: `OP_IN`
  */
 DO_OP_IN: {
-  Value a = vm_pop();
-  Value b = vm_pop();
+  Value modifier = vm_pop();
+  Value a        = vm_pop();
+  Value b        = vm_pop();
+
   vm_push(a);
   vm_push(b);
-  MAKE_OP(SP_METHOD_HAS, in)
+  Value left   = peek(1);
+  Value result = vm_exec_callable(fn_value(left.type->__has), 1);
+  if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {
+    goto FINISH_ERROR;
+  }
+
+  bool is_in = modifier.as.boolean;
+  // If is_in is true, we want to push result as is, otherwise we want to negate it, converting to boolean in the process
+  is_in ? vm_push(result) : vm_push(bool_value(vm_is_falsey(result)));
+  DISPATCH();
 }
 
 FINISH_ERROR: {

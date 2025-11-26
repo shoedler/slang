@@ -325,8 +325,9 @@ AstExpression* ast_expr_is_init(Token start, Token end, Token operator_, AstExpr
   return expr;
 }
 
-AstExpression* ast_expr_in_init(Token start, Token end, AstExpression* left, AstExpression* right) {
+AstExpression* ast_expr_in_init(Token start, Token end, Token operator_, AstExpression* left, AstExpression* right) {
   AstExpression* expr = ast_expr_init(start, end, EXPR_IN);
+  expr->operator_     = operator_;
   ast_node_add_child((AstNode*)expr, (AstNode*)left);
   ast_node_add_child((AstNode*)expr, (AstNode*)right);
   return expr;
