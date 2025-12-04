@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import process from 'node:process';
 
 // Detect project directory relative to this file (platform-agnostic)
 const __filename = fileURLToPath(import.meta.url);
@@ -8,6 +9,7 @@ export const SLANG_PROJ_DIR = path.resolve(__dirname, '..', '..');
 
 // Detect platform-specific binary extension
 const BINARY_EXT = process.platform === 'win32' ? '.exe' : '';
+export const LINE_FEED = process.platform === 'win32' ? '\r\n' : '\n';
 
 export enum SlangBuildConfigs {
   Release = 'release',

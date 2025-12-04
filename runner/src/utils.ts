@@ -259,26 +259,26 @@ export const gitStatus = async (): Promise<{ date: string; hash: string; message
 export const getProcessorName = async (): Promise<string> => {
   let cmd: string;
   let parseOutput: (output: string) => string;
-  
+
   if (process.platform === 'win32') {
     cmd = 'wmic cpu get name';
-    parseOutput = (output) => output.split('\r\n')[1]?.trim() || 'COULD NOT GET PROCESSOR NAME';
+    parseOutput = output => output.split('\r\n')[1]?.trim() || 'COULD NOT GET PROCESSOR NAME';
   } else if (process.platform === 'linux') {
     cmd = 'cat /proc/cpuinfo | grep "model name" | head -n1 | cut -d: -f2';
-    parseOutput = (output) => output.trim() || 'COULD NOT GET PROCESSOR NAME';
+    parseOutput = output => output.trim() || 'COULD NOT GET PROCESSOR NAME';
   } else if (process.platform === 'darwin') {
     cmd = 'sysctl -n machdep.cpu.brand_string';
-    parseOutput = (output) => output.trim() || 'COULD NOT GET PROCESSOR NAME';
+    parseOutput = output => output.trim() || 'COULD NOT GET PROCESSOR NAME';
   } else {
     return 'UNSUPPORTED PLATFORM';
   }
-  
+
   info(`Getting processor name`, `Command: "${cmd}"`);
   const output = (await runProcess(cmd, `Getting processor name failed`, null, false, true)).output ?? '';
   return parseOutput(output);
 };
 
-type LogType = 'err' | 'abort' | 'info' | 'ok' | 'warn' | 'debug' | 'pass' | 'skip' | 'fail';
+type LogType = 'err' | 'abort' | 'info' | 'ok' | 'warn' | 'debug' | 'pass' | 'skip' | 'fail' | 'done' | 'next';
 
 /**
  * Object containing log configuration.
@@ -290,15 +290,17 @@ type LogType = 'err' | 'abort' | 'info' | 'ok' | 'warn' | 'debug' | 'pass' | 'sk
  */
 // prettier-ignore
 export const LOG_CONFIG: Record<LogType, [string, ChalkInstance, string, ChalkInstance]> = {
-  err:   [ '█ Error', chalk.red.bold,           '│      ', chalk.red.bold           ],
-  abort: [ '█ Abort', chalk.red.bold,           '│      ', chalk.red.bold           ],
-  info:  [ '█ Info ', chalk.gray.bold,          '│      ', chalk.gray.bold          ],
-  ok:    [ '█ Ok   ', chalk.green.bold,         '│      ', chalk.green.bold         ],
-  warn:  [ '█ Warn ', chalk.yellowBright.bold,  '│      ', chalk.yellowBright.bold  ],
-  debug: [ '█ Debug', chalk.magentaBright.bold, '│      ', chalk.magentaBright.bold ],
-  pass:  [ ' Pass ',  chalk.bgGreen.black,      '│     ',  chalk.green              ],
-  skip:  [ ' skip ',  chalk.bgBlue.white,       '│     ',  chalk.blue               ],
-  fail:  [ ' Fail ',  chalk.bgRed.white,        '│     ',  chalk.red                ],
+  err:   [ '█ Error', chalk.red.bold,              '│      ', chalk.red.bold           ],
+  abort: [ '█ Abort', chalk.red.bold,              '│      ', chalk.red.bold           ],
+  info:  [ '█ Info ', chalk.gray.bold,             '│      ', chalk.gray.bold          ],
+  ok:    [ '█ Ok   ', chalk.green.bold,            '│      ', chalk.green.bold         ],
+  warn:  [ '█ Warn ', chalk.yellowBright.bold,     '│      ', chalk.yellowBright.bold  ],
+  debug: [ '█ Debug', chalk.magentaBright.bold,    '│      ', chalk.magentaBright.bold ],
+  pass:  [ ' Pass ',  chalk.bgGreen.black,         '│     ',  chalk.green              ],
+  skip:  [ ' skip ',  chalk.bgBlue.white,          '│     ',  chalk.blue               ],
+  fail:  [ ' Fail ',  chalk.bgRed.white,           '│     ',  chalk.red                ],
+  done:  [ ' Done ',  chalk.bgYellowBright.black,  '|     ',  chalk.yellowBright       ],
+  next:  [ ' -> ',    chalk.bgMagentaBright.black, '|     ',  chalk.magentaBright      ]
 }
 
 /**
