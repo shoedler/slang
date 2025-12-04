@@ -24,6 +24,7 @@
   #include <winnt.h>
 #elif SLANG_PLATFORM_LINUX
   #include <unistd.h>
+  #include <sched.h>
 #endif
 
 #if defined(DEBUG_GC_WORKER) || defined(DEBUG_GC_SWEEP)
@@ -153,6 +154,17 @@ void gc_wait_for_workers() {
         all_done = false;
         break;
       }
+    }
+    
+    // If not all done, yield to reduce CPU contention
+    if (!all_done) {
+#if SLANG_PLATFORM_LINUX
+      // Use sched_yield() on Linux for better performance
+      sched_yield();
+#elif SLANG_PLATFORM_WINDOWS
+      // Windows: brief sleep to avoid busy-wait
+      Sleep(0);
+#endif
     }
   } while (!all_done);
   GC_WORKER_LOG("  All workers done\n");
