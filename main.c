@@ -1,9 +1,14 @@
-#include <direct.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "common.h"
 #include "vm.h"
+
+#if SLANG_PLATFORM_WINDOWS
+  #include <direct.h>
+#elif SLANG_PLATFORM_LINUX
+  #include <unistd.h>
+#endif
 
 #define CMD_REPL "repl"
 #define CMD_RUN "run"
@@ -84,7 +89,11 @@ static SlangExitCode repl() {
 
   // Acquire the cwd to use as the module name
   char cwd[1024];
+#if SLANG_PLATFORM_WINDOWS
   if (_getcwd(cwd, sizeof(cwd)) == NULL) {
+#elif SLANG_PLATFORM_LINUX
+  if (getcwd(cwd, sizeof(cwd)) == NULL) {
+#endif
     fprintf(stderr, "Failed to get cwd\n");
     exit(SLANG_EXIT_IO_ERROR);
   }

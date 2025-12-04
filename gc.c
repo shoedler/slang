@@ -1,15 +1,13 @@
+#if defined(__linux__)
+  #define _DEFAULT_SOURCE  // For usleep
+#endif
+
 #include "gc.h"
-#include <handleapi.h>
-#include <minwindef.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <synchapi.h>
-#include <unistd.h>
-#include <windows.h>
-#include <winnt.h>
 #include "common.h"
 #include "gc_deque.h"
 #include "hashtable.h"
@@ -17,6 +15,17 @@
 #include "sys.h"
 #include "value.h"
 #include "vm.h"
+
+#if SLANG_PLATFORM_WINDOWS
+  #include <handleapi.h>
+  #include <minwindef.h>
+  #include <synchapi.h>
+  #include <windows.h>
+  #include <winnt.h>
+#elif SLANG_PLATFORM_LINUX
+  #include <unistd.h>
+  #include <sched.h>
+#endif
 
 #if defined(DEBUG_GC_WORKER) || defined(DEBUG_GC_SWEEP)
 #include <assert.h>
@@ -37,16 +46,25 @@ typedef struct {
   int worker_count;
   atomic_bool shutdown;
 
-  // Add synchronization primitives
+  // Cross-platform synchronization primitives
   atomic_bool should_work;
+#if SLANG_PLATFORM_WINDOWS
   HANDLE work_event;  // Event to signal work
+#elif SLANG_PLATFORM_LINUX
+  pthread_mutex_t work_mutex;
+  pthread_cond_t work_cond;
+#endif
 } GCThreadPool;
 
 // Global state
 static GCThreadPool gc_thread_pool = {0};
 
 // Thread-local storage
+#if SLANG_PLATFORM_WINDOWS
+static __declspec(thread) GCWorker* current_worker = NULL;
+#elif SLANG_PLATFORM_LINUX
 static __thread GCWorker* current_worker = NULL;
+#endif
 
 void gc_assign_current_worker(int worker_id) {
   if (worker_id == -1) {
@@ -59,7 +77,13 @@ void gc_assign_current_worker(int worker_id) {
 void gc_wake_workers() {
   GC_WORKER_LOG(ANSI_RED_STR("[GC]") " " ANSI_MAGENTA_STR("[WORKERS]") " Waking up workers\n");
   atomic_store(&gc_thread_pool.should_work, true);
+#if SLANG_PLATFORM_WINDOWS
   SetEvent(gc_thread_pool.work_event);
+#elif SLANG_PLATFORM_LINUX
+  pthread_mutex_lock(&gc_thread_pool.work_mutex);
+  pthread_cond_broadcast(&gc_thread_pool.work_cond);
+  pthread_mutex_unlock(&gc_thread_pool.work_mutex);
+#endif
 }
 
 void gc_workers_put_to_sleep() {
@@ -131,6 +155,17 @@ void gc_wait_for_workers() {
         break;
       }
     }
+    
+    // If not all done, yield to reduce CPU contention
+    if (!all_done) {
+#if SLANG_PLATFORM_LINUX
+      // Use sched_yield() on Linux for better performance
+      sched_yield();
+#elif SLANG_PLATFORM_WINDOWS
+      // Windows: brief sleep to avoid busy-wait
+      Sleep(0);
+#endif
+    }
   } while (!all_done);
   GC_WORKER_LOG("  All workers done\n");
 }
@@ -144,7 +179,15 @@ static void* gc_worker(void* arg) {
   while (!atomic_load(&gc_thread_pool.shutdown)) {
     // Between GC cycles - deep sleep with no busy waiting
     if (!atomic_load(&gc_thread_pool.should_work)) {
+#if SLANG_PLATFORM_WINDOWS
       WaitForSingleObject(gc_thread_pool.work_event, INFINITE);
+#elif SLANG_PLATFORM_LINUX
+      pthread_mutex_lock(&gc_thread_pool.work_mutex);
+      while (!atomic_load(&gc_thread_pool.should_work) && !atomic_load(&gc_thread_pool.shutdown)) {
+        pthread_cond_wait(&gc_thread_pool.work_cond, &gc_thread_pool.work_mutex);
+      }
+      pthread_mutex_unlock(&gc_thread_pool.work_mutex);
+#endif
       continue;
     }
 
@@ -450,7 +493,12 @@ void gc_thread_pool_init(int num_threads) {
   // Initialize sync primitives
   atomic_init(&gc_thread_pool.shutdown, false);
   atomic_init(&gc_thread_pool.should_work, false);
+#if SLANG_PLATFORM_WINDOWS
   gc_thread_pool.work_event = CreateEvent(NULL, TRUE, FALSE, NULL);  // Manual reset event
+#elif SLANG_PLATFORM_LINUX
+  pthread_mutex_init(&gc_thread_pool.work_mutex, NULL);
+  pthread_cond_init(&gc_thread_pool.work_cond, NULL);
+#endif
 
   // Initialize worker structs
   for (int i = 0; i < num_threads; i++) {
@@ -495,7 +543,13 @@ void gc_thread_pool_shutdown() {
   atomic_store(&gc_thread_pool.should_work, true);
 
   // Wake up all workers so they can see the shutdown flag
+#if SLANG_PLATFORM_WINDOWS
   SetEvent(gc_thread_pool.work_event);
+#elif SLANG_PLATFORM_LINUX
+  pthread_mutex_lock(&gc_thread_pool.work_mutex);
+  pthread_cond_broadcast(&gc_thread_pool.work_cond);
+  pthread_mutex_unlock(&gc_thread_pool.work_mutex);
+#endif
 
   // Join only threads 1 onwards (not worker[0] which is main thread)
   for (int i = 1; i < gc_thread_pool.worker_count; i++) {
@@ -503,7 +557,12 @@ void gc_thread_pool_shutdown() {
   }
 
   // Free sync resources
+#if SLANG_PLATFORM_WINDOWS
   CloseHandle(gc_thread_pool.work_event);
+#elif SLANG_PLATFORM_LINUX
+  pthread_mutex_destroy(&gc_thread_pool.work_mutex);
+  pthread_cond_destroy(&gc_thread_pool.work_cond);
+#endif
 
   // Free all deques including worker[0]'s
   for (int i = 0; i < gc_thread_pool.worker_count; i++) {

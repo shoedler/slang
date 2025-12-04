@@ -7,10 +7,12 @@ import process from 'node:process';
 import { Worker } from 'node:worker_threads';
 import { SlangBuildConfigs, SlangFileSuffixes, SlangPaths, SlangRunFlags } from './config.ts';
 import { abort, fail, findFiles, info, LOG_CONFIG, ok, pass, readFile, runSlangFile, skip, warn } from './utils.ts';
+import { LINE_FEED } from './config.ts';
 
 export enum WorkerMessageTypes {
   Result = 'result',
 }
+
 export type WorkerMessageArgs = {
   [WorkerMessageTypes.Result]: { result: TestResult };
 };
@@ -18,6 +20,7 @@ export type WorkerMessageArgs = {
 export enum WorkMessageTypes {
   RunTest = 'runTest',
 }
+
 export type WorkMessageArgs = {
   [WorkMessageTypes.RunTest]: {
     test: string;
@@ -110,8 +113,7 @@ const createProgressDisplay = (
   closeDisplay: () => void;
 } => {
   const workerLines = new Map();
-  const [infoHeaderPrefix, infoStyleFn] = LOG_CONFIG['info'];
-  const infoHeader = infoStyleFn(infoHeaderPrefix);
+  const [, infoStyleFn] = LOG_CONFIG['info'];
 
   let startLine = 0;
 
@@ -140,9 +142,10 @@ const createProgressDisplay = (
     process.stdout.write('\x1b7'); // Save cursor position
 
     // Move cursor to worker's line and clear it
+    const infoHeader = infoStyleFn(' Wrkr ' + workerId.toString().padStart(2, ' '));
     process.stdout.write(`\x1b[${line};1H\x1b[2K`);
     process.stdout.write(infoHeader);
-    process.stdout.write(` Runner ${workerId.toString().padEnd(2, ' ')} - ${status}`);
+    process.stdout.write(` ${status}`);
 
     process.stdout.write('\x1b8'); // Restore cursor position
   };
@@ -171,7 +174,7 @@ const makeComparison = (
   expectationType: MetadataType,
 ): TestResultToMetadataComparison => {
   const lines = rawTestOutput
-    .split('\r\n')
+    .split(LINE_FEED)
     .filter(Boolean)
     .map(line => line.trimEnd());
 
@@ -441,9 +444,13 @@ export const runTests = async (
   const [failHeaderPrefix, failStyleFn] = LOG_CONFIG['fail'];
   const [skipHeaderPrefix, skipStyleFn] = LOG_CONFIG['skip'];
   const [passHeaderPrefix, passStyleFn] = LOG_CONFIG['pass'];
+  const [doneHeaderPrefix, doneStyleFn] = LOG_CONFIG['done'];
+  const [nextHeaderPrefix, nextStyleFn] = LOG_CONFIG['next'];
   const failHeader = failStyleFn(failHeaderPrefix);
   const skipHeader = skipStyleFn(skipHeaderPrefix);
   const passHeader = passStyleFn(passHeaderPrefix);
+  const nextHeader = nextStyleFn(nextHeaderPrefix);
+  const doneHeader = doneStyleFn(doneHeaderPrefix);
 
   const workerPool = Array.from({ length: numWorkers }, (_, i) => {
     const worker = new Worker(path.join(SlangPaths.RunnerSrcDir, 'test-worker.ts'));
@@ -461,28 +468,34 @@ export const runTests = async (
         const { result } = <WorkerMessageArgs[WorkerMessageTypes.Result]>arg;
         results.push(result);
 
-        const testName = path.basename(result.testFilepath);
+        const testName = path.basename(result.testFilepath).split(SlangFileSuffixes.Test)[0];
+        let workerMessage = '';
         if (result.skipped) {
-          display.updateWorker(i, `${skipHeader} ${testName} (${result.skipReason})`);
+          workerMessage = `${skipHeader} ${testName} (${result.skipReason})`;
         } else if (result.passed) {
-          display.updateWorker(i, `${passHeader} ${testName}`);
+          workerMessage = `${passHeader} ${testName}`;
         } else {
-          display.updateWorker(i, `${failHeader} ${testName}`);
+          workerMessage = `${failHeader} ${testName}`;
         }
 
         // Assign next test if available
         if (currentTestIndex < testFilepaths.length) {
+          const nextTestFile = testFilepaths[currentTestIndex++];
+          const nextTestName = path.basename(nextTestFile).split(SlangFileSuffixes.Test)[0];
           worker.postMessage(<WorkMessageArgs[WorkMessageTypes.RunTest]>{
             type: WorkMessageTypes.RunTest,
-            test: testFilepaths[currentTestIndex++],
+            test: nextTestFile,
             config: buildConfig,
             updateFile: doUpdateFiles,
             runFlags,
           });
+          workerMessage += ' ' + nextHeader + ' ' + nextTestName;
         } else {
           worker.terminate();
-          display.updateWorker(i, chalk.italic('done'));
+          workerMessage = doneHeader;
         }
+
+        display.updateWorker(i, workerMessage);
       }
     });
 
@@ -564,10 +577,11 @@ const updateCommentMetadata = async (
     if (match) {
       const [, prefix, ,] = match;
       lines[line - 1] = `${prefix}// [${type}] ${value}`;
-    } else
+    } else {
       throw new Error(
         `Failed to update metadata in ${file}. Line ${line} does not contain metadata: ${lines[line - 1]}`,
       );
+    }
   });
 
   additional.forEach(value => lines.push(`// [${expectationType}] ${value}`));
