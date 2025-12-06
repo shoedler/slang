@@ -19,6 +19,8 @@ void native_register_file_module() {
   ObjObject* file_module = vm_make_module(NULL, STR(MODULE_NAME));
   define_value(&vm.modules, STR(MODULE_NAME), instance_value(file_module));
 
+  define_value(&file_module->fields, "newl", str_value(copy_string(SLANG_ENV_NEWLINE, (int)strlen(SLANG_ENV_NEWLINE))));
+
   define_native(&file_module->fields, "read", native_file_read, 1);
   define_native(&file_module->fields, "write", native_file_write, 2);
   define_native(&file_module->fields, "exists", native_file_exists, 1);

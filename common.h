@@ -205,11 +205,13 @@ typedef enum {
   #define SLANG_PLATFORM_LINUX 0
   #define SLANG_PATH_SEPARATOR '\\'
   #define SLANG_PATH_SEPARATOR_STR "\\"
+  #define SLANG_ENV_NEWLINE "\r\n"
 #elif defined(__linux__)
   #define SLANG_PLATFORM_WINDOWS 0
   #define SLANG_PLATFORM_LINUX 1
   #define SLANG_PATH_SEPARATOR '/'
   #define SLANG_PATH_SEPARATOR_STR "/"
+  #define SLANG_ENV_NEWLINE "\n"
 #else
   #error "Unsupported platform. Only Windows and Linux are supported."
 #endif

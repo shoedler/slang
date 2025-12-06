@@ -5,7 +5,7 @@ Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for t
 
 const bytes = File
   .read(cwd() + "/fuzzy-aoc-2024-day-18.txt")
-  .split("\r\n")
+  .split(File.newl)
   .map(fn(p) -> p.ints())
 
 const SIZE = 6+1 // Sample input, 70+1 for real input

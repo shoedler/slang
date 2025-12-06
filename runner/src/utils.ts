@@ -299,7 +299,7 @@ export const LOG_CONFIG: Record<LogType, [string, ChalkInstance, string, ChalkIn
   pass:  [ ' Pass ',  chalk.bgGreen.black,         '│     ',  chalk.green              ],
   skip:  [ ' skip ',  chalk.bgBlue.white,          '│     ',  chalk.blue               ],
   fail:  [ ' Fail ',  chalk.bgRed.white,           '│     ',  chalk.red                ],
-  done:  [ ' Done ',  chalk.bgYellowBright.black,  '|     ',  chalk.yellowBright       ],
+  done:  [ ' Done ',  chalk.bgGreen.black,         '|     ',  chalk.green              ],
   next:  [ ' -> ',    chalk.bgMagentaBright.black, '|     ',  chalk.magentaBright      ]
 }
 

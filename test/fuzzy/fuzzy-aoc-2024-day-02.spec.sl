@@ -3,7 +3,7 @@ import Math
 
 const nums = File
   .read(cwd() + "/fuzzy-aoc-2024-day-02.txt")
-  .split("\r\n")
+  .split(File.newl)
   .map(fn (line) -> line.split(" ").map(Int))
 
 const is_safe = fn (rep) {

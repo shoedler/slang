@@ -5,10 +5,10 @@ Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for t
 
 const [towels, designs] = File
   .read(cwd() + "/fuzzy-aoc-2024-day-19.txt")
-  .split("\r\n\r\n")
+  .split(File.newl + File.newl)
 
 const TOWELS = towels.split(",").map(fn(x) -> x.trim())
-const DESIGNS = designs.split("\r\n").map(fn(x) -> x.trim())
+const DESIGNS = designs.split(File.newl).map(fn(x) -> x.trim())
 
 const DP = {}
 fn combos(design) {

@@ -5,7 +5,7 @@ Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for t
 
 const map = File
   .read(cwd() + "/fuzzy-aoc-2024-day-12.txt")
-  .split("\r\n")
+  .split(File.newl)
 
 const ROWS = map.len
 const COLS = map[0].len

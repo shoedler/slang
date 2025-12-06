@@ -2,7 +2,7 @@ import File
 
 const grid = File
   .read(cwd() + "/fuzzy-aoc-2024-day-06.txt")
-  .split("\r\n")
+  .split(File.newl)
   .map(fn(l) -> l.split(""))
 
 const ROWS = grid.len

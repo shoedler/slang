@@ -6,7 +6,7 @@ Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for t
 
 let robots = File
   .read(cwd() + "/fuzzy-aoc-2024-day-14.txt")
-  .split("\r\n")
+  .split(File.newl)
   .map(fn(l) -> l.ints())
 
 const ROWS = 103

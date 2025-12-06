@@ -3,7 +3,7 @@ import Math
 
 const bvs = File
   .read(cwd() + "/fuzzy-aoc-2024-day-13.txt")
-  .split("\r\n\r\n")
+  .split(File.newl + File.newl)
   .map(fn(bv) -> bv.ints())
 
 fn cheapest(px_ofs, py_ofs) -> bvs

@@ -6,10 +6,10 @@ Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for t
 
 const [LOCKS, KEYS] = File
   .read(cwd() + "/fuzzy-aoc-2024-day-25.txt")
-  .split("\r\n\r\n")
+  .split(File.newl + File.newl)
   .fold([[],[]], fn(acc, lock_or_key) {
     const flat = lock_or_key
-      .split("\r\n")
+      .split(File.newl)
       .fold([], fn(flat, line) {
         line.ascii().each(fn(code) -> flat.push(code))
         ret flat
