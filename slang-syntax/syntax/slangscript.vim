@@ -88,7 +88,8 @@ syntax match slangVariable "\<[a-z_]\w*\>"
 
 " Operators - Arithmetic
 " Match arithmetic operators
-" Note: Division (/) is matched only when not followed by another / (to avoid // comments)
+" Note: Division (/) uses negative lookahead (/)\@! to match '/' only when NOT followed by another '/'
+" This prevents matching '//' which is the comment start sequence
 syntax match slangArithmeticOp "[+\-*%^]"
 syntax match slangArithmeticOp "\v/(/)\@!"
 

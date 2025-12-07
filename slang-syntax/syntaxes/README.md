@@ -4,8 +4,8 @@ This directory contains syntax highlighting files for SlangScript.
 
 ## Available Files
 
-- **slang.tmLanguage.json** - TextMate grammar for VSCode and other editors  
-- **slangscript.vim** - Vim/Neovim syntax file for simple syntax highlighting
+- **slang.tmLanguage.json** - TextMate grammar for VSCode and other editors (located in this directory)
+- **slangscript.vim** - Vim/Neovim syntax file for simple syntax highlighting (generated from slang.tmLanguage.json)
 
 ## Installation (Neovim/Vim)
 
@@ -154,7 +154,7 @@ To test the syntax highlighting:
 2. Verify that keywords, strings, numbers, and comments are highlighted
 3. Check that the syntax follows your color scheme
 
-Example test file (sample.sl is available in the repository root).
+You can test with `sample.sl` available in the repository root, or create your own test file.
 
 ## Notes
 
