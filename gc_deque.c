@@ -139,14 +139,14 @@ bool ws_deque_pop(WorkStealingDeque* deque, GCTask* task) {
   RingBuf* ring_buf = (RingBuf*)atomic_load_explicit(&deque->buffer, memory_order_relaxed);
 
   atomic_store_explicit(&deque->bottom, bottom, memory_order_relaxed);
-  atomic_thread_fence(memory_order_seq_cst);
+  atomic_thread_fence(memory_order_acq_rel);  // Lighter than seq_cst
 
   int64_t top  = atomic_load_explicit(&deque->top, memory_order_relaxed);
   bool success = false;
 
   if (top <= bottom) {
     if (top == bottom) {
-      if (!atomic_compare_exchange_strong_explicit(&deque->top, &top, top + 1, memory_order_seq_cst, memory_order_relaxed)) {
+      if (!atomic_compare_exchange_strong_explicit(&deque->top, &top, top + 1, memory_order_acq_rel, memory_order_relaxed)) {
         success = false;
       } else {
         *task   = ring_buf_load(ring_buf, bottom);
@@ -167,14 +167,14 @@ bool ws_deque_pop(WorkStealingDeque* deque, GCTask* task) {
 
 bool ws_deque_steal(WorkStealingDeque* deque, GCTask* task) {
   int64_t top = atomic_load_explicit(&deque->top, memory_order_acquire);
-  atomic_thread_fence(memory_order_seq_cst);
+  atomic_thread_fence(memory_order_acq_rel);  // Lighter than seq_cst
   int64_t bottom = atomic_load_explicit(&deque->bottom, memory_order_acquire);
 
   if (top < bottom) {
-    RingBuf* ring_buf = (RingBuf*)atomic_load_explicit(&deque->buffer, memory_order_consume);
+    RingBuf* ring_buf = (RingBuf*)atomic_load_explicit(&deque->buffer, memory_order_acquire);
     *task             = ring_buf_load(ring_buf, top);
 
-    if (!atomic_compare_exchange_strong_explicit(&deque->top, &top, top + 1, memory_order_seq_cst, memory_order_relaxed)) {
+    if (!atomic_compare_exchange_strong_explicit(&deque->top, &top, top + 1, memory_order_acq_rel, memory_order_relaxed)) {
       return false;
     }
 
