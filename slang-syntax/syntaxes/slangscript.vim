@@ -87,9 +87,10 @@ syntax match slangTypeName "\<[A-Z][a-z]\w*\>"
 syntax match slangVariable "\<[a-z_]\w*\>"
 
 " Operators - Arithmetic
-" Match arithmetic operators, but avoid matching // (which is a comment)
+" Match arithmetic operators
+" Note: Division (/) is matched only when not followed by another / (to avoid // comments)
 syntax match slangArithmeticOp "[+\-*%^]"
-syntax match slangArithmeticOp "/\@<!/\(/\)\@!"
+syntax match slangArithmeticOp "\v/(/)\@!"
 
 " Operators - Assignment
 syntax match slangAssignmentOp "="

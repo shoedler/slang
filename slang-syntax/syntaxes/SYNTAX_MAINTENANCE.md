@@ -4,68 +4,68 @@ This file provides a quick reference for maintaining the `slangscript.vim` synta
 
 ## Syntax Group Mapping
 
-The vim syntax file directly maps to the tmGrammar.json structure:
+The vim syntax file directly maps to the slang.tmLanguage.json structure:
 
 ### Comments
 ```vim
-slangComment           -> tmGrammar: comments
-slangCommentAnnotation -> tmGrammar: comments.patterns (for [expect], [skip], etc.)
+slangComment           -> slang.tmLanguage.json: comments
+slangCommentAnnotation -> slang.tmLanguage.json: comments.patterns (for [expect], [skip], etc.)
 ```
 
 ### Keywords
 ```vim
-slangControlFlow       -> tmGrammar: keywords (control flow: if, for, while, etc.)
-slangExpressionOp      -> tmGrammar: keywords (expression operators: typeof, is, in, etc.)
-slangLogicalOp         -> tmGrammar: keywords (logical: and, or)
-slangStorageType       -> tmGrammar: keywords (storage: let, const, ctor)
-slangStorageKeywordCls -> tmGrammar: keywords (cls keyword)
-slangStorageKeywordFn  -> tmGrammar: keywords (fn keyword)
-slangStorageModifier   -> tmGrammar: keywords (modifiers: static)
+slangControlFlow       -> slang.tmLanguage.json: keywords (control flow: if, for, while, etc.)
+slangExpressionOp      -> slang.tmLanguage.json: keywords (expression operators: typeof, is, in, etc.)
+slangLogicalOp         -> slang.tmLanguage.json: keywords (logical: and, or)
+slangStorageType       -> slang.tmLanguage.json: keywords (storage: let, const, ctor)
+slangStorageKeywordCls -> slang.tmLanguage.json: keywords (cls keyword)
+slangStorageKeywordFn  -> slang.tmLanguage.json: keywords (fn keyword)
+slangStorageModifier   -> slang.tmLanguage.json: keywords (modifiers: static)
 ```
 
 ### Types
 ```vim
-slangType              -> tmGrammar: types (Obj, Nil, Bool, Num, Int, Float, Str, Seq, Tuple, Fn, Class)
+slangType              -> slang.tmLanguage.json: types (Obj, Nil, Bool, Num, Int, Float, Str, Seq, Tuple, Fn, Class)
 ```
 
 ### Constants
 ```vim
-slangConstant          -> tmGrammar: constants (nil, true, false)
+slangConstant          -> slang.tmLanguage.json: constants (nil, true, false)
 ```
 
 ### Numbers
 ```vim
-slangNumber            -> tmGrammar: numbers (decimal integers)
-slangFloat             -> tmGrammar: numbers (floating point)
-slangHex               -> tmGrammar: numbers (hexadecimal: 0x...)
-slangBinary            -> tmGrammar: numbers (binary: 0b...)
-slangOctal             -> tmGrammar: numbers (octal: 0o...)
+slangNumber            -> slang.tmLanguage.json: numbers (decimal integers)
+slangFloat             -> slang.tmLanguage.json: numbers (floating point)
+slangHex               -> slang.tmLanguage.json: numbers (hexadecimal: 0x...)
+slangBinary            -> slang.tmLanguage.json: numbers (binary: 0b...)
+slangOctal             -> slang.tmLanguage.json: numbers (octal: 0o...)
 ```
 
 ### Strings
 ```vim
-slangString            -> tmGrammar: strings
-slangEscape            -> tmGrammar: strings.patterns (escape sequences)
+slangString            -> slang.tmLanguage.json: strings
+slangEscape            -> slang.tmLanguage.json: strings.patterns (escape sequences)
 ```
 
 ### Variables
 ```vim
-slangSpecialVar        -> tmGrammar: variables (this, base, error, etc.)
-slangProperty          -> tmGrammar: variables (property access: .len, .__name)
-slangConstantName      -> tmGrammar: variables (ALL_CAPS identifiers)
-slangTypeName          -> tmGrammar: variables (PascalCase identifiers)
-slangFunctionCall      -> tmGrammar: variables (function calls: name())
-slangVariable          -> tmGrammar: variables (generic identifiers)
-slangClassName         -> tmGrammar: keywords (class names after cls)
-slangFunctionName      -> tmGrammar: keywords (function names after fn)
+slangSpecialVar        -> slang.tmLanguage.json: variables (this, base, error, etc.)
+slangProperty          -> slang.tmLanguage.json: variables (property access: .len, .__name)
+slangConstantName      -> slang.tmLanguage.json: variables (ALL_CAPS identifiers)
+slangTypeName          -> slang.tmLanguage.json: variables (PascalCase identifiers)
+slangFunctionCall      -> slang.tmLanguage.json: variables (function calls: name())
+slangVariable          -> slang.tmLanguage.json: variables (generic identifiers)
+slangClassName         -> slang.tmLanguage.json: keywords (class names after cls)
+slangFunctionName      -> slang.tmLanguage.json: keywords (function names after fn)
 ```
 
 ### Operators
 ```vim
-slangArithmeticOp      -> tmGrammar: operators (arithmetic: +, -, *, /, %, ^)
-slangAssignmentOp      -> tmGrammar: operators (assignment: =, ->)
-slangComparisonOp      -> tmGrammar: operators (comparison: ==, !=, <, >, <=, >=)
-slangLogicalSymbol     -> tmGrammar: operators (logical symbols: !, ?, :)
+slangArithmeticOp      -> slang.tmLanguage.json: operators (arithmetic: +, -, *, /, %, ^)
+slangAssignmentOp      -> slang.tmLanguage.json: operators (assignment: =, ->)
+slangComparisonOp      -> slang.tmLanguage.json: operators (comparison: ==, !=, <, >, <=, >=)
+slangLogicalSymbol     -> slang.tmLanguage.json: operators (logical symbols: !, ?, :)
 ```
 
 ## How to Update
