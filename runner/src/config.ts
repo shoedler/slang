@@ -1,4 +1,15 @@
-export const SLANG_PROJ_DIR = 'C:\\Projects\\slang';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import process from 'node:process';
+
+// Detect project directory relative to this file (platform-agnostic)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+export const SLANG_PROJ_DIR = path.resolve(__dirname, '..', '..');
+
+// Detect platform-specific binary extension
+const BINARY_EXT = process.platform === 'win32' ? '.exe' : '';
+export const LINE_FEED = process.platform === 'win32' ? '\r\n' : '\n';
 
 export enum SlangBuildConfigs {
   Release = 'release',
@@ -19,21 +30,21 @@ export enum SlangFileSuffixes {
   Slang = '.sl',
   Test = '.spec.sl',
   Profile = '.tpp.sl',
-  Binary = '.slang.exe',
+  Binary = '.slang' + BINARY_EXT,
 }
 
 export const BENCH_PRE_SUFFIX = '.bench';
 export const BENCH_LOG_FILE = 'bench-log.json';
 export const PGO_BENCH_LOG_FILE = 'pgo-bench-log.json';
 
-export enum SlangPaths {
-  BinDir = SLANG_PROJ_DIR + '\\bin\\x64',
-  BenchDir = SLANG_PROJ_DIR + '\\bench',
-  TestDir = SLANG_PROJ_DIR + '\\test',
-  ProfileDir = SLANG_PROJ_DIR + '\\profile',
-  SampleFile = SLANG_PROJ_DIR + '\\sample' + SlangFileSuffixes.Slang,
-  ProfileFile = SlangPaths.ProfileDir + '\\profile' + SlangFileSuffixes.Slang,
-  RunnerSrcDir = SLANG_PROJ_DIR + '\\runner\\src',
+export class SlangPaths {
+  static readonly BinDir = path.join(SLANG_PROJ_DIR, 'bin', 'x64');
+  static readonly BenchDir = path.join(SLANG_PROJ_DIR, 'bench');
+  static readonly TestDir = path.join(SLANG_PROJ_DIR, 'test');
+  static readonly ProfileDir = path.join(SLANG_PROJ_DIR, 'profile');
+  static readonly SampleFile = path.join(SLANG_PROJ_DIR, 'sample' + SlangFileSuffixes.Slang);
+  static readonly ProfileFile = path.join(SlangPaths.ProfileDir, 'profile' + SlangFileSuffixes.Slang);
+  static readonly RunnerSrcDir = path.join(SLANG_PROJ_DIR, 'runner', 'src');
 }
 
 export const LOCALE: Intl.LocalesArgument = 'de-CH';
