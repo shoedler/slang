@@ -111,14 +111,14 @@ vim.api.nvim_create_autocmd({"BufRead", "BufNewFile"}, {
 
 ## Maintenance
 
-The `slangscript.vim` file is directly derived from `slang.tmLanguage.json`. If you update the tmGrammar file, you should update the vim syntax file accordingly.
+The `slangscript.vim` file is directly derived from `slang.tmLanguage.json`. If you update the slang.tmLanguage.json file, you should update the vim syntax file accordingly.
 
-### Mapping between tmGrammar and Vim Syntax
+### Mapping between slang.tmLanguage.json and Vim Syntax
 
-The vim syntax file follows the same structure as the tmGrammar:
+The vim syntax file follows the same structure as slang.tmLanguage.json:
 
-| tmGrammar Section | Vim Syntax Equivalent |
-|-------------------|----------------------|
+| slang.tmLanguage.json Section | Vim Syntax Equivalent |
+|-------------------------------|----------------------|
 | `comments` | `slangComment`, `slangCommentAnnotation` |
 | `keywords` (control) | `slangControlFlow` |
 | `keywords` (expression) | `slangExpressionOp` |

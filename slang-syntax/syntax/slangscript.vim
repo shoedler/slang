@@ -1,6 +1,6 @@
 " Vim syntax file for SlangScript
 " Language: SlangScript
-" Maintainer: Generated from tmGrammar
+" Maintainer: Generated from slang.tmLanguage.json
 " Latest Revision: 2025
 " File Types: .sl
 "
