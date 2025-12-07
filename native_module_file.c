@@ -20,6 +20,7 @@ void native_register_file_module() {
   define_value(&vm.modules, STR(MODULE_NAME), instance_value(file_module));
 
   define_value(&file_module->fields, "newl", str_value(copy_string(SLANG_ENV_NEWLINE, (int)strlen(SLANG_ENV_NEWLINE))));
+  define_value(&file_module->fields, "sep", str_value(copy_string(SLANG_PATH_SEPARATOR_STR, (int)strlen(SLANG_PATH_SEPARATOR_STR))));
 
   define_native(&file_module->fields, "read", native_file_read, 1);
   define_native(&file_module->fields, "write", native_file_write, 2);
