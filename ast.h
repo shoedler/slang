@@ -230,7 +230,7 @@ AstExpression* ast_expr_assign_init(Token start, Token end, Token operator_, Ast
 AstExpression* ast_expr_and_init(Token start, Token end, AstExpression* left, AstExpression* right);
 AstExpression* ast_expr_or_init(Token start, Token end, AstExpression* left, AstExpression* right);
 AstExpression* ast_expr_is_init(Token start, Token end, Token operator_, AstExpression* left, AstExpression* right);
-AstExpression* ast_expr_in_init(Token start, Token end, AstExpression* left, AstExpression* right);
+AstExpression* ast_expr_in_init(Token start, Token end, Token operator_, AstExpression* left, AstExpression* right);
 AstExpression* ast_expr_call_init(Token start, Token end, AstExpression* target);
 void ast_expr_call_add_argument(AstExpression* call, AstExpression* argument);
 AstExpression* ast_expr_dot_init(Token start, Token end, AstExpression* target, AstId* property);

@@ -52,8 +52,6 @@ You can, for example, easily cache stuff:
 ## Features
 
 - [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hasing tuples containing negative `Int`s). UPDATE: Found it. It's the hashing of integers thats the issue.
-- [x] ~~Add `not` for `is`: e.g. `x is not Int`~~
-- [ ] Add `not` for `in`: e.g. `x not in y` 
 - [ ] Allow `Tuple.inside = fn(this) -> (this[0]>=0 and this[0]<ROWS) and (this[1]>=0 and this[1]<COLS)`
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
@@ -62,6 +60,8 @@ You can, for example, easily cache stuff:
 - [ ] Implement `Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)
 - [ ] Add a variant of `log` (Maybe `tap`/`info`/`dump`/`peek`?) which accepts a single argument and also, return it. That'd be awesome: `const x = a + b + c + tap(d) + e`
 - [ ] Add more error classes to std. Add a native `Error` base class, from which managed-code errors inherit. Check `vm_inherits(error.type, vm.error_class)` in `handle_runtime_error` and - if true - use `error.type->name` as the prefix instead of `Uncaught error`.
+- [x] ~~Add `not` for `is`: e.g. `x is not Int`~~
+- [x] ~~Add `not` for `in`: e.g. `x not in y`~~
 - [x] ~~Implement `Str.ints() -> Seq`. (Split a string into a sequence of integers (also negative ones))~~
 - [x] ~~Implement `Str.rep(Int) -> Str`. (Repeat a string `n` times)~~
 - [x] ~~Implement `Str.chars() -> Seq`. (Split a string into a sequence of characters, shorthand for `Str.split("")`)~~

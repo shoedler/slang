@@ -608,9 +608,22 @@ static AstExpression* parse_expr_is(Parser* parser, Token expr_start, AstExpress
   return ast_expr_is_init(expr_start, parser->previous, operator, left, right);
 }
 
+// We have two versions of 'in' expression parsing: 'in' and 'not in'.
+// Operator is either TOKEN_IN or TOKEN_NOT to differentiate between "in" and "not in"
 static AstExpression* parse_expr_in(Parser* parser, Token expr_start, AstExpression* left) {
+  Token operator       = parser->previous;
   AstExpression* right = parse_precedence(parser, PREC_COMPARISON);
-  return ast_expr_in_init(expr_start, parser->previous, left, right);
+  return ast_expr_in_init(expr_start, parser->previous, operator, left, right);
+}
+
+static AstExpression* parse_expr_not_in(Parser* parser, Token expr_start, AstExpression* left) {
+  Token operator = parser->previous;  // TOKEN_NOT
+  if (!match(parser, TOKEN_IN)) {
+    parser_error_at_current(parser, "Expecting 'in' after 'not'.");
+    return NULL;
+  }
+  AstExpression* right = parse_precedence(parser, PREC_COMPARISON);
+  return ast_expr_in_init(expr_start, parser->previous, operator, left, right);
 }
 
 static AstExpression* parse_expr_assign(Parser* parser, Token expr_start, AstExpression* left) {
@@ -680,6 +693,7 @@ static ParseRule rules2[] = {
     [TOKEN_THROW]        = {NULL, NULL, PREC_NONE},
     [TOKEN_IS]           = {NULL, parse_expr_is, PREC_COMPARISON},
     [TOKEN_IN]           = {NULL, parse_expr_in, PREC_COMPARISON},
+    [TOKEN_NOT]          = {NULL, parse_expr_not_in, PREC_COMPARISON},
     [TOKEN_THIS]         = {parse_expr_this, NULL, PREC_NONE},
     [TOKEN_TRUE]         = {parse_literal, NULL, PREC_NONE},
     [TOKEN_LET]          = {NULL, NULL, PREC_NONE},

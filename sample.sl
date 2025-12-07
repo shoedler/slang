@@ -239,6 +239,8 @@ print numbers       // [1, 10, 3, 4, 5]
 // ...the 'in' keyword uses the "has" method
 print 1 in numbers  // true
 print 6 in numbers  // false
+// ...or, 'not in'
+print 6 not in numbers // true
 // ...slicing uses the "slice" method
 print numbers[1..3] // [10, 3]
 print numbers[..2]  // [1, 10]
@@ -322,6 +324,8 @@ print pair[-2]   // 1
 // ...the 'in' keyword uses the "has" method
 print 1 in pair  // true
 print 0 in pair  // false
+// ...or, 'not in'
+print 0 not in pair // true
 // ...slicing uses the "slice" method
 print pair[1..]  // (2)
 print pair[0..1] // (1)
@@ -397,7 +401,8 @@ print person          // {age: 30, city: New York, name: Alice, occupation: Engi
 // ...you can check if a prop exists by key using the "in" keyword (uses the "has" method)
 print "name" in person      // true
 print "height" in person    // false
-
+// ...or, 'not in'
+print "height" not in person // true
 print "\nobject methods"
 print "-----------------------------------------------"
 
@@ -802,4 +807,4 @@ for let i = 0; i < 5; ++i; print fib(30)
 print "elapsed: " + Perf.since(start) + "s"
 
 // "Classic" FizzBuzz
-for let i = 1; i < 101; ++i; print [i,"Fizz","Buzz","FizzBuzz"][(i%3<1?1:0)+(i%5<1?2:0)]
+for let i = 1; i < 101; ++i; print [i,"Fizz","Buzz","FizzBuzz"][(i%3 < 1 ? 1:0) + (i%5 < 1 ? 2:0)]

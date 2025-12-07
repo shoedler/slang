@@ -890,6 +890,7 @@ static void compile_expr_in(FnCompiler* compiler, AstExpression* expr) {
 
   compile_node(compiler, left);
   compile_node(compiler, right);
+  emit_constant(compiler, bool_value(expr->operator_.type == TOKEN_IN), left);
   emit_one(compiler, OP_IN, (AstNode*)expr);
 }
 

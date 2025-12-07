@@ -417,15 +417,11 @@ export const runTests = async (
       results.push(result);
 
       if (result.skipped) {
-        skip(path.basename(testFilepath) + chalk.gray(` Filepath: ${testFilepath}, Reason: ${result.skipReason}`));
+        skip(path.basename(testFilepath) + chalk.gray(` ${testFilepath}, Reason: ${result.skipReason}`));
       } else if (result.passed) {
-        pass(path.basename(testFilepath) + chalk.gray(` Filepath: ${testFilepath}`));
+        pass(path.basename(testFilepath) + chalk.gray(` ${testFilepath}`));
       } else {
-        fail(
-          path.basename(testFilepath) +
-            chalk.gray(` Filepath: ${testFilepath}`) +
-            `\n${result.errorMessages.join('\n')}`,
-        );
+        fail(path.basename(testFilepath) + chalk.gray(` ${testFilepath}`) + `\n${result.errorMessages.join('\n')}`);
       }
     }
     printSummary(results);
