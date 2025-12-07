@@ -2,17 +2,17 @@ import File
 
 const [inputs, wires] = File
   .read(cwd() + "/fuzzy-aoc-2024-day-24.txt")
-  .split("\r\n\r\n")
+  .split(File.newl + File.newl)
 
 const REGS = {}
 const FNS = {}
 
-inputs.split("\r\n").each(fn(line) {
+inputs.split(File.newl).each(fn(line) {
   const [name, val] = line.split(": ")
   REGS[name] = val == "1" ? true : false
 })
 
-wires.split("\r\n").each(fn(line) {
+wires.split(File.newl).each(fn(line) {
   const [lhs, op, rhs, _, out] = line.split(" ")
   FNS[out] = (lhs, op, rhs)
 })

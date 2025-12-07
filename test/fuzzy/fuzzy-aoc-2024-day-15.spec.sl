@@ -5,12 +5,12 @@ Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for t
 
 const [grid_raw, moves_raw] = File
   .read(cwd() + "/fuzzy-aoc-2024-day-15.txt")
-  .split("\r\n\r\n")
+  .split(File.newl + File.newl)
 
 fn simulate(wide_boxes) {
   const grid = []
   grid_raw
-    .split("\r\n")
+    .split(File.newl)
     .each(fn (line) {
       const row = []
       line.split("").each(fn(c) {
@@ -21,7 +21,7 @@ fn simulate(wide_boxes) {
     })
 
   const moves = moves_raw
-    .split("\r\n")
+    .split(File.newl)
     .join("")
 
   const BOX = wide_boxes ? "[]" : "O"

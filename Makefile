@@ -6,15 +6,31 @@ MKDIR=mkdir -p
 # Hide make commands
 MAKEFLAGS += --no-print-directory 
 
+# Platform detection
+UNAME := $(shell uname -s)
+
 # General compiler flags
 EXTRA_CFLAGS?= # Extra flags to pass to the compiler by command line
-CFLAGS=-Wall -Wextra -Werror -std=c17 -m64 -D_UNICODE -DUNICODE $(EXTRA_CFLAGS)
-LDFLAGS=-m64
-LIBS=-lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -luuid -lodbc32 -lodbccp32 -lmimalloc
+BASE_CFLAGS=-Wall -Wextra -Werror -Wno-format-security -std=c17 -m64 $(EXTRA_CFLAGS)
+
+# Platform-specific flags
+ifeq ($(UNAME),Linux)
+  CFLAGS=$(BASE_CFLAGS)
+  LDFLAGS=-m64
+  LIBS=-lmimalloc -lpthread -lm
+  EXEC_EXT=
+else ifeq ($(OS),Windows_NT)
+  CFLAGS=$(BASE_CFLAGS) -D_UNICODE -DUNICODE
+  LDFLAGS=-m64
+  LIBS=-lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -luuid -lodbc32 -lodbccp32 -lmimalloc
+  EXEC_EXT=.exe
+else
+  $(error Unsupported platform: $(UNAME))
+endif
 
 # Source files and output
-DEBUG_EXEC=bin/x64/debug/slang.exe
-RELEASE_EXEC=bin/x64/release/slang.exe
+DEBUG_EXEC=bin/x64/debug/slang$(EXEC_EXT)
+RELEASE_EXEC=bin/x64/release/slang$(EXEC_EXT)
 DEBUG_DIR=bin/x64/debug/
 RELEASE_DIR=bin/x64/release/
 SOURCES=$(wildcard *.c)
@@ -28,9 +44,14 @@ RELEASE_DEP_DIR=$(RELEASE_DIR).deps/
 DEBUG_DEP_CFLAGS=-MMD -MP -MF $(DEBUG_DEP_DIR)/$*.d
 RELEASE_DEP_CFLAGS=-MMD -MP -MF $(RELEASE_DEP_DIR)/$*.d
 
-# Mimalloc library path
-MIMALLOC_LIBDIR := /ucrt64/lib
-LDFLAGS += -L$(MIMALLOC_LIBDIR) -Wl,-rpath,$(MIMALLOC_LIBDIR)
+# Platform-specific library paths
+ifeq ($(UNAME),Linux)
+  # On Linux, use system mimalloc
+else ifeq ($(OS),Windows_NT)
+  # Mimalloc library path for Windows
+  MIMALLOC_LIBDIR := /ucrt64/lib
+  LDFLAGS += -L$(MIMALLOC_LIBDIR) -Wl,-rpath,$(MIMALLOC_LIBDIR)
+endif
 
 # Debug specific flags
 DEBUG_CFLAGS=$(CFLAGS) -g -O0 -D_DEBUG

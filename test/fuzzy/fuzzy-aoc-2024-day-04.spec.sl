@@ -3,7 +3,7 @@ import Math
 
 const grid = File
   .read(cwd() + "/fuzzy-aoc-2024-day-04.txt")
-  .split("\r\n")
+  .split(File.newl)
 
 let p1 = 0
 let p2 = 0

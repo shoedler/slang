@@ -1,7 +1,7 @@
 #ifndef common_h
 #define common_h
 
-#include <mimalloc.h>
+#include <mimalloc-3.1/mimalloc.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -193,11 +193,24 @@ typedef enum {
 // #define _aligned_msize(p, a, o) mi_usable_size(p)
 
 //
-// Configuration checks
+// Platform detection and compatibility
 //
 
-#ifndef _WIN32
-#error "Only Windows is supported."
+// Platform detection macros
+#ifdef _WIN32
+  #define SLANG_PLATFORM_WINDOWS 1
+  #define SLANG_PLATFORM_LINUX 0
+  #define SLANG_PATH_SEPARATOR '\\'
+  #define SLANG_PATH_SEPARATOR_STR "\\"
+  #define SLANG_ENV_NEWLINE "\r\n"
+#elif defined(__linux__)
+  #define SLANG_PLATFORM_WINDOWS 0
+  #define SLANG_PLATFORM_LINUX 1
+  #define SLANG_PATH_SEPARATOR '/'
+  #define SLANG_PATH_SEPARATOR_STR "/"
+  #define SLANG_ENV_NEWLINE "\n"
+#else
+  #error "Unsupported platform. Only Windows and Linux are supported."
 #endif
 
 #endif

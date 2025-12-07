@@ -3,11 +3,11 @@ import Math
 
 const [regs, prg] = File
   .read(cwd() + "/fuzzy-aoc-2024-day-17.txt")
-  .split("\r\n\r\n")
+  .split(File.newl + File.newl)
 
 const PRG = Tuple(prg.ints())
 const REGS = {}
-regs.split("\r\n").each(fn(line) {
+regs.split(File.newl).each(fn(line) {
   let [reg, val] = line.split(": ")
   reg = reg.split(" ")[1]
   REGS[reg] = val.ints()[0]

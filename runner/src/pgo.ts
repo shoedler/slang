@@ -85,8 +85,9 @@ export const runPgoBuildProfiles = async () => {
       await Deno.copyFile(profile, SlangPaths.ProfileFile);
       // Build with PGO
       await buildSlangConfig(SlangBuildConfigs.ReleaseProfiled, null, true);
-      // Copy the buillt binary to the profile dir, <profileName>.slang.exe
-      const binPath = path.join(SlangPaths.BinDir, SlangBuildConfigs.Release, 'slang.exe');
+      // Copy the built binary to the profile dir, <profileName>.slang[.exe]
+      const binaryExt = process.platform === 'win32' ? '.exe' : '';
+      const binPath = path.join(SlangPaths.BinDir, SlangBuildConfigs.Release, 'slang' + binaryExt);
       const targetPath = stripSuffix(profile, SlangFileSuffixes.Profile) + SlangFileSuffixes.Binary;
       await Deno.copyFile(binPath, targetPath);
     }
@@ -118,8 +119,9 @@ export const runPgoBenchProfiles = async (numRuns = 10) => {
   // Add a normal release build to the binaries
   info('Building and adding release build to the binaries');
   await buildSlangConfig(SlangBuildConfigs.Release, null, true);
+  const binaryExt = process.platform === 'win32' ? '.exe' : '';
   binaries.push({
-    binPath: path.join(SlangPaths.BinDir, SlangBuildConfigs.Release, 'slang'),
+    binPath: path.join(SlangPaths.BinDir, SlangBuildConfigs.Release, 'slang' + binaryExt),
     tppName: 'control',
     name: 'slang(release)',
   });
@@ -207,7 +209,8 @@ const makeExtendedBenchRawFilePath = (name: string, bench: string) =>
   path.join(SlangPaths.ProfileDir, 'extended-bench-raw-' + name + '-' + bench + '.json');
 
 export const runExtendedBench = async (numRuns = 10) => {
-  const BEST_PGO_BINARY = 'C:\\Projects\\slang\\profile\\list.slang.exe';
+  // Use the list.slang binary from the profile directory (platform-agnostic)
+  const BEST_PGO_BINARY = path.join(SlangPaths.ProfileDir, 'list' + SlangFileSuffixes.Binary);
 
   info(`Running extended bench-suite ${numRuns} times`);
   separator();

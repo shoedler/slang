@@ -87,7 +87,8 @@ export const runSlangFile = (
   runFlags: SlangRunFlags[] = [],
   signal: AbortSignal | null = null,
 ): Promise<{ exitCode: number | null; stdoutOutput: string; stderrOutput: string }> => {
-  const cmd = `${path.join(SlangPaths.BinDir, buildConfig, 'slang.exe')} run ${runFlags.join(' ')} ${file}`;
+  const binaryExt = process.platform === 'win32' ? '.exe' : '';
+  const cmd = `${path.join(SlangPaths.BinDir, buildConfig, 'slang' + binaryExt)} run ${runFlags.join(' ')} ${file}`;
   const options = signal ? { signal } : {};
   const child = spawn(cmd, { shell: true, ...options });
 
@@ -256,14 +257,28 @@ export const gitStatus = async (): Promise<{ date: string; hash: string; message
  * @returns Promise that resolves to the processor name
  */
 export const getProcessorName = async (): Promise<string> => {
-  const cmd = 'wmic cpu get name';
+  let cmd: string;
+  let parseOutput: (output: string) => string;
+
+  if (process.platform === 'win32') {
+    cmd = 'wmic cpu get name';
+    parseOutput = output => output.split('\r\n')[1]?.trim() || 'COULD NOT GET PROCESSOR NAME';
+  } else if (process.platform === 'linux') {
+    cmd = 'cat /proc/cpuinfo | grep "model name" | head -n1 | cut -d: -f2';
+    parseOutput = output => output.trim() || 'COULD NOT GET PROCESSOR NAME';
+  } else if (process.platform === 'darwin') {
+    cmd = 'sysctl -n machdep.cpu.brand_string';
+    parseOutput = output => output.trim() || 'COULD NOT GET PROCESSOR NAME';
+  } else {
+    return 'UNSUPPORTED PLATFORM';
+  }
+
   info(`Getting processor name`, `Command: "${cmd}"`);
-  const labelAndName =
-    (await runProcess(cmd, `Getting processor name failed`)).output ?? ' \r\nCOULD NOT GET PROCESSOR NAME';
-  return labelAndName.split('\r\n')[1].trim();
+  const output = (await runProcess(cmd, `Getting processor name failed`, null, false, true)).output ?? '';
+  return parseOutput(output);
 };
 
-type LogType = 'err' | 'abort' | 'info' | 'ok' | 'warn' | 'debug' | 'pass' | 'skip' | 'fail';
+type LogType = 'err' | 'abort' | 'info' | 'ok' | 'warn' | 'debug' | 'pass' | 'skip' | 'fail' | 'done' | 'next';
 
 /**
  * Object containing log configuration.
@@ -275,15 +290,17 @@ type LogType = 'err' | 'abort' | 'info' | 'ok' | 'warn' | 'debug' | 'pass' | 'sk
  */
 // prettier-ignore
 export const LOG_CONFIG: Record<LogType, [string, ChalkInstance, string, ChalkInstance]> = {
-  err:   [ '█ Error', chalk.red.bold,           '│      ', chalk.red.bold           ],
-  abort: [ '█ Abort', chalk.red.bold,           '│      ', chalk.red.bold           ],
-  info:  [ '█ Info ', chalk.gray.bold,          '│      ', chalk.gray.bold          ],
-  ok:    [ '█ Ok   ', chalk.green.bold,         '│      ', chalk.green.bold         ],
-  warn:  [ '█ Warn ', chalk.yellowBright.bold,  '│      ', chalk.yellowBright.bold  ],
-  debug: [ '█ Debug', chalk.magentaBright.bold, '│      ', chalk.magentaBright.bold ],
-  pass:  [ ' Pass ',  chalk.bgGreen.black,      '│     ',  chalk.green              ],
-  skip:  [ ' skip ',  chalk.bgBlue.white,       '│     ',  chalk.blue               ],
-  fail:  [ ' Fail ',  chalk.bgRed.white,        '│     ',  chalk.red                ],
+  err:   [ '█ Error', chalk.red.bold,              '│      ', chalk.red.bold           ],
+  abort: [ '█ Abort', chalk.red.bold,              '│      ', chalk.red.bold           ],
+  info:  [ '█ Info ', chalk.gray.bold,             '│      ', chalk.gray.bold          ],
+  ok:    [ '█ Ok   ', chalk.green.bold,            '│      ', chalk.green.bold         ],
+  warn:  [ '█ Warn ', chalk.yellowBright.bold,     '│      ', chalk.yellowBright.bold  ],
+  debug: [ '█ Debug', chalk.magentaBright.bold,    '│      ', chalk.magentaBright.bold ],
+  pass:  [ ' Pass ',  chalk.bgGreen.black,         '│     ',  chalk.green              ],
+  skip:  [ ' skip ',  chalk.bgBlue.white,          '│     ',  chalk.blue               ],
+  fail:  [ ' Fail ',  chalk.bgRed.white,           '│     ',  chalk.red                ],
+  done:  [ ' Done ',  chalk.bgGreen.black,         '│     ',  chalk.green              ],
+  next:  [ '->',      chalk.magentaBright.bold,    '│     ',  chalk.magentaBright      ]
 }
 
 /**

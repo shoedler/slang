@@ -3,8 +3,8 @@ import Math
 
 const [raw_rules, raw_updates] = File
   .read(cwd() + "/fuzzy-aoc-2024-day-05.txt")
-  .split("\r\n\r\n")
-  .map(fn(p) -> p.trim().split("\r\n"))
+  .split(File.newl + File.newl)
+  .map(fn(p) -> p.trim().split(File.newl))
 
 const rule_pairs = raw_rules.map(fn(r) -> r.split("|").map(Int))
 const updates = raw_updates.map(fn(u) -> Tuple(u.split(",").map(Int)))

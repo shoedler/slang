@@ -1,5 +1,8 @@
 let time = clock()
 let another_time = clock()
 
-print another_time - time // [expect] 0
-print clock               // [expect] <NativeFn clock>
+const t = (another_time - time)
+print t is Num  // [expect] true
+print t < 0.01  // [expect] true
+print t >= 0    // [expect] true
+print clock     // [expect] <NativeFn clock>

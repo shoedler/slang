@@ -9,7 +9,7 @@ let num_valves = 0
 
 File
   .read(cwd() + "input.txt")
-  .split("\r\n")
+  .split(File.newl)
   .each(fn (line, i) {
     let [left, right] = line.split(";")
 

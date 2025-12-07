@@ -84,8 +84,8 @@ bool file_exists(const char* path) {
   return false;
 }
 
-// Cleans a path (windows-style) by replacing all '/' with '\'. Returns a new string with the normalized
-// path. The caller is responsible for freeing the returned string.
+// Cleans a path by replacing all path separators with the platform's native separator.
+// Returns a new string with the normalized path. The caller is responsible for freeing the returned string.
 char* clean_path(const char* path, bool no_prefixed_separators) {
   if (path == NULL || *path == '\0') {
     return strdup("");  // Return an empty string for NULL or empty input
@@ -103,7 +103,7 @@ char* clean_path(const char* path, bool no_prefixed_separators) {
     if (path[i] == '/' || path[i] == '\\') {
       // Skip slashes at the beginning
       if (write_index != 0 || !no_prefixed_separators) {
-        result[write_index++] = '\\';  // Use backslash for Windows
+        result[write_index++] = SLANG_PATH_SEPARATOR;  // Use platform-specific separator
       }
 
       // Skip additional slashes
@@ -133,11 +133,11 @@ char* file_join_path(const char* path_a, const char* path_b) {
   }
 
   strcpy(joined_path, clean_a);
-  bool a_ends_with_slash   = len_a > 0 && clean_a[len_a - 1] == '\\';
-  bool b_starts_with_slash = clean_b[0] == '\\';
+  bool a_ends_with_slash   = len_a > 0 && clean_a[len_a - 1] == SLANG_PATH_SEPARATOR;
+  bool b_starts_with_slash = clean_b[0] == SLANG_PATH_SEPARATOR;
   // Add a slash if necessary
   if (!a_ends_with_slash && !b_starts_with_slash) {
-    strcat(joined_path, "\\");
+    strcat(joined_path, SLANG_PATH_SEPARATOR_STR);
   }
   // Remove a slash if necessary
 
