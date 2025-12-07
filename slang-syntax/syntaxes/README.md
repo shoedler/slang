@@ -4,14 +4,65 @@ This directory contains syntax highlighting files for SlangScript.
 
 ## Available Files
 
-- **slang.tmLanguage.json** - TextMate grammar for VSCode and other editors
+- **slang.tmLanguage.json** - TextMate grammar for VSCode and other editors  
 - **slangscript.vim** - Vim/Neovim syntax file for simple syntax highlighting
 
 ## Installation (Neovim/Vim)
 
 > **Note:** The filetype is set to `slangscript` to avoid conflicts with Vim's built-in S-Lang syntax file.
+> 
+> **Important:** Vim has built-in support for `.sl` files (for the S-Lang language). To use SlangScript syntax highlighting, you need to explicitly set the filetype as shown below.
 
-### Option 1: Manual Installation
+### Quick Install with Plugin Managers
+
+#### Using lazy.nvim (Recommended for Neovim)
+
+Add to your lazy.nvim config:
+
+```lua
+{
+  dir = "/path/to/slang/slang-syntax",
+  lazy = false,
+  config = function()
+    -- Override Vim's built-in .sl filetype detection
+    vim.api.nvim_create_autocmd({"BufRead", "BufNewFile"}, {
+      pattern = "*.sl",
+      callback = function()
+        vim.bo.filetype = "slangscript"
+      end,
+    })
+  end,
+}
+```
+
+#### Using packer.nvim
+
+```lua
+use {
+  '/path/to/slang/slang-syntax',
+  config = function()
+    vim.api.nvim_create_autocmd({"BufRead", "BufNewFile"}, {
+      pattern = "*.sl",
+      callback = function()
+        vim.bo.filetype = "slangscript"
+      end,
+    })
+  end,
+}
+```
+
+#### Using vim-plug
+
+Add to your .vimrc or init.vim:
+
+```vim
+Plug '/path/to/slang/slang-syntax'
+
+" Override Vim's built-in .sl filetype detection
+autocmd BufRead,BufNewFile *.sl set filetype=slangscript
+```
+
+### Manual Installation
 
 1. Copy `slangscript.vim` to your Neovim/Vim syntax directory:
    ```bash
@@ -37,60 +88,25 @@ This directory contains syntax highlighting files for SlangScript.
    ]])
    ```
 
-### Option 2: Using lazy.nvim (Recommended for Neovim)
-
-Add to your lazy.nvim config:
-
-```lua
-{
-  dir = "/path/to/slang/slang-syntax",
-  lazy = false,
-  config = function()
-    vim.cmd([[
-      au BufRead,BufNewFile *.sl set filetype=slangscript
-    ]])
-  end,
-}
-```
-
-### Option 3: Using packer.nvim
-
-```lua
-use {
-  '/path/to/slang/slang-syntax',
-  config = function()
-    vim.cmd([[
-      au BufRead,BufNewFile *.sl set filetype=slangscript
-    ]])
-  end,
-}
-```
-
-### Option 4: Using vim-plug
-
-Add to your .vimrc or init.vim:
-
-```vim
-Plug '/path/to/slang/slang-syntax'
-au BufRead,BufNewFile *.sl set filetype=slangscript
-```
-
-### Option 5: Adding to runtimepath directly
+### Advanced: Adding to runtimepath
 
 In your init.vim or .vimrc:
 
 ```vim
-set runtimepath+=path/to/slang/slang-syntax
-au BufRead,BufNewFile *.sl set filetype=slangscript
+set runtimepath+=/path/to/slang/slang-syntax
+autocmd BufRead,BufNewFile *.sl set filetype=slangscript
 ```
 
 Or in init.lua:
 
 ```lua
 vim.opt.runtimepath:append('/path/to/slang/slang-syntax')
-vim.cmd([[
-  au BufRead,BufNewFile *.sl set filetype=slangscript
-]])
+vim.api.nvim_create_autocmd({"BufRead", "BufNewFile"}, {
+  pattern = "*.sl",
+  callback = function()
+    vim.bo.filetype = "slangscript"
+  end,
+})
 ```
 
 ## Maintenance
