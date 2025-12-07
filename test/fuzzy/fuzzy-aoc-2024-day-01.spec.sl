@@ -3,7 +3,7 @@ import Math
 
 const nums = File
   .read(cwd() + "/fuzzy-aoc-2024-day-01.txt")
-  .split("\r\n")
+  .split(File.newl)
   .map(fn (line) -> line.split("   ").map(Int))
 
 const L = nums.map(fn (p) -> p[0]).sort()

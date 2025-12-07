@@ -7,7 +7,7 @@ Gc.stress(false) // ⚠️ Disable stress mode which is enabled by default for t
 
 const conns = File
   .read(cwd() + "/fuzzy-aoc-2024-day-23.txt")
-  .split("\r\n")
+  .split(File.newl)
   .fold({}, fn(edges, line) {
     const [l,r] = line.split("-")
     if edges[l] != nil edges[l].push(r) else edges[l] = [r]

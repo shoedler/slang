@@ -15,7 +15,7 @@ let num_valves = 0
 fn solve {
   File
     .read(cwd() + "fuzzy-aoc-2022-day-16.txt")
-    .split("\r\n")
+    .split(File.newl)
     .each(fn (line, i) {
       let [left, right] = line.split(";")
 

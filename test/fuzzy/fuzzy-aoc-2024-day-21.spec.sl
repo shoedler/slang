@@ -3,7 +3,7 @@ import Math
 
 const codes = File
   .read(cwd() + "/fuzzy-aoc-2024-day-21.txt")
-  .split("\r\n")
+  .split(File.newl)
 
 const NUM_KEYS = [
   "789",

@@ -6,7 +6,7 @@ Gc.stress(false)
 
 const grid = File
   .read(cwd() + "/fuzzy-aoc-2024-day-08.txt")
-  .split("\r\n")
+  .split(File.newl)
   .map(fn(row) -> row.split(""))
 
 const antennas = {}
