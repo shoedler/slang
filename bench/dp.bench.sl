@@ -3,8 +3,8 @@ import Math
 import Perf
 
 const codes = File
-  .read(cwd() + "/dp.bench.input")
-  .split("\r\n")
+  .read(cwd() + File.sep +"dp.bench.input")
+  .split(File.newl)
 
 const NUM_KEYS = [
   "789",

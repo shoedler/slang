@@ -2,8 +2,8 @@ import File
 import Perf
 
 const map = File
-  .read(cwd() + "/bfs.bench.input")
-  .split("\r\n")
+  .read(cwd() + File.sep + "/bfs.bench.input")
+  .split(File.newl)
 
 const start = Perf.now()
 
