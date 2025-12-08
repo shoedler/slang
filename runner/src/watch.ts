@@ -32,8 +32,13 @@ export const watch = (
     try {
       const now = new Date();
       info('Change detected, running action...', triggerFilename);
+      const start = performance.now();
       await action(controller.signal, triggerFilename);
-      debug(`Last run was on ${now.toLocaleDateString(LOCALE) + ' at ' + now.toLocaleTimeString(LOCALE)}`);
+      const duration = performance.now() - start;
+      debug(
+        `Last run was on ${now.toLocaleDateString(LOCALE) + ' at ' + now.toLocaleTimeString(LOCALE)}`,
+        `Took ${duration.toFixed(2)}ms`,
+      );
       info('Waiting for changes...', `Path: ${path}, Trigger: ${trigger.toString().replace(/\=\>\s+/, '=> ')}`);
       info('Exit with SIGINT', 'Ctrl+C');
       warn('Stdout and stderr might not be in order');

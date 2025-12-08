@@ -158,7 +158,6 @@ switch (cmd) {
     info('Running slang file', SlangPaths.SampleFile);
     const { stdoutOutput, stderrOutput } = await runSlangFile(SlangPaths.SampleFile, config);
 
-    separator();
     console.log(stdoutOutput);
     if (stderrOutput) {
       console.log(stderrOutput);
@@ -193,7 +192,6 @@ switch (cmd) {
         const { stdoutOutput, stderrOutput } = await runSlangFile(sampleFilePath, config, [], signal);
         console.clear();
 
-        separator();
         console.log(stdoutOutput);
         if (stderrOutput) {
           console.log(stderrOutput);

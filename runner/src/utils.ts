@@ -306,7 +306,7 @@ export const LOG_CONFIG: Record<LogType, [string, ChalkInstance, string, ChalkIn
 /**
  * Prints a separator
  */
-export const separator = () => console.log(chalk.gray('─'.repeat(80)));
+export const separator = () => console.log(chalk.gray('─'.repeat(process.stdout.columns - 1)));
 
 /**
  * Log a styled message to the console.
