@@ -475,6 +475,7 @@ static CallResult invoke(ObjClass* source_klass, ObjString* name, int arg_count)
   }
 
   // It could be a static method if the receiver is a class
+  // TODO: Could also be a field via class->static_fields. But I like that you can't even invoke that - bc IT'S A FIELD
   if (is_class(receiver)) {
     ObjClass* klass_ = AS_CLASS(receiver);
     if (hashtable_get_by_string(&klass_->static_methods, name, &method)) {

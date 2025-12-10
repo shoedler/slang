@@ -51,6 +51,7 @@ ObjClass* new_class(ObjString* name, ObjClass* base) {
 
   hashtable_init(&klass->methods);
   hashtable_init(&klass->static_methods);
+  hashtable_init(&klass->static_fields);
   return klass;
 }
 

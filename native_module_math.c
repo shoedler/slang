@@ -16,6 +16,7 @@ static Value native_math_shl(int argc, Value argv[]);
 static Value native_math_shr(int argc, Value argv[]);
 static Value native_math_bor(int argc, Value argv[]);
 static Value native_math_band(int argc, Value argv[]);
+static Value native_math_sqrt(int argc, Value argv[]);
 // static Value native_math_max(int argc, Value argv[]);
 // static Value native_math_min(int argc, Value argv[]);
 
@@ -34,6 +35,7 @@ void native_register_math_module() {
   define_native(&math_module->fields, "shr", native_math_shr, 2);
   define_native(&math_module->fields, "bor", native_math_bor, 2);
   define_native(&math_module->fields, "band", native_math_band, 2);
+  define_native(&math_module->fields, "sqrt", native_math_sqrt, 1);
   // define_native(&math_module->fields, "max", native_math_max, -1);
   // define_native(&math_module->fields, "min", native_math_min, -1);
 }
@@ -166,6 +168,21 @@ static Value native_math_band(int argc, Value argv[]) {
   NATIVE_CHECK_ARG_AT_INHERITS(2, vm.int_class);
 
   return int_value(argv[1].as.integer & argv[2].as.integer);
+}
+
+/**
+ * MODULE_NAME.sqrt(num: TYPENAME_NUM) -> TYPENAME_FLOAT
+ * @brief Returns the square root of num
+ */
+static Value native_math_sqrt(int argc, Value argv[]) {
+  UNUSED(argc);
+  UNUSED(argv);
+  NATIVE_CHECK_ARG_AT_INHERITS(1, vm.num_class);
+  if (is_int(argv[1])) {
+    return float_value(sqrt(argv[1].as.integer));
+  }
+
+  return float_value(sqrt(argv[1].as.float_));
 }
 
 // /**

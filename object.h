@@ -109,6 +109,7 @@ typedef struct ObjClass {
   ObjString* name;
   HashTable methods;
   HashTable static_methods;
+  HashTable static_fields;
   struct ObjClass* base;
 
   GetPropFn __get_prop;

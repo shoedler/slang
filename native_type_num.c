@@ -84,6 +84,9 @@ ObjClass* native_int_class_partial_init(ObjClass* num_base_class) {
 }
 
 void native_int_class_finalize() {
+  define_value(&vm.int_class->static_fields, "max", float_value(SLANG_INT_MAX));
+  define_value(&vm.int_class->static_fields, "min", float_value(SLANG_INT_MIN));
+
   define_native(&vm.int_class->methods, STR(SP_METHOD_CTOR), int_ctor, 1);
   define_native(&vm.int_class->methods, STR(SP_METHOD_TO_STR), int_to_str, 0);
   define_native(&vm.int_class->methods, STR(SP_METHOD_ADD), int_add, 1);
@@ -113,6 +116,14 @@ ObjClass* native_float_class_partial_init(ObjClass* num_base_class) {
 }
 
 void native_float_class_finalize() {
+  define_value(&vm.float_class->static_fields, "max", float_value(SLANG_FLOAT_MAX));
+  define_value(&vm.float_class->static_fields, "min", float_value(SLANG_FLOAT_MIN));
+
+  define_value(&vm.float_class->static_fields, "nan", float_value(SLANG_FLOAT_NAN));
+  define_value(&vm.float_class->static_fields, "nnan", float_value(SLANG_FLOAT_NNAN));
+  define_value(&vm.float_class->static_fields, "inf", float_value(SLANG_FLOAT_INF));
+  define_value(&vm.float_class->static_fields, "ninf", float_value(SLANG_FLOAT_NINF));
+  
   define_native(&vm.float_class->methods, STR(SP_METHOD_CTOR), float_ctor, 1);
   define_native(&vm.float_class->methods, STR(SP_METHOD_TO_STR), float_to_str, 0);
   define_native(&vm.float_class->methods, STR(SP_METHOD_ADD), float_add, 1);

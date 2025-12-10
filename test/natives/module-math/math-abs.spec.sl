@@ -25,8 +25,3 @@ print c // [expect] 1
 print a is Float // [expect] true
 print b is Float // [expect] true
 print c is Float // [expect] true
-
-
-
-
-

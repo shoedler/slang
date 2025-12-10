@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <math.h>
+#include <float.h>
+#include <limits.h>
 
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
@@ -69,13 +72,29 @@ typedef struct ObjClass ObjClass;
 // Switchover point for quicksort to insertion sort.
 #define VALUE_ARRAY_QUICKSORT_THRESHOLD 50
 
+// Type mapping
+// TODO: Replace double and long long in codebase with macro
+#define SLANG_TYPE_FLOAT double
+#define SLANG_TYPE_INT long long
+
+// Bounds
+#define SLANG_FLOAT_MAX DBL_MAX
+#define SLANG_FLOAT_MIN -DBL_MAX
+#define SLANG_FLOAT_NAN NAN
+#define SLANG_FLOAT_NNAN -NAN
+#define SLANG_FLOAT_INF INFINITY
+#define SLANG_FLOAT_NINF -INFINITY
+
+#define SLANG_INT_MAX LLONG_MAX
+#define SLANG_INT_MIN LLONG_MIN
+
 // The single value construct used to represent all values in the language.
 typedef struct {
   ObjClass* type;
   union {
     bool boolean;
-    double float_;
-    long long integer;
+    SLANG_TYPE_FLOAT float_;
+    SLANG_TYPE_INT integer;
     uint16_t handler;
     Obj* obj;
   } as;

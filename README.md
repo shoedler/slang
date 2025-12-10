@@ -102,7 +102,6 @@ You can, for example, easily cache stuff:
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
 - [ ] Add a mimalloc segfault handler.
-- [ ] Implement `Float.nan` and `Float.inf` constants (Would require static fields).
 - [ ] Add test for `Math.pow(Int, Int) -> Int` (Or maybe move to `Int`?)
 - [ ] Add test for `Math.xor(Int, Int) -> Int` (Or maybe move to `Int`?)
 - [ ] Add test for `Math.shl(Int, Int) -> Int` (Or maybe move to `Int`?)
@@ -118,6 +117,7 @@ You can, for example, easily cache stuff:
 - [ ] Add test for `Str.SP_METHOD_GTEQ(Str) -> Bool`
 - [ ] Maybe check for `NULL` functions in `vm_exec_callable` instead of before calling it - would add some overhead though.
 - [ ] Collect compile-time errors as strings and print them either directly when they occur (when compiling an entry point), or, as part of a failed import error message (runtime error). Currently, the compiler pipeline directly prints to stderr, which is a little confusing, as e.g. parser errors will be printed before the runtime error message for a failed import. see `module-import-wiht-compile-error.spec.sl` for an example.
+- [x] ~~Implement `Float.nan` and `Float.inf` constants (Would require static fields).~~
 - [x] ~~Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.~~
 - [x] ~~Add `Tuple.order` test.~~
 - [x] ~~Remove `"" + value.to_str()` throughout the codebase, `"" + value` should now work.~~
@@ -143,6 +143,7 @@ You can, for example, easily cache stuff:
 
 ## Codebase Refactors
 
+- [ ] Use `SLANG_TYPE_FLOAT` and `SLANG_TYPE_INT` instead of `double` and `long long` in the entire codebase.
 - [ ] Align doc-comment style to use `/**` everywhere.
 - [ ] Align error messages. Some use `'` around names, or type names, some don't.
 - [ ] Make a `NATIVE_METHOD_RUNTIME_ERROR(class_name, method_name)` macro, which throws a runtime error with a nice prefix and always returns `NIL_VAL`. Use this in all `NATIVE_METHOD_IMPL` functions.

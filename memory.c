@@ -80,6 +80,7 @@ void free_obj(Obj* object) {
       ObjClass* klass = (ObjClass*)object;
       hashtable_free(&klass->methods);
       hashtable_free(&klass->static_methods);
+      hashtable_free(&klass->static_fields);
       FREE(ObjClass, object);
       break;
     }
@@ -193,6 +194,7 @@ static void blacken_object(Obj* object) {
       mark_obj((Obj*)klass->base);
       mark_hashtable(&klass->methods);
       mark_hashtable(&klass->static_methods);
+      mark_hashtable(&klass->static_fields);
       break;
     }
     case OBJ_GC_CLOSURE: {

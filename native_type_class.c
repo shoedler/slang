@@ -49,6 +49,9 @@ static bool class_get_prop(Value receiver, ObjString* name, Value* result) {
   if (hashtable_get_by_string(&klass->static_methods, name, result)) {
     return true;
   }
+  if (hashtable_get_by_string(&klass->static_fields, name, result)) {
+    return true;
+  }
   // You can also get a class' ctor. Obviously, it'll not get bound to the class
   if (name == vm.special_method_names[SPECIAL_METHOD_CTOR]) {
     *result = klass->__ctor == NULL ? nil_value() : fn_value(klass->__ctor);
