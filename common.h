@@ -1,7 +1,7 @@
 #ifndef common_h
 #define common_h
 
-#include <mimalloc-3.1/mimalloc.h>
+#include <mimalloc.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
