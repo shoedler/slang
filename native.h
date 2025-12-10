@@ -1137,6 +1137,43 @@ uint64_t native_default_obj_hash(Value self);
   return min;
 
 /**
+ * TYPENAME_T.max() -> TYPENAME_VALUE
+ * @brief Returns the largest item of a TYPENAME_T. Returns TYPENAME_NIL if the
+ * TYPENAME_T is empty. Uses the default "SP_METHOD_GT" method of the items type
+ * to compare the items.
+ */
+#define NATIVE_LISTLIKE_MAX_BODY(class)                                                                                    \
+  UNUSED(argc);                                                                                                            \
+  NATIVE_CHECK_RECEIVER(class);                                                                                            \
+                                                                                                                           \
+  ValueArray items = NATIVE_LISTLIKE_GET_ARRAY(argv[0]);                                                                   \
+  if (items.count == 0) {                                                                                                  \
+    return nil_value();                                                                                                    \
+  }                                                                                                                        \
+                                                                                                                           \
+  Value max = items.values[0];                                                                                             \
+  for (int i = 0; i < items.count; i++) {                                                                                  \
+    vm_push(max);                                                                                                          \
+    vm_push(items.values[i]);                                                                                              \
+    Value result = vm_exec_callable(fn_value(max.type->__gt), 1);                                                          \
+    if (VM_HAS_FLAG(VM_FLAG_HAS_ERROR)) {                                                                                  \
+      return nil_value();                                                                                                  \
+    }                                                                                                                      \
+                                                                                                                           \
+    if (!is_bool(result)) {                                                                                                \
+      vm_error("Method \"%s." STR(SP_METHOD_GT) "\" must return a " STR(TYPENAME_BOOL) ". Got %s.", max.type->name->chars, \
+               result.type->name->chars);                                                                                  \
+      return nil_value();                                                                                                  \
+    }                                                                                                                      \
+                                                                                                                           \
+    if (!result.as.boolean) {                                                                                              \
+      max = items.values[i];                                                                                               \
+    }                                                                                                                      \
+  }                                                                                                                        \
+                                                                                                                           \
+  return max;
+
+/**
  * TYPENAME_T.sum() -> TYPENAME_VALUE
  * @brief Sums all the items of a TYPENAME_T using the items "SP_METHOD_ADD". Returns TYPENAME_NIL if the TYPENAME_T is empty.
  * Uses the "SP_METHOD_ADD" method of the items type to add the items.

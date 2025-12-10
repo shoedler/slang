@@ -28,6 +28,7 @@ static Value tuple_concat(int argc, Value argv[]);
 static Value tuple_order(int argc, Value argv[]);
 static Value tuple_sort(int argc, Value argv[]);
 static Value tuple_min(int argc, Value argv[]);
+static Value tuple_max(int argc, Value argv[]);
 static Value tuple_sum(int argc, Value argv[]);
 
 ObjClass* native_tuple_class_partial_init() {
@@ -74,6 +75,7 @@ void native_tuple_class_finalize() {
   define_native(&vm.tuple_class->methods, "order", tuple_order, 1);
   define_native(&vm.tuple_class->methods, "sort", tuple_sort, 0);
   define_native(&vm.tuple_class->methods, "min", tuple_min, 0);
+  define_native(&vm.tuple_class->methods, "max", tuple_max, 0);
   define_native(&vm.tuple_class->methods, "sum", tuple_sum, 0);
   finalize_new_class(vm.tuple_class);
 }
@@ -168,6 +170,9 @@ static Value tuple_sort(int argc, Value argv[]) {
 }
 static Value tuple_min(int argc, Value argv[]) {
   NATIVE_LISTLIKE_MIN_BODY(vm.tuple_class);
+}
+static Value tuple_max(int argc, Value argv[]) {
+  NATIVE_LISTLIKE_MAX_BODY(vm.tuple_class);
 }
 static Value tuple_sum(int argc, Value argv[]) {
   NATIVE_LISTLIKE_SUM_BODY(vm.tuple_class);
