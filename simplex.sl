@@ -1,3 +1,20 @@
+// Simplex Algorithm and Integer Linear Programming Solver
+// Converted from Python to Slang
+//
+// This program implements:
+// 1. The Simplex Algorithm for Linear Programming
+// 2. Branch-and-Bound Integer Linear Programming (ILP) solver
+// 3. Part 1: BFS solution using bitmasks
+// 4. Part 2: ILP-based solution
+//
+// Input format (in input.txt):
+// Each line: <mask> <tuple1> <tuple2> ... <costs>
+// Example: ##..## (0,1) (2,3) [1,2,3,4,5,6]
+// Where:
+// - <mask> is a string of # and . characters (# = 1, . = 0)
+// - <tuples> are space-separated coordinate pairs like (0,1)
+// - <costs> is an array of integers like [1,2,3,4,5,6]
+
 import File
 import Math
 
