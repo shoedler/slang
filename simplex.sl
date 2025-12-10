@@ -49,9 +49,9 @@ fn simplex(A, C) {
       if j < n {
         row.push(A[i][j])
       } else if j == n {
-        row.push(-1)
-      } else {
         row.push(A[i][n])
+      } else {
+        row.push(-1)
       }
     }
     D.push(row)
