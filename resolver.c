@@ -140,7 +140,9 @@ static void end_scope(FnResolver* resolver) {
 #endif
       continue;
     }
-    resolver_warning(resolver, entry->value->source, "Variable '%s' is declared but never used.", entry->key->chars);
+    if (strncmp(entry->key->chars, "_", entry->key->length) != 0) {
+      resolver_warning(resolver, entry->value->source, "Variable '%s' is declared but never used.", entry->key->chars);
+    }
   }
 
   resolver->current_scope = enclosing;
