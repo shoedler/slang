@@ -207,7 +207,12 @@ fn ilp(A) {
   let bval = INF
   let bsol = nil
   
-  fn branch(A_current) {
+  fn branch(A_current, depth) {
+    // Safety limit to prevent stack overflow
+    if depth > 1000 {
+      ret
+    }
+    
     let val_x = simplex(A_current, (fn() {
       let c = []
       for let i = 0; i < n; i++; {
@@ -259,7 +264,7 @@ fn ilp(A) {
         A1.push(A_current[i])
       }
       A1.push(s1)
-      branch(A1)
+      branch(A1, depth + 1)
       
       let s2 = []
       for let i = 0; i < n; i++; {
@@ -273,11 +278,11 @@ fn ilp(A) {
         A2.push(A_current[i])
       }
       A2.push(s2)
-      branch(A2)
+      branch(A2, depth + 1)
     }
   }
   
-  branch(A)
+  branch(A, 0)
   if bval == INF {
     ret 0  // No solution found
   }
@@ -380,11 +385,11 @@ for let line_idx = 0; line_idx < lines.len; line_idx++; {
     }
   }
   
-  // Convert binary string to number
+  // Convert binary string to number (MSB first)
   let m_num = 0
   for let i = 0; i < m_reversed.len; i++; {
     if m_reversed[i] == "1" {
-      m_num = m_num + Math.shl(1, i)
+      m_num = m_num + Math.shl(1, m_reversed.len - 1 - i)
     }
   }
   
