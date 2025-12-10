@@ -1,5 +1,5 @@
 #if defined(__linux__)
-  #define _DEFAULT_SOURCE  // For usleep
+#define _DEFAULT_SOURCE  // For usleep
 #endif
 
 #include "gc.h"
@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "common.h"
 #include "gc_deque.h"
 #include "hashtable.h"
@@ -17,14 +18,14 @@
 #include "vm.h"
 
 #if SLANG_PLATFORM_WINDOWS
-  #include <handleapi.h>
-  #include <minwindef.h>
-  #include <synchapi.h>
-  #include <windows.h>
-  #include <winnt.h>
+#include <handleapi.h>
+#include <minwindef.h>
+#include <synchapi.h>
+#include <windows.h>
+#include <winnt.h>
 #elif SLANG_PLATFORM_LINUX
-  #include <unistd.h>
-  #include <sched.h>
+#include <sched.h>
+#include <unistd.h>
 #endif
 
 #if defined(DEBUG_GC_WORKER) || defined(DEBUG_GC_SWEEP)
@@ -60,11 +61,7 @@ typedef struct {
 static GCThreadPool gc_thread_pool = {0};
 
 // Thread-local storage
-#if SLANG_PLATFORM_WINDOWS
-static __declspec(thread) GCWorker* current_worker = NULL;
-#elif SLANG_PLATFORM_LINUX
 static __thread GCWorker* current_worker = NULL;
-#endif
 
 void gc_assign_current_worker(int worker_id) {
   if (worker_id == -1) {
@@ -155,7 +152,7 @@ void gc_wait_for_workers() {
         break;
       }
     }
-    
+
     // If not all done, yield to reduce CPU contention
     if (!all_done) {
 #if SLANG_PLATFORM_LINUX
