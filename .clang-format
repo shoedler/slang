@@ -1,0 +1,7 @@
+BasedOnStyle: Chromium
+ColumnLimit: 130
+AlignConsecutiveAssignments: true
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: false
+BraceWrapping:
+  AfterEnum: true
