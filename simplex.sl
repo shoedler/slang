@@ -21,6 +21,7 @@ import Math
 // Constants
 const INF = Float.inf
 const EPS = 0.000000001
+const ASCII_ZERO = 48  // ASCII value of '0' for digit parsing
 
 // Simplex algorithm for linear programming
 fn simplex(A, C) {
@@ -296,6 +297,7 @@ for let line_idx = 0; line_idx < lines.len; line_idx++; {
   
   let parts = l.split(" ")
   let m = parts[0]
+  // n is the number of bits (mask length minus 2 for the leading/trailing '#')
   let n = m.len - 2
   
   // Parse p values (button presses)
@@ -321,7 +323,7 @@ for let line_idx = 0; line_idx < lines.len; line_idx++; {
         start = 1
       }
       for let k = start; k < num_str.len; k++; {
-        num = num * 10 + (num_str.ascii_at(k) - 48)
+        num = num * 10 + (num_str.ascii_at(k) - ASCII_ZERO)
       }
       if neg num = -num
       indices.push(num)
@@ -344,7 +346,7 @@ for let line_idx = 0; line_idx < lines.len; line_idx++; {
       start = 1
     }
     for let k = start; k < num_str.len; k++; {
-      num = num * 10 + (num_str.ascii_at(k) - 48)
+      num = num * 10 + (num_str.ascii_at(k) - ASCII_ZERO)
     }
     if neg num = -num
     c.push(num)
@@ -415,7 +417,9 @@ for let line_idx = 0; line_idx < lines.len; line_idx++; {
   }
   
   for let i = 0; i < p.len; i++; {
-    // ~i in Python is -(i+1), which as a negative index means len-i-1
+    // Python's ~i is bitwise NOT, which equals -(i+1)
+    // As a negative index, this means: array[len - (i+1)] = array[len - i - 1]
+    // This places constraints for each variable at the end of the matrix
     let row_idx = num_rows - i - 1
     A[row_idx][i] = -1
     for let j = 0; j < p[i].len; j++; {
