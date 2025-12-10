@@ -33,6 +33,20 @@ You can, for example, easily cache stuff:
 
 # Roadmap for Version 1.0
 
+## Bugs
+
+- [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hashing tuples containing negative `Int`s). UPDATE: Found it. It's the hashing of integers thats the issue.
+- [ ] 🐛 Fix `skip` in nested function in a loop resulting in a segfault. This doesn't get picked up by the compilation pipeline, we're not in a loop here:
+  ```
+  let i
+  while i < 10 {
+    buttons.each(fn(button) {
+      if true
+        skip
+    })
+  }
+  ```
+
 ## Compiler rebuild
 
 - [ ] Fix "unused var" warnings for late-bound globals
@@ -51,15 +65,14 @@ You can, for example, easily cache stuff:
 
 ## Features
 
-- [ ] 🐛 Fix tuple hashing for tuples containing negative values (Encountered this in AOC '24 day 22 when hasing tuples containing negative `Int`s). UPDATE: Found it. It's the hashing of integers thats the issue.
 - [ ] Allow `Tuple.inside = fn(this) -> (this[0]>=0 and this[0]<ROWS) and (this[1]>=0 and this[1]<COLS)`
 - [ ] Implement `for ... in ...;` loops (Implement Iterators)
 - [ ] Add nillish coalescing operator `??` e.g. `let x = [1] <newline> let v = x[1] ?? 0`
 - [ ] Implement `Seq.mapat(Int, Fn) -> Seq`. (Map only the element at the given index but return the whole sequence)
-- [ ] Implement `Seq.cull(Value|Fn) -> Seq`. (Remove all elements that are equal to the argument or satisfy the predicate)
 - [ ] Implement `Seq.zip(Seq, Seq) -> Seq`. (Zip two sequences into one sequence of tuples)
 - [ ] Add a variant of `log` (Maybe `tap`/`info`/`dump`/`peek`?) which accepts a single argument and also, return it. That'd be awesome: `const x = a + b + c + tap(d) + e`
 - [ ] Add more error classes to std. Add a native `Error` base class, from which managed-code errors inherit. Check `vm_inherits(error.type, vm.error_class)` in `handle_runtime_error` and - if true - use `error.type->name` as the prefix instead of `Uncaught error`.
+- [x] ~~Implement `Seq.cull(Value|Fn) -> Seq`. (Remove all elements that are equal to the argument or satisfy the predicate)~~
 - [x] ~~Add `not` for `is`: e.g. `x is not Int`~~
 - [x] ~~Add `not` for `in`: e.g. `x not in y`~~
 - [x] ~~Implement `Str.ints() -> Seq`. (Split a string into a sequence of integers (also negative ones))~~
@@ -102,12 +115,7 @@ You can, for example, easily cache stuff:
 - [ ] Add a guard in `compiler.c -> number()` to check for overflow.
 - [ ] Remove `OP_PRINT` completely in favor of native `log` function
 - [ ] Add a mimalloc segfault handler.
-- [ ] Add test for `Math.pow(Int, Int) -> Int` (Or maybe move to `Int`?)
-- [ ] Add test for `Math.xor(Int, Int) -> Int` (Or maybe move to `Int`?)
-- [ ] Add test for `Math.shl(Int, Int) -> Int` (Or maybe move to `Int`?)
-- [ ] Add test for `Math.shr(Int, Int) -> Int` (Or maybe move to `Int`?)
-- [ ] Add test for `Math.bor(Int, Int) -> Int` (Or maybe move to `Int`?)
-- [ ] Add test for `Math.band(Int, Int) -> Int` (Or maybe move to `Int`?)
+- [ ] Add tests for `Seq.cull`
 - [ ] Add test for `Str.ascii() -> Seq` which includes special characters.
 - [ ] Add test for `Str.ascii_at(Int) -> Int` which includes special characters.
 - [ ] Add test for `static Str.from_ascii(Int) -> Str` which includes special characters.
@@ -117,6 +125,12 @@ You can, for example, easily cache stuff:
 - [ ] Add test for `Str.SP_METHOD_GTEQ(Str) -> Bool`
 - [ ] Maybe check for `NULL` functions in `vm_exec_callable` instead of before calling it - would add some overhead though.
 - [ ] Collect compile-time errors as strings and print them either directly when they occur (when compiling an entry point), or, as part of a failed import error message (runtime error). Currently, the compiler pipeline directly prints to stderr, which is a little confusing, as e.g. parser errors will be printed before the runtime error message for a failed import. see `module-import-wiht-compile-error.spec.sl` for an example.
+- [x] ~~Add test for `Math.pow(Int, Int) -> Int` (Or maybe move to `Int`?)~~
+- [x] ~~Add test for `Math.xor(Int, Int) -> Int` (Or maybe move to `Int`?)~~
+- [x] ~~Add test for `Math.shl(Int, Int) -> Int` (Or maybe move to `Int`?)~~
+- [x] ~~Add test for `Math.shr(Int, Int) -> Int` (Or maybe move to `Int`?)~~
+- [x] ~~Add test for `Math.bor(Int, Int) -> Int` (Or maybe move to `Int`?)~~
+- [x] ~~Add test for `Math.band(Int, Int) -> Int` (Or maybe move to `Int`?)~~
 - [x] ~~Implement `Float.nan` and `Float.inf` constants (Would require static fields).~~
 - [x] ~~Currently, `i++` behaves more like `++i` (Which we don't support). Fix it.~~
 - [x] ~~Add `Tuple.order` test.~~
@@ -180,7 +194,6 @@ You can, for example, easily cache stuff:
   - [ ] Implement `Json.parse(Str) -> Obj`.
   - [ ] Implement `Json.stringify(Value) -> Str`.
   - [ ] Implement `Json.stringify(Value, Int) -> Str`. (Indentation)
-
 
 ---
 
