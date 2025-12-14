@@ -752,6 +752,10 @@ static void print_scope_symbolentry(int depth, SymbolEntry* entry, const char* t
     }
     case (SYMBOL_GLOBAL): {
       printf(ANSI_BLUE_STR("[global]") " ");
+      printf("state=%s ", entry->value->state == SYMSTATE_DECLARED ? "declared" : 
+                          entry->value->state == SYMSTATE_INITIALIZED ? "init" : 
+                          entry->value->state == SYMSTATE_USED ? "used" : 
+                          "unknown");
       break;
     }
     case (SYMBOL_NATIVE): {

@@ -107,6 +107,13 @@ static void resolver_warning(FnResolver* resolver, AstNode* offending_node, cons
   report_error_location(source);
 }
 
+static void report_unused(FnResolver* resolver, SymbolEntry* entry) {
+  // _ acts as the discard variable, which we'll never report.
+  if (strncmp(entry->key->chars, "_", entry->key->length) != 0) {
+    resolver_warning(resolver, entry->value->source, "Variable '%s' is declared but never used.", entry->key->chars);
+  }
+}
+
 static Scope* new_scope(FnResolver* resolver) {
   Scope* new_scope = malloc(sizeof(Scope));
   if (new_scope == NULL) {
@@ -140,8 +147,8 @@ static void end_scope(FnResolver* resolver) {
 #endif
       continue;
     }
-    if (strncmp(entry->key->chars, "_", entry->key->length) != 0) {
-      resolver_warning(resolver, entry->value->source, "Variable '%s' is declared but never used.", entry->key->chars);
+    if (entry->value->type != SYMBOL_GLOBAL) {
+      report_unused(resolver, entry);
     }
   }
 
@@ -226,7 +233,7 @@ static Symbol* add_local(FnResolver* resolver, ObjString* name, AstId* var, Symb
   return local;
 }
 
-// Adds a new global variable to the global scope. If the variable is already declared in the global scope, an error is reported.
+// Adds a new unique global variable to the global scope.
 static Symbol* add_global(FnResolver* resolver, AstId* var, SymbolState state, bool is_const) {
   Symbol* global = NULL;
   if (!scope_add_new(resolver->root_scope, var->name, (AstNode*)var, SYMBOL_GLOBAL, state, is_const, false /* is param */,
@@ -242,7 +249,7 @@ static Symbol* add_global(FnResolver* resolver, AstId* var, SymbolState state, b
       // ..or, a late-bound global, which is fine, we just shadow it
       global->source   = (AstNode*)var;
       global->type     = SYMBOL_GLOBAL;
-      global->state    = state;
+      global->state    = SYMSTATE_USED;  // late bound also means it's already referenced somewhere.
       global->is_const = is_const;
       global->is_param = false;
     } else {
@@ -267,8 +274,14 @@ static void define_variable(FnResolver* resolver, AstId* var) {
   // Find the variable's declaration
   Symbol* decl = scope_get(resolver->current_scope, var->name);
   INTERNAL_ASSERT(decl != NULL, "Could not find local variable in current scope. Forgot to declare it?");
-  INTERNAL_ASSERT(decl->state == SYMSTATE_DECLARED, "Variable must be declared before defining. Forgot to declare it?");
-  decl->state = SYMSTATE_INITIALIZED;
+
+  if (decl->state == SYMSTATE_USED) {
+    // Late-bound globals are marked as used already - we don't want to mark them as init'd again
+    INTERNAL_ASSERT(decl->type == SYMBOL_GLOBAL, "Only globals can be already marked as used at define-time");
+  } else {
+    INTERNAL_ASSERT(decl->state == SYMSTATE_DECLARED, "Variable must be declared before defining. Forgot to declare it?");
+    decl->state = SYMSTATE_INITIALIZED;
+  }
 
   var->ref = make_ref(decl);
 }
@@ -1001,15 +1014,20 @@ void resolve_children(FnResolver* resolver, AstNode* node) {
 }
 
 void verify_late_bound(FnResolver* resolver) {
-  // Check for undeclared variables in the root scope - only globals can be late-bound and all of them should be resolved by now.
+  // Check for undeclared and unused variables in the root scope - only globals can be late-bound and all of them should be
+  // resolved by now.
   for (int i = 0; i < resolver->root_scope->capacity; i++) {
     SymbolEntry* entry = &resolver->root_scope->entries[i];
     if (entry->key == NULL) {
       continue;
     }
+    INTERNAL_ASSERT(entry->value->type == SYMBOL_GLOBAL, "Root scope must only contain globals");
     if (entry->value->type == SYMBOL_UNDEFINED) {
       resolver_error(resolver, entry->value->source, "Undefined variable '%s'.", entry->key->chars);
       resolver->panic_mode = false;
+    }
+    if (entry->value->state != SYMSTATE_USED) {
+      report_unused(resolver, entry);
     }
   }
 }
@@ -1019,7 +1037,7 @@ bool resolve(AstFn* ast, HashTable* global_scope, HashTable* native_scope, bool 
 
   FnResolver resolver;
   resolver_init(&resolver, NULL, ast);
-  inject_local(&resolver, "", true);  // Local slot 0 is not accessible
+  inject_local(&resolver, "", true);  // Slot 0 is not accessible - even in the root scope which only contains globals.
 
   resolver.disable_warnings = disable_warnings;
   resolver.root_scope       = resolver.current_scope;  // The root scope is the first scope we create

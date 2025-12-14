@@ -49,7 +49,6 @@ You can, for example, easily cache stuff:
 
 ## Compiler rebuild
 
-- [ ] Fix "unused var" warnings for late-bound globals
 - [ ] Resolve natives and imports of cached modules in the compiler maybe? We could easily just look the stuff up and emit a value for it (e.g. constant, or some new OP like `OP_PRECOMPILED`) instead of looking it up in the VM.
 - [ ] Test if assignment to patterns works, because declarations do.
 - [ ] After testing: Refactor module imports without Module name (imports using "from").
@@ -59,6 +58,7 @@ You can, for example, easily cache stuff:
 - [ ] Make parser marking possible and remove disabling the GC during parsing.
 - [ ] Turn globals / natives into an array. Because we can resolve it now at compile time. This would also allow for constant time global variable lookup
 - [ ] Remove `run-old` completely
+- [x] ~~Fix "unused var" warnings for late-bound globals~~
 - [x] ~~Make REPL use the new compiler~~
 - [x] ~~Move path resolution from the compiler to the resolver.~~
 - [x] ~~Remove `in_global_scope` and `current_scope` from the compiler - that should be handled via the resolver. Currently needed for destructuring, but I think that should be possible without it.~~
