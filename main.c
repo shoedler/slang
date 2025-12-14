@@ -12,7 +12,6 @@
 
 #define CMD_REPL "repl"
 #define CMD_RUN "run"
-#define CMD_RUN_OLD "run-old"
 #define CMD___VERSION "--version"
 
 #define OPT_STRESS_GC "--stress-gc"
@@ -116,32 +115,6 @@ static SlangExitCode repl() {
   return SLANG_EXIT_SUCCESS;
 }
 
-static SlangExitCode run_old() {
-  configure_vm();
-
-  const char* path = pop_option();
-  if (path == NULL) {
-    usage("No path provided for " CMD_RUN_OLD);
-    exit(SLANG_EXIT_BAD_USAGE);
-  }
-  if (!validate_options()) {
-    usage("Unknown options for " CMD_RUN_OLD);
-    exit(SLANG_EXIT_BAD_USAGE);
-  }
-
-  vm_run_file_old(path, "main");
-
-  SlangExitCode exit_code = SLANG_EXIT_SUCCESS;
-  if (VM_HAS_FLAG(VM_FLAG_HAD_COMPILE_ERROR)) {
-    exit_code = SLANG_EXIT_COMPILE_ERROR;
-  } else if (VM_HAS_FLAG(VM_FLAG_HAD_UNCAUGHT_RUNTIME_ERROR)) {
-    exit_code = SLANG_EXIT_RUNTIME_ERROR;
-  }
-  vm_free();
-
-  return exit_code;
-}
-
 static SlangExitCode run() {
   configure_vm();
 
@@ -174,8 +147,6 @@ int main(int argc, char* argv[]) {
     code = repl();
   } else if (consume_option(CMD_RUN)) {
     code = run();
-  } else if (consume_option(CMD_RUN_OLD)) {
-    code = run_old();
   } else if (consume_option("--version")) {
     printf("slang %s\n", SLANG_VERSION);
     code = SLANG_EXIT_SUCCESS;

@@ -151,10 +151,6 @@ ObjObject* vm_start_module(const char* source_path, const char* module_name);
 // default name for anonymous functions is used - this will affect error messages.
 SlangExitCode vm_interpret(const char* source, ObjString* name, bool disable_warnings);
 
-// Reads a file from path, compiles it and then runs it. Returns the result of the interpretation as a value. Accepts an optional
-// name for the module which should result from calling this function. If NULL is provided, path is used as the name.
-Value vm_run_file_old(const char* path, const char* module_name);
-
 // Reads a module from [source_path], compiles it and then runs it. Returns the resulting module as an instance value. Accepts an
 // optional [module_name] for the module which should result from calling this function. If NULL is provided, [source_path] is
 // used as the name.

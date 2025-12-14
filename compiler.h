@@ -9,6 +9,15 @@
 
 typedef struct FnCompiler FnCompiler;
 
+typedef enum {
+  TYPE_FUNCTION,
+  TYPE_CONSTRUCTOR,
+  TYPE_METHOD,
+  TYPE_METHOD_STATIC,
+  TYPE_ANONYMOUS_FUNCTION,
+  TYPE_MODULE
+} FunctionType;
+
 struct FnCompiler {
   struct FnCompiler* enclosing;
   AstFn* function;

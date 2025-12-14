@@ -14,7 +14,6 @@
 #include "memory.h"
 #include "native.h"
 #include "object.h"
-#include "old_compiler.h"
 #include "parser.h"
 #include "resolver.h"
 #include "sys.h"
@@ -1713,63 +1712,6 @@ static ObjObject* vm_end_module(ObjObject* enclosing_module) {
   ObjObject* module = vm.module;
   vm.module         = enclosing_module;
   return module;
-}
-
-Value vm_interpret_old(const char* source, const char* source_path, const char* module_name) {
-  ObjObject* enclosing_module = vm.module;
-  bool is_module              = module_name != NULL && source_path != NULL;
-
-  if (is_module) {
-    vm_start_module(source_path, module_name);
-  }
-
-  ObjFunction* function = old_compiler_compile_module(source);
-  if (function == NULL) {
-    if (is_module) {
-      vm.module = enclosing_module;
-    }
-    return nil_value();
-  }
-
-  vm_push(fn_value((Obj*)function));  // Gc protection
-  ObjClosure* closure = new_closure(function);
-  vm_pop();
-  vm_push(fn_value((Obj*)closure));
-  call_value(fn_value((Obj*)closure), 0);
-
-  Value result = run();
-
-  if (is_module) {
-    Value out = instance_value(vm.module);
-    vm.module = enclosing_module;
-    return out;
-  }
-
-  return result;
-}
-
-Value vm_run_file_old(const char* path, const char* module_name) {
-#ifdef DEBUG_TRACE_EXECUTION
-  printf("\n");
-  printf(ANSI_CYAN_STR("Running file: %s\n"), path);
-#endif
-  const char* name = module_name == NULL ? path : module_name;
-  char* source     = file_read(path);
-
-  if (source == NULL) {
-    free(source);
-    return nil_value();
-  }
-
-  Value result = vm_interpret_old(source, path, name);
-  free(source);
-
-#ifdef DEBUG_TRACE_EXECUTION
-  printf(ANSI_CYAN_STR("Done running file: %s\n"), path);
-  printf("\n");
-#endif
-
-  return result;
 }
 
 SlangExitCode vm_interpret(const char* source, ObjString* name, bool disable_warnings) {
