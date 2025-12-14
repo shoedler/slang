@@ -57,7 +57,7 @@ You can, for example, easily cache stuff:
 - [ ] Add resolver warn for vars that could be constant.
 - [ ] Make parser marking possible and remove disabling the GC during parsing.
 - [ ] Turn globals / natives into an array. Because we can resolve it now at compile time. This would also allow for constant time global variable lookup
-- [ ] Remove `run-old` completely
+- [x] ~~Remove `run-old` completely~~
 - [x] ~~Fix "unused var" warnings for late-bound globals~~
 - [x] ~~Make REPL use the new compiler~~
 - [x] ~~Move path resolution from the compiler to the resolver.~~
