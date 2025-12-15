@@ -772,6 +772,10 @@ static void compile_expr_postfix(FnCompiler* compiler, AstExpression* expr) {
   }
 
   // TODO (optimize): That's a lot of bytecode for a simple operation.
+  // Reorder the operands for `OP_GET_PROPERTY` (and `OP_SET_PROPERTY` too) in the VM from `[recv][value] (top)` to `[value][recv] (top)`.
+  // Reorder the operands for `OP_GET_SUBSCRIPT` (and `OP_SET_SUBSCRIPT` too) in the VM from `[recv][idx][value] (top)` to `[value][idx][recv] (top)`. 
+  // Then we'd also probably need OP_SWAP and OP_ROT.
+  // This would eliminate the need for the "prelude" functions for assignment.
   compile_node(compiler, (AstNode*)inner);  // Load itself before the operation
 
   uint16_t name = emit_compound_assignment_prelude(compiler, inner);
@@ -800,6 +804,10 @@ static void compile_expr_unary(FnCompiler* compiler, AstExpression* expr) {
     }
 
     // TODO (optimize): That's a lot of bytecode for a simple operation.
+    // Reorder the operands for `OP_GET_PROPERTY` (and `OP_SET_PROPERTY` too) in the VM from `[recv][value] (top)` to `[value][recv] (top)`.
+    // Reorder the operands for `OP_GET_SUBSCRIPT` (and `OP_SET_SUBSCRIPT` too) in the VM from `[recv][idx][value] (top)` to `[value][idx][recv] (top)`. 
+    // Then we'd also probably need OP_SWAP and OP_ROT.
+    // This would eliminate the need for the "prelude" functions for assignment.
     uint16_t name = emit_compound_assignment_prelude(compiler, inner);
     emit_constant(compiler, int_value(1), (AstNode*)expr);  // Load the increment/decrement value
     emit_one(compiler, op, (AstNode*)inner);
@@ -841,6 +849,10 @@ static void compile_expr_assign(FnCompiler* compiler, AstExpression* expr) {
   }
 
   // TODO (optimize): That's a lot of bytecode for a simple operation.
+  // Reorder the operands for `OP_GET_PROPERTY` (and `OP_SET_PROPERTY` too) in the VM from `[recv][value] (top)` to `[value][recv]
+  // (top)`. Reorder the operands for `OP_GET_SUBSCRIPT` (and `OP_SET_SUBSCRIPT` too) in the VM from `[recv][idx][value] (top)` to
+  // `[value][idx][recv] (top)`. Then we'd also probably need OP_SWAP and OP_ROT. This would eliminate the need for the "prelude"
+  // functions for assignment.
   uint16_t name = emit_compound_assignment_prelude(compiler, left);
   compile_node(compiler, (AstNode*)right);
   emit_one(compiler, op, (AstNode*)expr);
