@@ -2,6 +2,38 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Debug: Run Sample (Unix)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/bin/x64/debug/slang",
+      "args": ["run", "${workspaceFolder}/sample.sl"],
+      "stopAtEntry": false,
+      "cwd": "${fileDirname}",
+      "environment": [
+        // mimalloc conf, see https://github.com/microsoft/mimalloc?tab=readme-ov-file#environment-options
+        {
+          "name": "MIMALLOC_SHOW_ERRORS",
+          "value": "1"
+        }
+      ],
+      "externalConsole": false,
+      "preLaunchTask": "gcc-make-debug",
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Set Disassembly Flavor to Intel",
+          "text": "-gdb-set disassembly-flavor intel",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
       "name": "Debug: Run Sample",
       "type": "cppdbg",
       "request": "launch",
